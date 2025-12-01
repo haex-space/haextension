@@ -1,0 +1,8 @@
+{
+  "name": "haextension",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
