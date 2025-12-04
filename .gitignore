@@ -29,3 +29,6 @@ pnpm-debug.log*
 # Lock files (keep pnpm-lock.yaml)
 package-lock.json
 yarn.lock
+
+CLAUDE.md
+.claude

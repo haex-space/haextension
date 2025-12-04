@@ -17,5 +17,5 @@
     "shell": []
   },
   "homepage": null,
-  "single_instance": true
+  "singleInstance": true
 }
