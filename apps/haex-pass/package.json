@@ -1,6 +1,6 @@
 {
   "name": "haex-pass",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "type": "module",
   "private": true,
   "scripts": {
@@ -11,18 +11,18 @@
     "postinstall": "nuxt prepare",
     "package": "haex sign .output/public",
     "build:release": "pnpm build && pnpm package",
+    "build:patch": "node scripts/bump-version.js patch && pnpm build:release",
+    "build:minor": "node scripts/bump-version.js minor && pnpm build:release",
+    "build:major": "node scripts/bump-version.js major && pnpm build:release",
     "ext:dev": "haex dev",
     "ext:build": "nuxt build --preset static && haex sign .output/public",
     "db:generate": "drizzle-kit generate && npx tsx scripts/fix-migrations.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "release:patch": "node scripts/release.js patch",
-    "release:minor": "node scripts/release.js minor",
-    "release:major": "node scripts/release.js major"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.2.1",
+    "@haex-space/vault-sdk": "^2.2.2",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.10.0",
     "@nuxt/icon": "^2.1.0",

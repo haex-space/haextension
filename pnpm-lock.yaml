@@ -11,8 +11,8 @@ importers:
   apps/haex-pass:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.2.1
-        version: 2.2.1(@nuxt/kit@4.2.1(magicast@0.5.1))(vite@7.2.6(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        specifier: ^2.2.2
+        version: 2.2.2(@nuxt/kit@4.2.1(magicast@0.5.1))(vite@7.2.6(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.25(typescript@5.9.3))
@@ -865,8 +865,8 @@ packages:
   '@floating-ui/vue@1.1.9':
     resolution: {integrity: sha512-BfNqNW6KA83Nexspgb9DZuz578R7HT8MZw1CfK9I6Ah4QReNWEJsXWHN+SdmOVLNGmTPDi+fDT535Df5PzMLbQ==}
 
-  '@haex-space/vault-sdk@2.2.1':
-    resolution: {integrity: sha512-pdU+Q4/TCQh/6gB33iUzU2948/m3butZt83OmL7t6WID71nhtmZccj6uym/qO9ZUfFwFp1HzIFZcktj6+NJ17g==}
+  '@haex-space/vault-sdk@2.2.2':
+    resolution: {integrity: sha512-00lm883gbGuHyjNgQyD0PMmK2I0hf7Mm5vsKejQuAB/Ywp1cIo49lFQQhV6B71YXWy5wuyXR/pcU4q3JKlZ39A==}
     hasBin: true
     peerDependencies:
       '@nuxt/kit': ^3.0.0 || ^4.0.0
@@ -5945,7 +5945,7 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@haex-space/vault-sdk@2.2.1(@nuxt/kit@4.2.1(magicast@0.5.1))(vite@7.2.6(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+  '@haex-space/vault-sdk@2.2.2(@nuxt/kit@4.2.1(magicast@0.5.1))(vite@7.2.6(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
     dependencies:
       archiver: 7.0.1
       commander: 14.0.2
