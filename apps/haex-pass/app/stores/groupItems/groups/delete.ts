@@ -3,8 +3,7 @@ import type { IPasswordMenuItem } from '~/types/password'
 import type { SelectHaexPasswordsGroups } from '~/database'
 import { haexPasswordsGroups, haexPasswordsGroupItems } from '~/database'
 import { cleanupOrphanedBinariesAsync } from '~/utils/cleanup'
-
-export const trashId = 'trash'
+import { trashId } from './index'
 
 /**
  * Store for deleting groups and items (with trash support)

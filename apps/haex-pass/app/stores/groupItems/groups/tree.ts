@@ -1,5 +1,5 @@
 import type { SelectHaexPasswordsGroups } from '~/database'
-import { trashId } from './delete'
+import { trashId } from './index'
 
 /**
  * Store for tree-related group logic
