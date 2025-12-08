@@ -377,9 +377,15 @@ const updateAsync = async ({
   attachmentsToDelete?: AttachmentWithSize[];
   groupId?: string | null;
 }) => {
+  console.log('[Store] updateAsync called with details.id:', details.id);
   const haexhubStore = useHaexVaultStore();
 
-  if (!details.id) return;
+  if (!details.id) {
+    console.log('[Store] updateAsync - early return, no details.id');
+    return;
+  }
+
+  console.log('[Store] updateAsync - orm available:', !!haexhubStore.orm);
 
   const newDetails: InsertHaexPasswordsItemDetails = {
     id: details.id,
@@ -415,11 +421,15 @@ const updateAsync = async ({
   try {
     if (!haexhubStore.orm) throw new Error("Database not initialized");
 
+    console.log('[Store] updateAsync - updating item details:', newDetails);
+
     // Update item details
-    await haexhubStore.orm
+    const updateResult = await haexhubStore.orm
       .update(haexPasswordsItemDetails)
       .set(newDetails)
       .where(eq(haexPasswordsItemDetails.id, newDetails.id));
+
+    console.log('[Store] updateAsync - update result:', updateResult);
 
     // Update group item relation (only if groupId is explicitly provided)
     if (groupId !== undefined) {

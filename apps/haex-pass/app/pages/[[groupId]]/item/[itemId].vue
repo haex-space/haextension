@@ -149,12 +149,8 @@ import { X, Trash2, Pencil, Save } from "lucide-vue-next";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,
-  SelectHaexPasswordsItemBinaries,
 } from "~/database";
-
-interface AttachmentWithSize extends SelectHaexPasswordsItemBinaries {
-  size?: number;
-}
+import type { AttachmentWithSize } from "~/types/attachment";
 
 definePageMeta({
   name: "passwordItemEdit",
@@ -175,7 +171,7 @@ const keyValuesDelete = ref<SelectHaexPasswordsItemKeyValues[]>([]);
 // Attachments tracking
 const attachments = ref<AttachmentWithSize[]>([]);
 const attachmentsToAdd = ref<AttachmentWithSize[]>([]);
-const attachmentsToDelete = ref<SelectHaexPasswordsItemBinaries[]>([]);
+const attachmentsToDelete = ref<AttachmentWithSize[]>([]);
 
 // Tabs configuration
 const tabs = computed(() => [
@@ -273,7 +269,24 @@ const onConfirmDiscardChanges = () => {
 };
 
 const onSaveAsync = async () => {
-  if (!currentItem.value || !editableDetails.value.id) return;
+  console.log('[ItemEdit] onSaveAsync called');
+  console.log('[ItemEdit] currentItem:', currentItem.value);
+  console.log('[ItemEdit] editableDetails.id:', editableDetails.value.id);
+
+  if (!currentItem.value || !editableDetails.value.id) {
+    console.log('[ItemEdit] Early return - missing currentItem or id');
+    return;
+  }
+
+  console.log('[ItemEdit] Calling updateAsync with:', {
+    details: editableDetails.value,
+    keyValues: currentItem.value.keyValues,
+    keyValuesAdd: keyValuesAdd.value,
+    keyValuesDelete: keyValuesDelete.value,
+    attachments: attachments.value,
+    attachmentsToAdd: attachmentsToAdd.value,
+    attachmentsToDelete: attachmentsToDelete.value,
+  });
 
   try {
     await updateAsync({
@@ -285,11 +298,14 @@ const onSaveAsync = async () => {
       attachmentsToAdd: attachmentsToAdd.value,
       attachmentsToDelete: attachmentsToDelete.value,
     });
+    console.log('[ItemEdit] updateAsync completed');
 
     await syncGroupItemsAsync();
+    console.log('[ItemEdit] syncGroupItemsAsync completed');
 
     // Reload current item to get updated attachments with data
     const updatedItem = await readAsync(editableDetails.value.id);
+    console.log('[ItemEdit] readAsync result:', updatedItem);
     if (updatedItem) {
       currentItem.value = updatedItem;
     }
@@ -304,8 +320,9 @@ const onSaveAsync = async () => {
     keyValuesDelete.value = [];
     attachmentsToAdd.value = [];
     attachmentsToDelete.value = [];
+    console.log('[ItemEdit] Save completed successfully');
   } catch (error) {
-    console.error("Error saving item:", error);
+    console.error("[ItemEdit] Error saving item:", error);
     // TODO: Show error toast
   }
 };
