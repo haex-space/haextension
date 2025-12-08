@@ -258,8 +258,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     if (!haexhubStore.orm) throw new Error('Database not initialized')
     if (!group.id) return
 
-    const newGroup: InsertHaexPasswordsGroups = {
-      id: group.id,
+    // Don't include id in the SET clause - only use it in WHERE
+    const updateData = {
       color: group.color,
       description: group.description,
       icon: group.icon,
@@ -270,8 +270,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
 
     return await haexhubStore.orm
       .update(haexPasswordsGroups)
-      .set(newGroup)
-      .where(eq(haexPasswordsGroups.id, newGroup.id))
+      .set(updateData)
+      .where(eq(haexPasswordsGroups.id, group.id))
   }
 
   // === Helper Functions ===

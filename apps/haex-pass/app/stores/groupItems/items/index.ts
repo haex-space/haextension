@@ -387,8 +387,8 @@ const updateAsync = async ({
 
   console.log('[Store] updateAsync - orm available:', !!haexhubStore.orm);
 
-  const newDetails: InsertHaexPasswordsItemDetails = {
-    id: details.id,
+  // Don't include id in SET clause - only use it in WHERE
+  const updateDetails = {
     icon: details.icon,
     color: details.color,
     note: details.note,
@@ -403,7 +403,7 @@ const updateAsync = async ({
   const newKeyValues: InserthaexPasswordsItemKeyValues[] = keyValues
     .map((keyValue) => ({
       id: keyValue.id,
-      itemId: newDetails.id,
+      itemId: details.id,
       key: keyValue.key,
       value: keyValue.value,
     }))
@@ -412,7 +412,7 @@ const updateAsync = async ({
   const newKeyValuesAdd: InserthaexPasswordsItemKeyValues[] = keyValuesAdd.map(
     (keyValue) => ({
       id: keyValue.id || crypto.randomUUID(),
-      itemId: newDetails.id,
+      itemId: details.id,
       key: keyValue.key,
       value: keyValue.value,
     })
@@ -421,13 +421,13 @@ const updateAsync = async ({
   try {
     if (!haexhubStore.orm) throw new Error("Database not initialized");
 
-    console.log('[Store] updateAsync - updating item details:', newDetails);
+    console.log('[Store] updateAsync - updating item details:', updateDetails);
 
     // Update item details
     const updateResult = await haexhubStore.orm
       .update(haexPasswordsItemDetails)
-      .set(newDetails)
-      .where(eq(haexPasswordsItemDetails.id, newDetails.id));
+      .set(updateDetails)
+      .where(eq(haexPasswordsItemDetails.id, details.id));
 
     console.log('[Store] updateAsync - update result:', updateResult);
 
@@ -435,8 +435,8 @@ const updateAsync = async ({
     if (groupId !== undefined) {
       await haexhubStore.orm
         .update(haexPasswordsGroupItems)
-        .set({ itemId: newDetails.id, groupId })
-        .where(eq(haexPasswordsGroupItems.itemId, newDetails.id));
+        .set({ itemId: details.id, groupId })
+        .where(eq(haexPasswordsGroupItems.itemId, details.id));
     }
 
     // Update existing key values
@@ -517,7 +517,7 @@ const updateAsync = async ({
           .insert(haexPasswordsItemBinaries)
           .values({
             id: crypto.randomUUID(),
-            itemId: newDetails.id,
+            itemId: details.id,
             binaryHash,
             fileName: attachment.fileName,
           });
@@ -538,17 +538,17 @@ const updateAsync = async ({
     const currentAttachments = await haexhubStore.orm
       .select()
       .from(haexPasswordsItemBinaries)
-      .where(eq(haexPasswordsItemBinaries.itemId, newDetails.id));
+      .where(eq(haexPasswordsItemBinaries.itemId, details.id));
 
     const allKeyValues = [...newKeyValues, ...newKeyValuesAdd];
     const snapshotData = {
-      title: newDetails.title,
-      username: newDetails.username,
-      password: newDetails.password,
-      url: newDetails.url,
-      note: newDetails.note,
-      tags: newDetails.tags,
-      otpSecret: newDetails.otpSecret,
+      title: details.title,
+      username: details.username,
+      password: details.password,
+      url: details.url,
+      note: details.note,
+      tags: details.tags,
+      otpSecret: details.otpSecret,
       keyValues: allKeyValues.map(kv => ({ key: kv.key, value: kv.value })),
       attachments: currentAttachments.map(att => ({
         fileName: att.fileName,
@@ -558,13 +558,13 @@ const updateAsync = async ({
 
     await haexhubStore.orm.insert(haexPasswordsItemSnapshots).values({
       id: crypto.randomUUID(),
-      itemId: newDetails.id,
+      itemId: details.id,
       snapshotData: JSON.stringify(snapshotData),
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
     });
 
-    return newDetails.id;
+    return details.id;
   } catch (error) {
     console.error("ERROR updateItem", error);
     throw error;
