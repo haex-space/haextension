@@ -70,7 +70,8 @@ const { t } = useI18n();
 
 // Auto-focus on name field
 const nameRef = useTemplateRef("nameRef");
-useFocus(nameRef, { initialValue: true });
+const nameEl = computed<HTMLElement | undefined>(() => nameRef.value?.$el);
+useFocus(nameEl, { initialValue: true });
 
 // Computed properties to handle null -> undefined conversion for UiInput/UiTextarea
 const groupName = computed({

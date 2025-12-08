@@ -16,9 +16,7 @@
               (currentSelectedItem?.id === item.id &&
                 longPressedHook &&
                 !selectedItems.has(item)),
-            'opacity-60 shadow-primary': selectedGroupItems?.some(
-              (_item) => _item.id === item.id
-            ),
+            'opacity-60 shadow-primary': currentGroupItems?.has(item.id),
             'opacity-50': item.inTrash,
           }"
           :style="{ '--motion-delay': `${50 * index}ms` }"
@@ -121,5 +119,5 @@ onClickOutside(listRef, async () => {
   }, 50);
 });
 
-const { selectedGroupItems } = storeToRefs(usePasswordGroupStore());
+const { currentGroupItems } = storeToRefs(usePasswordGroupStore());
 </script>

@@ -66,7 +66,7 @@ export function arrayBufferToBase64(arrayBuffer: ArrayBuffer): string {
   const uint8Array = new Uint8Array(arrayBuffer);
   let binary = '';
   for (let i = 0; i < uint8Array.length; i++) {
-    binary += String.fromCharCode(uint8Array[i]);
+    binary += String.fromCharCode(uint8Array[i]!);
   }
   return btoa(binary);
 }

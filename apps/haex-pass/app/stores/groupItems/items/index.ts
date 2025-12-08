@@ -13,15 +13,9 @@ import {
   type SelectHaexPasswordsItemDetails,
   type SelectHaexPasswordsItemKeyValues,
   type SelectHaexPasswordsItemSnapshots,
-  type SelectHaexPasswordsItemBinaries,
 } from "~/database";
 import { getSingleRouteParam } from "~/utils/helper";
-
-// Extended type for attachments with binary data (used when adding new attachments)
-interface AttachmentWithData extends SelectHaexPasswordsItemBinaries {
-  data: string;
-  size: number;
-}
+import type { AttachmentWithSize } from "~/types/attachment";
 
 export const usePasswordItemStore = defineStore("passwordItemStore", () => {
   const currentItemId = computed({
@@ -36,7 +30,7 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
     details: SelectHaexPasswordsItemDetails;
     snapshots: SelectHaexPasswordsItemSnapshots[];
     keyValues: SelectHaexPasswordsItemKeyValues[];
-    attachments: SelectHaexPasswordsItemBinaries[];
+    attachments: AttachmentWithSize[];
   } | null>(null);
 
   // Watch currentItemId and update currentItem
@@ -378,9 +372,9 @@ const updateAsync = async ({
   keyValues: SelectHaexPasswordsItemKeyValues[];
   keyValuesAdd: SelectHaexPasswordsItemKeyValues[];
   keyValuesDelete: SelectHaexPasswordsItemKeyValues[];
-  attachments?: SelectHaexPasswordsItemBinaries[];
-  attachmentsToAdd?: AttachmentWithData[];
-  attachmentsToDelete?: SelectHaexPasswordsItemBinaries[];
+  attachments?: AttachmentWithSize[];
+  attachmentsToAdd?: AttachmentWithSize[];
+  attachmentsToDelete?: AttachmentWithSize[];
   groupId?: string | null;
 }) => {
   const haexhubStore = useHaexVaultStore();

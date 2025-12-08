@@ -225,24 +225,11 @@ import PhotoSwipeLightbox from "photoswipe/lightbox";
 import "photoswipe/style.css";
 import { eq } from "drizzle-orm";
 import { haexPasswordsBinaries } from "~/database";
-import type { SelectHaexPasswordsItemBinaries } from "~/database";
 import { getFileType, isImage, formatFileSize, type FileType } from "~/utils/fileTypes";
+import type { AttachmentWithSize } from "~/types/attachment";
 
-// Type for existing attachments from database
-interface ExistingAttachment extends SelectHaexPasswordsItemBinaries {
-  size?: number;
-}
-
-// Type for new attachments being added (with base64 data)
-interface NewAttachment extends ExistingAttachment {
-  data: string; // base64 data with or without data URL prefix
-}
-
-// Union type for both existing and new attachments
-type Attachment = ExistingAttachment | NewAttachment;
-
-// Type guard to check if attachment is a new attachment with data
-function isNewAttachment(attachment: Attachment): attachment is NewAttachment {
+// Type guard to check if attachment has data (new attachment)
+function isNewAttachment(attachment: AttachmentWithSize): boolean {
   return 'data' in attachment && typeof attachment.data === 'string';
 }
 
@@ -251,11 +238,11 @@ defineProps<{
   readOnly?: boolean;
 }>();
 
-const attachments = defineModel<ExistingAttachment[]>({ default: [] });
-const attachmentsToAdd = defineModel<NewAttachment[]>("attachmentsToAdd", {
+const attachments = defineModel<AttachmentWithSize[]>({ default: [] });
+const attachmentsToAdd = defineModel<AttachmentWithSize[]>("attachmentsToAdd", {
   default: [],
 });
-const attachmentsToDelete = defineModel<SelectHaexPasswordsItemBinaries[]>(
+const attachmentsToDelete = defineModel<AttachmentWithSize[]>(
   "attachmentsToDelete",
   { default: [] }
 );
@@ -273,7 +260,7 @@ const editingFileName = ref<string>("");
 // Viewer state
 const viewerState = reactive<{
   open: boolean;
-  attachment: Attachment | null;
+  attachment: AttachmentWithSize | null;
   fileType: FileType | null;
   dataUrl: string | null;
 }>({
@@ -284,20 +271,18 @@ const viewerState = reactive<{
 });
 
 // Get attachment data
-function getAttachmentData(attachment: Attachment): string | undefined {
+function getAttachmentData(attachment: AttachmentWithSize): string | undefined {
   // Check if this is a new attachment with data
-  if (!isNewAttachment(attachment)) {
+  if (!isNewAttachment(attachment) || !attachment.data) {
     return undefined;
   }
 
-  const data = attachment.data;
-
   // Create data URL with appropriate MIME type
-  return createDataUrl(data, attachment.fileName);
+  return createDataUrl(attachment.data, attachment.fileName);
 }
 
 // Open viewer based on file type
-function openViewer(attachment: Attachment) {
+function openViewer(attachment: AttachmentWithSize) {
   const fileType = getFileType(attachment.fileName);
 
   // For images, use PhotoSwipe gallery
@@ -322,7 +307,7 @@ function openViewer(attachment: Attachment) {
 }
 
 // Open PhotoSwipe gallery
-async function openGallery(attachment: Attachment) {
+async function openGallery(attachment: AttachmentWithSize) {
   // Combine all attachments (existing + new)
   const allAttachments = [...attachments.value, ...attachmentsToAdd.value];
   const images = allAttachments.filter((a) => isImage(a.fileName));
@@ -370,24 +355,24 @@ async function openGallery(attachment: Attachment) {
 }
 
 // Remove existing attachment
-function removeExistingAttachment(attachment: ExistingAttachment) {
+function removeExistingAttachment(attachment: AttachmentWithSize) {
   attachmentsToDelete.value = [...attachmentsToDelete.value, attachment];
   attachments.value = attachments.value.filter((a) => a.id !== attachment.id);
 }
 
 // Remove new attachment
-function removeNewAttachment(attachment: NewAttachment) {
+function removeNewAttachment(attachment: AttachmentWithSize) {
   attachmentsToAdd.value = attachmentsToAdd.value.filter((a) => a.id !== attachment.id);
 }
 
 // Start editing attachment filename
-function startEditingFileName(attachment: Attachment) {
+function startEditingFileName(attachment: AttachmentWithSize) {
   editingAttachment.value = attachment.id;
   editingFileName.value = attachment.fileName;
 }
 
 // Save edited filename
-function saveFileName(attachment: Attachment) {
+function saveFileName(attachment: AttachmentWithSize) {
   if (editingFileName.value.trim()) {
     attachment.fileName = editingFileName.value.trim();
   }
@@ -402,7 +387,7 @@ function cancelEditing() {
 }
 
 // Download attachment
-async function downloadAttachment(attachment: Attachment) {
+async function downloadAttachment(attachment: AttachmentWithSize) {
   if (!client) {
     console.error("[Attachments] Download - HaexHub client not available");
     return;
@@ -415,7 +400,7 @@ async function downloadAttachment(attachment: Attachment) {
     let base64Data: string;
 
     // Check if this is a new attachment (has data property) or existing (needs DB lookup)
-    if (isNewAttachment(attachment)) {
+    if (isNewAttachment(attachment) && attachment.data) {
       // New attachment - use the data directly
       base64Data = attachment.data;
       console.log("[Attachments] Download - Using data from new attachment");
@@ -499,7 +484,7 @@ async function onFileChange(event: Event) {
       const base64Data = reader.result as string;
 
       // Create a temporary attachment object
-      const newAttachment: NewAttachment = {
+      const newAttachment: AttachmentWithSize = {
         id: crypto.randomUUID(),
         itemId: "", // Will be set when saving
         binaryHash: "", // Will be calculated when saving

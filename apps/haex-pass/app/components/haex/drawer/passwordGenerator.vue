@@ -379,7 +379,8 @@ const loadPresetsAsync = async () => {
 };
 
 // Load preset into options
-const loadPresetAsync = async (id: string) => {
+const loadPresetAsync = async (id: unknown) => {
+  if (typeof id !== 'string') return;
   const preset = presets.value.find((p) => p.id === id);
   if (!preset) return;
 

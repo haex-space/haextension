@@ -145,7 +145,8 @@ const tags = computed<string[]>({
 });
 
 const titleRef = useTemplateRef("titleRef");
-const { focused } = useFocus(titleRef);
+const titleEl = computed<HTMLElement | undefined>(() => titleRef.value?.$el);
+const { focused } = useFocus(titleEl);
 
 onStartTyping(() => {
   focused.value = true;

@@ -109,14 +109,8 @@
 <script setup lang="ts">
 import { useClipboard, useFocus } from "@vueuse/core";
 import { Plus, Trash2, Copy, Check } from "lucide-vue-next";
-import type {
-  SelectHaexPasswordsItemKeyValues,
-  SelectHaexPasswordsItemBinaries,
-} from "~/database";
-
-interface AttachmentWithSize extends SelectHaexPasswordsItemBinaries {
-  size?: number;
-}
+import type { SelectHaexPasswordsItemKeyValues } from "~/database";
+import type { AttachmentWithSize } from "~/types/attachment";
 
 const { itemId, readOnly } = defineProps<{
   readOnly?: boolean;
@@ -140,7 +134,7 @@ const attachments = defineModel<AttachmentWithSize[]>("attachments", {
 const attachmentsToAdd = defineModel<AttachmentWithSize[]>("attachmentsToAdd", {
   default: [],
 });
-const attachmentsToDelete = defineModel<SelectHaexPasswordsItemBinaries[]>(
+const attachmentsToDelete = defineModel<AttachmentWithSize[]>(
   "attachmentsToDelete",
   { default: [] }
 );

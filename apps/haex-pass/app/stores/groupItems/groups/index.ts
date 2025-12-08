@@ -145,13 +145,11 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     )
 
     // If exactly one folder exists, navigate into it
-    if (rootGroups.length === 1) {
-      const singleFolder = rootGroups[0]
-      const localePath = useLocalePath()
+    if (rootGroups.length === 1 && rootGroups[0]) {
       await navigateTo(
-        localePath({
+        useLocalePath()({
           name: 'passwordGroupItems',
-          params: { groupId: singleFolder.id },
+          params: { groupId: rootGroups[0].id },
         })
       )
     }

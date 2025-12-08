@@ -124,8 +124,8 @@ export const useIconComponents = () => {
           const haexHubStore = useHaexVaultStore();
 
           onMounted(async () => {
-            if (haexHubStore.db) {
-              const base64Data = await getBinaryDataAsync(haexHubStore.db, hash);
+            if (haexHubStore.orm) {
+              const base64Data = await getBinaryDataAsync(haexHubStore.orm, hash);
               if (base64Data) {
                 src.value = `data:image/png;base64,${base64Data}`;
               }

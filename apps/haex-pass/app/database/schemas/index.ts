@@ -6,13 +6,16 @@ import {
   text,
   type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
+import { getTableName } from "@haex-space/vault-sdk";
 import manifest from "../../../haextension/manifest.json";
+import packageJson from "../../../package.json";
 
-// Helper function to create prefixed table names
-const getTableName = (name: string) => `${manifest.publicKey}__${manifest.name}__${name}`;
+// Helper function to create prefixed table names (with fallback to package.json for name)
+const extensionName = (manifest as { name?: string }).name || packageJson.name;
+const tableName = (name: string) => getTableName(manifest.publicKey, extensionName, name);
 
 export const haexPasswordsItemDetails = sqliteTable(
-  getTableName("haex_passwords_item_details"),
+  tableName("haex_passwords_item_details"),
   {
     id: text().primaryKey(),
     title: text(),
@@ -36,7 +39,7 @@ export type SelectHaexPasswordsItemDetails =
   typeof haexPasswordsItemDetails.$inferSelect;
 
 export const haexPasswordsItemKeyValues = sqliteTable(
-  getTableName("haex_passwords_item_key_values"),
+  tableName("haex_passwords_item_key_values"),
   {
     id: text().primaryKey(),
     itemId: text("item_id").references(
@@ -56,7 +59,7 @@ export type SelectHaexPasswordsItemKeyValues =
   typeof haexPasswordsItemKeyValues.$inferSelect;
 
 export const haexPasswordsGroups = sqliteTable(
-  getTableName("haex_passwords_groups"),
+  tableName("haex_passwords_groups"),
   {
     id: text().primaryKey(),
     name: text(),
@@ -78,7 +81,7 @@ export type InsertHaexPasswordsGroups = typeof haexPasswordsGroups.$inferInsert;
 export type SelectHaexPasswordsGroups = typeof haexPasswordsGroups.$inferSelect;
 
 export const haexPasswordsGroupItems = sqliteTable(
-  getTableName("haex_passwords_group_items"),
+  tableName("haex_passwords_group_items"),
   {
     groupId: text("group_id").references(
       (): AnySQLiteColumn => haexPasswordsGroups.id,
@@ -98,7 +101,7 @@ export type SelectHaexPasswordsGroupItems =
 
 // Zentrale Binary-Tabelle (dedupliziert via SHA-256 Hash)
 export const haexPasswordsBinaries = sqliteTable(
-  getTableName("haex_passwords_binaries"),
+  tableName("haex_passwords_binaries"),
   {
     hash: text().primaryKey(), // SHA-256 hash als Primary Key
     data: text().notNull(), // Base64-encoded binary data
@@ -114,7 +117,7 @@ export type SelectHaexPasswordsBinaries =
 
 // Entry → Binary Mapping (unterstützt mehrere Attachments pro Entry)
 export const haexPasswordsItemBinaries = sqliteTable(
-  getTableName("haex_passwords_item_binaries"),
+  tableName("haex_passwords_item_binaries"),
   {
     id: text().primaryKey(),
     itemId: text("item_id")
@@ -137,7 +140,7 @@ export type SelectHaexPasswordsItemBinaries =
 
 // Entry History Snapshots (wie KeePass - komplette Entry-Snapshots)
 export const haexPasswordsItemSnapshots = sqliteTable(
-  getTableName("haex_passwords_item_snapshots"),
+  tableName("haex_passwords_item_snapshots"),
   {
     id: text().primaryKey(),
     itemId: text("item_id")
@@ -159,7 +162,7 @@ export type SelectHaexPasswordsItemSnapshots =
 
 // Snapshot → Binary Mapping (für History-Attachments)
 export const haexPasswordsSnapshotBinaries = sqliteTable(
-  getTableName("haex_passwords_snapshot_binaries"),
+  tableName("haex_passwords_snapshot_binaries"),
   {
     id: text().primaryKey(),
     snapshotId: text("snapshot_id")
@@ -182,7 +185,7 @@ export type SelectHaexPasswordsSnapshotBinaries =
 
 // Password Generator Presets
 export const haexPasswordsGeneratorPresets = sqliteTable(
-  getTableName("haex_passwords_generator_presets"),
+  tableName("haex_passwords_generator_presets"),
   {
     id: text().primaryKey(),
     name: text().notNull(),
