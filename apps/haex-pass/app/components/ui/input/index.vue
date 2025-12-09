@@ -32,6 +32,14 @@ const inputPaddingRight = computed(() => {
   }
   return '0.75rem' // pr-3 (default)
 })
+
+const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
+
+const focus = () => {
+  inputRef.value?.focus()
+}
+
+defineExpose({ focus, el: inputRef })
 </script>
 
 <template>
@@ -46,6 +54,7 @@ const inputPaddingRight = computed(() => {
 
     <!-- Input field -->
     <input
+      ref="inputRef"
       v-model="modelValue"
       v-bind="$attrs"
       data-slot="input"

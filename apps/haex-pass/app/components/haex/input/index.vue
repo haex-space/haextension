@@ -1,6 +1,7 @@
 <template>
   <UiInputGroup>
     <UiInputGroupInput
+      ref="inputRef"
       v-model="model"
       v-bind="$attrs"
     />
@@ -30,6 +31,14 @@ const handleCopy = async () => {
     await copy(resolvedValue || String(model.value));
   }
 };
+
+const inputRef = useTemplateRef<{ focus: () => void; el: HTMLInputElement }>("inputRef");
+
+const focus = () => {
+  inputRef.value?.focus();
+};
+
+defineExpose({ focus, el: computed(() => inputRef.value?.el) });
 </script>
 
 <i18n lang="yaml">

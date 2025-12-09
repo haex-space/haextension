@@ -52,7 +52,6 @@
 </template>
 
 <script setup lang="ts">
-import { useFocus } from "@vueuse/core";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const group = defineModel<SelectHaexPasswordsGroups>({ required: true });
@@ -69,9 +68,13 @@ defineEmits<{
 const { t } = useI18n();
 
 // Auto-focus on name field
-const nameRef = useTemplateRef("nameRef");
-const nameEl = computed<HTMLElement | undefined>(() => nameRef.value?.$el);
-useFocus(nameEl, { initialValue: true });
+const nameRef = useTemplateRef<{ focus: () => void }>("nameRef");
+
+onMounted(() => {
+  nextTick(() => {
+    nameRef.value?.focus();
+  });
+});
 
 // Computed properties to handle null -> undefined conversion for UiInput/UiTextarea
 const groupName = computed({

@@ -49,7 +49,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
     const haexhubStore = useHaexVaultStore()
     if (!haexhubStore.orm) throw new Error('Database not initialized')
 
-    const { updateAsync, getChildGroupsRecursiveAsync } = usePasswordGroupStore()
+    const { updateParentAsync, getChildGroupsRecursiveAsync } = usePasswordGroupStore()
     const { deleteAsync: deleteItemAsync } = usePasswordItemStore()
 
     if (final || groupId === trashId) {
@@ -89,8 +89,9 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
         .delete(haexPasswordsGroups)
         .where(eq(haexPasswordsGroups.id, groupId))
     } else {
+      // Move to trash - only update parentId, preserve all other fields
       if (await createTrashIfNotExistsAsync())
-        await updateAsync({ id: groupId, parentId: trashId })
+        await updateParentAsync(groupId, trashId)
     }
   }
 

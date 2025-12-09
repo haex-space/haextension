@@ -274,6 +274,19 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       .where(eq(haexPasswordsGroups.id, group.id))
   }
 
+  /**
+   * Update only the parentId of a group (for moving to trash or reordering)
+   */
+  const updateParentAsync = async (groupId: string, parentId: string | null) => {
+    const haexhubStore = useHaexVaultStore()
+    if (!haexhubStore.orm) throw new Error('Database not initialized')
+
+    return await haexhubStore.orm
+      .update(haexPasswordsGroups)
+      .set({ parentId })
+      .where(eq(haexPasswordsGroups.id, groupId))
+  }
+
   // === Helper Functions ===
 
   /**
@@ -391,6 +404,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     readGroupsAsync,
     readGroupItemsAsync,
     updateAsync,
+    updateParentAsync,
     // Helpers
     getChildGroupsRecursiveAsync,
     areGroupsEqual,

@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { onStartTyping, useFocus } from "@vueuse/core";
+import { onStartTyping } from "@vueuse/core";
 import type { SelectHaexPasswordsItemDetails } from "~/database";
 
 defineProps<{
@@ -144,12 +144,16 @@ const tags = computed<string[]>({
   },
 });
 
-const titleRef = useTemplateRef("titleRef");
-const titleEl = computed<HTMLElement | undefined>(() => titleRef.value?.$el);
-const { focused } = useFocus(titleEl);
+const titleRef = useTemplateRef<{ focus: () => void }>("titleRef");
+
+onMounted(() => {
+  nextTick(() => {
+    titleRef.value?.focus();
+  });
+});
 
 onStartTyping(() => {
-  focused.value = true;
+  titleRef.value?.focus();
 });
 
 const onFaviconFetched = (iconName: string) => {

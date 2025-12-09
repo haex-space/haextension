@@ -201,36 +201,59 @@ const onPasteAsync = async () => {
 const onDeleteAsync = async () => {
   if (!selectionStore.selectedItems.size) return;
 
-  // Determine item name(s) for dialog
   const { groups } = usePasswordGroupStore();
-  const { items } = usePasswordItemStore();
-  const selectedCount = selectionStore.selectedItems.size;
+  const { items, prepareDeleteItems } = usePasswordItemStore();
+  const selectedIds = Array.from(selectionStore.selectedItems);
 
-  if (selectedCount === 1) {
-    // Single item selected - show specific name
-    const itemId = Array.from(selectionStore.selectedItems)[0];
+  // Separate groups and items from selection
+  const selectedGroupIds = selectedIds.filter((id) =>
+    groups.some((g) => g.id === id)
+  );
+  const selectedItemIds = selectedIds.filter((id) =>
+    !selectedGroupIds.includes(id)
+  );
+
+  // Prepare delete for groups
+  const groupsResult = selectedGroupIds.length > 0
+    ? deleteDialogStore.prepareDeleteGroups(selectedGroupIds)
+    : { groupsToDelete: [], isFinal: false };
+
+  // Prepare delete for items
+  const itemsResult = selectedItemIds.length > 0
+    ? prepareDeleteItems(selectedItemIds)
+    : { itemsToDelete: [], isFinal: false };
+
+  // Combine results - final is only true if both are final (or one is empty)
+  const hasGroups = groupsResult.groupsToDelete.length > 0;
+  const hasItems = itemsResult.itemsToDelete.length > 0;
+  const isFinal = (hasGroups ? groupsResult.isFinal : true) && (hasItems ? itemsResult.isFinal : true);
+
+  // Determine item name for dialog
+  const totalCount = groupsResult.groupsToDelete.length + itemsResult.itemsToDelete.length;
+  let itemName = `${totalCount} items`;
+
+  if (totalCount === 1) {
+    const itemId = selectedIds[0];
     const group = groups.find((g) => g.id === itemId);
 
     if (group) {
-      deleteDialogItemName.value = group.name || "Untitled";
+      itemName = group.name || "Untitled";
     } else {
-      const item = items.find((i) => {
-        const itemRecord = i as Record<string, Record<string, unknown>>;
-        return itemRecord.haex_passwords_item_details?.id === itemId;
-      });
+      const item = items.find((i) => i?.haex_passwords_item_details?.id === itemId);
 
       if (item) {
-        const itemRecord = item as Record<string, Record<string, unknown>>;
-        const details = itemRecord.haex_passwords_item_details;
-        deleteDialogItemName.value = (details?.title as string) || "Untitled";
+        itemName = item.haex_passwords_item_details?.title || "Untitled";
       }
     }
-  } else {
-    // Multiple items selected
-    deleteDialogItemName.value = `${selectedCount} items`;
   }
 
-  showDeleteDialog.value = true;
+  // Open dialog with prepared data (same as deleteFromMobile)
+  deleteDialogStore.openDialog({
+    groups: groupsResult.groupsToDelete,
+    items: itemsResult.itemsToDelete,
+    final: isFinal,
+    itemName,
+  });
 };
 
 const onConfirmDeleteAsync = async () => {

@@ -74,8 +74,8 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
 
     // Check which items are in trash by checking their group
     const itemsInTrash = selectedIds.filter((itemId) => {
-      const item = items.value.find((item) => item.haex_passwords_item_details.id === itemId);
-      const groupId = item?.haex_passwords_group_items.groupId;
+      const item = items.value.find((i) => i?.haex_passwords_item_details?.id === itemId);
+      const groupId = item?.haex_passwords_group_items?.groupId;
       return groupId ? isGroupInTrash(groupId) : false;
     });
 
