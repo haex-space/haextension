@@ -1,75 +1,65 @@
-# Nuxt Minimal Starter
+# haex-pass
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A modern password manager, inspired by KeePass – but better.
 
-## Setup
+## Why haex-pass?
 
-Make sure to install dependencies:
+KeePass is great and one of my favorite tools. But some things always bothered me:
+
+- **Inconsistent UI** – KeePass looks and behaves differently on every platform. Features are missing here and there.
+- **No responsive design** – It quickly becomes cluttered on smaller screens.
+- **No fuzzy search** – You need to know the exact name to find entries.
+- **Syncing is painful** – Anyone using KeePass on multiple devices knows this: keeping database files in sync is tedious and error-prone.
+
+**haex-pass solves all of these problems.** It offers almost all KeePass features – plus a consistent, responsive interface, fast fuzzy search, and seamless synchronization via HaexSpace.
+
+## Features
+
+- KeePass compatible (KDBX import)
+- Consistent UI across all devices
+- Responsive design
+- Fuzzy search for quick access
+- Automatic sync via HaexSpace
+- TOTP support (2FA)
+- Secure end-to-end encryption
+
+## Installation
+
+haex-pass is available as an extension for [HaexSpace](https://haex.space):
+
+**[haex-pass on the Marketplace](https://haex.space/marketplace/haex-pass)**
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm
+
+### Setup
 
 ```bash
-# npm
-npm install
+# Clone the repository
+git clone https://github.com/haex-space/haextension.git
+cd haextension
 
-# pnpm
+# Install dependencies
 pnpm install
 
-# yarn
-yarn install
+# Navigate to haex-pass
+cd apps/haex-pass
 
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
-npm run dev
-
-# pnpm
+# Start development server
 pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
-
-Build the application for production:
+### Build
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+# Build and sign the extension
+pnpm build:release
 ```
 
-Locally preview production build:
+## License
 
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+MIT
