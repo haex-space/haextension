@@ -151,6 +151,7 @@ import type {
   SelectHaexPasswordsItemKeyValues,
 } from "~/database";
 import type { AttachmentWithSize } from "~/types/attachment";
+import type { UnwrapRefCarouselApi } from "~/components/ui/carousel/interface";
 
 definePageMeta({
   name: "passwordItemEdit",
@@ -181,7 +182,7 @@ const tabs = computed(() => [
 ]);
 
 const activeTab = ref(0);
-const carouselApi = ref<any>(null);
+const carouselApi = ref<UnwrapRefCarouselApi | null>(null);
 
 // Scroll to specific slide
 const scrollToSlide = (index: number) => {
@@ -209,6 +210,9 @@ const editableDetails = ref<SelectHaexPasswordsItemDetails>({
   url: null,
   username: null,
   otpSecret: null,
+  otpDigits: null,
+  otpPeriod: null,
+  otpAlgorithm: null,
 });
 
 // Store original details for comparison

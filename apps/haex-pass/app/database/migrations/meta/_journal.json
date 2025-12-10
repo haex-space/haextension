@@ -8,6 +8,13 @@
       "when": 1763897343066,
       "tag": "0000_illegal_wallflower",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1765379255827,
+      "tag": "0001_supreme_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

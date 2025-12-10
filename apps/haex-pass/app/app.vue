@@ -18,10 +18,14 @@
 
 <script setup lang="ts">
 const haexhubStore = useHaexVaultStore();
+const { registerHandlers } = useExternalRequestHandlers();
 
 // Initialize HaexHub and wait for setup completion
 onMounted(async () => {
   await haexhubStore.initializeAsync();
   await haexhubStore.waitForSetupAsync();
+
+  // Register external request handlers (for browser extension communication)
+  registerHandlers();
 });
 </script>

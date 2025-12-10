@@ -53,6 +53,9 @@
         v-show="!readOnly || itemDetails.otpSecret"
         v-model="itemDetails.otpSecret"
         :readonly="readOnly"
+        :digits="itemDetails.otpDigits"
+        :period="itemDetails.otpPeriod"
+        :algorithm="itemDetails.otpAlgorithm"
         @submit="$emit('submit')"
       />
 

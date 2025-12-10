@@ -79,9 +79,16 @@ import { Copy, Check } from "lucide-vue-next";
 
 const model = defineModel<string | null>();
 
-defineProps<{
+const props = withDefaults(defineProps<{
   readonly?: boolean;
-}>();
+  digits?: number | null;
+  period?: number | null;
+  algorithm?: string | null;
+}>(), {
+  digits: 6,
+  period: 30,
+  algorithm: 'SHA1',
+});
 
 defineEmits(["submit"]);
 
@@ -92,17 +99,23 @@ const { copy: copySecretFn, copied: secretCopied } = useClipboard();
 const totpCode = ref<string>("");
 const remainingSeconds = ref<number>(30);
 
+// Computed values with defaults
+const effectiveDigits = computed(() => props.digits ?? 6);
+const effectivePeriod = computed(() => props.period ?? 30);
+const effectiveAlgorithm = computed(() => props.algorithm ?? 'SHA1');
+
 // Circle animation values
 const circumference = 2 * Math.PI * 16; // radius = 16
 const dashOffset = computed(() => {
-  const progress = remainingSeconds.value / 30;
+  const progress = remainingSeconds.value / effectivePeriod.value;
   return circumference * (1 - progress);
 });
 
-// Format code as XXX XXX for better readability
+// Format code with space in the middle for better readability (e.g. "123 456" for 6 digits, "1234 5678" for 8 digits)
 const formattedCode = computed(() => {
   if (!totpCode.value) return "";
-  return totpCode.value.replace(/(\d{3})(\d{3})/, "$1 $2");
+  const mid = Math.floor(totpCode.value.length / 2);
+  return totpCode.value.slice(0, mid) + " " + totpCode.value.slice(mid);
 });
 
 // Generate TOTP code
@@ -119,8 +132,9 @@ const generateCodeAsync = async () => {
   try {
     const totp = new TOTP({
       secret: model.value.trim(),
-      digits: 6,
-      period: 30,
+      digits: effectiveDigits.value,
+      period: effectivePeriod.value,
+      algorithm: effectiveAlgorithm.value,
     });
     totpCode.value = totp.generate();
   } catch (error) {
@@ -132,7 +146,7 @@ const generateCodeAsync = async () => {
 // Update remaining seconds
 const updateRemainingSeconds = () => {
   const now = Math.floor(Date.now() / 1000);
-  remainingSeconds.value = 30 - (now % 30);
+  remainingSeconds.value = effectivePeriod.value - (now % effectivePeriod.value);
 };
 
 // Copy secret
@@ -152,8 +166,9 @@ const copyCode = async () => {
 // Update code and timer
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
+// Watch model and settings for changes
 watch(
-  model,
+  [model, effectiveDigits, effectivePeriod, effectiveAlgorithm],
   () => {
     generateCodeAsync();
   },
@@ -169,8 +184,8 @@ onMounted(() => {
   intervalId = setInterval(() => {
     updateRemainingSeconds();
 
-    // Regenerate code when timer resets
-    if (remainingSeconds.value === 30) {
+    // Regenerate code when timer resets (use effectivePeriod)
+    if (remainingSeconds.value === effectivePeriod.value) {
       generateCodeAsync();
     }
   }, 1000);

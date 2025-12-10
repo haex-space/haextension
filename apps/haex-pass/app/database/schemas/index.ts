@@ -27,6 +27,9 @@ export const haexPasswordsItemDetails = sqliteTable(
     tags: text(),
     url: text(),
     otpSecret: text("otp_secret"),
+    otpDigits: integer("otp_digits").default(6),
+    otpPeriod: integer("otp_period").default(30),
+    otpAlgorithm: text("otp_algorithm").default("SHA1"),
     createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
     updateAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
