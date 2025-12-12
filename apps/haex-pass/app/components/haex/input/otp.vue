@@ -17,6 +17,54 @@
       />
     </UiInputGroup>
 
+    <!-- OTP Settings (only show when there's a secret and not readonly) -->
+    <div
+      v-if="model && !readonly"
+      class="grid grid-cols-3 gap-2"
+    >
+      <!-- Algorithm -->
+      <div>
+        <UiLabel class="text-xs text-muted-foreground">{{ t("algorithm") }}</UiLabel>
+        <UiSelect v-model="algorithmModel">
+          <UiSelectTrigger class="h-8 text-xs">
+            <UiSelectValue />
+          </UiSelectTrigger>
+          <UiSelectContent>
+            <UiSelectItem value="SHA1">SHA1</UiSelectItem>
+            <UiSelectItem value="SHA256">SHA256</UiSelectItem>
+            <UiSelectItem value="SHA512">SHA512</UiSelectItem>
+          </UiSelectContent>
+        </UiSelect>
+      </div>
+      <!-- Digits -->
+      <div>
+        <UiLabel class="text-xs text-muted-foreground">{{ t("digits") }}</UiLabel>
+        <UiSelect v-model="digitsModel">
+          <UiSelectTrigger class="h-8 text-xs">
+            <UiSelectValue />
+          </UiSelectTrigger>
+          <UiSelectContent>
+            <UiSelectItem value="6">6</UiSelectItem>
+            <UiSelectItem value="7">7</UiSelectItem>
+            <UiSelectItem value="8">8</UiSelectItem>
+          </UiSelectContent>
+        </UiSelect>
+      </div>
+      <!-- Period -->
+      <div>
+        <UiLabel class="text-xs text-muted-foreground">{{ t("period") }}</UiLabel>
+        <UiSelect v-model="periodModel">
+          <UiSelectTrigger class="h-8 text-xs">
+            <UiSelectValue />
+          </UiSelectTrigger>
+          <UiSelectContent>
+            <UiSelectItem value="30">30s</UiSelectItem>
+            <UiSelectItem value="60">60s</UiSelectItem>
+          </UiSelectContent>
+        </UiSelect>
+      </div>
+    </div>
+
     <!-- OTP Code Display (only when there's a secret) -->
     <div
       v-if="model && totpCode"
@@ -78,17 +126,13 @@ import { useClipboard } from "@vueuse/core";
 import { Copy, Check } from "lucide-vue-next";
 
 const model = defineModel<string | null>();
+const digits = defineModel<number | null>("digits");
+const period = defineModel<number | null>("period");
+const algorithm = defineModel<string | null>("algorithm");
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   readonly?: boolean;
-  digits?: number | null;
-  period?: number | null;
-  algorithm?: string | null;
-}>(), {
-  digits: 6,
-  period: 30,
-  algorithm: 'SHA1',
-});
+}>();
 
 defineEmits(["submit"]);
 
@@ -100,9 +144,25 @@ const totpCode = ref<string>("");
 const remainingSeconds = ref<number>(30);
 
 // Computed values with defaults
-const effectiveDigits = computed(() => props.digits ?? 6);
-const effectivePeriod = computed(() => props.period ?? 30);
-const effectiveAlgorithm = computed(() => props.algorithm ?? 'SHA1');
+const effectiveDigits = computed(() => digits.value ?? 6);
+const effectivePeriod = computed(() => period.value ?? 30);
+const effectiveAlgorithm = computed(() => algorithm.value ?? "SHA1");
+
+// String adapters for UiSelect (converts between number/string)
+const digitsModel = computed({
+  get: () => String(effectiveDigits.value),
+  set: (val) => { digits.value = Number(val); },
+});
+
+const periodModel = computed({
+  get: () => String(effectivePeriod.value),
+  set: (val) => { period.value = Number(val); },
+});
+
+const algorithmModel = computed({
+  get: () => effectiveAlgorithm.value,
+  set: (val) => { algorithm.value = val; },
+});
 
 // Circle animation values
 const circumference = 2 * Math.PI * 16; // radius = 16
@@ -208,6 +268,9 @@ de:
   copySecret: Secret kopieren
   copyCode: Code kopieren
   copied: Kopiert!
+  algorithm: Algorithmus
+  digits: Ziffern
+  period: Intervall
 
 en:
   label: OTP Secret
@@ -215,4 +278,7 @@ en:
   copySecret: Copy secret
   copyCode: Copy code
   copied: Copied!
+  algorithm: Algorithm
+  digits: Digits
+  period: Period
 </i18n>

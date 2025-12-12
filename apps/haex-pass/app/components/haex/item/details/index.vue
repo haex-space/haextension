@@ -52,10 +52,10 @@
       <HaexInputOtp
         v-show="!readOnly || itemDetails.otpSecret"
         v-model="itemDetails.otpSecret"
+        v-model:digits="itemDetails.otpDigits"
+        v-model:period="itemDetails.otpPeriod"
+        v-model:algorithm="itemDetails.otpAlgorithm"
         :readonly="readOnly"
-        :digits="itemDetails.otpDigits"
-        :period="itemDetails.otpPeriod"
-        :algorithm="itemDetails.otpAlgorithm"
         @submit="$emit('submit')"
       />
 

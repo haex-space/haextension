@@ -430,24 +430,26 @@ function extractOtpFromEntry(
   if (totpSeed) {
     const seedValue = getFieldValue(totpSeed);
     if (seedValue) {
-      // Check for TOTP Settings field (KeePass format: "30;6" for period;digits)
+      // Check for TOTP Settings field (KeePass format: "30;6" or "30;6;SHA256" for period;digits;algorithm)
       const totpSettings =
         entry.fields.get("TOTP Settings") || entry.fields.get("totp-settings");
       let digits = 6;
       let period = 30;
+      let algorithm = "SHA1";
       if (totpSettings) {
         const settingsValue = getFieldValue(totpSettings);
         if (settingsValue) {
           const parts = settingsValue.split(";");
           if (parts?.[0]) period = parseInt(parts[0], 10) || 30;
           if (parts?.[1]) digits = parseInt(parts[1], 10) || 6;
+          if (parts?.[2]) algorithm = parts[2].toUpperCase();
         }
       }
       return {
         secret: seedValue.toUpperCase(),
         digits,
         period,
-        algorithm: "SHA1",
+        algorithm,
       };
     }
   }
