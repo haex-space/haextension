@@ -39,12 +39,12 @@
           />
         </UiDropdownMenuTrigger>
         <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem @select="onCreateFolder">
-            <Folder class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="onCreateFolder">
+            <Folder class="mr-3 size-5" />
             {{ t("addMenu.folder") }}
           </UiDropdownMenuItem>
-          <UiDropdownMenuItem @select="onCreateItem">
-            <Key class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="onCreateItem">
+            <Key class="mr-3 size-5" />
             {{ t("addMenu.item") }}
           </UiDropdownMenuItem>
         </UiDropdownMenuContent>
@@ -61,16 +61,16 @@
           />
         </UiDropdownMenuTrigger>
         <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem @select="onSortByName">
-            <ArrowDownAZ class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByName">
+            <ArrowDownAZ class="mr-3 size-5" />
             {{ t("sortBy.name") }}
           </UiDropdownMenuItem>
-          <UiDropdownMenuItem @select="onSortByDateCreated">
-            <CalendarPlus class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByDateCreated">
+            <CalendarPlus class="mr-3 size-5" />
             {{ t("sortBy.dateCreated") }}
           </UiDropdownMenuItem>
-          <UiDropdownMenuItem @select="onSortByDateModified">
-            <CalendarClock class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByDateModified">
+            <CalendarClock class="mr-3 size-5" />
             {{ t("sortBy.dateModified") }}
           </UiDropdownMenuItem>
         </UiDropdownMenuContent>
@@ -87,13 +87,9 @@
           />
         </UiDropdownMenuTrigger>
         <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem @select="showImportDrawer = true">
-            <DatabaseBackup class="mr-2 h-4 w-4" />
+          <UiDropdownMenuItem class="py-3 text-base" @select="showImportDrawer = true">
+            <DatabaseBackup class="mr-3 size-5" />
             {{ t("moreMenu.import") }}
-          </UiDropdownMenuItem>
-          <UiDropdownMenuItem @select="onNavigateToTrash">
-            <Trash2 class="mr-2 h-4 w-4" />
-            {{ t("moreMenu.trash") }}
           </UiDropdownMenuItem>
         </UiDropdownMenuContent>
       </UiDropdownMenu>
@@ -117,7 +113,6 @@ import {
   CalendarClock,
   DatabaseBackup,
   MoreVertical,
-  Trash2,
 } from "lucide-vue-next";
 
 const { t } = useI18n();
@@ -170,53 +165,6 @@ const onSortByDateModified = () => {
   // TODO: Implement sorting
   console.log("Sort by modified");
 };
-
-const onNavigateToTrash = async () => {
-  console.log("[onNavigateToTrash] START");
-  const passwordGroupStore = usePasswordGroupStore();
-  const { groups } = storeToRefs(passwordGroupStore);
-
-  console.log("[onNavigateToTrash] Current groups count:", groups.value.length);
-
-  // Check if trash already exists in the groups array
-  const trashExists = groups.value.find((g) => g.id === "trash");
-  console.log("[onNavigateToTrash] Trash exists:", !!trashExists);
-
-  if (!trashExists) {
-    console.log("[onNavigateToTrash] Creating trash folder...");
-    try {
-      await passwordGroupStore.addGroupAsync({
-        name: "Trash",
-        id: "trash",
-        icon: "mdi:trash-outline",
-        parentId: null,
-      });
-      console.log("[onNavigateToTrash] Trash folder created");
-
-      // Re-sync groups to get the newly created trash folder
-      console.log("[onNavigateToTrash] Syncing groups...");
-      await passwordGroupStore.syncGroupItemsAsync();
-      console.log("[onNavigateToTrash] Groups synced");
-    } catch (error) {
-      console.error("[onNavigateToTrash] Error creating/syncing trash:", error);
-      return;
-    }
-  }
-
-  // Navigate to trash
-  console.log("[onNavigateToTrash] Navigating to trash...");
-  try {
-    await router.push(
-      localePath({
-        name: "passwordGroupItems",
-        params: { groupId: "trash" },
-      })
-    );
-    console.log("[onNavigateToTrash] Navigation complete");
-  } catch (error) {
-    console.error("[onNavigateToTrash] Navigation error:", error);
-  }
-};
 </script>
 
 <i18n lang="yaml">
@@ -234,7 +182,6 @@ de:
     dateModified: Nach Änderungsdatum
   moreMenu:
     import: KeePass Import
-    trash: Papierkorb
 
 en:
   search: Search...
@@ -250,5 +197,4 @@ en:
     dateModified: By date modified
   moreMenu:
     import: KeePass Import
-    trash: Trash
 </i18n>
