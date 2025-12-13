@@ -109,6 +109,7 @@
           </div>
         </div>
         <UiButton
+          type="button"
           :icon="copied ? Check : Copy"
           :tooltip="copied ? t('copied') : t('copyCode')"
           size="icon"
