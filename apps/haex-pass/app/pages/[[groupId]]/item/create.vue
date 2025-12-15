@@ -223,6 +223,13 @@ const onConfirmDiscardChanges = () => {
   ignoreChanges.value = true;
   router.back();
 };
+
+// Navigation guard for back button (especially on Android)
+useUnsavedChangesGuard({
+  hasChanges,
+  ignoreChanges,
+  showDialog: showUnsavedChangesDialog,
+});
 </script>
 
 <i18n lang="yaml">

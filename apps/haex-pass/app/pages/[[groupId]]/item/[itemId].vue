@@ -352,6 +352,14 @@ const onDeleteAsync = async () => {
     });
   }
 };
+
+// Navigation guard for back button (especially on Android)
+useUnsavedChangesGuard({
+  hasChanges,
+  ignoreChanges,
+  showDialog: showUnsavedChangesDialog,
+  additionalDialogs: [showDeleteDialog],
+});
 </script>
 
 <i18n lang="yaml">
