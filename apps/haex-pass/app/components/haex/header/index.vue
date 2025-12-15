@@ -61,15 +61,15 @@
           />
         </UiDropdownMenuTrigger>
         <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByName">
+          <UiDropdownMenuItem class="py-3 text-base" @select="sortByName">
             <ArrowDownAZ class="mr-3 size-5" />
             {{ t("sortBy.name") }}
           </UiDropdownMenuItem>
-          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByDateCreated">
+          <UiDropdownMenuItem class="py-3 text-base" @select="sortByDateCreated">
             <CalendarPlus class="mr-3 size-5" />
             {{ t("sortBy.dateCreated") }}
           </UiDropdownMenuItem>
-          <UiDropdownMenuItem class="py-3 text-base" @select="onSortByDateModified">
+          <UiDropdownMenuItem class="py-3 text-base" @select="sortByDateModified">
             <CalendarClock class="mr-3 size-5" />
             {{ t("sortBy.dateModified") }}
           </UiDropdownMenuItem>
@@ -121,6 +121,7 @@ const localePath = useLocalePath();
 const { searchInput } = storeToRefs(useSearchStore());
 const { currentGroupId } = storeToRefs(usePasswordGroupStore());
 const { isProcessing, processingProgress } = storeToRefs(useGroupItemsDeleteStore());
+const { sortByName, sortByDateCreated, sortByDateModified } = useGroupItemsMenuStore();
 
 const showImportDrawer = ref(false);
 
@@ -151,20 +152,6 @@ const onCreateItem = async () => {
   );
 };
 
-const onSortByName = () => {
-  // TODO: Implement sorting
-  console.log("Sort by name");
-};
-
-const onSortByDateCreated = () => {
-  // TODO: Implement sorting
-  console.log("Sort by date");
-};
-
-const onSortByDateModified = () => {
-  // TODO: Implement sorting
-  console.log("Sort by modified");
-};
 </script>
 
 <i18n lang="yaml">

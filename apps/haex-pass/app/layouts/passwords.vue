@@ -153,14 +153,24 @@ const onEditAsync = async () => {
   const selectedId = Array.from(selectionStore.selectedItems)[0];
   if (!selectedId) return;
 
-  // TODO: Determine if it's a group or item
-  // For now, assume it's an item
-  await router.push(
-    localePath({
-      name: "passwordItemEdit",
-      params: { ...router.currentRoute.value.params, itemId: selectedId },
-    })
-  );
+  const { getItemType } = useGroupItemsMenuStore();
+  const itemType = getItemType(selectedId);
+
+  if (itemType === 'group') {
+    await router.push(
+      localePath({
+        name: "passwordGroupEdit",
+        params: { groupId: selectedId },
+      })
+    );
+  } else {
+    await router.push(
+      localePath({
+        name: "passwordItemEdit",
+        params: { ...router.currentRoute.value.params, itemId: selectedId },
+      })
+    );
+  }
   selectionStore.clearSelection();
 };
 

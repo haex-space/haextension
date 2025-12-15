@@ -146,6 +146,7 @@
 
 <script setup lang="ts">
 import { X, Trash2, Pencil, Save } from "lucide-vue-next";
+import { toast } from "vue-sonner";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,
@@ -327,7 +328,10 @@ const onSaveAsync = async () => {
     console.log('[ItemEdit] Save completed successfully');
   } catch (error) {
     console.error("[ItemEdit] Error saving item:", error);
-    // TODO: Show error toast
+    const message = error instanceof Error ? error.message : String(error);
+    toast.error(t('errors.save'), {
+      description: message,
+    });
   }
 };
 
@@ -341,7 +345,10 @@ const onDeleteAsync = async () => {
     router.back();
   } catch (error) {
     console.error("Error deleting item:", error);
-    // TODO: Show error toast
+    const message = error instanceof Error ? error.message : String(error);
+    toast.error(t('errors.delete'), {
+      description: message,
+    });
   }
 };
 </script>
@@ -364,6 +371,9 @@ de:
     description: Sollen die Änderungen verworfen werden?
     cancel: Abbrechen
     confirm: Verwerfen
+  errors:
+    save: Eintrag konnte nicht gespeichert werden
+    delete: Eintrag konnte nicht gelöscht werden
 
 en:
   loading: Loading...
@@ -382,4 +392,7 @@ en:
     description: Should the changes be discarded?
     cancel: Cancel
     confirm: Discard
+  errors:
+    save: Could not save item
+    delete: Could not delete item
 </i18n>
