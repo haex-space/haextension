@@ -96,6 +96,22 @@
         @keyup.enter.stop
       />
 
+      <!-- Expiry Date -->
+      <div v-show="!readOnly || itemDetails.expiresAt">
+        <ShadcnLabel :class="{ 'text-destructive': isExpired }">
+          {{ t("item.expiresAt") }}
+          <span v-if="isExpired" class="ml-2 text-xs">{{ t("item.expired") }}</span>
+          <span v-else-if="isExpiringSoon" class="ml-2 text-xs text-warning">{{ t("item.expiringSoon") }}</span>
+        </ShadcnLabel>
+        <ShadcnInput
+          :model-value="itemDetails.expiresAt ?? undefined"
+          type="date"
+          :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
+          :readonly="readOnly"
+          @update:model-value="itemDetails.expiresAt = ($event as string) || null"
+        />
+      </div>
+
       <!-- Icon & Color -->
       <div v-show="!readOnly || itemDetails.icon || itemDetails.color" class="grid grid-cols-2 gap-4">
         <HaexSelectIcon
@@ -162,6 +178,24 @@ onStartTyping(() => {
 const onFaviconFetched = (iconName: string) => {
   itemDetails.value.icon = iconName;
 };
+
+// Expiry date computed properties
+const isExpired = computed(() => {
+  if (!itemDetails.value.expiresAt) return false;
+  const expiryDate = new Date(itemDetails.value.expiresAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return expiryDate < today;
+});
+
+const isExpiringSoon = computed(() => {
+  if (!itemDetails.value.expiresAt || isExpired.value) return false;
+  const expiryDate = new Date(itemDetails.value.expiresAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysUntilExpiry <= 30; // Warn 30 days before expiry
+});
 </script>
 
 <i18n lang="yaml">
@@ -178,6 +212,9 @@ de:
       label: Tags
       placeholder: Tag hinzufügen...
     note: Notiz
+    expiresAt: Ablaufdatum
+    expired: "(abgelaufen)"
+    expiringSoon: "(läuft bald ab)"
 
 en:
   item:
@@ -192,4 +229,7 @@ en:
       label: Tags
       placeholder: Add tag...
     note: Note
+    expiresAt: Expiry date
+    expired: "(expired)"
+    expiringSoon: "(expiring soon)"
 </i18n>

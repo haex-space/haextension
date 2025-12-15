@@ -388,6 +388,32 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     )
   }
 
+  /**
+   * Restore a group from trash to a target parent group
+   * Falls back to root if target parent doesn't exist or is in trash
+   */
+  const restoreGroupAsync = async (groupId: string, targetParentId: string | null = null) => {
+    const haexhubStore = useHaexVaultStore()
+    if (!haexhubStore.orm) throw new Error('Database not initialized')
+
+    const { isGroupInTrash } = useGroupTreeStore()
+
+    // If a target parent is specified, verify it exists and is not in trash
+    let finalParentId: string | null = null
+    if (targetParentId) {
+      const targetParent = await readGroupAsync(targetParentId)
+      // Only use target if it exists and is not in trash
+      if (targetParent && !isGroupInTrash(targetParentId)) {
+        finalParentId = targetParentId
+      }
+    }
+
+    await haexhubStore.orm
+      .update(haexPasswordsGroups)
+      .set({ parentId: finalParentId })
+      .where(eq(haexPasswordsGroups.id, groupId))
+  }
+
   return {
     // State
     groups,
@@ -405,6 +431,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     readGroupItemsAsync,
     updateAsync,
     updateParentAsync,
+    restoreGroupAsync,
     // Helpers
     getChildGroupsRecursiveAsync,
     areGroupsEqual,

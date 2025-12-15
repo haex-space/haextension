@@ -214,6 +214,7 @@ const editableDetails = ref<SelectHaexPasswordsItemDetails>({
   otpDigits: null,
   otpPeriod: null,
   otpAlgorithm: null,
+  expiresAt: null,
 });
 
 // Store original details for comparison

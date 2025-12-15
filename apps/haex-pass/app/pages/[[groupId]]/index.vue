@@ -47,6 +47,14 @@
                 </ShadcnItemDescription>
               </ShadcnItemContent>
               <ShadcnItemActions>
+                <ShadcnTooltip v-if="item.type === 'item' && isItemExpired(item)">
+                  <ShadcnTooltipTrigger>
+                    <AlertTriangle class="w-4 h-4 text-destructive" />
+                  </ShadcnTooltipTrigger>
+                  <ShadcnTooltipContent>
+                    {{ t("expired") }}
+                  </ShadcnTooltipContent>
+                </ShadcnTooltip>
                 <ChevronRight
                   v-if="item.type === 'group'"
                   class="w-4 h-4"
@@ -82,6 +90,13 @@
               {{ t("edit") }}
             </ShadcnContextMenuItem>
             <ShadcnContextMenuItem
+              v-if="isInTrash && selectionStore.selectedCount <= 1"
+              @click="onRestoreItem(item)"
+            >
+              <RotateCcw class="w-4 h-4 mr-2" />
+              {{ t("restore") }}
+            </ShadcnContextMenuItem>
+            <ShadcnContextMenuItem
               class="text-destructive focus:text-destructive"
               @click="onDeleteItem(item)"
             >
@@ -107,6 +122,8 @@ import {
   User,
   ExternalLink,
   Globe,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-vue-next";
 import type { IPasswordMenuItem } from "~/types/password";
 import { onLongPress, onKeyStroke, useClipboard } from "@vueuse/core";
@@ -122,8 +139,24 @@ const { getTextColor } = useIconComponents();
 const selectionStore = useSelectionStore();
 const { groupItems } = storeToRefs(useGroupItemsMenuStore());
 const { isMediumScreen } = storeToRefs(useUiStore());
-const { currentGroupItems } = storeToRefs(usePasswordGroupStore());
+const { currentGroupItems, currentGroupId } = storeToRefs(usePasswordGroupStore());
+const { isGroupInTrash } = useGroupTreeStore();
 const { copy } = useClipboard();
+
+// Check if we're currently viewing the trash or a subfolder of trash
+const isInTrash = computed(() => {
+  if (!currentGroupId.value) return false;
+  return isGroupInTrash(currentGroupId.value);
+});
+
+// Helper to check if an item's password is expired
+const isItemExpired = (item: IPasswordMenuItem) => {
+  if (!item.expiresAt) return false;
+  const expiryDate = new Date(item.expiresAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return expiryDate < today;
+};
 
 // Long press functionality
 const longPressedHook = ref(false);
@@ -269,6 +302,21 @@ const onDeleteItem = (item: IPasswordMenuItem) => {
   deleteDialogStore.deleteFromMobile(item);
 };
 
+const onRestoreItem = async (item: IPasswordMenuItem) => {
+  const { restoreAsync, syncItemsAsync } = usePasswordItemStore();
+  const { restoreGroupAsync, syncGroupItemsAsync } = usePasswordGroupStore();
+
+  if (item.type === "group") {
+    await restoreGroupAsync(item.id);
+    await syncGroupItemsAsync();
+  } else {
+    await restoreAsync(item.id);
+    await syncItemsAsync();
+  }
+
+  selectionStore.clearSelection();
+};
+
 // Item action handlers - use cached data for synchronous clipboard access
 const onCopyPassword = (item: IPasswordMenuItem) => {
   const cachedItem = currentGroupItems.value.get(item.id);
@@ -324,15 +372,19 @@ de:
   noItems: Keine Einträge vorhanden
   edit: Bearbeiten
   delete: Löschen
+  restore: Wiederherstellen
   copyPassword: Passwort kopieren
   copyUsername: Benutzername kopieren
   openUrl: URL öffnen
+  expired: Passwort abgelaufen
 
 en:
   noItems: No items available
   edit: Edit
   delete: Delete
+  restore: Restore
   copyPassword: Copy password
   copyUsername: Copy username
   openUrl: Open URL
+  expired: Password expired
 </i18n>

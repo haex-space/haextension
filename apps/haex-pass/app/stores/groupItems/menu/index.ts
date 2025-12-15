@@ -123,6 +123,7 @@ export const useGroupItemsMenuStore = defineStore('groupItemsMenuStore', () => {
           type: 'item',
           username: details?.username as string | null,
           url: details?.url as string | null,
+          expiresAt: details?.expiresAt as string | null,
           createdAt: details?.createdAt as string | null,
           updatedAt: details?.updateAt as Date | number | null,
         }

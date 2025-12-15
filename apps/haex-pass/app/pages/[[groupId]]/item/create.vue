@@ -157,6 +157,7 @@ const item = reactive<{
     otpDigits: null,
     otpPeriod: null,
     otpAlgorithm: null,
+    expiresAt: null,
   },
   keyValuesAdd: [],
   originalDetails: {
@@ -175,6 +176,7 @@ const item = reactive<{
     otpDigits: null,
     otpPeriod: null,
     otpAlgorithm: null,
+    expiresAt: null,
   },
 });
 

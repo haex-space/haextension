@@ -56,6 +56,10 @@
           <Edit class="w-4 h-4 mr-2" />
           {{ $t("edit") }}
         </ShadcnContextMenuItem>
+        <ShadcnContextMenuItem v-if="isInTrash" @click="onRestoreAsync">
+          <RotateCcw class="w-4 h-4 mr-2" />
+          {{ $t("restore") }}
+        </ShadcnContextMenuItem>
         <ShadcnContextMenuItem
           class="text-destructive focus:text-destructive"
           @click="onDeleteAsync"
@@ -91,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Edit, Trash } from "lucide-vue-next";
+import { ChevronRight, Edit, Trash, RotateCcw } from "lucide-vue-next";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{
@@ -107,7 +111,11 @@ const emit = defineEmits<{
 }>();
 
 const { groups } = storeToRefs(usePasswordGroupStore());
+const { isGroupInTrash } = useGroupTreeStore();
 const { getTextColor } = useIconComponents();
+
+// Check if this group is in trash
+const isInTrash = computed(() => isGroupInTrash(props.group.id));
 const {
   isExpanded: isGroupExpanded,
   setExpanded,
@@ -228,6 +236,13 @@ const onDeleteAsync = () => {
   emit("delete", props.group);
 };
 
+const onRestoreAsync = async () => {
+  const { restoreGroupAsync, syncGroupItemsAsync } = usePasswordGroupStore();
+  await restoreGroupAsync(props.group.id);
+  await syncGroupItemsAsync();
+  selectionStore.clearSelection();
+};
+
 // Drag & Drop state
 const isDragging = ref(false);
 const isDropTarget = ref(false);
@@ -306,8 +321,10 @@ const onDrop = async (event: DragEvent) => {
 de:
   edit: Bearbeiten
   delete: Löschen
+  restore: Wiederherstellen
 
 en:
   edit: Edit
   delete: Delete
+  restore: Restore
 </i18n>

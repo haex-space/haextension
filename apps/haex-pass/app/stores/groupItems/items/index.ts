@@ -97,6 +97,31 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
     }
   };
 
+  /**
+   * Restore an item from trash to a target group
+   * Falls back to root if target group doesn't exist
+   */
+  const restoreAsync = async (itemId: string, targetGroupId: string | null = null) => {
+    const haexhubStore = useHaexVaultStore();
+    if (!haexhubStore.orm) throw new Error("Database not initialized");
+
+    // If a target group is specified, verify it exists and is not the trash
+    let finalGroupId: string | null = null;
+    if (targetGroupId) {
+      const { readGroupAsync, trashId } = usePasswordGroupStore();
+      const targetGroup = await readGroupAsync(targetGroupId);
+      // Only use target if it exists and is not the trash
+      if (targetGroup && targetGroupId !== trashId) {
+        finalGroupId = targetGroupId;
+      }
+    }
+
+    await haexhubStore.orm
+      .update(haexPasswordsGroupItems)
+      .set({ groupId: finalGroupId })
+      .where(eq(haexPasswordsGroupItems.itemId, itemId));
+  };
+
   return {
     currentItemId,
     currentItem,
@@ -112,6 +137,7 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
     readKeyValuesAsync,
     readSnapshotsAsync,
     readAttachmentsAsync,
+    restoreAsync,
     syncItemsAsync,
     updateAsync,
   };
@@ -135,6 +161,7 @@ const addAsync = async (
     url: details.url,
     username: details.username,
     otpSecret: details.otpSecret,
+    expiresAt: details.expiresAt,
   };
 
   const newKeyValues: InserthaexPasswordsItemKeyValues[] = keyValues.map(
@@ -398,6 +425,7 @@ const updateAsync = async ({
     url: details.url,
     username: details.username,
     otpSecret: details.otpSecret,
+    expiresAt: details.expiresAt,
   };
 
   const newKeyValues: InserthaexPasswordsItemKeyValues[] = keyValues

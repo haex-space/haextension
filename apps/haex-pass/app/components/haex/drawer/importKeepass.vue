@@ -783,6 +783,13 @@ async function importKdbxAsync(
       console.log("[KeePass Import] updateAtDate:", updateAtDate);
     }
 
+    // Extract expiry time if set and expiry is enabled
+    let expiresAt: string | null = null;
+    if (entry.times.expires && entry.times.expiryTime) {
+      expiresAt = new Date(entry.times.expiryTime).toISOString().split("T")[0] || null; // Store as YYYY-MM-DD
+      console.log("[KeePass Import] Entry expires at:", expiresAt);
+    }
+
     await orm.value!.insert(haexPasswordsItemDetails).values({
       id: newEntryId,
       title,
@@ -797,6 +804,7 @@ async function importKdbxAsync(
       icon,
       color: null,
       tags,
+      expiresAt,
       createdAt: entry.times.creationTime
         ? new Date(entry.times.creationTime).toISOString()
         : null,

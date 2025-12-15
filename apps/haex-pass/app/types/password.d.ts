@@ -8,6 +8,7 @@ export interface IPasswordMenuItem {
   // Additional fields for items (not groups)
   username?: string | null
   url?: string | null
+  expiresAt?: string | null
   // Sort fields
   createdAt?: string | null
   updatedAt?: Date | number | null

@@ -15,6 +15,13 @@
       "when": 1765379255827,
       "tag": "0001_supreme_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1765805779406,
+      "tag": "0002_woozy_trauma",
+      "breakpoints": true
     }
   ]
 }

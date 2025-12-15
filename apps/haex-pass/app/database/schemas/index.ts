@@ -30,6 +30,7 @@ export const haexPasswordsItemDetails = sqliteTable(
     otpDigits: integer("otp_digits").default(6),
     otpPeriod: integer("otp_period").default(30),
     otpAlgorithm: text("otp_algorithm").default("SHA1"),
+    expiresAt: text("expires_at"), // ISO date string for password expiry
     createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
     updateAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
