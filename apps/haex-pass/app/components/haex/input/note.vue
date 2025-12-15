@@ -14,7 +14,7 @@
       <ShadcnButton
         :icon="copied ? Check : Copy"
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         class="absolute top-2 right-2"
         @click.prevent="handleCopy"
       />

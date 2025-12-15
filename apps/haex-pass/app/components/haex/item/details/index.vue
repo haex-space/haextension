@@ -103,13 +103,21 @@
           <span v-if="isExpired" class="ml-2 text-xs">{{ t("item.expired") }}</span>
           <span v-else-if="isExpiringSoon" class="ml-2 text-xs text-warning">{{ t("item.expiringSoon") }}</span>
         </ShadcnLabel>
-        <ShadcnInput
-          :model-value="itemDetails.expiresAt ?? undefined"
-          type="date"
-          :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
-          :readonly="readOnly"
-          @update:model-value="itemDetails.expiresAt = ($event as string) || null"
-        />
+        <ShadcnInputGroup>
+          <ShadcnInputGroupInput
+            :model-value="itemDetails.expiresAt ?? undefined"
+            type="date"
+            :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
+            :readonly="readOnly"
+            @update:model-value="itemDetails.expiresAt = ($event as string) || null"
+          />
+          <ShadcnInputGroupButton
+            v-if="itemDetails.expiresAt && !readOnly"
+            :icon="X"
+            variant="ghost"
+            @click="itemDetails.expiresAt = null"
+          />
+        </ShadcnInputGroup>
       </div>
 
       <!-- Icon & Color -->
@@ -133,6 +141,7 @@
 
 <script setup lang="ts">
 import { onStartTyping } from "@vueuse/core";
+import { X } from "lucide-vue-next";
 import type { SelectHaexPasswordsItemDetails } from "~/database";
 
 defineProps<{

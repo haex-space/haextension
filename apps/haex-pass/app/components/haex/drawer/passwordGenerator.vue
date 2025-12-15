@@ -63,7 +63,6 @@
           <div class="flex gap-2 flex-wrap">
             <ShadcnButton
               :variant="options.uppercase ? 'default' : 'outline'"
-              size="sm"
               @click="toggleOption('uppercase')"
             >
               A-Z
@@ -71,7 +70,6 @@
 
             <ShadcnButton
               :variant="options.lowercase ? 'default' : 'outline'"
-              size="sm"
               @click="toggleOption('lowercase')"
             >
               a-z
@@ -79,7 +77,6 @@
 
             <ShadcnButton
               :variant="options.numbers ? 'default' : 'outline'"
-              size="sm"
               @click="toggleOption('numbers')"
             >
               0-9
@@ -87,7 +84,6 @@
 
             <ShadcnButton
               :variant="options.symbols ? 'default' : 'outline'"
-              size="sm"
               @click="toggleOption('symbols')"
             >
               !@#
@@ -114,7 +110,7 @@
             </ShadcnLabel>
             <ShadcnPopover>
               <ShadcnPopoverTrigger as-child>
-                <ShadcnButton :icon="Info" size="icon-sm" variant="ghost" />
+                <ShadcnButton :icon="Info" size="icon" variant="ghost" />
               </ShadcnPopoverTrigger>
               <ShadcnPopoverContent class="w-96">
                 <div class="space-y-2">

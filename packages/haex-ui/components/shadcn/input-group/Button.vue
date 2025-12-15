@@ -5,7 +5,7 @@ import { Button } from '@/components/shadcn/button'
 import { inputGroupButtonVariants } from "."
 
 const props = withDefaults(defineProps<InputGroupButtonProps>(), {
-  size: "xs",
+  size: "sm",
   variant: "ghost",
 })
 </script>

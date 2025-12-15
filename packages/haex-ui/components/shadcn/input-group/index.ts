@@ -45,7 +45,7 @@ export const inputGroupButtonVariants = cva(
       },
     },
     defaultVariants: {
-      size: "xs",
+      size: "sm",
     },
   },
 )

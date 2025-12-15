@@ -17,7 +17,6 @@
         <ShadcnInputGroupButton
           v-show="searchInput"
           variant="ghost"
-          size="sm"
           :icon="X"
           @click="searchInput = ''"
         />

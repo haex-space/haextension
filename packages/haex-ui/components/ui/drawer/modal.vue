@@ -16,7 +16,7 @@
       </ShadcnDrawerHeader>
 
       <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto px-4 pb-4">
+      <div class="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
         <slot name="content" />
       </div>
 
