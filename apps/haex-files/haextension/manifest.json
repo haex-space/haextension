@@ -1,0 +1,25 @@
+{
+  "publicKey": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [
+      {
+        "target": "*",
+        "action": "readWrite"
+      }
+    ],
+    "http": [
+      {
+        "target": "https://*.amazonaws.com/*"
+      },
+      {
+        "target": "https://*.r2.cloudflarestorage.com/*"
+      }
+    ],
+    "shell": []
+  },
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "E2E encrypted file sync for HaexSpace"
+}

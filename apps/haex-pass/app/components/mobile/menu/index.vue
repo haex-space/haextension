@@ -32,7 +32,7 @@
     </ul>
   </div>
   <div v-else class="flex justify-center items-center flex-1">
-    <UiIconNoData class="text-primary size-24 shrink-0" />
+    <ShadcnIconNoData class="text-primary size-24 shrink-0" />
   </div>
 </template>
 

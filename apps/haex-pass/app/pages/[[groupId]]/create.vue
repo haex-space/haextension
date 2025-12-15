@@ -6,7 +6,7 @@
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <UiButton
+        <ShadcnButton
           :icon="Save"
           :disabled="!hasChanges"
           :class="{ 'animate-pulse': hasChanges }"
@@ -14,8 +14,8 @@
           @click="createAsync"
         >
           <span class="hidden sm:inline">{{ t('save') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           :icon="X"
           variant="ghost"
           size="sm"
@@ -34,22 +34,22 @@
     </div>
 
     <!-- Unsaved Changes Dialog -->
-    <UiAlertDialog v-model:open="showUnsavedChangesDialog">
-      <UiAlertDialogContent>
-        <UiAlertDialogHeader>
-          <UiAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</UiAlertDialogTitle>
-          <UiAlertDialogDescription>
+    <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
             {{ t('unsavedChangesDialog.description') }}
-          </UiAlertDialogDescription>
-        </UiAlertDialogHeader>
-        <UiAlertDialogFooter>
-          <UiAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</UiAlertDialogCancel>
-          <UiAlertDialogAction @click="onConfirmDiscardChanges">
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
             {{ t('unsavedChangesDialog.confirm') }}
-          </UiAlertDialogAction>
-        </UiAlertDialogFooter>
-      </UiAlertDialogContent>
-    </UiAlertDialog>
+          </ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 

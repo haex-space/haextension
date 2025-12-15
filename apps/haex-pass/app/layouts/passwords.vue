@@ -36,27 +36,27 @@
       </div>
 
       <!-- Desktop: Resizable Panels -->
-      <UiResizablePanelGroup
+      <ShadcnResizablePanelGroup
         id="tree-content-panels"
         direction="horizontal"
         class="hidden md:flex h-full"
         auto-save-id="haex-pass:tree-panel-sizes"
       >
         <!-- Tree Sidebar Panel -->
-        <UiResizablePanel id="tree-panel" :default-size="20" :min-size="15">
+        <ShadcnResizablePanel id="tree-panel" :default-size="20" :min-size="15">
           <HaexTree @delete="onDeleteFromTree" />
-        </UiResizablePanel>
+        </ShadcnResizablePanel>
 
         <!-- Resizable Handle -->
-        <UiResizableHandle />
+        <ShadcnResizableHandle />
 
         <!-- Content Panel -->
-        <UiResizablePanel id="content-panel" :default-size="80">
+        <ShadcnResizablePanel id="content-panel" :default-size="80">
           <div class="h-full overflow-y-auto">
             <slot />
           </div>
-        </UiResizablePanel>
-      </UiResizablePanelGroup>
+        </ShadcnResizablePanel>
+      </ShadcnResizablePanelGroup>
     </div>
 
     <!-- Delete Dialog -->

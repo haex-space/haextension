@@ -1,38 +1,38 @@
 <template>
   <div>
-    <UiInputGroup>
-      <UiInputGroupInput
+    <ShadcnInputGroup>
+      <ShadcnInputGroupInput
         v-model="model"
         :type="showPassword ? 'text' : 'password'"
         v-bind="$attrs"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         v-if="!readOnly"
         :icon="Dices"
         :tooltip="t('generateQuick')"
         variant="ghost"
         @click.prevent="generateQuickPasswordAsync"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         v-if="!readOnly"
         :icon="KeyRound"
         :tooltip="t('generateAdvanced')"
         variant="ghost"
         @click.prevent="drawerOpen = true"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         :icon="showPassword ? EyeOff : Eye"
         :tooltip="showPassword ? t('hide') : t('show')"
         variant="ghost"
         @click.prevent="showPassword = !showPassword"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         :icon="copied ? Check : Copy"
         :tooltip="copied ? t('copied') : t('copy')"
         variant="ghost"
         @click.prevent="handleCopy"
       />
-    </UiInputGroup>
+    </ShadcnInputGroup>
 
     <HaexDrawerPasswordGenerator
       v-model="model"

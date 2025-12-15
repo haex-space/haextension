@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Include haex-ui components in Tailwind scanning */
+@source "../../../../../packages/haex-ui/components";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

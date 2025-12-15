@@ -1,6 +1,7 @@
 <template>
   <ShadcnInputGroup>
     <ShadcnInputGroupInput
+      ref="inputRef"
       v-model="model"
       :type="showPassword ? 'text' : 'password'"
       v-bind="$attrs"
@@ -35,11 +36,19 @@ const { t } = useI18n();
 const showPassword = ref(false);
 const { copy, copied } = useClipboard();
 
+const inputRef = ref<{ focus: () => void } | null>(null);
+
 const handleCopy = async () => {
   if (model.value) {
     await copy(model.value);
   }
 };
+
+const focus = () => {
+  inputRef.value?.focus();
+};
+
+defineExpose({ focus });
 </script>
 
 <i18n lang="yaml">

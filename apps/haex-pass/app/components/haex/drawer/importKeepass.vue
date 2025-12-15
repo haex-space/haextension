@@ -1,15 +1,14 @@
 <template>
-  <UiDrawer v-model:open="isOpen">
-    <UiDrawerContent>
-      <UiDrawerHeader>
-        <UiDrawerTitle>{{ t("title") }}</UiDrawerTitle>
-        <UiDrawerDescription>{{ t("selectFile") }}</UiDrawerDescription>
-      </UiDrawerHeader>
-
-      <div class="p-4 space-y-4 overflow-y-auto">
+  <UiDrawerModal
+    v-model:open="isOpen"
+    :title="t('title')"
+    :description="t('selectFile')"
+  >
+    <template #content>
+      <div class="space-y-4">
         <!-- File Upload -->
         <div class="space-y-2">
-          <UiLabel>{{ t("kdbxFile") }}</UiLabel>
+          <ShadcnLabel>{{ t("kdbxFile") }}</ShadcnLabel>
           <input
             ref="fileInput"
             type="file"
@@ -17,21 +16,21 @@
             class="hidden"
             @change="onFileChangeAsync"
           />
-          <UiButton
+          <ShadcnButton
             :icon="File"
             variant="outline"
             class="w-full justify-start"
             @click="fileInput?.click()"
           >
             {{ selectedFileName || t("chooseFile") }}
-          </UiButton>
+          </ShadcnButton>
         </div>
 
         <!-- Password Input -->
         <div v-if="fileData" class="space-y-2">
-          <UiLabel>{{ t("password") }}</UiLabel>
-          <UiInputGroup>
-            <UiInputGroupInput
+          <ShadcnLabel>{{ t("password") }}</ShadcnLabel>
+          <ShadcnInputGroup>
+            <ShadcnInputGroupInput
               ref="passwordInput"
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
@@ -39,17 +38,17 @@
               autofocus
               @keyup.enter="canImport && importAsync()"
             />
-            <UiInputGroupButton
+            <ShadcnInputGroupButton
               :icon="showPassword ? EyeOff : Eye"
               variant="ghost"
               @click="showPassword = !showPassword"
             />
-          </UiInputGroup>
+          </ShadcnInputGroup>
         </div>
 
         <!-- Import Progress -->
         <div v-if="importing" class="space-y-2">
-          <UiProgress v-model="progress" />
+          <ShadcnProgress v-model="progress" />
           <div class="text-sm text-center text-muted-foreground">
             {{ t("importing") }}: {{ progress }}%
           </div>
@@ -63,17 +62,17 @@
           {{ error }}
         </div>
       </div>
+    </template>
 
-      <UiDrawerFooter>
-        <UiButton :disabled="!canImport" @click="importAsync">
-          {{ t("import") }}
-        </UiButton>
-        <UiButton variant="outline" @click="isOpen = false">
-          {{ t("cancel") }}
-        </UiButton>
-      </UiDrawerFooter>
-    </UiDrawerContent>
-  </UiDrawer>
+    <template #footer>
+      <ShadcnButton :disabled="!canImport" @click="importAsync">
+        {{ t("import") }}
+      </ShadcnButton>
+      <ShadcnButton variant="outline" @click="isOpen = false">
+        {{ t("cancel") }}
+      </ShadcnButton>
+    </template>
+  </UiDrawerModal>
 </template>
 
 <script setup lang="ts">

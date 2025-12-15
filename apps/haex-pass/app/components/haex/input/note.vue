@@ -1,16 +1,17 @@
 <template>
   <div class="space-y-2">
-    <UiLabel>{{ t('note') }}</UiLabel>
+    <ShadcnLabel>{{ t('note') }}</ShadcnLabel>
     <div class="relative">
-      <UiTextarea
-        v-model="model"
+      <ShadcnTextarea
+        :model-value="model ?? undefined"
         :placeholder="t('note')"
         :readonly="readonly"
         rows="4"
         class="pr-12"
         v-bind="$attrs"
+        @update:model-value="model = String($event) || null"
       />
-      <UiButton
+      <ShadcnButton
         :icon="copied ? Check : Copy"
         variant="ghost"
         size="icon-sm"

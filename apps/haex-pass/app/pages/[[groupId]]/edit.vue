@@ -6,15 +6,15 @@
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <UiButton
+        <ShadcnButton
           :icon="Trash2"
           variant="destructive"
           size="sm"
           @click="showDeleteDialog = true"
         >
           <span class="hidden sm:inline">{{ t('delete') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           v-if="readOnly"
           :icon="Pencil"
           variant="outline"
@@ -22,8 +22,8 @@
           @click="readOnly = false"
         >
           <span class="hidden sm:inline">{{ t('edit') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           v-if="!readOnly"
           :icon="Save"
           :disabled="!hasChanges"
@@ -32,8 +32,8 @@
           @click="onSaveAsync"
         >
           <span class="hidden sm:inline">{{ t('save') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           :icon="X"
           variant="ghost"
           size="sm"
@@ -57,40 +57,40 @@
     </div>
 
     <!-- Delete Dialog -->
-    <UiAlertDialog v-model:open="showDeleteDialog">
-      <UiAlertDialogContent>
-        <UiAlertDialogHeader>
-          <UiAlertDialogTitle>{{ inTrashGroup ? t('deleteDialog.final.title') : t('deleteDialog.title') }}</UiAlertDialogTitle>
-          <UiAlertDialogDescription>
+    <ShadcnAlertDialog v-model:open="showDeleteDialog">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ inTrashGroup ? t('deleteDialog.final.title') : t('deleteDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
             {{ inTrashGroup ? t('deleteDialog.final.description') : t('deleteDialog.description') }}
-          </UiAlertDialogDescription>
-        </UiAlertDialogHeader>
-        <UiAlertDialogFooter>
-          <UiAlertDialogCancel>{{ t('deleteDialog.cancel') }}</UiAlertDialogCancel>
-          <UiAlertDialogAction @click="onDeleteAsync">
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t('deleteDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="onDeleteAsync">
             {{ inTrashGroup ? t('deleteDialog.final.confirm') : t('deleteDialog.confirm') }}
-          </UiAlertDialogAction>
-        </UiAlertDialogFooter>
-      </UiAlertDialogContent>
-    </UiAlertDialog>
+          </ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
 
     <!-- Unsaved Changes Dialog -->
-    <UiAlertDialog v-model:open="showUnsavedChangesDialog">
-      <UiAlertDialogContent>
-        <UiAlertDialogHeader>
-          <UiAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</UiAlertDialogTitle>
-          <UiAlertDialogDescription>
+    <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
             {{ t('unsavedChangesDialog.description') }}
-          </UiAlertDialogDescription>
-        </UiAlertDialogHeader>
-        <UiAlertDialogFooter>
-          <UiAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</UiAlertDialogCancel>
-          <UiAlertDialogAction @click="onConfirmDiscardChanges">
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
             {{ t('unsavedChangesDialog.confirm') }}
-          </UiAlertDialogAction>
-        </UiAlertDialogFooter>
-      </UiAlertDialogContent>
-    </UiAlertDialog>
+          </ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 

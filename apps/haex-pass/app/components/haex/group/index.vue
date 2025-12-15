@@ -1,17 +1,17 @@
 <template>
   <div class="p-4 space-y-4">
-    <UiCard>
-      <UiCardHeader>
-        <UiCardTitle>
+    <ShadcnCard>
+      <ShadcnCardHeader>
+        <ShadcnCardTitle>
           {{ mode === "edit" ? t("title.edit") : t("title.create") }}
-        </UiCardTitle>
-      </UiCardHeader>
+        </ShadcnCardTitle>
+      </ShadcnCardHeader>
 
-      <UiCardContent class="space-y-4">
+      <ShadcnCardContent class="space-y-4">
         <div class="space-y-2">
-          <UiLabel>{{ t("name") }}</UiLabel>
-          <UiInput
-            ref="nameRef"
+          <ShadcnLabel>{{ t("name") }}</ShadcnLabel>
+          <UiInputText
+            ref="nameInputRef"
             v-model="groupName"
             :placeholder="t('namePlaceholder')"
             :readonly="readOnly"
@@ -20,8 +20,8 @@
         </div>
 
         <div class="space-y-2">
-          <UiLabel>{{ t("description") }}</UiLabel>
-          <UiTextarea
+          <ShadcnLabel>{{ t("description") }}</ShadcnLabel>
+          <ShadcnTextarea
             v-model="groupDescription"
             :placeholder="t('descriptionPlaceholder')"
             :readonly="readOnly"
@@ -32,7 +32,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
-            <UiLabel>{{ t("icon") }}</UiLabel>
+            <ShadcnLabel>{{ t("icon") }}</ShadcnLabel>
             <HaexSelectIcon
               v-model="group.icon"
               :color="group.color"
@@ -42,12 +42,12 @@
           </div>
 
           <div class="space-y-2">
-            <UiLabel>{{ t("color") }}</UiLabel>
+            <ShadcnLabel>{{ t("color") }}</ShadcnLabel>
             <HaexSelectColor v-model="group.color" :read-only="readOnly" />
           </div>
         </div>
-      </UiCardContent>
-    </UiCard>
+      </ShadcnCardContent>
+    </ShadcnCard>
   </div>
 </template>
 
@@ -68,11 +68,11 @@ defineEmits<{
 const { t } = useI18n();
 
 // Auto-focus on name field
-const nameRef = useTemplateRef<{ focus: () => void }>("nameRef");
+const nameInputRef = useTemplateRef<{ focus: () => void }>("nameInputRef");
 
 onMounted(() => {
   nextTick(() => {
-    nameRef.value?.focus();
+    nameInputRef.value?.focus();
   });
 });
 

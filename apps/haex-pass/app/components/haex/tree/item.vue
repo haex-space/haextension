@@ -1,7 +1,7 @@
 <template>
   <div>
-    <UiContextMenu>
-      <UiContextMenuTrigger as-child>
+    <ShadcnContextMenu>
+      <ShadcnContextMenuTrigger as-child>
         <div
           ref="treeItemRef"
           :class="[
@@ -49,22 +49,22 @@
             @click.stop="toggleExpand()"
           />
         </div>
-      </UiContextMenuTrigger>
+      </ShadcnContextMenuTrigger>
 
-      <UiContextMenuContent>
-        <UiContextMenuItem @click="onEditAsync">
+      <ShadcnContextMenuContent>
+        <ShadcnContextMenuItem @click="onEditAsync">
           <Edit class="w-4 h-4 mr-2" />
           {{ $t("edit") }}
-        </UiContextMenuItem>
-        <UiContextMenuItem
+        </ShadcnContextMenuItem>
+        <ShadcnContextMenuItem
           class="text-destructive focus:text-destructive"
           @click="onDeleteAsync"
         >
           <Trash class="w-4 h-4 mr-2" />
           {{ $t("delete") }}
-        </UiContextMenuItem>
-      </UiContextMenuContent>
-    </UiContextMenu>
+        </ShadcnContextMenuItem>
+      </ShadcnContextMenuContent>
+    </ShadcnContextMenu>
 
     <!-- Children -->
     <Transition

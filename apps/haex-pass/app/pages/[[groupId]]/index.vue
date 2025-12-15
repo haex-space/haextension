@@ -1,10 +1,10 @@
 <template>
   <NuxtLayout name="passwords">
     <div class="flex-1 p-2">
-      <UiItemGroup v-if="groupItems.length">
-        <UiContextMenu v-for="item in groupItems" :key="item.id">
-          <UiContextMenuTrigger as-child>
-            <UiItem
+      <ShadcnItemGroup v-if="groupItems.length">
+        <ShadcnContextMenu v-for="item in groupItems" :key="item.id">
+          <ShadcnContextMenuTrigger as-child>
+            <ShadcnItem
               :ref="(el) => setupLongPress(el, item)"
               :class="[
                 'cursor-pointer transition-colors',
@@ -18,7 +18,7 @@
               @click="onClickItemAsync(item, $event)"
               @dblclick="onDoubleClickItemAsync(item)"
             >
-              <UiItemMedia
+              <ShadcnItemMedia
                 variant="icon"
                 :style="
                   item.color ? { backgroundColor: item.color } : undefined
@@ -31,11 +31,11 @@
                     item.color ? { color: getTextColor(item.color) } : undefined
                   "
                 />
-              </UiItemMedia>
-              <UiItemContent>
-                <UiItemTitle>{{ item.name }}</UiItemTitle>
+              </ShadcnItemMedia>
+              <ShadcnItemContent>
+                <ShadcnItemTitle>{{ item.name }}</ShadcnItemTitle>
                 <!-- Show username and URL on medium screens and up -->
-                <UiItemDescription v-if="item.type === 'item'" class="hidden md:grid grid-cols-2 gap-4 text-xs">
+                <ShadcnItemDescription v-if="item.type === 'item'" class="hidden md:grid grid-cols-2 gap-4 text-xs">
                   <span class="flex items-center gap-1 truncate">
                     <User class="w-3 h-3 shrink-0" />
                     <span class="truncate">{{ item.username || '-' }}</span>
@@ -44,53 +44,53 @@
                     <Globe class="w-3 h-3 shrink-0" />
                     <span class="truncate">{{ item.url || '-' }}</span>
                   </span>
-                </UiItemDescription>
-              </UiItemContent>
-              <UiItemActions>
+                </ShadcnItemDescription>
+              </ShadcnItemContent>
+              <ShadcnItemActions>
                 <ChevronRight
                   v-if="item.type === 'group'"
                   class="w-4 h-4"
                 />
-              </UiItemActions>
-            </UiItem>
-          </UiContextMenuTrigger>
+              </ShadcnItemActions>
+            </ShadcnItem>
+          </ShadcnContextMenuTrigger>
 
-          <UiContextMenuContent>
+          <ShadcnContextMenuContent>
             <template v-if="item.type === 'item'">
-              <UiContextMenuItem @click="onCopyPassword(item)">
+              <ShadcnContextMenuItem @click="onCopyPassword(item)">
                 <Copy class="w-4 h-4 mr-2" />
                 {{ t("copyPassword") }}
-                <UiContextMenuShortcut>Ctrl+C</UiContextMenuShortcut>
-              </UiContextMenuItem>
-              <UiContextMenuItem @click="onCopyUsername(item)">
+                <ShadcnContextMenuShortcut>Ctrl+C</ShadcnContextMenuShortcut>
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @click="onCopyUsername(item)">
                 <User class="w-4 h-4 mr-2" />
                 {{ t("copyUsername") }}
-                <UiContextMenuShortcut>Ctrl+B</UiContextMenuShortcut>
-              </UiContextMenuItem>
-              <UiContextMenuItem @click="onOpenUrl(item)">
+                <ShadcnContextMenuShortcut>Ctrl+B</ShadcnContextMenuShortcut>
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @click="onOpenUrl(item)">
                 <ExternalLink class="w-4 h-4 mr-2" />
                 {{ t("openUrl") }}
-                <UiContextMenuShortcut>Ctrl+U</UiContextMenuShortcut>
-              </UiContextMenuItem>
-              <UiContextMenuSeparator />
+                <ShadcnContextMenuShortcut>Ctrl+U</ShadcnContextMenuShortcut>
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuSeparator />
             </template>
-            <UiContextMenuItem
+            <ShadcnContextMenuItem
               v-if="selectionStore.selectedCount <= 1"
               @click="onEditItem(item)"
             >
               <Edit class="w-4 h-4 mr-2" />
               {{ t("edit") }}
-            </UiContextMenuItem>
-            <UiContextMenuItem
+            </ShadcnContextMenuItem>
+            <ShadcnContextMenuItem
               class="text-destructive focus:text-destructive"
               @click="onDeleteItem(item)"
             >
               <Trash class="w-4 h-4 mr-2" />
               {{ t("delete") }}
-            </UiContextMenuItem>
-          </UiContextMenuContent>
-        </UiContextMenu>
-      </UiItemGroup>
+            </ShadcnContextMenuItem>
+          </ShadcnContextMenuContent>
+        </ShadcnContextMenu>
+      </ShadcnItemGroup>
       <div v-else class="flex justify-center items-center flex-1">
         <p class="text-muted-foreground">{{ t("noItems") }}</p>
       </div>

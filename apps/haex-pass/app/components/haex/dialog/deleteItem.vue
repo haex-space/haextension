@@ -1,5 +1,5 @@
 <template>
-  <UiDialogConfirm
+  <ShadcnDialogConfirm
     v-model:open="isOpen"
     :title="final ? t('final.title') : t('title')"
     :description="final ? t('final.description', { name: itemName }) : t('description', { name: itemName })"

@@ -1,16 +1,19 @@
 <template>
   <ShadcnInputGroup>
     <ShadcnInputGroupInput
+      ref="inputRef"
       v-model="model"
       v-bind="$attrs"
     />
-    <ShadcnInputGroupButton
-      v-if="copyable"
-      :icon="copied ? Check : Copy"
-      :tooltip="copied ? t('copied') : t('copy')"
-      variant="ghost"
-      @click.prevent="handleCopy"
-    />
+    <slot name="append">
+      <ShadcnInputGroupButton
+        v-if="copyable"
+        :icon="copied ? Check : Copy"
+        :tooltip="copied ? t('copied') : t('copy')"
+        variant="ghost"
+        @click.prevent="handleCopy"
+      />
+    </slot>
   </ShadcnInputGroup>
 </template>
 
@@ -27,11 +30,19 @@ const model = defineModel<string | number | null>();
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
 
+const inputRef = ref<{ focus: () => void } | null>(null);
+
 const handleCopy = async () => {
   if (model.value) {
     await copy(String(model.value));
   }
 };
+
+const focus = () => {
+  inputRef.value?.focus();
+};
+
+defineExpose({ focus });
 </script>
 
 <i18n lang="yaml">

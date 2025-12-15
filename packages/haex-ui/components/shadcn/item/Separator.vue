@@ -1,3 +1,3 @@
 <template>
-  <UiSeparator class="my-2" />
+  <ShadcnSeparator class="my-2" />
 </template>

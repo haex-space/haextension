@@ -1,22 +1,22 @@
 <template>
-  <UiAlertDialog v-model:open="isOpen">
-    <UiAlertDialogContent>
-      <UiAlertDialogHeader>
-        <UiAlertDialogTitle>{{ title }}</UiAlertDialogTitle>
-        <UiAlertDialogDescription>
+  <ShadcnAlertDialog v-model:open="isOpen">
+    <ShadcnAlertDialogContent>
+      <ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogTitle>{{ title }}</ShadcnAlertDialogTitle>
+        <ShadcnAlertDialogDescription>
           {{ description }}
-        </UiAlertDialogDescription>
-      </UiAlertDialogHeader>
-      <UiAlertDialogFooter>
-        <UiAlertDialogCancel @click="$emit('abort')">
+        </ShadcnAlertDialogDescription>
+      </ShadcnAlertDialogHeader>
+      <ShadcnAlertDialogFooter>
+        <ShadcnAlertDialogCancel @click="$emit('abort')">
           {{ abortLabel }}
-        </UiAlertDialogCancel>
-        <UiAlertDialogAction @click="$emit('confirm')">
+        </ShadcnAlertDialogCancel>
+        <ShadcnAlertDialogAction @click="$emit('confirm')">
           {{ confirmLabel }}
-        </UiAlertDialogAction>
-      </UiAlertDialogFooter>
-    </UiAlertDialogContent>
-  </UiAlertDialog>
+        </ShadcnAlertDialogAction>
+      </ShadcnAlertDialogFooter>
+    </ShadcnAlertDialogContent>
+  </ShadcnAlertDialog>
 </template>
 
 <script setup lang="ts">

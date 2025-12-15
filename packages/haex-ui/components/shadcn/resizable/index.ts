@@ -1,3 +1,3 @@
 export { default as ResizableHandle } from "./Handle.vue";
-export { default as ResizablePanelGroup } from "./index.vue";
-export { SplitterPanel as ResizablePanel } from "reka-ui";
+export { default as ResizablePanelGroup } from "./PanelGroup.vue";
+export { default as ResizablePanel } from "./Panel.vue";

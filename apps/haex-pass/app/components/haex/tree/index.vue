@@ -1,6 +1,6 @@
 <template>
   <div ref="scrollContainerRef" class="h-full bg-background border-r border-border">
-    <UiScrollArea class="h-full">
+    <ShadcnScrollArea class="h-full">
       <div class="p-2 space-y-1">
         <HaexTreeItem
           v-for="group in rootGroups"
@@ -12,7 +12,7 @@
           @delete="onDeleteGroup"
         />
       </div>
-    </UiScrollArea>
+    </ShadcnScrollArea>
   </div>
 </template>
 

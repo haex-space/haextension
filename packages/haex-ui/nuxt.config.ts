@@ -7,8 +7,8 @@ const __dirname = dirname(__filename)
 export default defineNuxtConfig({
 
   components: [
-    // Shadcn components (pure, unmodified)
-    // e.g., card/index.vue -> ShadcnCard, button/index.vue -> ShadcnButton
+    // Shadcn components - naked shadcn-vue components
+    // Use Shadcn* prefix to access these
     {
       path: './components/shadcn',
       prefix: 'Shadcn',
@@ -16,19 +16,12 @@ export default defineNuxtConfig({
       extensions: ['.vue'],
       global: true,
     },
-    // UI components (extended shadcn with custom logic)
-    // e.g., input/index.vue -> UiInput, input/password.vue -> UiInputPassword
+    // UI components - generic reusable components with custom UI/UX logic
+    // Built on top of shadcn, usable by all apps
+    // Use Ui* prefix to access these (e.g., UiDrawerModal, UiInputPassword)
     {
       path: './components/ui',
       prefix: 'Ui',
-      pathPrefix: true,
-      extensions: ['.vue'],
-      global: true,
-    },
-    // Haex components (app-specific, for haex-pass)
-    {
-      path: './components/haex',
-      prefix: 'Haex',
       pathPrefix: true,
       extensions: ['.vue'],
       global: true,

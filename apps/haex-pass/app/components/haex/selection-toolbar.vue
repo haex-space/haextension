@@ -6,7 +6,7 @@
   >
     <div class="flex items-center justify-between min-h-[32px]">
       <div class="flex items-center gap-3">
-        <UiButton
+        <ShadcnButton
           variant="ghost"
           size="sm"
           :icon="X"
@@ -21,7 +21,7 @@
         <!-- Normal selection mode buttons -->
         <template v-if="!selectionStore.hasClipboardItems">
           <!-- Edit button - only visible when exactly 1 item is selected -->
-          <UiButton
+          <ShadcnButton
             v-if="selectionStore.selectedCount === 1"
             variant="ghost"
             size="sm"
@@ -32,7 +32,7 @@
           />
 
           <!-- Copy button - visible when 1 or more items selected -->
-          <UiButton
+          <ShadcnButton
             variant="ghost"
             size="sm"
             :icon="Copy"
@@ -42,7 +42,7 @@
           />
 
           <!-- Cut button - visible when 1 or more items selected -->
-          <UiButton
+          <ShadcnButton
             variant="ghost"
             size="sm"
             :icon="Scissors"
@@ -52,7 +52,7 @@
           />
 
           <!-- Delete button - always visible -->
-          <UiButton
+          <ShadcnButton
             variant="ghost"
             size="sm"
             :icon="Trash2"
@@ -65,7 +65,7 @@
         <!-- Clipboard mode buttons -->
         <template v-else>
           <!-- Paste button -->
-          <UiButton
+          <ShadcnButton
             variant="ghost"
             size="sm"
             :icon="ClipboardPaste"
@@ -75,7 +75,7 @@
           />
 
           <!-- Cancel clipboard button -->
-          <UiButton
+          <ShadcnButton
             variant="ghost"
             size="sm"
             :icon="XCircle"

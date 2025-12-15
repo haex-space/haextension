@@ -1,20 +1,16 @@
 <template>
-  <UiDrawer v-model:open="isOpen">
-    <UiDrawerContent>
-      <UiDrawerHeader>
-        <UiDrawerTitle>{{ t("title") }}</UiDrawerTitle>
-      </UiDrawerHeader>
-
-      <div class="p-4 space-y-4 overflow-y-auto">
+  <UiDrawerModal v-model:open="isOpen" :title="t('title')">
+    <template #content>
+      <div class="space-y-4">
         <!-- Preset Selector -->
         <div v-if="presets.length > 0" class="space-y-2">
-          <UiLabel>{{ t("loadPreset") }}</UiLabel>
-          <UiSelect v-model="selectedPresetId" @update:model-value="loadPresetAsync">
-            <UiSelectTrigger>
-              <UiSelectValue :placeholder="t('selectPreset')" />
-            </UiSelectTrigger>
-            <UiSelectContent>
-              <UiSelectItem
+          <ShadcnLabel>{{ t("loadPreset") }}</ShadcnLabel>
+          <ShadcnSelect v-model="selectedPresetId" @update:model-value="loadPresetAsync">
+            <ShadcnSelectTrigger>
+              <ShadcnSelectValue :placeholder="t('selectPreset')" />
+            </ShadcnSelectTrigger>
+            <ShadcnSelectContent>
+              <ShadcnSelectItem
                 v-for="preset in presets"
                 :key="preset.id"
                 :value="preset.id"
@@ -23,37 +19,37 @@
                 <span v-if="preset.isDefault" class="ml-2 text-xs opacity-60">
                   ({{ t("default") }})
                 </span>
-              </UiSelectItem>
-            </UiSelectContent>
-          </UiSelect>
+              </ShadcnSelectItem>
+            </ShadcnSelectContent>
+          </ShadcnSelect>
         </div>
 
         <!-- Generated Password Display -->
         <div class="space-y-2">
-          <UiLabel>{{ t("generatedPassword") }}</UiLabel>
-          <UiInputGroup>
-            <UiInputGroupInput
+          <ShadcnLabel>{{ t("generatedPassword") }}</ShadcnLabel>
+          <ShadcnInputGroup>
+            <ShadcnInputGroupInput
               v-model="generatedPassword"
               :readonly="true"
               class="font-mono"
             />
-            <UiInputGroupButton
+            <ShadcnInputGroupButton
               :icon="RefreshCw"
               variant="ghost"
               @click.prevent="generatePasswordAsync"
             />
-            <UiInputGroupButton
+            <ShadcnInputGroupButton
               :icon="copied ? Check : Copy"
               variant="ghost"
               @click.prevent="copyPasswordAsync"
             />
-          </UiInputGroup>
+          </ShadcnInputGroup>
         </div>
 
         <!-- Password Length -->
         <div class="space-y-2">
-          <UiLabel> {{ t("length") }}: {{ passwordLength }} </UiLabel>
-          <UiSlider
+          <ShadcnLabel> {{ t("length") }}: {{ passwordLength }} </ShadcnLabel>
+          <ShadcnSlider
             v-model="passwordLengthArray"
             :min="4"
             :max="128"
@@ -63,46 +59,46 @@
 
         <!-- Character Types -->
         <div class="space-y-2">
-          <UiLabel>{{ t("characterTypes") }}</UiLabel>
+          <ShadcnLabel>{{ t("characterTypes") }}</ShadcnLabel>
           <div class="flex gap-2 flex-wrap">
-            <UiButton
+            <ShadcnButton
               :variant="options.uppercase ? 'default' : 'outline'"
               size="sm"
               @click="toggleOption('uppercase')"
             >
               A-Z
-            </UiButton>
+            </ShadcnButton>
 
-            <UiButton
+            <ShadcnButton
               :variant="options.lowercase ? 'default' : 'outline'"
               size="sm"
               @click="toggleOption('lowercase')"
             >
               a-z
-            </UiButton>
+            </ShadcnButton>
 
-            <UiButton
+            <ShadcnButton
               :variant="options.numbers ? 'default' : 'outline'"
               size="sm"
               @click="toggleOption('numbers')"
             >
               0-9
-            </UiButton>
+            </ShadcnButton>
 
-            <UiButton
+            <ShadcnButton
               :variant="options.symbols ? 'default' : 'outline'"
               size="sm"
               @click="toggleOption('symbols')"
             >
               !@#
-            </UiButton>
+            </ShadcnButton>
           </div>
         </div>
 
         <!-- Exclude Characters -->
         <div class="space-y-2">
-          <UiLabel>{{ t("excludeChars") }}</UiLabel>
-          <UiInput
+          <ShadcnLabel>{{ t("excludeChars") }}</ShadcnLabel>
+          <ShadcnInput
             v-model="options.excludeChars"
             :placeholder="t('excludeCharsPlaceholder')"
             @change="generatePasswordAsync"
@@ -112,15 +108,15 @@
         <!-- Pattern Mode -->
         <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <UiCheckbox id="use-pattern" v-model="usePattern" />
-            <UiLabel for="use-pattern" class="cursor-pointer">
+            <ShadcnCheckbox id="use-pattern" v-model="usePattern" />
+            <ShadcnLabel for="use-pattern" class="cursor-pointer">
               {{ t("usePattern") }}
-            </UiLabel>
-            <UiPopover>
-              <UiPopoverTrigger as-child>
-                <UiButton :icon="Info" size="icon-sm" variant="ghost" />
-              </UiPopoverTrigger>
-              <UiPopoverContent class="w-96">
+            </ShadcnLabel>
+            <ShadcnPopover>
+              <ShadcnPopoverTrigger as-child>
+                <ShadcnButton :icon="Info" size="icon-sm" variant="ghost" />
+              </ShadcnPopoverTrigger>
+              <ShadcnPopoverContent class="w-96">
                 <div class="space-y-2">
                   <h4 class="font-semibold">
                     {{ t("patternHelpTitle") }}
@@ -161,15 +157,15 @@
                     <li>{{ t("patternHelp.other") }}</li>
                   </ul>
                 </div>
-              </UiPopoverContent>
-            </UiPopover>
+              </ShadcnPopoverContent>
+            </ShadcnPopover>
           </div>
         </div>
 
         <!-- Pattern Input -->
         <div v-if="usePattern" class="space-y-2">
-          <UiLabel>{{ t("pattern") }}</UiLabel>
-          <UiInput
+          <ShadcnLabel>{{ t("pattern") }}</ShadcnLabel>
+          <ShadcnInput
             v-model="pattern"
             :placeholder="t('patternPlaceholder')"
             @input="generatePasswordAsync"
@@ -178,18 +174,18 @@
 
         <!-- Save Preset Section -->
         <div class="space-y-2 pt-4 border-t">
-          <UiLabel>{{ t("saveAsPreset") }}</UiLabel>
-          <UiInput
+          <ShadcnLabel>{{ t("saveAsPreset") }}</ShadcnLabel>
+          <ShadcnInput
             v-model="presetName"
             :placeholder="t('presetNamePlaceholder')"
           />
           <div class="flex items-center gap-2">
-            <UiCheckbox id="set-as-default" v-model="setAsDefault" />
-            <UiLabel for="set-as-default" class="cursor-pointer">
+            <ShadcnCheckbox id="set-as-default" v-model="setAsDefault" />
+            <ShadcnLabel for="set-as-default" class="cursor-pointer">
               {{ t("setAsDefault") }}
-            </UiLabel>
+            </ShadcnLabel>
           </div>
-          <UiButton
+          <ShadcnButton
             :icon="Save"
             variant="outline"
             class="w-full"
@@ -197,20 +193,20 @@
             @click="savePresetAsync"
           >
             {{ t("savePreset") }}
-          </UiButton>
+          </ShadcnButton>
         </div>
       </div>
+    </template>
 
-      <UiDrawerFooter>
-        <UiButton @click="usePasswordAsync">
-          {{ t("use") }}
-        </UiButton>
-        <UiButton variant="outline" @click="isOpen = false">
-          {{ t("cancel") }}
-        </UiButton>
-      </UiDrawerFooter>
-    </UiDrawerContent>
-  </UiDrawer>
+    <template #footer>
+      <ShadcnButton @click="usePasswordAsync">
+        {{ t("use") }}
+      </ShadcnButton>
+      <ShadcnButton variant="outline" @click="isOpen = false">
+        {{ t("cancel") }}
+      </ShadcnButton>
+    </template>
+  </UiDrawerModal>
 </template>
 
 <script setup lang="ts">

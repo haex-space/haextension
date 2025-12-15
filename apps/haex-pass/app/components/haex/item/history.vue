@@ -66,7 +66,7 @@
 
         <!-- Title -->
         <div v-if="parsedSnapshotData.title">
-          <UiLabel>{{ t('title') }}</UiLabel>
+          <ShadcnLabel>{{ t('title') }}</ShadcnLabel>
           <HaexInput
             :model-value="parsedSnapshotData.title"
             readonly
@@ -75,7 +75,7 @@
 
         <!-- Username -->
         <div v-if="parsedSnapshotData.username">
-          <UiLabel>{{ t('username') }}</UiLabel>
+          <ShadcnLabel>{{ t('username') }}</ShadcnLabel>
           <HaexInput
             :model-value="parsedSnapshotData.username"
             readonly
@@ -84,7 +84,7 @@
 
         <!-- Password -->
         <div v-if="parsedSnapshotData.password">
-          <UiLabel>{{ t('password') }}</UiLabel>
+          <ShadcnLabel>{{ t('password') }}</ShadcnLabel>
           <HaexInputPassword
             :model-value="parsedSnapshotData.password"
             read-only
@@ -93,7 +93,7 @@
 
         <!-- URL -->
         <div v-if="parsedSnapshotData.url">
-          <UiLabel>{{ t('url') }}</UiLabel>
+          <ShadcnLabel>{{ t('url') }}</ShadcnLabel>
           <HaexInput
             :model-value="parsedSnapshotData.url"
             readonly
@@ -102,8 +102,8 @@
 
         <!-- Note -->
         <div v-if="parsedSnapshotData.note">
-          <UiLabel>{{ t('note') }}</UiLabel>
-          <UiTextarea
+          <ShadcnLabel>{{ t('note') }}</ShadcnLabel>
+          <ShadcnTextarea
             :model-value="parsedSnapshotData.note"
             disabled
             class="min-h-[100px]"
@@ -112,7 +112,7 @@
 
         <!-- Tags -->
         <div v-if="parsedSnapshotData.tags">
-          <UiLabel>{{ t('tags') }}</UiLabel>
+          <ShadcnLabel>{{ t('tags') }}</ShadcnLabel>
           <HaexInput
             :model-value="parsedSnapshotData.tags"
             readonly
@@ -121,7 +121,7 @@
 
         <!-- OTP Secret -->
         <div v-if="parsedSnapshotData.otpSecret">
-          <UiLabel>{{ t('otpSecret') }}</UiLabel>
+          <ShadcnLabel>{{ t('otpSecret') }}</ShadcnLabel>
           <HaexInput
             :model-value="parsedSnapshotData.otpSecret"
             readonly
@@ -137,14 +137,14 @@
             class="p-3 rounded-lg border border-border gap-3 grid grid-cols-1 sm:grid-cols-2"
           >
             <div>
-              <UiLabel>{{ t('key') }}</UiLabel>
+              <ShadcnLabel>{{ t('key') }}</ShadcnLabel>
               <HaexInput
                 :model-value="kv.key"
                 readonly
               />
             </div>
             <div>
-              <UiLabel>{{ t('value') }}</UiLabel>
+              <ShadcnLabel>{{ t('value') }}</ShadcnLabel>
               <HaexInput
                 :model-value="kv.value"
                 readonly
@@ -188,7 +188,7 @@
                 </p>
               </div>
 
-              <UiButton
+              <ShadcnButton
                 :icon="Download"
                 variant="ghost"
                 size="icon-sm"

@@ -21,15 +21,15 @@
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <UiButton
+        <ShadcnButton
           :icon="Trash2"
           variant="destructive"
           size="sm"
           @click="showDeleteDialog = true"
         >
           <span class="hidden sm:inline">{{ t('delete') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           v-if="readOnly"
           :icon="Pencil"
           variant="outline"
@@ -37,8 +37,8 @@
           @click="readOnly = false"
         >
           <span class="hidden sm:inline">{{ t('edit') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           v-if="!readOnly"
           :icon="Save"
           :disabled="!hasChanges"
@@ -47,8 +47,8 @@
           @click="onSaveAsync"
         >
           <span class="hidden sm:inline">{{ t('save') }}</span>
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           :icon="X"
           variant="ghost"
           size="sm"
@@ -57,7 +57,7 @@
       </div>
     </div>
 
-    <UiCarousel
+    <ShadcnCarousel
       v-if="currentItem"
       class="flex-1 overflow-hidden"
       @init-api="(api) => {
@@ -69,9 +69,9 @@
         }
       }"
     >
-      <UiCarouselContent class="h-full">
+      <ShadcnCarouselContent class="h-full">
         <!-- Details Slide -->
-        <UiCarouselItem class="h-full">
+        <ShadcnCarouselItem class="h-full">
           <div class="h-full overflow-y-auto">
             <HaexItemDetails
               v-model="editableDetails"
@@ -79,10 +79,10 @@
               @submit="onSaveAsync"
             />
           </div>
-        </UiCarouselItem>
+        </ShadcnCarouselItem>
 
         <!-- Key-Value Slide -->
-        <UiCarouselItem class="h-full">
+        <ShadcnCarouselItem class="h-full">
           <div class="h-full overflow-hidden">
             <HaexItemKeyValue
               v-if="currentItem.details.id"
@@ -96,10 +96,10 @@
               :read-only="readOnly"
             />
           </div>
-        </UiCarouselItem>
+        </ShadcnCarouselItem>
 
         <!-- History Slide -->
-        <UiCarouselItem class="h-full">
+        <ShadcnCarouselItem class="h-full">
           <div class="h-full overflow-hidden">
             <HaexItemHistory
               v-if="currentItem.details.id"
@@ -107,9 +107,9 @@
               :item-id="currentItem.details.id"
             />
           </div>
-        </UiCarouselItem>
-      </UiCarouselContent>
-    </UiCarousel>
+        </ShadcnCarouselItem>
+      </ShadcnCarouselContent>
+    </ShadcnCarousel>
 
     <div v-else class="flex-1 flex items-center justify-center">
       <p class="text-muted-foreground">{{ t('loading') }}</p>
@@ -125,22 +125,22 @@
     />
 
     <!-- Unsaved Changes Dialog -->
-    <UiAlertDialog v-model:open="showUnsavedChangesDialog">
-      <UiAlertDialogContent>
-        <UiAlertDialogHeader>
-          <UiAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</UiAlertDialogTitle>
-          <UiAlertDialogDescription>
+    <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
             {{ t('unsavedChangesDialog.description') }}
-          </UiAlertDialogDescription>
-        </UiAlertDialogHeader>
-        <UiAlertDialogFooter>
-          <UiAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</UiAlertDialogCancel>
-          <UiAlertDialogAction @click="onConfirmDiscardChanges">
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
             {{ t('unsavedChangesDialog.confirm') }}
-          </UiAlertDialogAction>
-        </UiAlertDialogFooter>
-      </UiAlertDialogContent>
-    </UiAlertDialog>
+          </ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 
@@ -152,7 +152,7 @@ import type {
   SelectHaexPasswordsItemKeyValues,
 } from "~/database";
 import type { AttachmentWithSize } from "~/types/attachment";
-import type { UnwrapRefCarouselApi } from "~/components/ui/carousel/interface";
+import type { UnwrapRefCarouselApi } from "@/components/shadcn/carousel/interface";
 
 definePageMeta({
   name: "passwordItemEdit",

@@ -1,12 +1,12 @@
 <template>
   <div class="p-4 space-y-6 h-full overflow-y-auto">
     <!-- Key-Value Pairs -->
-    <UiCard>
-      <UiCardHeader>
-        <UiCardTitle>{{ t("customFields") }}</UiCardTitle>
-      </UiCardHeader>
+    <ShadcnCard>
+      <ShadcnCardHeader>
+        <ShadcnCardTitle>{{ t("customFields") }}</ShadcnCardTitle>
+      </ShadcnCardHeader>
 
-      <UiCardContent>
+      <ShadcnCardContent>
         <div class="flex flex-col lg:flex-row gap-4">
           <!-- Key List -->
           <div v-if="allItems.length" class="flex-1">
@@ -30,7 +30,7 @@
                     @click.stop="currentSelected = item"
                   />
 
-                  <UiButton
+                  <ShadcnButton
                     v-if="!readOnly && currentSelected === item"
                     :icon="Trash2"
                     variant="ghost"
@@ -38,7 +38,7 @@
                     @click.stop="deleteItem(item.id)"
                   />
 
-                  <UiButton
+                  <ShadcnButton
                     :icon="copied && copiedItem === item ? Check : Copy"
                     variant="ghost"
                     size="icon-sm"
@@ -52,16 +52,16 @@
           <!-- Value Textarea -->
           <div v-if="allItems.length" class="flex-1 min-w-0 lg:min-w-52">
             <div class="space-y-2">
-              <UiLabel>{{ t('value') }}</UiLabel>
+              <ShadcnLabel>{{ t('value') }}</ShadcnLabel>
               <div class="relative">
-                <UiTextarea
+                <ShadcnTextarea
                   v-model="currentValue"
                   :readonly="readOnly || !currentSelected"
                   :placeholder="t('valuePlaceholder')"
                   rows="8"
                   class="pr-12"
                 />
-                <UiButton
+                <ShadcnButton
                   :icon="copied && copiedItem === currentSelected ? Check : Copy"
                   variant="ghost"
                   size="icon-sm"
@@ -73,27 +73,27 @@
             </div>
           </div>
         </div>
-      </UiCardContent>
+      </ShadcnCardContent>
 
-      <UiCardFooter v-if="!readOnly">
-        <UiButton
+      <ShadcnCardFooter v-if="!readOnly">
+        <ShadcnButton
           :icon="Plus"
           variant="outline"
           class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
           @click="addItem"
         >
           {{ t('addField') }}
-        </UiButton>
-      </UiCardFooter>
-    </UiCard>
+        </ShadcnButton>
+      </ShadcnCardFooter>
+    </ShadcnCard>
 
     <!-- Attachments Section -->
-    <UiCard>
-      <UiCardHeader>
-        <UiCardTitle>{{ t("attachments") }}</UiCardTitle>
-      </UiCardHeader>
+    <ShadcnCard>
+      <ShadcnCardHeader>
+        <ShadcnCardTitle>{{ t("attachments") }}</ShadcnCardTitle>
+      </ShadcnCardHeader>
 
-      <UiCardContent>
+      <ShadcnCardContent>
         <HaexItemAttachments
           v-model="attachments"
           v-model:attachments-to-add="attachmentsToAdd"
@@ -101,8 +101,8 @@
           :item-id="itemId"
           :read-only="readOnly"
         />
-      </UiCardContent>
-    </UiCard>
+      </ShadcnCardContent>
+    </ShadcnCard>
   </div>
 </template>
 

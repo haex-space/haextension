@@ -48,13 +48,13 @@
 
         <!-- Edit mode buttons -->
         <template v-if="!readOnly && editingAttachment === attachment.id">
-          <UiButton
+          <ShadcnButton
             :icon="Check"
             variant="ghost"
             size="icon-sm"
             @click.stop="saveFileName(attachment)"
           />
-          <UiButton
+          <ShadcnButton
             :icon="X"
             variant="ghost"
             size="icon-sm"
@@ -65,20 +65,20 @@
         <!-- Normal mode buttons -->
         <template v-else>
           <template v-if="!readOnly">
-            <UiButton
+            <ShadcnButton
               :icon="Pencil"
               variant="ghost"
               size="icon-sm"
               @click.stop="startEditingFileName(attachment)"
             />
-            <UiButton
+            <ShadcnButton
               :icon="Trash2"
               variant="ghost"
               size="icon-sm"
               @click.stop="removeExistingAttachment(attachment)"
             />
           </template>
-          <UiButton
+          <ShadcnButton
             :icon="Download"
             variant="ghost"
             size="icon-sm"
@@ -140,13 +140,13 @@
 
         <!-- Edit mode buttons -->
         <template v-if="!readOnly && editingAttachment === attachment.id">
-          <UiButton
+          <ShadcnButton
             :icon="Check"
             variant="ghost"
             size="icon-sm"
             @click.stop="saveFileName(attachment)"
           />
-          <UiButton
+          <ShadcnButton
             :icon="X"
             variant="ghost"
             size="icon-sm"
@@ -157,20 +157,20 @@
         <!-- Normal mode buttons -->
         <template v-else>
           <template v-if="!readOnly">
-            <UiButton
+            <ShadcnButton
               :icon="Pencil"
               variant="ghost"
               size="icon-sm"
               @click.stop="startEditingFileName(attachment)"
             />
-            <UiButton
+            <ShadcnButton
               :icon="Trash2"
               variant="ghost"
               size="icon-sm"
               @click.stop="removeNewAttachment(attachment)"
             />
           </template>
-          <UiButton
+          <ShadcnButton
             :icon="Download"
             variant="ghost"
             size="icon-sm"
@@ -198,14 +198,14 @@
         class="hidden"
         @change="onFileChange"
       />
-      <UiButton
+      <ShadcnButton
         :icon="Plus"
         variant="outline"
         class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
         @click="fileInput?.click()"
       >
         {{ t('addAttachment') }}
-      </UiButton>
+      </ShadcnButton>
     </div>
 
     <!-- File Viewer -->

@@ -1,21 +1,21 @@
 <template>
   <div class="space-y-2">
-    <UiLabel>{{ t("label") }}</UiLabel>
-    <UiInputGroup>
-      <UiInputGroupInput
+    <ShadcnLabel>{{ t("label") }}</ShadcnLabel>
+    <ShadcnInputGroup>
+      <ShadcnInputGroupInput
         v-model="model"
         type="text"
         :placeholder="t('label')"
         :readonly="readonly"
         @keyup.enter="$emit('submit')"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         :icon="secretCopied ? Check : Copy"
         :tooltip="secretCopied ? t('copied') : t('copySecret')"
         variant="ghost"
         @click.prevent="copySecret"
       />
-    </UiInputGroup>
+    </ShadcnInputGroup>
 
     <!-- OTP Settings (only show when there's a secret and not readonly) -->
     <div
@@ -24,44 +24,44 @@
     >
       <!-- Algorithm -->
       <div>
-        <UiLabel class="text-xs text-muted-foreground">{{ t("algorithm") }}</UiLabel>
-        <UiSelect v-model="algorithmModel">
-          <UiSelectTrigger class="h-8 text-xs">
-            <UiSelectValue />
-          </UiSelectTrigger>
-          <UiSelectContent>
-            <UiSelectItem value="SHA1">SHA1</UiSelectItem>
-            <UiSelectItem value="SHA256">SHA256</UiSelectItem>
-            <UiSelectItem value="SHA512">SHA512</UiSelectItem>
-          </UiSelectContent>
-        </UiSelect>
+        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("algorithm") }}</ShadcnLabel>
+        <ShadcnSelect v-model="algorithmModel">
+          <ShadcnSelectTrigger class="h-8 text-xs">
+            <ShadcnSelectValue />
+          </ShadcnSelectTrigger>
+          <ShadcnSelectContent>
+            <ShadcnSelectItem value="SHA1">SHA1</ShadcnSelectItem>
+            <ShadcnSelectItem value="SHA256">SHA256</ShadcnSelectItem>
+            <ShadcnSelectItem value="SHA512">SHA512</ShadcnSelectItem>
+          </ShadcnSelectContent>
+        </ShadcnSelect>
       </div>
       <!-- Digits -->
       <div>
-        <UiLabel class="text-xs text-muted-foreground">{{ t("digits") }}</UiLabel>
-        <UiSelect v-model="digitsModel">
-          <UiSelectTrigger class="h-8 text-xs">
-            <UiSelectValue />
-          </UiSelectTrigger>
-          <UiSelectContent>
-            <UiSelectItem value="6">6</UiSelectItem>
-            <UiSelectItem value="7">7</UiSelectItem>
-            <UiSelectItem value="8">8</UiSelectItem>
-          </UiSelectContent>
-        </UiSelect>
+        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("digits") }}</ShadcnLabel>
+        <ShadcnSelect v-model="digitsModel">
+          <ShadcnSelectTrigger class="h-8 text-xs">
+            <ShadcnSelectValue />
+          </ShadcnSelectTrigger>
+          <ShadcnSelectContent>
+            <ShadcnSelectItem value="6">6</ShadcnSelectItem>
+            <ShadcnSelectItem value="7">7</ShadcnSelectItem>
+            <ShadcnSelectItem value="8">8</ShadcnSelectItem>
+          </ShadcnSelectContent>
+        </ShadcnSelect>
       </div>
       <!-- Period -->
       <div>
-        <UiLabel class="text-xs text-muted-foreground">{{ t("period") }}</UiLabel>
-        <UiSelect v-model="periodModel">
-          <UiSelectTrigger class="h-8 text-xs">
-            <UiSelectValue />
-          </UiSelectTrigger>
-          <UiSelectContent>
-            <UiSelectItem value="30">30s</UiSelectItem>
-            <UiSelectItem value="60">60s</UiSelectItem>
-          </UiSelectContent>
-        </UiSelect>
+        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("period") }}</ShadcnLabel>
+        <ShadcnSelect v-model="periodModel">
+          <ShadcnSelectTrigger class="h-8 text-xs">
+            <ShadcnSelectValue />
+          </ShadcnSelectTrigger>
+          <ShadcnSelectContent>
+            <ShadcnSelectItem value="30">30s</ShadcnSelectItem>
+            <ShadcnSelectItem value="60">60s</ShadcnSelectItem>
+          </ShadcnSelectContent>
+        </ShadcnSelect>
       </div>
     </div>
 
@@ -108,7 +108,7 @@
             {{ remainingSeconds }}
           </div>
         </div>
-        <UiButton
+        <ShadcnButton
           type="button"
           :icon="copied ? Check : Copy"
           :tooltip="copied ? t('copied') : t('copyCode')"

@@ -1,17 +1,18 @@
 <template>
-  <UiInputGroup>
-    <UiInputGroupInput
-      ref="inputRef"
-      v-model="model"
-      v-bind="$attrs"
-    />
-    <UiInputGroupButton
-      :icon="copied ? Check : Copy"
-      :tooltip="copied ? t('copied') : t('copy')"
-      variant="ghost"
-      @click.prevent="handleCopy"
-    />
-  </UiInputGroup>
+  <UiInput
+    ref="inputRef"
+    v-model="model"
+    v-bind="$attrs"
+  >
+    <template #append>
+      <ShadcnInputGroupButton
+        :icon="copied ? Check : Copy"
+        :tooltip="copied ? t('copied') : t('copy')"
+        variant="ghost"
+        @click.prevent="handleCopy"
+      />
+    </template>
+  </UiInput>
 </template>
 
 <script setup lang="ts">
@@ -32,13 +33,13 @@ const handleCopy = async () => {
   }
 };
 
-const inputRef = useTemplateRef<{ focus: () => void; el: HTMLInputElement }>("inputRef");
+const inputRef = useTemplateRef<{ focus: () => void }>("inputRef");
 
 const focus = () => {
   inputRef.value?.focus();
 };
 
-defineExpose({ focus, el: computed(() => inputRef.value?.el) });
+defineExpose({ focus });
 </script>
 
 <i18n lang="yaml">

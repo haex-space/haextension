@@ -1,5 +1,5 @@
 <template>
-  <UiButton
+  <ShadcnButton
     variant="default"
     class="relative overflow-hidden"
     disabled
@@ -23,7 +23,7 @@
         class="transition-all duration-300"
       />
     </svg>
-  </UiButton>
+  </ShadcnButton>
 </template>
 
 <script setup lang="ts">

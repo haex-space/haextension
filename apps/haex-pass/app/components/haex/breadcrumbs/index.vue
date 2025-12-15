@@ -1,25 +1,25 @@
 <template>
-  <UiBreadcrumb class="px-7 py-4">
+  <ShadcnBreadcrumb class="px-7 py-4">
     <div class="flex items-center justify-between w-full min-h-[32px]">
-      <UiBreadcrumbList>
-        <UiBreadcrumbItem>
-          <UiBreadcrumbLink as-child>
+      <ShadcnBreadcrumbList>
+        <ShadcnBreadcrumbItem>
+          <ShadcnBreadcrumbLink as-child>
             <NuxtLinkLocale
               :to="{ name: 'passwordGroupItems' }"
               class="flex items-center"
             >
               <Icon name="mdi:safe" size="20" />
             </NuxtLinkLocale>
-          </UiBreadcrumbLink>
-        </UiBreadcrumbItem>
+          </ShadcnBreadcrumbLink>
+        </ShadcnBreadcrumbItem>
 
         <template v-for="(item, index) in items ?? []" :key="item.id">
-          <UiBreadcrumbSeparator>
+          <ShadcnBreadcrumbSeparator>
             <ChevronRight class="w-4 h-4" />
-          </UiBreadcrumbSeparator>
+          </ShadcnBreadcrumbSeparator>
 
-          <UiBreadcrumbItem>
-            <UiBreadcrumbLink v-if="index < (items?.length ?? 0) - 1" as-child>
+          <ShadcnBreadcrumbItem>
+            <ShadcnBreadcrumbLink v-if="index < (items?.length ?? 0) - 1" as-child>
               <NuxtLinkLocale
                 :to="{
                   name: 'passwordGroupItems',
@@ -28,17 +28,17 @@
               >
                 {{ item.name }}
               </NuxtLinkLocale>
-            </UiBreadcrumbLink>
-            <UiBreadcrumbPage v-else>
+            </ShadcnBreadcrumbLink>
+            <ShadcnBreadcrumbPage v-else>
               {{ item.name }}
-            </UiBreadcrumbPage>
-          </UiBreadcrumbItem>
+            </ShadcnBreadcrumbPage>
+          </ShadcnBreadcrumbItem>
         </template>
 
         <template v-if="lastGroup">
-          <UiBreadcrumbSeparator />
-          <UiBreadcrumbItem>
-            <UiBreadcrumbLink as-child>
+          <ShadcnBreadcrumbSeparator />
+          <ShadcnBreadcrumbItem>
+            <ShadcnBreadcrumbLink as-child>
               <NuxtLinkLocale
                 :to="{
                   name: 'passwordGroupEdit',
@@ -48,14 +48,14 @@
               >
                 <Pencil class="w-4 h-4" />
               </NuxtLinkLocale>
-            </UiBreadcrumbLink>
-          </UiBreadcrumbItem>
+            </ShadcnBreadcrumbLink>
+          </ShadcnBreadcrumbItem>
         </template>
-      </UiBreadcrumbList>
+      </ShadcnBreadcrumbList>
 
       <!-- Clipboard actions - visible when clipboard has items -->
-      <UiButtonGroup v-if="selectionStore.hasClipboardItems">
-        <UiButton
+      <ShadcnButtonGroup v-if="selectionStore.hasClipboardItems">
+        <ShadcnButton
           variant="secondary"
           size="sm"
           @click="selectionStore.clearClipboard()"
@@ -63,17 +63,17 @@
           {{
             t("clipboardCount", { count: selectionStore.clipboardItems.length })
           }}
-        </UiButton>
-        <UiButton
+        </ShadcnButton>
+        <ShadcnButton
           :icon="ClipboardPaste"
           :tooltip="t('paste')"
           variant="default"
           size="sm"
           @click="$emit('paste')"
         />
-      </UiButtonGroup>
+      </ShadcnButtonGroup>
     </div>
-  </UiBreadcrumb>
+  </ShadcnBreadcrumb>
 </template>
 
 <script setup lang="ts">

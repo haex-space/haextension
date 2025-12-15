@@ -6,7 +6,7 @@
     >
       <!-- Title -->
       <div v-show="!readOnly || itemDetails.title">
-        <UiLabel>{{ t("item.title") }}</UiLabel>
+        <ShadcnLabel>{{ t("item.title") }}</ShadcnLabel>
         <HaexInput
           ref="titleRef"
           v-model.trim="itemDetails.title"
@@ -18,7 +18,7 @@
 
       <!-- Username -->
       <div v-show="!readOnly || itemDetails.username">
-        <UiLabel>{{ t("item.username") }}</UiLabel>
+        <ShadcnLabel>{{ t("item.username") }}</ShadcnLabel>
         <HaexInput
           v-model.trim="itemDetails.username"
           :placeholder="t('item.username')"
@@ -29,7 +29,7 @@
 
       <!-- Password -->
       <div v-if="!readOnly || itemDetails.password">
-        <UiLabel>{{ t("item.password") }}</UiLabel>
+        <ShadcnLabel>{{ t("item.password") }}</ShadcnLabel>
         <HaexInputPassword
           v-model.trim="itemDetails.password"
           :placeholder="t('item.password')"
@@ -61,30 +61,30 @@
 
       <!-- Tags -->
       <div v-show="!readOnly || tags.length">
-        <UiLabel>{{ t("item.tags.label") }}</UiLabel>
-        <UiTagsInput
+        <ShadcnLabel>{{ t("item.tags.label") }}</ShadcnLabel>
+        <ShadcnTagsInput
           v-if="!readOnly"
           v-model="tags"
           class="mt-2"
         >
-          <UiTagsInputItem
+          <ShadcnTagsInputItem
             v-for="item in tags"
             :key="item"
             :value="item"
           >
-            <UiTagsInputItemText />
-            <UiTagsInputItemDelete />
-          </UiTagsInputItem>
-          <UiTagsInputInput :placeholder="t('item.tags.placeholder')" />
-        </UiTagsInput>
+            <ShadcnTagsInputItemText />
+            <ShadcnTagsInputItemDelete />
+          </ShadcnTagsInputItem>
+          <ShadcnTagsInputInput :placeholder="t('item.tags.placeholder')" />
+        </ShadcnTagsInput>
         <div v-else class="flex flex-wrap gap-2 mt-2">
-          <UiBadge
+          <ShadcnBadge
             v-for="(tag, index) in tags"
             :key="index"
             variant="secondary"
           >
             {{ tag }}
-          </UiBadge>
+          </ShadcnBadge>
         </div>
       </div>
 

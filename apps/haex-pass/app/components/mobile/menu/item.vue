@@ -4,7 +4,7 @@
     :style="{ color: menuItem.color ?? '' }"
     @click="$emit('click', menuItem)"
   >
-    <UiIcon
+    <ShadcnIcon
       :icon="menuItem?.icon"
       :alt="menuItem?.name"
       class="shrink-0 w-6 h-6"

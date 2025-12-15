@@ -1,16 +1,16 @@
 <template>
-  <UiAlertDialog v-model:open="isOpen">
-    <UiAlertDialogContent>
-      <UiAlertDialogHeader>
-        <UiAlertDialogTitle>{{ t("title") }}</UiAlertDialogTitle>
-        <UiAlertDialogDescription>
+  <ShadcnAlertDialog v-model:open="isOpen">
+    <ShadcnAlertDialogContent>
+      <ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogTitle>{{ t("title") }}</ShadcnAlertDialogTitle>
+        <ShadcnAlertDialogDescription>
           {{ t("description") }}
-        </UiAlertDialogDescription>
-      </UiAlertDialogHeader>
+        </ShadcnAlertDialogDescription>
+      </ShadcnAlertDialogHeader>
 
       <div class="space-y-4 my-4">
         <div class="flex items-center space-x-2">
-          <UiCheckbox id="includeHistory" v-model="options.includeHistory" />
+          <ShadcnCheckbox id="includeHistory" v-model="options.includeHistory" />
           <label
             for="includeHistory"
             class="text-sm font-medium leading-none cursor-pointer"
@@ -20,7 +20,7 @@
         </div>
 
         <div class="flex items-center space-x-2">
-          <UiCheckbox
+          <ShadcnCheckbox
             id="referenceCredentials"
             v-model="options.referenceCredentials"
           />
@@ -33,7 +33,7 @@
         </div>
 
         <div class="flex items-center space-x-2">
-          <UiCheckbox
+          <ShadcnCheckbox
             id="withCloneAppendix"
             v-model="options.withCloneAppendix"
           />
@@ -46,16 +46,16 @@
         </div>
       </div>
 
-      <UiAlertDialogFooter>
-        <UiAlertDialogCancel @click="onCancel">
+      <ShadcnAlertDialogFooter>
+        <ShadcnAlertDialogCancel @click="onCancel">
           {{ t("cancel") }}
-        </UiAlertDialogCancel>
-        <UiAlertDialogAction @click="onConfirm">
+        </ShadcnAlertDialogCancel>
+        <ShadcnAlertDialogAction @click="onConfirm">
           {{ t("clone") }}
-        </UiAlertDialogAction>
-      </UiAlertDialogFooter>
-    </UiAlertDialogContent>
-  </UiAlertDialog>
+        </ShadcnAlertDialogAction>
+      </ShadcnAlertDialogFooter>
+    </ShadcnAlertDialogContent>
+  </ShadcnAlertDialog>
 </template>
 
 <script setup lang="ts">

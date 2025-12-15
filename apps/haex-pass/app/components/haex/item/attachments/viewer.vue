@@ -1,9 +1,9 @@
 <template>
-  <UiDialog v-model:open="isOpen">
-    <UiDialogContent class="max-w-4xl max-h-[90vh] flex flex-col">
-      <UiDialogHeader>
-        <UiDialogTitle>{{ attachment?.fileName }}</UiDialogTitle>
-      </UiDialogHeader>
+  <ShadcnDialog v-model:open="isOpen">
+    <ShadcnDialogContent class="max-w-4xl max-h-[90vh] flex flex-col">
+      <ShadcnDialogHeader>
+        <ShadcnDialogTitle>{{ attachment?.fileName }}</ShadcnDialogTitle>
+      </ShadcnDialogHeader>
 
       <div class="flex-1 overflow-auto">
         <!-- PDF Viewer -->
@@ -26,18 +26,18 @@
         </div>
       </div>
 
-      <UiDialogFooter>
-        <UiButton
+      <ShadcnDialogFooter>
+        <ShadcnButton
           v-if="attachment"
           :icon="Download"
           variant="outline"
           @click="$emit('download', attachment)"
         >
           {{ t('download') }}
-        </UiButton>
-      </UiDialogFooter>
-    </UiDialogContent>
-  </UiDialog>
+        </ShadcnButton>
+      </ShadcnDialogFooter>
+    </ShadcnDialogContent>
+  </ShadcnDialog>
 </template>
 
 <script setup lang="ts">

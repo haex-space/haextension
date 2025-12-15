@@ -1,15 +1,15 @@
 <template>
   <div class="space-y-2">
-    <UiLabel>{{ t('url') }}</UiLabel>
-    <UiInputGroup>
-      <UiInputGroupInput
+    <ShadcnLabel>{{ t('url') }}</ShadcnLabel>
+    <ShadcnInputGroup>
+      <ShadcnInputGroupInput
         v-model.trim="model"
         type="url"
         :placeholder="t('url')"
         :readonly="readonly"
         v-bind="$attrs"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         v-if="!readonly"
         :icon="isLoadingFavicon ? Loader2 : Image"
         :tooltip="t('favicon.fetch')"
@@ -18,20 +18,20 @@
         :class="{ 'animate-spin': isLoadingFavicon }"
         @click.prevent="fetchFaviconAsync"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         :icon="ExternalLink"
         :tooltip="t('open')"
         variant="ghost"
         :disabled="!model?.length"
         @click.prevent="openUrl"
       />
-      <UiInputGroupButton
+      <ShadcnInputGroupButton
         :icon="copied ? Check : Copy"
         :tooltip="copied ? t('copied') : t('copy')"
         variant="ghost"
         @click.prevent="handleCopy"
       />
-    </UiInputGroup>
+    </ShadcnInputGroup>
   </div>
 </template>
 

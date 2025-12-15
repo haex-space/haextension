@@ -5,23 +5,23 @@
   >
     <div class="flex items-center gap-2">
       <!-- Search -->
-      <UiInputGroup class="flex-1">
-        <UiInputGroupAddon>
+      <ShadcnInputGroup class="flex-1">
+        <ShadcnInputGroupAddon>
           <Search class="h-4 w-4" />
-        </UiInputGroupAddon>
-        <UiInputGroupInput
+        </ShadcnInputGroupAddon>
+        <ShadcnInputGroupInput
           v-model="searchInput"
           :placeholder="t('search')"
           @keydown="onSearchKeydown"
         />
-        <UiInputGroupButton
+        <ShadcnInputGroupButton
           v-show="searchInput"
           variant="ghost"
           size="sm"
           :icon="X"
           @click="searchInput = ''"
         />
-      </UiInputGroup>
+      </ShadcnInputGroup>
 
       <!-- Add / Progress -->
       <HaexButtonProgress
@@ -29,70 +29,85 @@
         :progress="processingProgress"
         class="shrink-0"
       />
-      <UiDropdownMenu v-else>
-        <UiDropdownMenuTrigger as-child>
-          <UiButton
+      <ShadcnDropdownMenu v-else>
+        <ShadcnDropdownMenuTrigger as-child>
+          <ShadcnButton
             :icon="Plus"
             :tooltip="t('add')"
             variant="default"
             class="shrink-0"
           />
-        </UiDropdownMenuTrigger>
-        <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem class="py-3 text-base" @select="onCreateFolder">
+        </ShadcnDropdownMenuTrigger>
+        <ShadcnDropdownMenuContent align="end">
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="onCreateFolder">
             <Folder class="mr-3 size-5" />
             {{ t("addMenu.folder") }}
-          </UiDropdownMenuItem>
-          <UiDropdownMenuItem class="py-3 text-base" @select="onCreateItem">
+          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="onCreateItem">
             <Key class="mr-3 size-5" />
             {{ t("addMenu.item") }}
-          </UiDropdownMenuItem>
-        </UiDropdownMenuContent>
-      </UiDropdownMenu>
+          </ShadcnDropdownMenuItem>
+        </ShadcnDropdownMenuContent>
+      </ShadcnDropdownMenu>
 
       <!-- Sort -->
-      <UiDropdownMenu>
-        <UiDropdownMenuTrigger as-child>
-          <UiButton
+      <ShadcnDropdownMenu>
+        <ShadcnDropdownMenuTrigger as-child>
+          <ShadcnButton
             :icon="ArrowUpDown"
             :tooltip="t('sort')"
             variant="outline"
             class="shrink-0"
           />
-        </UiDropdownMenuTrigger>
-        <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem class="py-3 text-base" @select="sortByName">
+        </ShadcnDropdownMenuTrigger>
+        <ShadcnDropdownMenuContent align="end">
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="sortByName">
             <ArrowDownAZ class="mr-3 size-5" />
             {{ t("sortBy.name") }}
-          </UiDropdownMenuItem>
-          <UiDropdownMenuItem class="py-3 text-base" @select="sortByDateCreated">
+            <component
+              :is="sortDirection === 'asc' ? ArrowUp : ArrowDown"
+              v-if="sortField === 'name'"
+              class="ml-auto size-4"
+            />
+          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="sortByDateCreated">
             <CalendarPlus class="mr-3 size-5" />
             {{ t("sortBy.dateCreated") }}
-          </UiDropdownMenuItem>
-          <UiDropdownMenuItem class="py-3 text-base" @select="sortByDateModified">
+            <component
+              :is="sortDirection === 'asc' ? ArrowUp : ArrowDown"
+              v-if="sortField === 'createdAt'"
+              class="ml-auto size-4"
+            />
+          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="sortByDateModified">
             <CalendarClock class="mr-3 size-5" />
             {{ t("sortBy.dateModified") }}
-          </UiDropdownMenuItem>
-        </UiDropdownMenuContent>
-      </UiDropdownMenu>
+            <component
+              :is="sortDirection === 'asc' ? ArrowUp : ArrowDown"
+              v-if="sortField === 'updatedAt'"
+              class="ml-auto size-4"
+            />
+          </ShadcnDropdownMenuItem>
+        </ShadcnDropdownMenuContent>
+      </ShadcnDropdownMenu>
 
       <!-- More Menu -->
-      <UiDropdownMenu>
-        <UiDropdownMenuTrigger as-child>
-          <UiButton
+      <ShadcnDropdownMenu>
+        <ShadcnDropdownMenuTrigger as-child>
+          <ShadcnButton
             :icon="MoreVertical"
             :tooltip="t('more')"
             variant="outline"
             class="shrink-0"
           />
-        </UiDropdownMenuTrigger>
-        <UiDropdownMenuContent align="end">
-          <UiDropdownMenuItem class="py-3 text-base" @select="showImportDrawer = true">
+        </ShadcnDropdownMenuTrigger>
+        <ShadcnDropdownMenuContent align="end">
+          <ShadcnDropdownMenuItem class="py-3 text-base" @select="showImportDrawer = true">
             <DatabaseBackup class="mr-3 size-5" />
             {{ t("moreMenu.import") }}
-          </UiDropdownMenuItem>
-        </UiDropdownMenuContent>
-      </UiDropdownMenu>
+          </ShadcnDropdownMenuItem>
+        </ShadcnDropdownMenuContent>
+      </ShadcnDropdownMenu>
     </div>
 
     <!-- Import Drawer -->
@@ -113,6 +128,8 @@ import {
   CalendarClock,
   DatabaseBackup,
   MoreVertical,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-vue-next";
 
 const { t } = useI18n();
@@ -122,6 +139,7 @@ const { searchInput } = storeToRefs(useSearchStore());
 const { currentGroupId } = storeToRefs(usePasswordGroupStore());
 const { isProcessing, processingProgress } = storeToRefs(useGroupItemsDeleteStore());
 const { sortByName, sortByDateCreated, sortByDateModified } = useGroupItemsMenuStore();
+const { sortField, sortDirection } = storeToRefs(useGroupItemsMenuStore());
 
 const showImportDrawer = ref(false);
 

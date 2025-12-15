@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-2">
-    <UiLabel v-if="label">{{ label }}</UiLabel>
+    <ShadcnLabel v-if="label">{{ label }}</ShadcnLabel>
 
-    <UiPopover v-model:open="isOpen">
-      <UiPopoverTrigger as-child>
-        <UiButton
+    <ShadcnPopover v-model:open="isOpen">
+      <ShadcnPopoverTrigger as-child>
+        <ShadcnButton
           variant="outline"
           role="combobox"
           :aria-expanded="isOpen"
@@ -23,15 +23,15 @@
               props.color ? { color: getTextColor(props.color) } : undefined
             "
           />
-        </UiButton>
-      </UiPopoverTrigger>
-      <UiPopoverContent class="w-96 p-4 max-h-128 overflow-y-auto">
+        </ShadcnButton>
+      </ShadcnPopoverTrigger>
+      <ShadcnPopoverContent class="w-96 p-4 max-h-128 overflow-y-auto">
         <!-- Custom Icons Section -->
         <div v-if="customIcons.length" class="mb-4">
           <p class="text-sm font-medium mb-2">{{ t("customIcons") }}</p>
           <div class="grid grid-cols-8 gap-1">
-            <UiContextMenu v-for="icon in customIcons" :key="icon">
-              <UiContextMenuTrigger as-child>
+            <ShadcnContextMenu v-for="icon in customIcons" :key="icon">
+              <ShadcnContextMenuTrigger as-child>
                 <button
                   type="button"
                   :class="[
@@ -44,17 +44,17 @@
                 >
                   <HaexIcon :icon="icon" class="h-5 w-5" />
                 </button>
-              </UiContextMenuTrigger>
-              <UiContextMenuContent>
-                <UiContextMenuItem
+              </ShadcnContextMenuTrigger>
+              <ShadcnContextMenuContent>
+                <ShadcnContextMenuItem
                   class="text-destructive focus:text-destructive"
                   @click="handleDeleteIconAsync(icon)"
                 >
                   <Trash class="w-4 h-4 mr-2" />
                   {{ t("deleteIcon") }}
-                </UiContextMenuItem>
-              </UiContextMenuContent>
-            </UiContextMenu>
+                </ShadcnContextMenuItem>
+              </ShadcnContextMenuContent>
+            </ShadcnContextMenu>
           </div>
         </div>
 
@@ -83,7 +83,7 @@
 
         <!-- Actions -->
         <div class="flex gap-2 mt-4">
-          <UiButton
+          <ShadcnButton
             v-if="iconName"
             variant="outline"
             size="sm"
@@ -91,18 +91,18 @@
             @click="clearIcon"
           >
             {{ t("clear") }}
-          </UiButton>
-          <UiButton
+          </ShadcnButton>
+          <ShadcnButton
             variant="default"
             size="sm"
             class="flex-1"
             @click="isOpen = false"
           >
             {{ t("close") }}
-          </UiButton>
+          </ShadcnButton>
         </div>
-      </UiPopoverContent>
-    </UiPopover>
+      </ShadcnPopoverContent>
+    </ShadcnPopover>
   </div>
 </template>
 

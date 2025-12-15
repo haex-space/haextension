@@ -9,7 +9,7 @@ import {
   ScrollAreaViewport,
 } from "reka-ui"
 import { cn } from "@/lib/utils"
-import ScrollBar from "./ScrollBar.vue"
+import ScrollBar from "./Bar.vue"
 
 const props = defineProps<ScrollAreaRootProps & { class?: HTMLAttributes["class"] }>()
 

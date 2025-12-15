@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const model = defineModel<string | number | null>()
 
-const inputRef = useTemplateRef<HTMLInputElement>("input")
+const inputRef = useTemplateRef<HTMLInputElement>("inputRef")
 
 // Auto-focus when autofocus prop is true
 watch(
@@ -23,11 +23,17 @@ watch(
   },
   { immediate: true }
 )
+
+const focus = () => {
+  inputRef.value?.focus()
+}
+
+defineExpose({ focus, el: inputRef })
 </script>
 
 <template>
   <input
-    ref="input"
+    ref="inputRef"
     v-model="model"
     data-slot="input-group-control"
     :class="cn(

@@ -1,5 +1,0 @@
-export { default as TagsInput } from "./index.vue"
-export { default as TagsInputInput } from "./input.vue"
-export { default as TagsInputItem } from "./item.vue"
-export { default as TagsInputItemDelete } from "./item-delete.vue"
-export { default as TagsInputItemText } from "./item-text.vue"
