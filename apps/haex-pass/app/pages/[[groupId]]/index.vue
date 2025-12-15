@@ -140,14 +140,8 @@ const selectionStore = useSelectionStore();
 const { groupItems } = storeToRefs(useGroupItemsMenuStore());
 const { isMediumScreen } = storeToRefs(useUiStore());
 const { currentGroupItems, currentGroupId } = storeToRefs(usePasswordGroupStore());
-const { isGroupInTrash } = useGroupTreeStore();
+const { inTrashGroup: isInTrash } = storeToRefs(useGroupTreeStore());
 const { copy } = useClipboard();
-
-// Check if we're currently viewing the trash or a subfolder of trash
-const isInTrash = computed(() => {
-  if (!currentGroupId.value) return false;
-  return isGroupInTrash(currentGroupId.value);
-});
 
 // Helper to check if an item's password is expired
 const isItemExpired = (item: IPasswordMenuItem) => {

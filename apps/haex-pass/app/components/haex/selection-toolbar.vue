@@ -51,6 +51,17 @@
             @click="$emit('cut')"
           />
 
+          <!-- Restore button - only visible when in trash -->
+          <ShadcnButton
+            v-if="isInTrash"
+            variant="ghost"
+            size="sm"
+            :icon="RotateCcw"
+            :tooltip="t('restore')"
+            class="text-primary-foreground hover:bg-primary-foreground/10"
+            @click="$emit('restore')"
+          />
+
           <!-- Delete button - always visible -->
           <ShadcnButton
             variant="ghost"
@@ -98,7 +109,12 @@ import {
   Trash2,
   XCircle,
   ClipboardPaste,
+  RotateCcw,
 } from "lucide-vue-next";
+
+defineProps<{
+  isInTrash?: boolean;
+}>();
 
 const { t } = useI18n();
 const selectionStore = useSelectionStore();
@@ -109,6 +125,7 @@ defineEmits<{
   cut: [];
   delete: [];
   paste: [];
+  restore: [];
 }>();
 </script>
 
@@ -119,6 +136,7 @@ de:
   copy: Kopieren
   cut: Ausschneiden
   delete: Löschen
+  restore: Wiederherstellen
   deselectAll: Alle abwählen
   paste: Einfügen
   cancel: Abbrechen
@@ -129,6 +147,7 @@ en:
   copy: Copy
   cut: Cut
   delete: Delete
+  restore: Restore
   deselectAll: Deselect all
   paste: Paste
   cancel: Cancel

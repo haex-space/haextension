@@ -31,7 +31,7 @@ export const useSearchStore = defineStore('searchStore', () => {
         `${itemDetailsTableName}.username`,
         `${itemDetailsTableName}.url`,
       ],
-      threshold: 0.3,
+      threshold: 0.2, // Stricter matching (0.0 = exact, 1.0 = match everything)
       ignoreLocation: true,
       shouldSort: true,
       minMatchCharLength: 2,

@@ -20,11 +20,13 @@
         <HaexSelectionToolbar
           v-else
           key="toolbar"
+          :is-in-trash="isInTrash"
           @edit="onEditAsync"
           @copy="onCopyAsync"
           @cut="onCutAsync"
           @delete="onDeleteAsync"
           @paste="onPasteAsync"
+          @restore="onRestoreAsync"
         />
       </TransitionGroup>
     </div>
@@ -79,7 +81,7 @@
 import { onKeyStroke } from "@vueuse/core";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
-const { breadCrumbs } = storeToRefs(useGroupTreeStore());
+const { breadCrumbs, inTrashGroup: isInTrash } = storeToRefs(useGroupTreeStore());
 const selectionStore = useSelectionStore();
 const deleteDialogStore = useDeleteDialogStore();
 const {
@@ -268,6 +270,37 @@ const onDeleteAsync = async () => {
 
 const onConfirmDeleteAsync = async () => {
   await deleteDialogStore.confirmDeleteAsync();
+};
+
+const onRestoreAsync = async () => {
+  if (!selectionStore.selectedItems.size) return;
+
+  const { groups, restoreGroupAsync, syncGroupItemsAsync } = usePasswordGroupStore();
+  const { restoreAsync, syncItemsAsync } = usePasswordItemStore();
+  const selectedIds = Array.from(selectionStore.selectedItems);
+
+  // Separate groups and items
+  const selectedGroupIds = selectedIds.filter((id) =>
+    groups.some((g) => g.id === id)
+  );
+  const selectedItemIds = selectedIds.filter((id) =>
+    !selectedGroupIds.includes(id)
+  );
+
+  // Restore groups
+  for (const groupId of selectedGroupIds) {
+    await restoreGroupAsync(groupId);
+  }
+
+  // Restore items
+  for (const itemId of selectedItemIds) {
+    await restoreAsync(itemId);
+  }
+
+  // Sync and clear selection
+  await syncGroupItemsAsync();
+  await syncItemsAsync();
+  selectionStore.clearSelection();
 };
 
 const { t } = useI18n();
