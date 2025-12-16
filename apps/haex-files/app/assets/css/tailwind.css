@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Include haex-ui components in Tailwind scanning */
+@source "../../../../../packages/haex-ui/components";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -137,5 +140,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent modal/drawer from adding padding-right for scrollbar compensation */
+    padding-right: 0 !important;
+    margin-right: 0 !important;
   }
 }

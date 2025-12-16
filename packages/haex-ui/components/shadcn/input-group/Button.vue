@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<InputGroupButtonProps>(), {
   <Button
     :data-size="props.size"
     :variant="props.variant"
+    :icon="props.icon"
     :class="cn(inputGroupButtonVariants({ size: props.size }), props.class)"
   >
     <slot />

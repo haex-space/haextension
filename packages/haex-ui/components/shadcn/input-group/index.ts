@@ -1,5 +1,5 @@
 import type { VariantProps } from "class-variance-authority"
-import type { HTMLAttributes } from "vue"
+import type { Component, HTMLAttributes } from "vue"
 import type { ButtonVariants } from '@/components/shadcn/button'
 import { cva } from "class-variance-authority"
 
@@ -56,4 +56,5 @@ export interface InputGroupButtonProps {
   variant?: ButtonVariants["variant"]
   size?: InputGroupButtonVariants["size"]
   class?: HTMLAttributes["class"]
+  icon?: Component
 }

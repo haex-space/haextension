@@ -19,18 +19,14 @@
       <div class="max-w-2xl mx-auto space-y-6">
         <!-- Storage Backends Section -->
         <section class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
               <h2 class="text-base font-medium">{{ t("backends.title") }}</h2>
               <p class="text-sm text-muted-foreground">
                 {{ t("backends.description") }}
               </p>
             </div>
-            <ShadcnButton
-              :icon="Plus"
-              size="sm"
-              @click="addBackendDrawerOpen = true"
-            >
+            <ShadcnButton :prepend-icon="Plus" @click="openAddBackendDrawer">
               {{ t("backends.add") }}
             </ShadcnButton>
           </div>
@@ -100,9 +96,13 @@
     <ShadcnAlertDialog v-model:open="deleteDialogOpen">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t("backends.deleteTitle") }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>{{
+            t("backends.deleteTitle")
+          }}</ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ t("backends.deleteDescription", { name: backendToDelete?.name }) }}
+            {{
+              t("backends.deleteDescription", { name: backendToDelete?.name })
+            }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
@@ -149,6 +149,10 @@ onMounted(async () => {
 
 const navigateBack = () => {
   router.push("/");
+};
+
+const openAddBackendDrawer = () => {
+  addBackendDrawerOpen.value = true;
 };
 
 const getBackendTypeLabel = (type: string): string => {

@@ -103,21 +103,16 @@
           <span v-if="isExpired" class="ml-2 text-xs">{{ t("item.expired") }}</span>
           <span v-else-if="isExpiringSoon" class="ml-2 text-xs text-warning">{{ t("item.expiringSoon") }}</span>
         </ShadcnLabel>
-        <ShadcnInputGroup>
-          <ShadcnInputGroupInput
-            :model-value="itemDetails.expiresAt ?? undefined"
-            type="date"
-            :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
-            :readonly="readOnly"
-            @update:model-value="itemDetails.expiresAt = ($event as string) || null"
-          />
-          <ShadcnInputGroupButton
-            v-if="itemDetails.expiresAt && !readOnly"
-            :icon="X"
-            variant="ghost"
-            @click="itemDetails.expiresAt = null"
-          />
-        </ShadcnInputGroup>
+        <ShadcnDatePicker
+          v-if="!readOnly"
+          v-model="itemDetails.expiresAt"
+          :placeholder="t('item.addExpiryDate')"
+          :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
+          :locale="locale"
+        />
+        <div v-else-if="itemDetails.expiresAt" class="text-sm">
+          {{ formattedExpiryDate }}
+        </div>
       </div>
 
       <!-- Icon & Color -->
@@ -141,7 +136,6 @@
 
 <script setup lang="ts">
 import { onStartTyping } from "@vueuse/core";
-import { X } from "lucide-vue-next";
 import type { SelectHaexPasswordsItemDetails } from "~/database";
 
 defineProps<{
@@ -188,6 +182,16 @@ const onFaviconFetched = (iconName: string) => {
   itemDetails.value.icon = iconName;
 };
 
+// Locale for date formatting
+const { locale } = useI18n();
+
+// Format expiry date for read-only display
+const formattedExpiryDate = computed(() => {
+  if (!itemDetails.value.expiresAt) return "";
+  const date = new Date(itemDetails.value.expiresAt);
+  return date.toLocaleDateString(locale.value, { dateStyle: "long" });
+});
+
 // Expiry date computed properties
 const isExpired = computed(() => {
   if (!itemDetails.value.expiresAt) return false;
@@ -222,6 +226,7 @@ de:
       placeholder: Tag hinzufügen...
     note: Notiz
     expiresAt: Ablaufdatum
+    addExpiryDate: Ablaufdatum hinzufügen
     expired: "(abgelaufen)"
     expiringSoon: "(läuft bald ab)"
 
@@ -239,6 +244,7 @@ en:
       placeholder: Add tag...
     note: Note
     expiresAt: Expiry date
+    addExpiryDate: Add expiry date
     expired: "(expired)"
     expiringSoon: "(expiring soon)"
 </i18n>

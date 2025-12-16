@@ -28,7 +28,6 @@
     <div class="flex-1 overflow-y-auto">
       <HaexGroup
         v-model="group"
-        mode="create"
         @submit="createAsync"
       />
     </div>

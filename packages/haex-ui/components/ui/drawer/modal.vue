@@ -5,8 +5,8 @@
     <slot name="trigger" />
 
     <!-- Drawer Content -->
-    <ShadcnDrawerContent>
-      <ShadcnDrawerHeader v-if="title || description || $slots.header">
+    <ShadcnDrawerContent class="flex flex-col max-h-[85vh]">
+      <ShadcnDrawerHeader v-if="title || description || $slots.header" class="shrink-0">
         <slot name="header">
           <ShadcnDrawerTitle v-if="title">{{ title }}</ShadcnDrawerTitle>
           <ShadcnDrawerDescription v-if="description">
@@ -16,12 +16,12 @@
       </ShadcnDrawerHeader>
 
       <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
+      <div class="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 min-h-0">
         <slot name="content" />
       </div>
 
       <!-- Footer (optional) -->
-      <ShadcnDrawerFooter v-if="$slots.footer">
+      <ShadcnDrawerFooter v-if="$slots.footer" class="shrink-0">
         <slot name="footer" />
       </ShadcnDrawerFooter>
     </ShadcnDrawerContent>
@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
-import { useWindowSize } from "@vueuse/core"
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core"
 
 defineProps<{
   title?: string
@@ -68,7 +68,8 @@ defineProps<{
 
 const open = defineModel<boolean>("open", { default: false })
 
-// Detect small screen (mobile)
-const { width } = useWindowSize()
-const isSmallScreen = computed(() => width.value < 640) // sm breakpoint
+// Detect small screen using Tailwind breakpoints
+// "smaller('md')" means: xs, sm (below 768px)
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isSmallScreen = breakpoints.smaller("md")
 </script>

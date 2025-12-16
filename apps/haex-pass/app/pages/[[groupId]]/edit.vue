@@ -47,7 +47,6 @@
       <HaexGroup
         v-model="group"
         :read-only="readOnly"
-        mode="edit"
         @submit="onSaveAsync"
       />
     </div>

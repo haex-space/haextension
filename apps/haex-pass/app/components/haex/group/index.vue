@@ -1,13 +1,7 @@
 <template>
   <div class="p-4 space-y-4">
     <ShadcnCard>
-      <ShadcnCardHeader>
-        <ShadcnCardTitle>
-          {{ mode === "edit" ? t("title.edit") : t("title.create") }}
-        </ShadcnCardTitle>
-      </ShadcnCardHeader>
-
-      <ShadcnCardContent class="space-y-4">
+      <ShadcnCardContent class="pt-6 space-y-4">
         <div class="space-y-2">
           <ShadcnLabel>{{ t("name") }}</ShadcnLabel>
           <UiInputText
@@ -56,9 +50,8 @@ import type { SelectHaexPasswordsGroups } from "~/database";
 
 const group = defineModel<SelectHaexPasswordsGroups>({ required: true });
 
-const { readOnly = false, mode = "create" } = defineProps<{
+const { readOnly = false } = defineProps<{
   readOnly?: boolean;
-  mode?: "create" | "edit";
 }>();
 
 defineEmits<{
@@ -100,9 +93,6 @@ de:
   descriptionPlaceholder: Beschreibung eingeben (optional)
   icon: Icon
   color: Farbe
-  title:
-    create: Gruppe erstellen
-    edit: Gruppe bearbeiten
 
 en:
   name: Name
@@ -111,7 +101,4 @@ en:
   descriptionPlaceholder: Enter description (optional)
   icon: Icon
   color: Color
-  title:
-    create: Create group
-    edit: Edit group
 </i18n>
