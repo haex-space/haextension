@@ -19,6 +19,16 @@ export default {
   languageAuto: 'Automatisch (Browser)',
   languageEnglish: 'Englisch',
   languageGerman: 'Deutsch',
+  // Connection settings
+  settingsConnection: 'Verbindung',
+  settingsConnectionDescription: 'Konfiguriere die Verbindung zu haex-vault.',
+  settingsPort: 'WebSocket Port',
+  settingsPortDescription: 'Der Port, auf dem haex-vault lauscht. Standard: 19455',
+  settingsPortPlaceholder: 'Port (1-65535)',
+  settingsPortInvalid: 'Port muss zwischen 1 und 65535 liegen',
+  settingsSave: 'Speichern',
+  settingsSaved: 'Gespeichert!',
+  settingsRestartRequired: 'Neuverbindung erforderlich, damit Änderungen wirksam werden.',
   // Error messages (keys match ExternalConnectionErrorCode values)
   error_client_not_authorized: 'Client nicht autorisiert',
   error_client_blocked: 'Client ist blockiert',

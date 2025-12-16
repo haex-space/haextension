@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ShieldCheck } from 'lucide-vue-next'
 import type { SupportedLocale } from '~/locales'
 import { getLocaleSetting, setLocale, useI18n } from '~/locales'
+import { getWebSocketPort, setWebSocketPort } from '~/logic/settings'
+import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
 
 const currentLocale = ref<SupportedLocale>('auto')
+const currentPort = ref<number>(19455)
+const portInput = ref<string>('19455')
+const portError = ref<string | null>(null)
+const portSaved = ref(false)
 
 const languageOptions = computed(() => [
   { value: 'auto', label: t('languageAuto') },
@@ -20,8 +25,33 @@ async function handleLocaleChange(event: Event) {
   await setLocale(newLocale)
 }
 
+async function handlePortSave() {
+  const port = Number.parseInt(portInput.value, 10)
+  if (Number.isNaN(port) || port < 1 || port > 65535) {
+    portError.value = t('settingsPortInvalid')
+    return
+  }
+
+  portError.value = null
+  await setWebSocketPort(port)
+  currentPort.value = port
+  portSaved.value = true
+  setTimeout(() => {
+    portSaved.value = false
+  }, 2000)
+}
+
+function handlePortInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  portInput.value = target.value
+  portError.value = null
+  portSaved.value = false
+}
+
 onMounted(async () => {
   currentLocale.value = await getLocaleSetting()
+  currentPort.value = await getWebSocketPort()
+  portInput.value = currentPort.value.toString()
 })
 </script>
 
@@ -30,7 +60,7 @@ onMounted(async () => {
     <div class="max-w-2xl mx-auto">
       <!-- Header -->
       <div class="flex items-center gap-4 mb-8">
-        <ShieldCheck class="w-12 h-12 text-primary" />
+        <img :src="logoUrl" alt="haex-pass" class="w-12 h-12">
         <div>
           <h1 class="text-2xl font-bold">
             {{ t('extensionName') }}
@@ -65,6 +95,56 @@ onMounted(async () => {
               {{ option.label }}
             </option>
           </select>
+        </div>
+
+        <!-- Connection Setting -->
+        <div class="rounded-lg border p-4">
+          <h3 class="font-medium mb-1">
+            {{ t('settingsConnection') }}
+          </h3>
+          <p class="text-sm text-muted-foreground mb-4">
+            {{ t('settingsConnectionDescription') }}
+          </p>
+
+          <div class="space-y-3">
+            <div>
+              <label for="port-input" class="block text-sm font-medium mb-1">
+                {{ t('settingsPort') }}
+              </label>
+              <p class="text-xs text-muted-foreground mb-2">
+                {{ t('settingsPortDescription') }}
+              </p>
+              <div class="flex gap-2">
+                <input
+                  id="port-input"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  :value="portInput"
+                  :placeholder="t('settingsPortPlaceholder')"
+                  class="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  @input="handlePortInput"
+                >
+                <button
+                  class="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                  :disabled="portInput === currentPort.toString()"
+                  @click="handlePortSave"
+                >
+                  {{ t('settingsSave') }}
+                </button>
+              </div>
+              <p v-if="portError" class="text-sm text-red-500 mt-1">
+                {{ portError }}
+              </p>
+              <p v-else-if="portSaved" class="text-sm text-green-500 mt-1">
+                {{ t('settingsSaved') }}
+              </p>
+            </div>
+
+            <p v-if="portSaved" class="text-xs text-amber-500">
+              {{ t('settingsRestartRequired') }}
+            </p>
+          </div>
         </div>
       </div>
     </div>

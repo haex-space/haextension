@@ -15,9 +15,8 @@ import {
   ExternalConnectionState,
   type ExternalConnection,
 } from '@haex-space/vault-sdk'
+import { getWebSocketPort } from '~/logic/settings'
 
-const WEBSOCKET_PORT = 19455
-const WEBSOCKET_URL = `ws://localhost:${WEBSOCKET_PORT}`
 const PROTOCOL_VERSION = 1
 const CLIENT_NAME = 'haex-pass Browser Extension'
 const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
@@ -235,9 +234,13 @@ class VaultConnectionManager {
     this.clearError()
     this.notifyStateChange()
 
+    // Get port from settings
+    const port = await getWebSocketPort()
+    const wsUrl = `ws://localhost:${port}`
+
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(WEBSOCKET_URL)
+        this.ws = new WebSocket(wsUrl)
 
         this.ws.onopen = () => {
           console.log('[haex-pass] WebSocket connected')

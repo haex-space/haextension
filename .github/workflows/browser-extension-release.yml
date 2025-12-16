@@ -35,18 +35,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build browser extension
+      - name: Build Chrome extension
         run: pnpm --filter haex-pass-browser build
 
       - name: Create Chrome ZIP
         run: |
           cd apps/haex-pass-browser
           pnpm pack:zip
+          mv extension.zip extension-chrome.zip
+
+      - name: Build Firefox extension
+        run: |
+          cd apps/haex-pass-browser
+          EXTENSION=firefox pnpm build
 
       - name: Create Firefox XPI
         run: |
           cd apps/haex-pass-browser
           pnpm pack:xpi
+          mv extension.xpi extension-firefox.xpi
 
       - name: Get version from tag or input
         id: version
@@ -66,7 +73,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            apps/haex-pass-browser/extension.zip
-            apps/haex-pass-browser/extension.xpi
+            apps/haex-pass-browser/extension-chrome.zip
+            apps/haex-pass-browser/extension-firefox.xpi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

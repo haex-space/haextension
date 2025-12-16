@@ -11,6 +11,14 @@ export async function getManifest() {
     name: pkg.displayName || pkg.name,
     version: pkg.version,
     description: pkg.description,
+    ...(isFirefox && {
+      browser_specific_settings: {
+        gecko: {
+          id: 'haex-pass@haex.space',
+          strict_min_version: '109.0',
+        },
+      },
+    }),
     action: {
       default_icon: {
         16: 'assets/icon-16.png',
