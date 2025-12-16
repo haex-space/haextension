@@ -18,6 +18,14 @@
           />
           {{ syncStatusText }}
         </span>
+        <ShadcnButton
+          variant="ghost"
+          size="icon"
+          :tooltip="t('settings')"
+          @click="router.push('/settings')"
+        >
+          <Settings class="size-5" />
+        </ShadcnButton>
       </div>
     </header>
 
@@ -149,9 +157,14 @@ import {
   RefreshCw,
   AlertCircle,
   CloudOff,
+  Settings,
 } from "lucide-vue-next";
 
 const { t } = useI18n();
+const router = useRouter();
+const backendsStore = useBackendsStore();
+
+const { backends } = storeToRefs(backendsStore);
 
 // State
 const isInitialized = ref(false);
@@ -162,10 +175,6 @@ const syncStatus = ref<"synced" | "syncing" | "error" | "offline" | null>(null);
 // Mock data - will be replaced with SDK calls
 const spaces = ref([
   { id: "personal", name: "Persönlich" },
-]);
-
-const backends = ref([
-  { id: "s3", name: "S3 Storage", type: "s3", enabled: true },
 ]);
 
 const files = ref<Array<{
@@ -262,6 +271,11 @@ const getSyncClass = (state: string) => {
     default: return "text-muted-foreground";
   }
 };
+
+// Load backends on mount
+onMounted(async () => {
+  await backendsStore.loadBackendsAsync();
+});
 </script>
 
 <i18n lang="yaml">
@@ -270,6 +284,7 @@ de:
   files: Dateien
   folder: Ordner
   backends: Speicher
+  settings: Einstellungen
   emptyFolder: Dieser Ordner ist leer
   welcome:
     title: Willkommen bei haex-files
@@ -286,6 +301,7 @@ en:
   files: Files
   folder: Folder
   backends: Storage
+  settings: Settings
   emptyFolder: This folder is empty
   welcome:
     title: Welcome to haex-files

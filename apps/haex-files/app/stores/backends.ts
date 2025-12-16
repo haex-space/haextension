@@ -19,6 +19,10 @@ export const useBackendsStore = defineStore("backends", () => {
     isLoading.value = true;
     try {
       backends.value = await haexVaultStore.client.filesystem.sync.listBackendsAsync();
+    } catch (error) {
+      // FileSync API might not be implemented yet in the backend
+      console.warn("[haex-files] Failed to load backends (API may not be available yet):", error);
+      backends.value = [];
     } finally {
       isLoading.value = false;
     }
