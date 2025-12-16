@@ -18,7 +18,7 @@
     "ext:build": "nuxt build --preset static && haex sign .output/public"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.4.0",
+    "@haex-space/vault-sdk": "^2.5.0",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.11.0",
     "@nuxt/icon": "^2.1.0",

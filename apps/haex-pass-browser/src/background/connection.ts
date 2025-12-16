@@ -2,25 +2,31 @@ import type { EncryptedMessage, KeyPair } from './crypto'
 import {
   createEncryptedMessage,
   decryptMessageEnvelope,
+  exportPrivateKey,
   exportPublicKey,
   generateClientId,
   generateKeyPair,
+  importPrivateKey,
   importPublicKey,
   toHex,
 } from './crypto'
+import {
+  ExternalConnectionErrorCode,
+  ExternalConnectionState,
+  type ExternalConnection,
+} from '@haex-space/vault-sdk'
 
 const WEBSOCKET_PORT = 19455
 const WEBSOCKET_URL = `ws://localhost:${WEBSOCKET_PORT}`
 const PROTOCOL_VERSION = 1
 const CLIENT_NAME = 'haex-pass Browser Extension'
+const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'pending_approval' | 'paired'
-
-export interface VaultConnection {
-  state: ConnectionState
-  clientId: string | null
-  error: string | null
-}
+// Re-export SDK types for use in the extension
+export { ExternalConnectionErrorCode, ExternalConnectionState, type ExternalConnection }
+// Backward compatibility aliases
+export type ConnectionState = ExternalConnectionState
+export type VaultConnection = ExternalConnection
 
 interface PendingRequest {
   resolve: (value: unknown) => void
@@ -92,14 +98,12 @@ class VaultConnectionManager {
   private serverPublicKey: CryptoKey | null = null
   private clientId: string | null = null
   private publicKeyBase64: string | null = null
-  private state: ConnectionState = 'disconnected'
-  private error: string | null = null
+  private state: ExternalConnectionState = ExternalConnectionState.DISCONNECTED
+  private errorCode: ExternalConnectionErrorCode = ExternalConnectionErrorCode.NONE
+  private errorMessage: string | null = null
   private pendingRequests: Map<string, PendingRequest> = new Map()
   private messageHandlers: Set<(message: unknown) => void> = new Set()
   private stateChangeHandlers: Set<(state: VaultConnection) => void> = new Set()
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
   private initPromise: Promise<void> | null = null
 
   constructor() {
@@ -108,9 +112,63 @@ class VaultConnectionManager {
   }
 
   private async initialize(): Promise<void> {
-    this.keyPair = await generateKeyPair()
-    this.clientId = await generateClientId(this.keyPair.publicKey)
-    this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
+    try {
+      // Try to load existing keypair from storage
+      const stored = await this.loadKeypair()
+      if (stored) {
+        this.keyPair = stored
+        console.log('[haex-pass] Loaded existing keypair from storage')
+      }
+      else {
+        // Generate new keypair and save it
+        this.keyPair = await generateKeyPair()
+        await this.saveKeypair(this.keyPair)
+        console.log('[haex-pass] Generated and saved new keypair')
+      }
+
+      this.clientId = await generateClientId(this.keyPair.publicKey)
+      this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
+      console.log('[haex-pass] Initialized with clientId:', this.clientId)
+    }
+    catch (err) {
+      console.error('[haex-pass] Initialization failed, using fallback:', err)
+      // Fallback: generate new keypair without saving (in case storage is broken)
+      this.keyPair = await generateKeyPair()
+      this.clientId = await generateClientId(this.keyPair.publicKey)
+      this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
+      console.log('[haex-pass] Fallback keypair with clientId:', this.clientId)
+    }
+  }
+
+  private async loadKeypair(): Promise<KeyPair | null> {
+    try {
+      const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
+      const stored = result[STORAGE_KEY_KEYPAIR]
+      if (!stored || !stored.publicKey || !stored.privateKey) {
+        return null
+      }
+
+      const publicKey = await importPublicKey(stored.publicKey)
+      const privateKey = await importPrivateKey(stored.privateKey)
+      return { publicKey, privateKey }
+    }
+    catch (err) {
+      console.error('[haex-pass] Failed to load keypair:', err)
+      return null
+    }
+  }
+
+  private async saveKeypair(keyPair: KeyPair): Promise<void> {
+    try {
+      const publicKey = await exportPublicKey(keyPair.publicKey)
+      const privateKey = await exportPrivateKey(keyPair.privateKey)
+      await browser.storage.local.set({
+        [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
+      })
+    }
+    catch (err) {
+      console.error('[haex-pass] Failed to save keypair:', err)
+    }
   }
 
   private generateRequestId(): string {
@@ -119,11 +177,22 @@ class VaultConnectionManager {
     return toHex(bytes)
   }
 
+  private setError(code: ExternalConnectionErrorCode, message: string | null = null) {
+    this.errorCode = code
+    this.errorMessage = message
+  }
+
+  private clearError() {
+    this.errorCode = ExternalConnectionErrorCode.NONE
+    this.errorMessage = null
+  }
+
   private notifyStateChange() {
     const connection: VaultConnection = {
       state: this.state,
       clientId: this.clientId,
-      error: this.error,
+      errorCode: this.errorCode,
+      errorMessage: this.errorMessage,
     }
     this.stateChangeHandlers.forEach(handler => handler(connection))
   }
@@ -134,7 +203,8 @@ class VaultConnectionManager {
     handler({
       state: this.state,
       clientId: this.clientId,
-      error: this.error,
+      errorCode: this.errorCode,
+      errorMessage: this.errorMessage,
     })
     return () => this.stateChangeHandlers.delete(handler)
   }
@@ -152,8 +222,8 @@ class VaultConnectionManager {
       return
     }
 
-    this.state = 'connecting'
-    this.error = null
+    this.state = ExternalConnectionState.CONNECTING
+    this.clearError()
     this.notifyStateChange()
 
     return new Promise((resolve, reject) => {
@@ -162,7 +232,6 @@ class VaultConnectionManager {
 
         this.ws.onopen = () => {
           console.log('[haex-pass] WebSocket connected')
-          this.reconnectAttempts = 0
           this.sendHandshake()
         }
 
@@ -172,18 +241,20 @@ class VaultConnectionManager {
 
         this.ws.onclose = () => {
           console.log('[haex-pass] WebSocket closed')
-          this.state = 'disconnected'
+          this.state = ExternalConnectionState.DISCONNECTED
+          this.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
           this.serverPublicKey = null
           this.notifyStateChange()
-          this.scheduleReconnect()
+          // Don't auto-reconnect - user must manually reconnect to avoid
+          // repeated authorization requests when using "allow once"
         }
 
         this.ws.onerror = (err) => {
           console.error('[haex-pass] WebSocket error:', err)
-          this.error = 'Connection failed - is haex-vault running?'
-          this.state = 'disconnected'
+          this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
+          this.state = ExternalConnectionState.DISCONNECTED
           this.notifyStateChange()
-          reject(new Error(this.error))
+          reject(new Error(this.errorMessage || 'Connection failed'))
         }
 
         // Resolve after a short timeout if connection seems stable
@@ -194,33 +265,12 @@ class VaultConnectionManager {
         }, 100)
       }
       catch (err) {
-        this.error = `Failed to connect: ${err}`
-        this.state = 'disconnected'
+        this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, `Failed to connect: ${err}`)
+        this.state = ExternalConnectionState.DISCONNECTED
         this.notifyStateChange()
         reject(err)
       }
     })
-  }
-
-  private scheduleReconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-    }
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[haex-pass] Max reconnect attempts reached')
-      return
-    }
-
-    const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30000)
-    console.log(`[haex-pass] Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`)
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++
-      this.connect().catch(() => {
-        // Error already handled in connect()
-      })
-    }, delay)
   }
 
   private sendHandshake(): void {
@@ -260,7 +310,10 @@ class VaultConnectionManager {
 
         case 'error':
           console.error('[haex-pass] Server error:', message.code, message.message)
-          this.error = message.message
+          this.setError(
+            message.code as ExternalConnectionErrorCode,
+            message.message,
+          )
           this.notifyStateChange()
           break
 
@@ -289,15 +342,15 @@ class VaultConnectionManager {
     }
 
     if (response.authorized) {
-      this.state = 'paired'
+      this.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Client is authorized')
     }
     else if (response.pendingApproval) {
-      this.state = 'pending_approval'
+      this.state = ExternalConnectionState.PENDING_APPROVAL
       console.log('[haex-pass] Waiting for user approval in haex-vault')
     }
     else {
-      this.state = 'connected'
+      this.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Connected but not authorized')
     }
 
@@ -345,11 +398,11 @@ class VaultConnectionManager {
 
   private handleAuthorizationUpdate(update: AuthorizationUpdate): void {
     if (update.authorized) {
-      this.state = 'paired'
+      this.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Authorization granted!')
     }
     else {
-      this.state = 'connected'
+      this.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Authorization denied')
     }
     this.notifyStateChange()
@@ -367,7 +420,7 @@ class VaultConnectionManager {
       throw new Error('Handshake not complete')
     }
 
-    if (this.state !== 'paired') {
+    if (this.state !== ExternalConnectionState.PAIRED) {
       throw new Error('Not authorized')
     }
 
@@ -421,17 +474,12 @@ class VaultConnectionManager {
   }
 
   disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
 
-    this.state = 'disconnected'
+    this.state = ExternalConnectionState.DISCONNECTED
     this.serverPublicKey = null
     this.notifyStateChange()
   }
@@ -440,7 +488,8 @@ class VaultConnectionManager {
     return {
       state: this.state,
       clientId: this.clientId,
-      error: this.error,
+      errorCode: this.errorCode,
+      errorMessage: this.errorMessage,
     }
   }
 }

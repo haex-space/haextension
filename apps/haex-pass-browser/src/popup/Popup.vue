@@ -1,28 +1,51 @@
 <script setup lang="ts">
+import type { ExternalConnection } from '@haex-space/vault-sdk'
+import {
+  canExternalClientSendRequests,
+  ExternalConnectionErrorCode,
+  ExternalConnectionState,
+} from '@haex-space/vault-sdk'
+import { Clock, Loader2, PlugZap, Shield, ShieldCheck, ShieldOff } from 'lucide-vue-next'
 import { sendMessage } from 'webext-bridge/popup'
-import { Loader2, PlugZap, Shield, ShieldCheck, ShieldOff } from 'lucide-vue-next'
+import { useI18n } from '~/locales'
 
-interface ConnectionState {
-  state: 'disconnected' | 'connecting' | 'connected' | 'paired'
-  clientID: string | null
-  error: string | null
-}
+const { t } = useI18n()
 
-const connection = ref<ConnectionState>({
-  state: 'disconnected',
-  clientID: null,
-  error: null,
+const connection = ref<ExternalConnection>({
+  state: ExternalConnectionState.DISCONNECTED,
+  clientId: null,
+  errorCode: ExternalConnectionErrorCode.NONE,
+  errorMessage: null,
+})
+
+// Translate error code to localized message
+const errorText = computed(() => {
+  const code = connection.value.errorCode
+  if (code === ExternalConnectionErrorCode.NONE) return null
+
+  // Try to get translation for error code, fallback to errorMessage
+  const translationKey = `error_${code}`
+  const translated = t(translationKey)
+
+  // If no translation found (returns key), use errorMessage as fallback
+  return translated !== translationKey ? translated : connection.value.errorMessage
 })
 
 const isConnecting = ref(false)
 
+// Show disconnect button only when paired (can send requests)
+// For pending_approval, user should be able to retry connecting
+const showDisconnectButton = computed(() => canExternalClientSendRequests(connection.value.state))
+
 const statusIcon = computed(() => {
   switch (connection.value.state) {
-    case 'paired':
+    case ExternalConnectionState.PAIRED:
       return ShieldCheck
-    case 'connected':
+    case ExternalConnectionState.PENDING_APPROVAL:
+      return Clock
+    case ExternalConnectionState.CONNECTED:
       return Shield
-    case 'connecting':
+    case ExternalConnectionState.CONNECTING:
       return Loader2
     default:
       return ShieldOff
@@ -31,24 +54,28 @@ const statusIcon = computed(() => {
 
 const statusText = computed(() => {
   switch (connection.value.state) {
-    case 'paired':
-      return 'Connected & Paired'
-    case 'connected':
-      return 'Connected (not paired)'
-    case 'connecting':
-      return 'Connecting...'
+    case ExternalConnectionState.PAIRED:
+      return t('statusConnected')
+    case ExternalConnectionState.PENDING_APPROVAL:
+      return t('statusPendingApproval')
+    case ExternalConnectionState.CONNECTED:
+      return t('statusConnectedNotPaired')
+    case ExternalConnectionState.CONNECTING:
+      return t('statusConnecting')
     default:
-      return 'Disconnected'
+      return t('statusDisconnected')
   }
 })
 
 const statusClass = computed(() => {
   switch (connection.value.state) {
-    case 'paired':
+    case ExternalConnectionState.PAIRED:
       return 'text-green-500'
-    case 'connected':
+    case ExternalConnectionState.PENDING_APPROVAL:
+      return 'text-orange-500'
+    case ExternalConnectionState.CONNECTED:
       return 'text-yellow-500'
-    case 'connecting':
+    case ExternalConnectionState.CONNECTING:
       return 'text-blue-500'
     default:
       return 'text-red-500'
@@ -58,7 +85,7 @@ const statusClass = computed(() => {
 async function fetchConnectionState() {
   try {
     const state = await sendMessage('get-connection-state', {})
-    connection.value = state as ConnectionState
+    connection.value = state as unknown as ExternalConnection
   }
   catch (err) {
     console.error('Failed to get connection state:', err)
@@ -112,10 +139,10 @@ onMounted(() => {
       <ShieldCheck class="w-10 h-10 text-primary" />
       <div>
         <h1 class="text-lg font-semibold">
-          haex-pass
+          {{ t('extensionName') }}
         </h1>
         <p class="text-xs text-muted-foreground">
-          Password Manager
+          {{ t('extensionDescription') }}
         </p>
       </div>
     </div>
@@ -128,7 +155,7 @@ onMounted(() => {
           :class="[
             'w-5 h-5',
             statusClass,
-            connection.state === 'connecting' ? 'animate-spin' : '',
+            connection.state === ExternalConnectionState.CONNECTING ? 'animate-spin' : '',
           ]"
         />
         <span class="font-medium" :class="statusClass">
@@ -136,23 +163,27 @@ onMounted(() => {
         </span>
       </div>
 
-      <p v-if="connection.error" class="text-xs text-red-500 mb-2">
-        {{ connection.error }}
+      <p v-if="errorText" class="text-xs text-red-500 mb-2">
+        {{ errorText }}
       </p>
 
-      <p v-if="connection.state === 'disconnected'" class="text-xs text-muted-foreground mb-3">
-        Make sure haex-vault is running on your computer.
+      <p v-if="connection.state === ExternalConnectionState.DISCONNECTED" class="text-xs text-muted-foreground mb-3">
+        {{ t('hintVaultNotRunning') }}
+      </p>
+
+      <p v-if="connection.state === ExternalConnectionState.PENDING_APPROVAL" class="text-xs text-muted-foreground mb-3">
+        {{ t('hintPendingApproval') }}
       </p>
 
       <div class="flex gap-2">
         <button
-          v-if="connection.state === 'disconnected'"
+          v-if="!showDisconnectButton"
           class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           :disabled="isConnecting"
           @click="connect"
         >
           <PlugZap class="w-4 h-4" />
-          Connect
+          {{ t('buttonConnect') }}
         </button>
 
         <button
@@ -160,15 +191,15 @@ onMounted(() => {
           class="flex-1 inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
           @click="disconnect"
         >
-          Disconnect
+          {{ t('buttonDisconnect') }}
         </button>
       </div>
     </div>
 
     <!-- Quick Actions -->
-    <div v-if="connection.state === 'paired'" class="space-y-2">
+    <div v-if="connection.state === ExternalConnectionState.PAIRED" class="space-y-2">
       <p class="text-xs text-muted-foreground mb-2">
-        Auto-fill is active. Click on the haex-pass icon in any login form to fill credentials.
+        {{ t('hintAutoFillActive') }}
       </p>
     </div>
 
@@ -178,7 +209,7 @@ onMounted(() => {
         class="text-xs text-muted-foreground hover:text-foreground"
         @click="openOptions"
       >
-        Settings
+        {{ t('buttonSettings') }}
       </button>
     </div>
   </main>

@@ -28,7 +28,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@haex/ui": "workspace:*"
+    "@haex-space/vault-sdk": "^2.5.4",
+    "@haex/ui": "workspace:*",
+    "vue-i18n": "^11.2.2"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.6.1",

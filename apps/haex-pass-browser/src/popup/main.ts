@@ -3,6 +3,10 @@ import App from './Popup.vue'
 import { setupApp } from '~/logic/common-setup'
 import '../styles'
 
-const app = createApp(App)
-setupApp(app)
-app.mount('#app')
+async function main() {
+  const app = createApp(App)
+  await setupApp(app)
+  app.mount('#app')
+}
+
+main()
