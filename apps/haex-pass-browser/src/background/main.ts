@@ -49,11 +49,15 @@ onMessage('disconnect', async () => {
 // Handle messages from content scripts
 onMessage('get-logins', async (message) => {
   const { url, fields } = message.data as { url: string, fields: string[] }
+  console.log('[haex-pass] get-logins request:', { url, fields })
+  console.log('[haex-pass] Connection state:', vaultConnection.getState())
   try {
     const result = await vaultConnection.getLogins(url, fields)
+    console.log('[haex-pass] get-logins result:', result)
     return { success: true, data: result }
   }
   catch (err) {
+    console.error('[haex-pass] get-logins error:', err)
     return { success: false, error: String(err) }
   }
 })

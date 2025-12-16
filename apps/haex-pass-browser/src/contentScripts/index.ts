@@ -40,28 +40,37 @@ import { detectInputFields, type DetectedField } from './detector'
   async function scanAndRequest() {
     detectedFields = detectInputFields()
 
+    console.log('[haex-pass] Scanning page:', window.location.href)
+    console.log('[haex-pass] Detected fields:', detectedFields.length, detectedFields.map(f => ({ type: f.type, identifier: f.identifier })))
+
     if (detectedFields.length === 0) {
       console.log('[haex-pass] No input fields detected')
       return
     }
 
-    console.log('[haex-pass] Detected fields:', detectedFields.map(f => f.identifier))
-
     // Request matching entries from background script
     try {
+      console.log('[haex-pass] Requesting logins for URL:', window.location.href)
       const response = await sendMessage('get-logins', {
         url: window.location.href,
         fields: detectedFields.map(f => f.identifier),
       }, 'background')
 
+      console.log('[haex-pass] Response from background:', response)
+
       if (response && (response as { success: boolean }).success) {
-        matchingEntries = (response as { data: { entries: unknown[] } }).data?.entries || []
-        console.log('[haex-pass] Matching entries:', matchingEntries.length)
+        // Response structure: { success: true, data: { success: true, data: { entries: [...] } } }
+        // The outer wrapper is from main.ts, the inner is from haex-pass
+        const innerData = (response as { data: { data?: { entries?: unknown[] } } }).data
+        matchingEntries = innerData?.data?.entries || []
+        console.log('[haex-pass] Matching entries:', matchingEntries.length, matchingEntries)
 
         // Inject icons if we have matches
         if (matchingEntries.length > 0) {
           injectIcons()
         }
+      } else {
+        console.log('[haex-pass] Request failed:', (response as { error?: string }).error)
       }
     }
     catch (err) {
@@ -82,16 +91,16 @@ import { detectInputFields, type DetectedField } from './detector'
       input.dataset.haexInjected = 'true'
       input.dataset.haexFieldId = field.id
 
-      // Create icon container
+      // Create icon container with haex-pass logo
       const iconContainer = document.createElement('div')
       iconContainer.className = 'haex-pass-icon'
       iconContainer.dataset.fieldId = field.id
-      iconContainer.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      `
+
+      const logoImg = document.createElement('img')
+      logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
+      logoImg.alt = 'haex-pass'
+      logoImg.style.cssText = 'width: 18px; height: 18px; object-fit: contain;'
+      iconContainer.appendChild(logoImg)
 
       // Position the icon inside the input
       const inputRect = input.getBoundingClientRect()
@@ -138,12 +147,12 @@ import { detectInputFields, type DetectedField } from './detector'
 
       // Hover effects
       iconContainer.addEventListener('mouseenter', () => {
-        iconContainer.style.color = '#10b981'
         iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
+        iconContainer.style.transform = 'translateY(-50%) scale(1.1)'
       })
       iconContainer.addEventListener('mouseleave', () => {
-        iconContainer.style.color = '#666'
         iconContainer.style.backgroundColor = 'transparent'
+        iconContainer.style.transform = 'translateY(-50%) scale(1)'
       })
     })
   }
@@ -155,19 +164,21 @@ import { detectInputFields, type DetectedField } from './detector'
 
     const dropdown = document.createElement('div')
     dropdown.className = 'haex-pass-dropdown'
+
+    // Initial styles (position will be adjusted after measuring)
     dropdown.style.cssText = `
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 4px;
-      min-width: 250px;
+      position: fixed;
+      min-width: 280px;
+      max-width: 350px;
       max-height: 300px;
       overflow-y: auto;
       background: white;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-      z-index: 10001;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      z-index: 2147483647;
+      opacity: 0;
+      transition: opacity 0.15s ease;
     `
 
     if (matchingEntries.length === 0) {
@@ -178,24 +189,24 @@ import { detectInputFields, type DetectedField } from './detector'
       `
     }
     else {
-      matchingEntries.forEach((entry: unknown) => {
+      matchingEntries.forEach((entry: unknown, index: number) => {
         const e = entry as { id: string, title: string, fields: Record<string, string> }
         const item = document.createElement('div')
         item.style.cssText = `
           padding: 10px 12px;
           cursor: pointer;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: ${index < matchingEntries.length - 1 ? '1px solid #f3f4f6' : 'none'};
           transition: background 0.15s;
         `
         item.innerHTML = `
-          <div style="font-weight: 500; font-size: 14px; color: #111827;">${e.title}</div>
-          <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+          <div style="font-weight: 500; font-size: 14px; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.title}</div>
+          <div style="font-size: 12px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${e.fields.username || e.fields.email || 'No username'}
           </div>
         `
 
         item.addEventListener('mouseenter', () => {
-          item.style.backgroundColor = '#f9fafb'
+          item.style.backgroundColor = '#f3f4f6'
         })
         item.addEventListener('mouseleave', () => {
           item.style.backgroundColor = 'transparent'
@@ -210,16 +221,85 @@ import { detectInputFields, type DetectedField } from './detector'
       })
     }
 
-    anchorEl.parentElement?.appendChild(dropdown)
+    // Append to body for fixed positioning
+    document.body.appendChild(dropdown)
+
+    // Calculate optimal position
+    const anchorRect = anchorEl.getBoundingClientRect()
+    const dropdownRect = dropdown.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const padding = 8 // Minimum padding from viewport edges
+
+    // Calculate horizontal position
+    let left = anchorRect.right - dropdownRect.width // Align right edge with icon
+    if (left < padding) {
+      // Would overflow left - align to left edge of viewport
+      left = padding
+    }
+    if (left + dropdownRect.width > viewportWidth - padding) {
+      // Would overflow right - align to right edge of viewport
+      left = viewportWidth - dropdownRect.width - padding
+    }
+
+    // Calculate vertical position
+    let top = anchorRect.bottom + 4 // Below the icon
+    const spaceBelow = viewportHeight - anchorRect.bottom - padding
+    const spaceAbove = anchorRect.top - padding
+
+    if (dropdownRect.height > spaceBelow && spaceAbove > spaceBelow) {
+      // Not enough space below, but more space above - show above
+      top = anchorRect.top - dropdownRect.height - 4
+    }
+
+    // Constrain max-height if needed
+    const availableHeight = Math.max(spaceBelow, spaceAbove) - 8
+    if (availableHeight < 300) {
+      dropdown.style.maxHeight = `${Math.max(150, availableHeight)}px`
+    }
+
+    // Apply final position
+    dropdown.style.left = `${Math.max(padding, left)}px`
+    dropdown.style.top = `${Math.max(padding, top)}px`
+
+    // Fade in
+    requestAnimationFrame(() => {
+      dropdown.style.opacity = '1'
+    })
 
     // Close on click outside
     const closeHandler = (e: MouseEvent) => {
       if (!dropdown.contains(e.target as Node) && e.target !== anchorEl) {
-        dropdown.remove()
+        dropdown.style.opacity = '0'
+        setTimeout(() => dropdown.remove(), 150)
         document.removeEventListener('click', closeHandler)
       }
     }
     setTimeout(() => document.addEventListener('click', closeHandler), 0)
+
+    // Close on scroll outside dropdown (the dropdown position would be stale)
+    const scrollHandler = (e: Event) => {
+      // Ignore scroll events from within the dropdown itself
+      if (dropdown.contains(e.target as Node)) {
+        return
+      }
+      dropdown.style.opacity = '0'
+      setTimeout(() => dropdown.remove(), 150)
+      window.removeEventListener('scroll', scrollHandler, true)
+      document.removeEventListener('click', closeHandler)
+    }
+    window.addEventListener('scroll', scrollHandler, true)
+
+    // Close on Escape key
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        dropdown.style.opacity = '0'
+        setTimeout(() => dropdown.remove(), 150)
+        document.removeEventListener('keydown', keyHandler)
+        document.removeEventListener('click', closeHandler)
+      }
+    }
+    document.addEventListener('keydown', keyHandler)
   }
 
   // Fill a single field

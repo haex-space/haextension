@@ -58,6 +58,8 @@ export function useExternalRequestHandlers() {
   const handleGetLogins = async (request: ExternalRequest): Promise<ExternalResponse> => {
     const { url, fields } = request.payload as GetLoginsPayload;
 
+    console.log("[haex-pass] handleGetLogins called with:", { url, fields });
+
     if (!url) {
       return {
         requestId: request.requestId,
@@ -69,6 +71,7 @@ export function useExternalRequestHandlers() {
     try {
       const orm = haexVaultStore.orm;
       if (!orm) {
+        console.log("[haex-pass] Database not initialized!");
         return {
           requestId: request.requestId,
           success: false,
@@ -84,6 +87,8 @@ export function useExternalRequestHandlers() {
       } catch {
         domain = url;
       }
+
+      console.log("[haex-pass] Searching for domain:", domain);
 
       // Find entries with matching URL
       const entries = await orm
@@ -102,6 +107,8 @@ export function useExternalRequestHandlers() {
             eq(schema.haexPasswordsItemDetails.url, url)
           )
         );
+
+      console.log("[haex-pass] Found entries:", entries.length, entries.map(e => ({ id: e.id, title: e.title, url: e.url })));
 
       // Get custom fields for each entry
       const entriesWithFields = await Promise.all(

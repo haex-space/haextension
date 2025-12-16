@@ -5,9 +5,10 @@ import {
   ExternalConnectionErrorCode,
   ExternalConnectionState,
 } from '@haex-space/vault-sdk'
-import { Clock, Loader2, PlugZap, Shield, ShieldCheck, ShieldOff } from 'lucide-vue-next'
+import { Clock, Loader2, PlugZap, Shield, ShieldOff } from 'lucide-vue-next'
 import { sendMessage } from 'webext-bridge/popup'
 import { useI18n } from '~/locales'
+import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
 
@@ -40,7 +41,7 @@ const showDisconnectButton = computed(() => canExternalClientSendRequests(connec
 const statusIcon = computed(() => {
   switch (connection.value.state) {
     case ExternalConnectionState.PAIRED:
-      return ShieldCheck
+      return Shield
     case ExternalConnectionState.PENDING_APPROVAL:
       return Clock
     case ExternalConnectionState.CONNECTED:
@@ -136,7 +137,7 @@ onMounted(() => {
   <main class="w-[320px] p-4 bg-background text-foreground">
     <!-- Header -->
     <div class="flex items-center gap-3 mb-4">
-      <ShieldCheck class="w-10 h-10 text-primary" />
+      <img :src="logoUrl" alt="haex-pass" class="w-10 h-10">
       <div>
         <h1 class="text-lg font-semibold">
           {{ t('extensionName') }}

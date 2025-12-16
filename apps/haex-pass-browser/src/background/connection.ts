@@ -35,11 +35,20 @@ interface PendingRequest {
 }
 
 // Protocol message types (matching Rust ProtocolMessage enum)
+interface RequestedExtension {
+  name: string
+  extensionPublicKey: string // Public key of the haex-vault extension (from its manifest)
+}
+
 interface ClientInfo {
   clientId: string
   clientName: string
-  publicKey: string
+  publicKey: string // Public key of this client (browser extension) for E2E encryption
+  requestedExtensions?: RequestedExtension[]
 }
+
+// haex-pass extension public key from its manifest.json (identifies the haex-vault extension)
+const HAEX_PASS_EXTENSION_PUBLIC_KEY = 'b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca'
 
 interface HandshakeRequest {
   type: 'handshake'
@@ -284,6 +293,10 @@ class VaultConnectionManager {
         clientId: this.clientId,
         clientName: CLIENT_NAME,
         publicKey: this.publicKeyBase64,
+        // Request access to haex-pass extension (will be pre-selected in authorization dialog)
+        requestedExtensions: [
+          { name: 'haex-pass', extensionPublicKey: HAEX_PASS_EXTENSION_PUBLIC_KEY },
+        ],
       },
     }
 
