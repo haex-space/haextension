@@ -145,7 +145,7 @@ defineProps<{
 }>();
 
 defineEmits(["submit"]);
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const itemDetails = defineModel<SelectHaexPasswordsItemDetails>({
   required: true,
@@ -182,8 +182,6 @@ const onFaviconFetched = (iconName: string) => {
   itemDetails.value.icon = iconName;
 };
 
-// Locale for date formatting
-const { locale } = useI18n();
 
 // Format expiry date for read-only display
 const formattedExpiryDate = computed(() => {

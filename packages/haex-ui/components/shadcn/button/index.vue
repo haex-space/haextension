@@ -41,6 +41,7 @@ const handleClick = (event: MouseEvent) => {
     :as="as"
     :as-child="asChild"
     :class="cn(buttonVariants({ variant, size }), props.class)"
+    :style="{ display: 'inline-flex' }"
     :disabled="disabled || loading"
     :title="tooltip"
     @click="handleClick"
