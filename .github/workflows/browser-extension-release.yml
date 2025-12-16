@@ -1,0 +1,72 @@
+name: Release Browser Extension
+
+on:
+  push:
+    tags:
+      - 'haex-pass-browser-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build browser extension
+        run: pnpm --filter haex-pass-browser build
+
+      - name: Create Chrome ZIP
+        run: |
+          cd apps/haex-pass-browser
+          pnpm pack:zip
+
+      - name: Create Firefox XPI
+        run: |
+          cd apps/haex-pass-browser
+          pnpm pack:xpi
+
+      - name: Get version from tag or input
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/haex-pass-browser-v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: haex-pass-browser-v${{ steps.version.outputs.version }}
+          name: haex-pass Browser Extension v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            apps/haex-pass-browser/extension.zip
+            apps/haex-pass-browser/extension.xpi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
