@@ -15,7 +15,10 @@ export async function getManifest() {
       browser_specific_settings: {
         gecko: {
           id: 'haex-pass@haex.space',
-          strict_min_version: '109.0',
+          strict_min_version: '142.0',
+          data_collection_permissions: {
+            required: ['none'],
+          },
         },
       },
     }),

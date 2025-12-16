@@ -182,11 +182,10 @@ import { detectInputFields, type DetectedField } from './detector'
     `
 
     if (matchingEntries.length === 0) {
-      dropdown.innerHTML = `
-        <div style="padding: 12px; color: #6b7280; font-size: 14px;">
-          No matching entries found
-        </div>
-      `
+      const emptyMsg = document.createElement('div')
+      emptyMsg.style.cssText = 'padding: 12px; color: #6b7280; font-size: 14px;'
+      emptyMsg.textContent = 'No matching entries found'
+      dropdown.appendChild(emptyMsg)
     }
     else {
       matchingEntries.forEach((entry: unknown, index: number) => {
@@ -198,12 +197,17 @@ import { detectInputFields, type DetectedField } from './detector'
           border-bottom: ${index < matchingEntries.length - 1 ? '1px solid #f3f4f6' : 'none'};
           transition: background 0.15s;
         `
-        item.innerHTML = `
-          <div style="font-weight: 500; font-size: 14px; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.title}</div>
-          <div style="font-size: 12px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${e.fields.username || e.fields.email || 'No username'}
-          </div>
-        `
+
+        const titleDiv = document.createElement('div')
+        titleDiv.style.cssText = 'font-weight: 500; font-size: 14px; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+        titleDiv.textContent = e.title
+
+        const usernameDiv = document.createElement('div')
+        usernameDiv.style.cssText = 'font-size: 12px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+        usernameDiv.textContent = e.fields.username || e.fields.email || 'No username'
+
+        item.appendChild(titleDiv)
+        item.appendChild(usernameDiv)
 
         item.addEventListener('mouseenter', () => {
           item.style.backgroundColor = '#f3f4f6'
