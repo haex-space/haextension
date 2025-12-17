@@ -15,7 +15,7 @@ import {
   ExternalConnectionState,
   type ExternalConnection,
 } from '@haex-space/vault-sdk'
-import { getWebSocketPort } from '~/logic/settings'
+import { getExtensionIdentifiers, getWebSocketPort } from '~/logic/settings'
 
 const PROTOCOL_VERSION = 1
 const CLIENT_NAME = 'haex-pass Browser Extension'
@@ -70,6 +70,9 @@ interface EncryptedEnvelope {
   iv: string // Base64 12-byte IV
   clientId: string
   publicKey: string // Ephemeral public key
+  // Target extension identifiers (required for requests)
+  extensionPublicKey?: string
+  extensionName?: string
 }
 
 interface AuthorizationUpdate {
@@ -151,7 +154,7 @@ class VaultConnectionManager {
   private async loadKeypair(): Promise<KeyPair | null> {
     try {
       const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
-      const stored = result[STORAGE_KEY_KEYPAIR]
+      const stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
       if (!stored || !stored.publicKey || !stored.privateKey) {
         return null
       }
@@ -226,7 +229,12 @@ class VaultConnectionManager {
     // Wait for initialization to complete
     await this.initPromise
 
+    // If already connected but not paired, resend handshake to trigger new authorization request
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      if (this.state !== ExternalConnectionState.PAIRED) {
+        console.log('[haex-pass] Already connected, resending handshake for authorization')
+        this.sendHandshake()
+      }
       return
     }
 
@@ -443,6 +451,9 @@ class VaultConnectionManager {
     const requestId = this.generateRequestId()
     const payloadWithId = { ...payload, requestId }
 
+    // Get target extension identifiers
+    const extensionIds = await getExtensionIdentifiers()
+
     // Create encrypted envelope
     const encrypted = await createEncryptedMessage(
       action,
@@ -451,7 +462,7 @@ class VaultConnectionManager {
       this.serverPublicKey,
     )
 
-    // Wrap in protocol message
+    // Wrap in protocol message with extension identifiers
     const request: EncryptedEnvelope = {
       type: 'request',
       action: encrypted.action,
@@ -459,6 +470,8 @@ class VaultConnectionManager {
       iv: encrypted.iv,
       clientId: encrypted.clientID,
       publicKey: encrypted.publicKey,
+      extensionPublicKey: extensionIds.publicKey,
+      extensionName: extensionIds.name,
     }
 
     return new Promise((resolve, reject) => {

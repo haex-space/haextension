@@ -1,5 +1,6 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { vaultConnection } from './connection'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -17,13 +18,35 @@ vaultConnection.connect().catch((err) => {
 // Listen for state changes and broadcast to popup/content scripts
 vaultConnection.onStateChange((state) => {
   // Broadcast state to all extension pages
-  browser.runtime.sendMessage({ type: 'connection-state', state }).catch(() => {
+  browser.runtime.sendMessage({ type: MSG_CONNECTION_STATE, state }).catch(() => {
     // Ignore errors when no listeners
   })
 })
 
 browser.runtime.onInstalled.addListener((): void => {
   console.log('[haex-pass] Extension installed')
+})
+
+// Handle messages from extension pages (options, popup) via browser.runtime.sendMessage
+browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefined => {
+  const message = msg as { type?: string }
+
+  if (message.type === MSG_GET_CONNECTION_STATE) {
+    return Promise.resolve(vaultConnection.getState())
+  }
+
+  if (message.type === MSG_CONNECT) {
+    return vaultConnection.connect()
+      .then(() => ({ success: true }))
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === MSG_DISCONNECT) {
+    vaultConnection.disconnect()
+    return Promise.resolve({ success: true })
+  }
+
+  return undefined
 })
 
 // Handle messages from popup

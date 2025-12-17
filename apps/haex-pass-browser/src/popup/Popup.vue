@@ -5,9 +5,9 @@ import {
   ExternalConnectionErrorCode,
   ExternalConnectionState,
 } from '@haex-space/vault-sdk'
-import { Clock, Loader2, PlugZap, Shield, ShieldOff } from 'lucide-vue-next'
-import { sendMessage } from 'webext-bridge/popup'
+import { Clock, Loader2, PlugZap, Settings, Shield, ShieldOff } from 'lucide-vue-next'
 import { useI18n } from '~/locales'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
@@ -85,8 +85,8 @@ const statusClass = computed(() => {
 
 async function fetchConnectionState() {
   try {
-    const state = await sendMessage('get-connection-state', {})
-    connection.value = state as unknown as ExternalConnection
+    const state = await browser.runtime.sendMessage({ type: MSG_GET_CONNECTION_STATE })
+    connection.value = state as ExternalConnection
   }
   catch (err) {
     console.error('Failed to get connection state:', err)
@@ -96,7 +96,7 @@ async function fetchConnectionState() {
 async function connect() {
   isConnecting.value = true
   try {
-    await sendMessage('connect', {})
+    await browser.runtime.sendMessage({ type: MSG_CONNECT })
     await fetchConnectionState()
   }
   catch (err) {
@@ -109,7 +109,7 @@ async function connect() {
 
 async function disconnect() {
   try {
-    await sendMessage('disconnect', {})
+    await browser.runtime.sendMessage({ type: MSG_DISCONNECT })
     await fetchConnectionState()
   }
   catch (err) {
@@ -122,9 +122,10 @@ function openOptions() {
 }
 
 // Listen for connection state updates
-browser.runtime.onMessage.addListener((message) => {
-  if (message.type === 'connection-state') {
-    connection.value = message.state
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const msg = message as { type?: string, state?: ExternalConnection }
+  if (msg.type === MSG_CONNECTION_STATE && msg.state) {
+    connection.value = msg.state
   }
 })
 
@@ -207,9 +208,10 @@ onMounted(() => {
     <!-- Footer -->
     <div class="pt-3 border-t mt-4">
       <button
-        class="text-xs text-muted-foreground hover:text-foreground"
+        class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         @click="openOptions"
       >
+        <Settings class="w-3 h-3" />
         {{ t('buttonSettings') }}
       </button>
     </div>

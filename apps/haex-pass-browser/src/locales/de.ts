@@ -29,6 +29,11 @@ export default {
   settingsSave: 'Speichern',
   settingsSaved: 'Gespeichert!',
   settingsRestartRequired: 'Neuverbindung erforderlich, damit Änderungen wirksam werden.',
+  settingsConnectionStatus: 'Verbindungsstatus',
+  settingsDisconnect: 'Verbindung trennen',
+  settingsDisconnectDescription: 'Trenne die aktuelle Verbindung zu haex-vault.',
+  settingsDisconnectButton: 'Trennen',
+  settingsDisconnected: 'Verbindung getrennt',
   // Error messages (keys match ExternalConnectionErrorCode values)
   error_client_not_authorized: 'Client nicht autorisiert',
   error_client_blocked: 'Client ist blockiert',
