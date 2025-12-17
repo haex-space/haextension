@@ -14,7 +14,7 @@ export async function getManifest() {
     ...(isFirefox && {
       browser_specific_settings: {
         gecko: {
-          id: 'haex-pass@haex.space',
+          id: 'haex-pass-extension@haex.space',
           strict_min_version: '142.0',
           data_collection_permissions: {
             required: ['none'],
