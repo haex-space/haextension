@@ -1,7 +1,7 @@
 {
   "name": "haex-pass-browser",
   "displayName": "haex-pass Browser Extension",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "packageManager": "pnpm@9.7.1",
   "description": "Browser extension for haex-pass password manager",
