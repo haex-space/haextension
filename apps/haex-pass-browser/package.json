@@ -25,7 +25,11 @@
     "lint": "eslint --cache .",
     "test": "vitest test",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "run-s build pack:zip pack:xpi",
+    "release:patch": "node scripts/bump-version.js patch && pnpm release",
+    "release:minor": "node scripts/bump-version.js minor && pnpm release",
+    "release:major": "node scripts/bump-version.js major && pnpm release"
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^2.5.17",
