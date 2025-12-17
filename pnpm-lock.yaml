@@ -96,8 +96,8 @@ importers:
   apps/haex-pass:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.17
-        version: 2.5.17(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        specifier: ^2.5.19
+        version: 2.5.19(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.25(typescript@5.9.3))
@@ -199,8 +199,8 @@ importers:
   apps/haex-pass-browser:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.17
-        version: 2.5.17(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        specifier: ^2.5.19
+        version: 2.5.19(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       '@haex/ui':
         specifier: workspace:*
         version: link:../../packages/haex-ui
@@ -1233,8 +1233,8 @@ packages:
       vue:
         optional: true
 
-  '@haex-space/vault-sdk@2.5.17':
-    resolution: {integrity: sha512-bgsf9ptJiqcX8jiMIu+fgj83aFGyAPwCm8ualW56aiux3+P+u3jt+fC4slUCWom8DYE9QcGu89rQhOqAwmEyTA==}
+  '@haex-space/vault-sdk@2.5.19':
+    resolution: {integrity: sha512-q+XF/RyKO46U+giuGgSTIt7Wiqmo398KgeumaxZE5KamILm6v8QPXjGOMzxZvsnaoxxd/X6E2mUhf+T69V6IHg==}
     hasBin: true
     peerDependencies:
       '@nuxt/kit': ^3.0.0 || ^4.0.0
@@ -8242,7 +8242,7 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@haex-space/vault-sdk@2.5.17(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+  '@haex-space/vault-sdk@2.5.19(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.2.7(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
     dependencies:
       archiver: 7.0.1
       commander: 14.0.2
