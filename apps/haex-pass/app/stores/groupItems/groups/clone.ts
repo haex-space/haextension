@@ -136,8 +136,8 @@ export const useGroupItemsCloneStore = defineStore('groupItemsCloneStore', () =>
       cloneAppendix,
     } = options
 
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const { groups, syncGroupItemsAsync, addGroupAsync } = usePasswordGroupStore()
     const { readAsync, readKeyValuesAsync, readAttachmentsAsync, addAsync } =
@@ -191,7 +191,7 @@ export const useGroupItemsCloneStore = defineStore('groupItemsCloneStore', () =>
           // Copy attachments if includeHistory is true
           if (includeHistory && attachments && attachments.length > 0) {
             for (const attachment of attachments) {
-              await haexhubStore.orm
+              await haexVaultStore.orm
                 .insert(haexPasswordsItemBinaries)
                 .values({
                   id: crypto.randomUUID(),

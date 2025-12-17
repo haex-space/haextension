@@ -54,10 +54,10 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
   >([]);
 
   const syncItemsAsync = async () => {
-    const haexhubStore = useHaexVaultStore();
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    const haexVaultStore = useHaexVaultStore();
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-    const result = await haexhubStore.orm
+    const result = await haexVaultStore.orm
       .select()
       .from(haexPasswordsItemDetails)
       .innerJoin(
@@ -102,8 +102,8 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
    * Falls back to root if target group doesn't exist
    */
   const restoreAsync = async (itemId: string, targetGroupId: string | null = null) => {
-    const haexhubStore = useHaexVaultStore();
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    const haexVaultStore = useHaexVaultStore();
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
     // If a target group is specified, verify it exists and is not the trash
     let finalGroupId: string | null = null;
@@ -116,7 +116,7 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
       }
     }
 
-    await haexhubStore.orm
+    await haexVaultStore.orm
       .update(haexPasswordsGroupItems)
       .set({ groupId: finalGroupId })
       .where(eq(haexPasswordsGroupItems.itemId, itemId));
@@ -148,7 +148,7 @@ const addAsync = async (
   keyValues: SelectHaexPasswordsItemKeyValues[],
   group?: SelectHaexPasswordsGroups | null
 ) => {
-  const haexhubStore = useHaexVaultStore();
+  const haexVaultStore = useHaexVaultStore();
 
   const newDetails: InsertHaexPasswordsItemDetails = {
     id: details.id || crypto.randomUUID(),
@@ -174,18 +174,18 @@ const addAsync = async (
   );
 
   try {
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
     // Insert item details
-    await haexhubStore.orm.insert(haexPasswordsItemDetails).values(newDetails);
+    await haexVaultStore.orm.insert(haexPasswordsItemDetails).values(newDetails);
 
     // Insert group item relation
     const groupItemData = { itemId: newDetails.id, groupId: group?.id ?? null };
-    await haexhubStore.orm.insert(haexPasswordsGroupItems).values(groupItemData);
+    await haexVaultStore.orm.insert(haexPasswordsGroupItems).values(groupItemData);
 
     // Insert key values if any
     if (newKeyValues.length) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .insert(haexPasswordsItemKeyValues)
         .values(newKeyValues);
     }
@@ -203,7 +203,7 @@ const addAsync = async (
       attachments: [],
     };
 
-    await haexhubStore.orm.insert(haexPasswordsItemSnapshots).values({
+    await haexVaultStore.orm.insert(haexPasswordsItemSnapshots).values({
       id: crypto.randomUUID(),
       itemId: newDetails.id,
       snapshotData: JSON.stringify(snapshotData),
@@ -221,8 +221,8 @@ const addKeyValueAsync = async (
   item?: InserthaexPasswordsItemKeyValues | null,
   itemId?: string
 ) => {
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
   const newKeyValue: InserthaexPasswordsItemKeyValues = {
     id: crypto.randomUUID(),
@@ -232,7 +232,7 @@ const addKeyValueAsync = async (
   };
 
   try {
-    return await haexhubStore.orm
+    return await haexVaultStore.orm
       .insert(haexPasswordsItemKeyValues)
       .values(newKeyValue);
   } catch (error) {
@@ -244,8 +244,8 @@ const addKeyValuesAsync = async (
   items: InserthaexPasswordsItemKeyValues[],
   itemId?: string
 ) => {
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
   const newKeyValues: InserthaexPasswordsItemKeyValues[] = items?.map(
     (item) => ({
@@ -257,7 +257,7 @@ const addKeyValuesAsync = async (
   );
 
   try {
-    return await haexhubStore.orm
+    return await haexVaultStore.orm
       .insert(haexPasswordsItemKeyValues)
       .values(newKeyValues);
   } catch (error) {
@@ -267,13 +267,13 @@ const addKeyValuesAsync = async (
 
 const readByGroupIdAsync = async (groupId?: string | null) => {
   try {
-    const haexhubStore = useHaexVaultStore();
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    const haexVaultStore = useHaexVaultStore();
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
     // Explicit column selection avoids dynamic table name keys in join results.
     // Without this, Drizzle returns { [tableName]: { ...fields } } where tableName
     // can have a prefix (e.g., "haex_passwords_item_details"), causing type issues.
-    const baseQuery = haexhubStore.orm
+    const baseQuery = haexVaultStore.orm
       .select({
         id: haexPasswordsItemDetails.id,
         title: haexPasswordsItemDetails.title,
@@ -307,10 +307,10 @@ const readAsync = async (itemId: string | null) => {
   if (!itemId) return null;
 
   try {
-    const haexhubStore = useHaexVaultStore();
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    const haexVaultStore = useHaexVaultStore();
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-    const result = await haexhubStore.orm
+    const result = await haexVaultStore.orm
       .select()
       .from(haexPasswordsItemDetails)
       .where(eq(haexPasswordsItemDetails.id, itemId))
@@ -333,10 +333,10 @@ const readAsync = async (itemId: string | null) => {
 
 const readKeyValuesAsync = async (itemId: string | null) => {
   if (!itemId) return null;
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-  const keyValues = await haexhubStore.orm
+  const keyValues = await haexVaultStore.orm
     .select()
     .from(haexPasswordsItemKeyValues)
     .where(eq(haexPasswordsItemKeyValues.itemId, itemId));
@@ -346,10 +346,10 @@ const readKeyValuesAsync = async (itemId: string | null) => {
 
 const readSnapshotsAsync = async (itemId: string | null) => {
   if (!itemId) return [];
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-  const snapshots = await haexhubStore.orm
+  const snapshots = await haexVaultStore.orm
     .select()
     .from(haexPasswordsItemSnapshots)
     .where(eq(haexPasswordsItemSnapshots.itemId, itemId));
@@ -359,10 +359,10 @@ const readSnapshotsAsync = async (itemId: string | null) => {
 
 const readAttachmentsAsync = async (itemId: string | null) => {
   if (!itemId) return [];
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-  const result = await haexhubStore.orm
+  const result = await haexVaultStore.orm
     .select({
       id: haexPasswordsItemBinaries.id,
       itemId: haexPasswordsItemBinaries.itemId,
@@ -405,14 +405,14 @@ const updateAsync = async ({
   groupId?: string | null;
 }) => {
   console.log('[Store] updateAsync called with details.id:', details.id);
-  const haexhubStore = useHaexVaultStore();
+  const haexVaultStore = useHaexVaultStore();
 
   if (!details.id) {
     console.log('[Store] updateAsync - early return, no details.id');
     return;
   }
 
-  console.log('[Store] updateAsync - orm available:', !!haexhubStore.orm);
+  console.log('[Store] updateAsync - orm available:', !!haexVaultStore.orm);
 
   // Don't include id in SET clause - only use it in WHERE
   const updateDetails = {
@@ -447,12 +447,12 @@ const updateAsync = async ({
   );
 
   try {
-    if (!haexhubStore.orm) throw new Error("Database not initialized");
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
     console.log('[Store] updateAsync - updating item details:', updateDetails);
 
     // Update item details
-    const updateResult = await haexhubStore.orm
+    const updateResult = await haexVaultStore.orm
       .update(haexPasswordsItemDetails)
       .set(updateDetails)
       .where(eq(haexPasswordsItemDetails.id, details.id));
@@ -461,7 +461,7 @@ const updateAsync = async ({
 
     // Update group item relation (only if groupId is explicitly provided)
     if (groupId !== undefined) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .update(haexPasswordsGroupItems)
         .set({ itemId: details.id, groupId })
         .where(eq(haexPasswordsGroupItems.itemId, details.id));
@@ -469,7 +469,7 @@ const updateAsync = async ({
 
     // Update existing key values
     for (const keyValue of newKeyValues) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .update(haexPasswordsItemKeyValues)
         .set(keyValue)
         .where(eq(haexPasswordsItemKeyValues.id, keyValue.id));
@@ -477,14 +477,14 @@ const updateAsync = async ({
 
     // Add new key values
     if (newKeyValuesAdd.length) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .insert(haexPasswordsItemKeyValues)
         .values(newKeyValuesAdd);
     }
 
     // Delete key values
     for (const keyValue of keyValuesDelete) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsItemKeyValues)
         .where(eq(haexPasswordsItemKeyValues.id, keyValue.id));
     }
@@ -492,7 +492,7 @@ const updateAsync = async ({
     // Update existing attachments (e.g., fileName changes)
     if (attachments && attachments.length) {
       for (const attachment of attachments) {
-        await haexhubStore.orm
+        await haexVaultStore.orm
           .update(haexPasswordsItemBinaries)
           .set({
             fileName: attachment.fileName,
@@ -522,7 +522,7 @@ const updateAsync = async ({
 
         // Insert binary data (deduplicated by hash)
         try {
-          await haexhubStore.orm
+          await haexVaultStore.orm
             .insert(haexPasswordsBinaries)
             .values({
               hash: binaryHash,
@@ -541,7 +541,7 @@ const updateAsync = async ({
         }
 
         // Insert item-binary mapping
-        await haexhubStore.orm
+        await haexVaultStore.orm
           .insert(haexPasswordsItemBinaries)
           .values({
             id: crypto.randomUUID(),
@@ -555,7 +555,7 @@ const updateAsync = async ({
     // Delete attachments
     if (attachmentsToDelete && attachmentsToDelete.length) {
       for (const attachment of attachmentsToDelete) {
-        await haexhubStore.orm
+        await haexVaultStore.orm
           .delete(haexPasswordsItemBinaries)
           .where(eq(haexPasswordsItemBinaries.id, attachment.id));
       }
@@ -563,7 +563,7 @@ const updateAsync = async ({
 
     // Create snapshot AFTER all changes (including attachments)
     // Load all current attachments from DB to get correct binaryHash values
-    const currentAttachments = await haexhubStore.orm
+    const currentAttachments = await haexVaultStore.orm
       .select()
       .from(haexPasswordsItemBinaries)
       .where(eq(haexPasswordsItemBinaries.itemId, details.id));
@@ -584,7 +584,7 @@ const updateAsync = async ({
       })),
     };
 
-    await haexhubStore.orm.insert(haexPasswordsItemSnapshots).values({
+    await haexVaultStore.orm.insert(haexPasswordsItemSnapshots).values({
       id: crypto.randomUUID(),
       itemId: details.id,
       snapshotData: JSON.stringify(snapshotData),
@@ -600,35 +600,35 @@ const updateAsync = async ({
 };
 
 const deleteAsync = async (itemId: string, final: boolean = false) => {
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
   const { createTrashIfNotExistsAsync, trashId } = useGroupItemsDeleteStore();
 
   if (final) {
     try {
       // Delete key values
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsItemKeyValues)
         .where(eq(haexPasswordsItemKeyValues.itemId, itemId));
 
       // Delete snapshots (cascade will handle snapshot binaries)
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsItemSnapshots)
         .where(eq(haexPasswordsItemSnapshots.itemId, itemId));
 
       // Delete attachments (cascade will handle binaries)
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsItemBinaries)
         .where(eq(haexPasswordsItemBinaries.itemId, itemId));
 
       // Delete group items
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsGroupItems)
         .where(eq(haexPasswordsGroupItems.itemId, itemId));
 
       // Delete item details
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .delete(haexPasswordsItemDetails)
         .where(eq(haexPasswordsItemDetails.id, itemId));
     } catch (error) {
@@ -637,7 +637,7 @@ const deleteAsync = async (itemId: string, final: boolean = false) => {
     }
   } else {
     if (await createTrashIfNotExistsAsync()) {
-      await haexhubStore.orm
+      await haexVaultStore.orm
         .update(haexPasswordsGroupItems)
         .set({ groupId: trashId })
         .where(eq(haexPasswordsGroupItems.itemId, itemId));
@@ -646,10 +646,10 @@ const deleteAsync = async (itemId: string, final: boolean = false) => {
 };
 
 const deleteKeyValueAsync = async (id: string) => {
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.orm) throw new Error("Database not initialized");
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-  return await haexhubStore.orm
+  return await haexVaultStore.orm
     .delete(haexPasswordsItemKeyValues)
     .where(eq(haexPasswordsItemKeyValues.id, id));
 };

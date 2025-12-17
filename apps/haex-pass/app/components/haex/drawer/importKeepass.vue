@@ -595,8 +595,8 @@ async function importKdbxAsync(
   console.log("[KeePass Import] Database loaded successfully");
 
   const { addGroupAsync } = usePasswordGroupStore();
-  const haexhubStore = useHaexVaultStore();
-  const { orm } = storeToRefs(haexhubStore);
+  const haexVaultStore = useHaexVaultStore();
+  const { orm } = storeToRefs(haexVaultStore);
 
   if (!orm.value) {
     throw new Error("Database not initialized");

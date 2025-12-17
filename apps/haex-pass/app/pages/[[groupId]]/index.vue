@@ -327,10 +327,10 @@ const onCopyUsername = (item: IPasswordMenuItem) => {
 };
 
 const onOpenUrl = (item: IPasswordMenuItem) => {
-  const haexhubStore = useHaexVaultStore();
+  const haexVaultStore = useHaexVaultStore();
   const cachedItem = currentGroupItems.value.get(item.id);
-  if (cachedItem?.details.url && haexhubStore.client?.web?.openAsync) {
-    haexhubStore.client.web.openAsync(cachedItem.details.url);
+  if (cachedItem?.details.url && haexVaultStore.client?.web?.openAsync) {
+    haexVaultStore.client.web.openAsync(cachedItem.details.url);
   }
 };
 

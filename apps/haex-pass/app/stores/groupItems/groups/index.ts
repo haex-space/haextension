@@ -42,8 +42,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Load all item details for the current group with resolved references
    */
   const loadCurrentGroupItemsAsync = async () => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) {
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) {
       currentGroupItems.value.clear()
       return
     }
@@ -117,10 +117,10 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Sync groups and items from database
    */
   const syncGroupItemsAsync = async () => {
-    const haexhubStore = useHaexVaultStore()
+    const haexVaultStore = useHaexVaultStore()
 
     // Wait for database to be initialized
-    if (!haexhubStore.orm) {
+    if (!haexVaultStore.orm) {
       return
     }
 
@@ -156,8 +156,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
   }
 
   // Watch for haexhub setup completion AND orm initialization, then sync
-  const haexhubStore = useHaexVaultStore()
-  watch(() => ({ isSetupComplete: haexhubStore.state.isSetupComplete, orm: haexhubStore.orm }), async ({ isSetupComplete, orm }) => {
+  const haexVaultStore = useHaexVaultStore()
+  watch(() => ({ isSetupComplete: haexVaultStore.state.isSetupComplete, orm: haexVaultStore.orm }), async ({ isSetupComplete, orm }) => {
     if (isSetupComplete && orm) {
       await syncGroupItemsAsync()
       // After initial sync, check if we should auto-navigate
@@ -171,8 +171,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Add a new group
    */
   const addGroupAsync = async (group: Partial<InsertHaexPasswordsGroups>) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const newGroup: InsertHaexPasswordsGroups = {
       id: group.id || crypto.randomUUID(),
@@ -183,7 +183,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       order: group.order,
     }
 
-    await haexhubStore.orm.insert(haexPasswordsGroups).values(newGroup)
+    await haexVaultStore.orm.insert(haexPasswordsGroups).values(newGroup)
 
     return newGroup
   }
@@ -192,10 +192,10 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Read a single group by ID
    */
   const readGroupAsync = async (groupId: string) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
-    const result = await haexhubStore.orm
+    const result = await haexVaultStore.orm
       .select()
       .from(haexPasswordsGroups)
       .where(eq(haexPasswordsGroups.id, groupId))
@@ -208,18 +208,18 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Read all groups or filter by parentId
    */
   const readGroupsAsync = async (filter?: { parentId?: string | null }) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     let query
     if (filter?.parentId) {
-      query = haexhubStore.orm
+      query = haexVaultStore.orm
         .select()
         .from(haexPasswordsGroups)
         .where(eq(haexPasswordsGroups.parentId, filter.parentId))
         .orderBy(sql`${haexPasswordsGroups.order} nulls last`)
     } else {
-      query = haexhubStore.orm
+      query = haexVaultStore.orm
         .select()
         .from(haexPasswordsGroups)
         .orderBy(sql`${haexPasswordsGroups.order} nulls last`)
@@ -234,16 +234,16 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
   const readGroupItemsAsync = async (
     groupId?: string | null
   ): Promise<SelectHaexPasswordsGroupItems[]> => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     if (groupId) {
-      return await haexhubStore.orm
+      return await haexVaultStore.orm
         .select()
         .from(haexPasswordsGroupItems)
         .where(eq(haexPasswordsGroupItems.groupId, groupId))
     } else {
-      return await haexhubStore.orm
+      return await haexVaultStore.orm
         .select()
         .from(haexPasswordsGroupItems)
         .where(isNull(haexPasswordsGroupItems.groupId))
@@ -254,8 +254,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Update a group
    */
   const updateAsync = async (group: InsertHaexPasswordsGroups) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
     if (!group.id) return
 
     // Don't include id in the SET clause - only use it in WHERE
@@ -268,7 +268,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       parentId: group.parentId,
     }
 
-    return await haexhubStore.orm
+    return await haexVaultStore.orm
       .update(haexPasswordsGroups)
       .set(updateData)
       .where(eq(haexPasswordsGroups.id, group.id))
@@ -278,10 +278,10 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Update only the parentId of a group (for moving to trash or reordering)
    */
   const updateParentAsync = async (groupId: string, parentId: string | null) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
-    return await haexhubStore.orm
+    return await haexVaultStore.orm
       .update(haexPasswordsGroups)
       .set({ parentId })
       .where(eq(haexPasswordsGroups.id, groupId))
@@ -296,17 +296,17 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
     parentId?: string | null
   ): Promise<SelectHaexPasswordsGroups[]> => {
     try {
-      const haexhubStore = useHaexVaultStore()
-      if (!haexhubStore.orm) throw new Error('Database not initialized')
+      const haexVaultStore = useHaexVaultStore()
+      if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
       if (parentId) {
-        return await haexhubStore.orm
+        return await haexVaultStore.orm
           .select()
           .from(haexPasswordsGroups)
           .where(eq(haexPasswordsGroups.parentId, parentId))
           .orderBy(sql`${haexPasswordsGroups.order} nulls last`)
       } else {
-        return await haexhubStore.orm
+        return await haexVaultStore.orm
           .select()
           .from(haexPasswordsGroups)
           .where(isNull(haexPasswordsGroups.parentId))
@@ -393,8 +393,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
    * Falls back to root if target parent doesn't exist or is in trash
    */
   const restoreGroupAsync = async (groupId: string, targetParentId: string | null = null) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const { isGroupInTrash } = useGroupTreeStore()
 
@@ -408,7 +408,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       }
     }
 
-    await haexhubStore.orm
+    await haexVaultStore.orm
       .update(haexPasswordsGroups)
       .set({ parentId: finalParentId })
       .where(eq(haexPasswordsGroups.id, groupId))

@@ -14,8 +14,8 @@ export const useGroupItemsMoveStore = defineStore('groupItemsMoveStore', () => {
     items: IPasswordMenuItem[],
     groupdId?: string | null
   ) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const { groups } = usePasswordGroupStore()
     const { syncGroupItemsAsync } = usePasswordGroupStore()
@@ -30,14 +30,14 @@ export const useGroupItemsMoveStore = defineStore('groupItemsMoveStore', () => {
 
         if (updateGroup) {
           updateGroup.parentId = targetGroup?.id ?? null
-          await haexhubStore.orm
+          await haexVaultStore.orm
             .update(haexPasswordsGroups)
             .set(updateGroup)
             .where(eq(haexPasswordsGroups.id, updateGroup.id))
         }
       } else {
         if (targetGroup) {
-          await haexhubStore.orm
+          await haexVaultStore.orm
             .update(haexPasswordsGroupItems)
             .set({ groupId: targetGroup.id, itemId: item.id })
             .where(eq(haexPasswordsGroupItems.itemId, item.id))
@@ -55,8 +55,8 @@ export const useGroupItemsMoveStore = defineStore('groupItemsMoveStore', () => {
     itemIds: string[],
     targetGroupId?: string | null
   ) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const { groups, syncGroupItemsAsync } = usePasswordGroupStore()
     const targetGroup = groups.find((group) => group.id === targetGroupId)
@@ -69,14 +69,14 @@ export const useGroupItemsMoveStore = defineStore('groupItemsMoveStore', () => {
         // Move group by updating parentId
         if (group.parentId === targetGroup?.id) continue
 
-        await haexhubStore.orm
+        await haexVaultStore.orm
           .update(haexPasswordsGroups)
           .set({ parentId: targetGroup?.id ?? null })
           .where(eq(haexPasswordsGroups.id, itemId))
       } else {
         // Move item by updating groupId in group_items
         if (targetGroup) {
-          await haexhubStore.orm
+          await haexVaultStore.orm
             .update(haexPasswordsGroupItems)
             .set({ groupId: targetGroup.id })
             .where(eq(haexPasswordsGroupItems.itemId, itemId))

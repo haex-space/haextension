@@ -46,8 +46,8 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
    * @param final - If true, permanently delete. If false, move to trash
    */
   const deleteGroupAsync = async (groupId: string, final: boolean = false) => {
-    const haexhubStore = useHaexVaultStore()
-    if (!haexhubStore.orm) throw new Error('Database not initialized')
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
 
     const { updateParentAsync, getChildGroupsRecursiveAsync } = usePasswordGroupStore()
     const { deleteAsync: deleteItemAsync } = usePasswordItemStore()
@@ -64,7 +64,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
       // Get all item IDs in these groups
       const itemIdsToDelete: string[] = []
       for (const gId of groupIds) {
-        const groupItems = await haexhubStore.orm
+        const groupItems = await haexVaultStore.orm
           .select({ itemId: haexPasswordsGroupItems.itemId })
           .from(haexPasswordsGroupItems)
           .where(eq(haexPasswordsGroupItems.groupId, gId))
@@ -85,7 +85,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
 
       // Now delete the group (child groups will cascade)
       console.log('[Delete] Deleting group:', groupId)
-      return await haexhubStore.orm
+      return await haexVaultStore.orm
         .delete(haexPasswordsGroups)
         .where(eq(haexPasswordsGroups.id, groupId))
     } else {
@@ -222,7 +222,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
   }
 
   const confirmDeleteAsync = async () => {
-    const haexhubStore = useHaexVaultStore()
+    const haexVaultStore = useHaexVaultStore()
     const { deleteAsync: deleteItem, syncItemsAsync } = usePasswordItemStore()
     const { syncGroupItemsAsync, getChildGroupsRecursiveAsync } = usePasswordGroupStore()
     const selectionStore = useSelectionStore()
@@ -236,7 +236,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
     // For final group deletes, we need to count all items within groups
     let totalOperations = itemsToDelete.value.length
 
-    if (isFinal.value && haexhubStore.orm) {
+    if (isFinal.value && haexVaultStore.orm) {
       // Count items in all groups that will be deleted
       for (const groupId of groupsToDelete.value) {
         const groupIds = [groupId]
@@ -244,7 +244,7 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
         groupIds.push(...childGroups.map(g => g.id))
 
         for (const gId of groupIds) {
-          const groupItems = await haexhubStore.orm
+          const groupItems = await haexVaultStore.orm
             .select({ itemId: haexPasswordsGroupItems.itemId })
             .from(haexPasswordsGroupItems)
             .where(eq(haexPasswordsGroupItems.groupId, gId))
@@ -277,8 +277,8 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
       }
 
       // Cleanup orphaned binaries after all deletions (only for final deletes)
-      if (isFinal.value && haexhubStore.orm) {
-        const cleanedBinaries = await cleanupOrphanedBinariesAsync(haexhubStore.orm)
+      if (isFinal.value && haexVaultStore.orm) {
+        const cleanedBinaries = await cleanupOrphanedBinariesAsync(haexVaultStore.orm)
         console.log('[Delete] Cleaned up orphaned binaries:', cleanedBinaries)
       }
 

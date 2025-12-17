@@ -121,11 +121,11 @@ export const useIconComponents = () => {
         },
         setup(props) {
           const src = ref<string | null>(null);
-          const haexHubStore = useHaexVaultStore();
+          const haexVaultStore = useHaexVaultStore();
 
           onMounted(async () => {
-            if (haexHubStore.orm) {
-              const base64Data = await getBinaryDataAsync(haexHubStore.orm, hash);
+            if (haexVaultStore.orm) {
+              const base64Data = await getBinaryDataAsync(haexVaultStore.orm, hash);
               if (base64Data) {
                 src.value = `data:image/png;base64,${base64Data}`;
               }

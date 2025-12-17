@@ -65,14 +65,14 @@ const handleCopy = async () => {
 const openUrl = async () => {
   if (!model.value) return;
 
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.client) {
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.client) {
     console.error('[URL] HaexHub client not available');
     return;
   }
 
   try {
-    await haexhubStore.client.web.openAsync(model.value);
+    await haexVaultStore.client.web.openAsync(model.value);
   } catch (error) {
     // Method not implemented yet in host application
     console.log('[URL] web.openAsync not available, URL:', model.value);
@@ -82,8 +82,8 @@ const openUrl = async () => {
 const fetchFaviconAsync = async () => {
   if (!model.value) return;
 
-  const haexhubStore = useHaexVaultStore();
-  if (!haexhubStore.client || !haexhubStore.orm) {
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.client || !haexVaultStore.orm) {
     console.error('[FaviconFetch] HaexHub client or ORM not available');
     return;
   }
@@ -106,7 +106,7 @@ const fetchFaviconAsync = async () => {
     const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
     try {
-      const response = await haexhubStore.client.web.fetchAsync(faviconUrl);
+      const response = await haexVaultStore.client.web.fetchAsync(faviconUrl);
 
       // Check if response is successful (status 200-299) and has content
       if (response.status >= 200 && response.status < 300 && response.body) {
@@ -115,7 +115,7 @@ const fetchFaviconAsync = async () => {
 
         // Save to database as icon
         const hash = await addBinaryAsync(
-          haexhubStore.orm,
+          haexVaultStore.orm,
           base64,
           response.body.byteLength,
           'icon'

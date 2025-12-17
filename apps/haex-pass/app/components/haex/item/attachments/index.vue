@@ -249,9 +249,9 @@ const attachmentsToDelete = defineModel<AttachmentWithSize[]>(
 
 const { t } = useI18n();
 const fileInput = ref<HTMLInputElement>();
-const haexhubStore = useHaexVaultStore();
-const { orm } = storeToRefs(haexhubStore);
-const client = haexhubStore.client;
+const haexVaultStore = useHaexVaultStore();
+const { orm } = storeToRefs(haexVaultStore);
+const client = haexVaultStore.client;
 
 // Edit mode state
 const editingAttachment = ref<string | null>(null);

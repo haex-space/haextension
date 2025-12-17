@@ -253,9 +253,9 @@ const props = defineProps<{
 
 const { t, locale } = useI18n();
 const { readSnapshotsAsync } = usePasswordItemStore();
-const haexhubStore = useHaexVaultStore();
-const { orm } = storeToRefs(haexhubStore);
-const client = haexhubStore.client;
+const haexVaultStore = useHaexVaultStore();
+const { orm } = storeToRefs(haexVaultStore);
+const client = haexVaultStore.client;
 
 const snapshots = ref<SelectHaexPasswordsItemSnapshots[]>([]);
 const selectedSnapshot = ref<SelectHaexPasswordsItemSnapshots | null>(null);

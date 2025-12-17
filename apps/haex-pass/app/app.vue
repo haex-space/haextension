@@ -3,7 +3,7 @@
     <NuxtPage />
     <ShadcnSonnerToaster />
     <div
-      v-if="!haexhubStore.state.isSetupComplete"
+      v-if="!haexVaultStore.state.isSetupComplete"
       class="fixed inset-0 z-50 flex items-center justify-center bg-background"
     >
       <div class="text-center">
@@ -17,13 +17,13 @@
 </template>
 
 <script setup lang="ts">
-const haexhubStore = useHaexVaultStore();
+const haexVaultStore = useHaexVaultStore();
 const { registerHandlers } = useExternalRequestHandlers();
 
 // Initialize HaexHub and wait for setup completion
 onMounted(async () => {
-  await haexhubStore.initializeAsync();
-  await haexhubStore.waitForSetupAsync();
+  await haexVaultStore.initializeAsync();
+  await haexVaultStore.waitForSetupAsync();
 
   // Register external request handlers (for browser extension communication)
   registerHandlers();
