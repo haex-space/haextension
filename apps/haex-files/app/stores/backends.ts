@@ -1,8 +1,18 @@
 // stores/backends.ts
-import type { StorageBackendInfo, S3BackendConfig, StorageBackendType } from "@haex-space/vault-sdk";
+import type {
+  StorageBackendInfo,
+  S3BackendConfig,
+  BackendConfig,
+  StorageBackendType,
+} from "@haex-space/vault-sdk";
 
 // Re-export types from SDK for convenience
-export type { StorageBackendInfo, S3BackendConfig, StorageBackendType };
+export type {
+  StorageBackendInfo,
+  S3BackendConfig,
+  BackendConfig,
+  StorageBackendType,
+};
 
 export const useBackendsStore = defineStore("backends", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -33,17 +43,15 @@ export const useBackendsStore = defineStore("backends", () => {
    */
   const addBackendAsync = async (
     name: string,
-    type: StorageBackendType,
-    config: S3BackendConfig
+    config: BackendConfig
   ): Promise<StorageBackendInfo> => {
     const newBackend = await haexVaultStore.client.filesystem.sync.addBackendAsync({
       name,
-      type,
       config,
     });
 
     backends.value.push(newBackend);
-    console.log(`[haex-files] Added backend: ${name} (${type})`);
+    console.log(`[haex-files] Added backend: ${name} (${config.type})`);
 
     return newBackend;
   };

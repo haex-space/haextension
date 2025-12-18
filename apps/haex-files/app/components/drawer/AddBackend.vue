@@ -24,19 +24,20 @@
             </ShadcnSelectTrigger>
             <ShadcnSelectContent>
               <ShadcnSelectItem value="s3">S3-compatible Storage</ShadcnSelectItem>
+              <ShadcnSelectItem value="r2">Cloudflare R2</ShadcnSelectItem>
+              <ShadcnSelectItem value="minio">MinIO</ShadcnSelectItem>
             </ShadcnSelectContent>
           </ShadcnSelect>
         </div>
 
         <!-- S3 Configuration -->
-        <template v-if="form.type === 's3'">
           <!-- Endpoint URL -->
           <div class="space-y-2">
             <ShadcnLabel for="endpoint">{{ t("s3.endpoint") }}</ShadcnLabel>
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="endpoint"
-                v-model="form.config.endpoint"
+                v-model="form.s3.endpoint"
                 type="url"
                 :placeholder="t('s3.endpointPlaceholder')"
               />
@@ -49,7 +50,7 @@
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="bucket"
-                v-model="form.config.bucket"
+                v-model="form.s3.bucket"
                 :placeholder="t('s3.bucketPlaceholder')"
               />
             </ShadcnInputGroup>
@@ -61,7 +62,7 @@
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="region"
-                v-model="form.config.region"
+                v-model="form.s3.region"
                 :placeholder="t('s3.regionPlaceholder')"
               />
             </ShadcnInputGroup>
@@ -73,7 +74,7 @@
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="accessKey"
-                v-model="form.config.accessKeyId"
+                v-model="form.s3.accessKeyId"
                 :placeholder="t('s3.accessKeyPlaceholder')"
               />
             </ShadcnInputGroup>
@@ -85,7 +86,7 @@
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="secretKey"
-                v-model="form.config.secretAccessKey"
+                v-model="form.s3.secretAccessKey"
                 :type="showSecretKey ? 'text' : 'password'"
                 :placeholder="t('s3.secretKeyPlaceholder')"
               />
@@ -96,8 +97,6 @@
               />
             </ShadcnInputGroup>
           </div>
-
-        </template>
 
         <!-- Error -->
         <div
@@ -133,7 +132,7 @@
 
 <script setup lang="ts">
 import { Eye, EyeOff } from "lucide-vue-next"
-import type { StorageBackendType, S3BackendConfig } from "@haex-space/vault-sdk"
+import type { StorageBackendType, BackendConfig } from "@haex-space/vault-sdk"
 
 const isOpen = defineModel<boolean>("open", { default: false })
 const { t } = useI18n()
@@ -142,8 +141,8 @@ const backendsStore = useBackendsStore()
 const form = reactive({
   name: "",
   type: "s3" as StorageBackendType,
-  config: {
-    type: "s3" as const,
+  // S3 config
+  s3: {
     endpoint: "",
     bucket: "",
     region: "auto",
@@ -158,14 +157,12 @@ const error = ref<string | null>(null)
 
 const isValid = computed(() => {
   if (!form.name.trim()) return false
-  if (form.type === "s3") {
-    return (
-      !!form.config.bucket?.trim() &&
-      !!form.config.accessKeyId?.trim() &&
-      !!form.config.secretAccessKey?.trim()
-    )
-  }
-  return false
+
+  return (
+    !!form.s3.bucket?.trim() &&
+    !!form.s3.accessKeyId?.trim() &&
+    !!form.s3.secretAccessKey?.trim()
+  )
 })
 
 const submitAsync = async () => {
@@ -175,16 +172,16 @@ const submitAsync = async () => {
   error.value = null
 
   try {
-    const config: S3BackendConfig = {
-      type: form.config.type,
-      endpoint: form.config.endpoint?.trim() || undefined,
-      bucket: form.config.bucket.trim(),
-      region: form.config.region.trim() || "auto",
-      accessKeyId: form.config.accessKeyId.trim(),
-      secretAccessKey: form.config.secretAccessKey.trim(),
+    const config: BackendConfig = {
+      type: form.type as "s3" | "r2" | "minio",
+      endpoint: form.s3.endpoint?.trim() || undefined,
+      bucket: form.s3.bucket.trim(),
+      region: form.s3.region.trim() || "auto",
+      accessKeyId: form.s3.accessKeyId.trim(),
+      secretAccessKey: form.s3.secretAccessKey.trim(),
     }
 
-    await backendsStore.addBackendAsync(form.name.trim(), form.type, config)
+    await backendsStore.addBackendAsync(form.name.trim(), config)
 
     // Reset form and close
     resetForm()
@@ -200,8 +197,7 @@ const submitAsync = async () => {
 const resetForm = () => {
   form.name = ""
   form.type = "s3"
-  form.config = {
-    type: "s3" as const,
+  form.s3 = {
     endpoint: "",
     bucket: "",
     region: "auto",

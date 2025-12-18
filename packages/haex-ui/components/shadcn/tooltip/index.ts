@@ -1,4 +1,4 @@
-export { default as Tooltip } from "./index.vue"
-export { default as TooltipContent } from "./Content.vue"
-export { default as TooltipProvider } from "./Provider.vue"
-export { default as TooltipTrigger } from "./Trigger.vue"
+export { default as Tooltip } from "./Tooltip.vue"
+export { default as TooltipContent } from "./TooltipContent.vue"
+export { default as TooltipProvider } from "./TooltipProvider.vue"
+export { default as TooltipTrigger } from "./TooltipTrigger.vue"

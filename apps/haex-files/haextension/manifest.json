@@ -9,6 +9,7 @@
         "action": "readWrite"
       }
     ],
+
     "http": [
       {
         "target": "https://*.amazonaws.com/*"

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Component, HTMLAttributes } from "vue";
 import type { PrimitiveProps } from "reka-ui";
-import type { ButtonVariants } from ".";
+import type { ButtonVariants } from "@/components/shadcn/button";
 import { Primitive } from "reka-ui";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from ".";
+import { buttonVariants } from "@/components/shadcn/button";
 import { Loader2 } from "lucide-vue-next";
 
 interface Props extends PrimitiveProps {
