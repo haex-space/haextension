@@ -3,14 +3,13 @@ import type {
   LocalFileInfo,
   ScanLocalOptions,
   FileInfo,
-  SyncStatus,
   UploadFileOptions,
   FileSyncState,
-  SyncRule,
+  SyncError,
 } from "@haex-space/vault-sdk";
 import { minimatch } from "minimatch";
 
-export type { LocalFileInfo, FileInfo, SyncStatus, FileSyncState };
+export type { LocalFileInfo, FileInfo, FileSyncState, SyncError };
 export type ConflictResolution = "local" | "remote" | "keepBoth";
 
 /**
@@ -38,6 +37,15 @@ export function isPathIgnored(relativePath: string, ignorePatterns: string[]): b
   return false;
 }
 
+/** Sync status tracked locally (since backend sync engine is not yet implemented) */
+export interface LocalSyncStatus {
+  isSyncing: boolean;
+  pendingUploads: number;
+  pendingDownloads: number;
+  lastSync: string | null;
+  errors: SyncError[];
+}
+
 export const useFilesStore = defineStore("files", () => {
   const haexVaultStore = useHaexVaultStore();
 
@@ -46,10 +54,13 @@ export const useFilesStore = defineStore("files", () => {
   const isLoading = ref(false);
   const isUploading = ref(false);
   const isSyncing = ref(false);
-  const syncStatus = ref<SyncStatus | null>(null);
   const uploadProgress = ref<{ current: number; total: number } | null>(null);
   const currentRuleId = ref<string | null>(null);
   const currentSubpath = ref<string>("");
+
+  // Local sync state tracking (since backend sync engine is not yet implemented)
+  const lastSyncTime = ref<string | null>(null);
+  const syncErrors = ref<SyncError[]>([]);
 
   /**
    * Load local files for a sync rule via SDK
@@ -132,19 +143,31 @@ export const useFilesStore = defineStore("files", () => {
     currentRuleId.value = null;
     currentSubpath.value = "";
     uploadProgress.value = null;
+    syncErrors.value = [];
   };
 
   /**
-   * Load sync status via SDK
+   * Computed sync status based on local state
+   * (Backend sync engine is not yet implemented, so we track state locally)
+   */
+  const syncStatus = computed<LocalSyncStatus>(() => {
+    return {
+      isSyncing: isSyncing.value,
+      pendingUploads: uploadProgress.value?.total
+        ? uploadProgress.value.total - uploadProgress.value.current
+        : 0,
+      pendingDownloads: 0, // Not implemented yet
+      lastSync: lastSyncTime.value,
+      errors: syncErrors.value,
+    };
+  });
+
+  /**
+   * Load sync status - currently a no-op since we track state locally
+   * Kept for API compatibility
    */
   const loadSyncStatusAsync = async (): Promise<void> => {
-    try {
-      syncStatus.value = await haexVaultStore.client.filesystem.sync.getSyncStatusAsync();
-      isSyncing.value = syncStatus.value.isSyncing;
-    } catch (error) {
-      console.warn("[haex-files] Failed to load sync status:", error);
-      syncStatus.value = null;
-    }
+    // State is tracked locally, nothing to load from backend
   };
 
   /**
@@ -225,6 +248,9 @@ export const useFilesStore = defineStore("files", () => {
     }
 
     isSyncing.value = true;
+    // Clear previous errors at start of new sync
+    syncErrors.value = [];
+
     try {
       // Get the sync rule to know spaceId and backendIds
       const rules = await haexVaultStore.client.filesystem.sync.listSyncRulesAsync();
@@ -237,15 +263,20 @@ export const useFilesStore = defineStore("files", () => {
       // Only sync if direction allows uploads (up or both)
       if (rule.direction === "down") {
         console.log("[haex-files] Sync rule is download-only, skipping upload sync");
+        lastSyncTime.value = new Date().toISOString();
         return;
       }
 
       // Scan all local files recursively
       const localFiles = await scanAllLocalFilesAsync(targetRuleId);
-      const filesToUpload = localFiles.filter((f) => !f.isDirectory);
+      // Filter out directories and ignored files
+      const filesToUpload = localFiles.filter(
+        (f) => !f.isDirectory && !isPathIgnored(f.relativePath, rule.ignorePatterns)
+      );
 
       if (filesToUpload.length === 0) {
         console.log("[haex-files] No files to sync");
+        lastSyncTime.value = new Date().toISOString();
         return;
       }
 
@@ -253,7 +284,6 @@ export const useFilesStore = defineStore("files", () => {
       uploadProgress.value = { current: 0, total: filesToUpload.length };
 
       let successCount = 0;
-      let failCount = 0;
 
       for (let i = 0; i < filesToUpload.length; i++) {
         const file = filesToUpload[i];
@@ -271,18 +301,24 @@ export const useFilesStore = defineStore("files", () => {
           successCount++;
         } catch (error) {
           console.warn(`[haex-files] Failed to upload ${file.name}:`, error);
-          failCount++;
+          // Track error locally
+          syncErrors.value.push({
+            fileId: file.id,
+            fileName: file.name,
+            error: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          });
         }
       }
 
-      console.log(`[haex-files] Sync complete: ${successCount} uploaded, ${failCount} failed`);
+      console.log(`[haex-files] Sync complete: ${successCount} uploaded, ${syncErrors.value.length} failed`);
+      lastSyncTime.value = new Date().toISOString();
     } catch (error) {
       console.error("[haex-files] Sync failed:", error);
       throw error;
     } finally {
       isSyncing.value = false;
       uploadProgress.value = null;
-      await loadSyncStatusAsync();
     }
   };
 
@@ -375,6 +411,13 @@ export const useFilesStore = defineStore("files", () => {
     }
   };
 
+  /**
+   * Clear sync errors
+   */
+  const clearSyncErrors = () => {
+    syncErrors.value = [];
+  };
+
   return {
     files: computed(() => files.value),
     remoteFiles: computed(() => remoteFiles.value),
@@ -383,7 +426,8 @@ export const useFilesStore = defineStore("files", () => {
     isLoading: computed(() => isLoading.value),
     isUploading: computed(() => isUploading.value),
     isSyncing: computed(() => isSyncing.value),
-    syncStatus: computed(() => syncStatus.value),
+    syncStatus,
+    syncErrors: computed(() => syncErrors.value),
     uploadProgress: computed(() => uploadProgress.value),
     currentRuleId: computed(() => currentRuleId.value),
     currentPath: computed(() => currentSubpath.value),
@@ -400,6 +444,7 @@ export const useFilesStore = defineStore("files", () => {
     pauseSyncAsync,
     resumeSyncAsync,
     resolveConflictAsync,
+    clearSyncErrors,
     clear,
   };
 });
