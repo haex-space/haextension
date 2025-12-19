@@ -19,6 +19,9 @@
         @deleted="onSyncRuleDeleted"
       />
 
+      <!-- Sync Errors Drawer -->
+      <DrawerSyncErrors v-model:open="showErrorsDrawer" />
+
       <header class="flex-none border-b border-border px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <ShadcnButton
@@ -34,9 +37,11 @@
         </div>
         <div class="flex items-center gap-2">
           <!-- Sync Status -->
-          <span
+          <button
             v-if="displaySyncStatus"
-            class="text-sm text-muted-foreground flex items-center gap-1"
+            class="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors"
+            :class="{ 'cursor-pointer': hasErrors }"
+            @click="hasErrors && (showErrorsDrawer = true)"
           >
             <component
               :is="displaySyncStatus.icon"
@@ -44,7 +49,7 @@
               :class="displaySyncStatus.class"
             />
             {{ displaySyncStatus.text }}
-          </span>
+          </button>
 
           <!-- Sync Button -->
           <ShadcnButton
@@ -189,7 +194,8 @@
             <div
               v-for="file in files"
               :key="file.id"
-              class="flex items-center gap-3 p-3 rounded-md border border-border hover:bg-accent cursor-pointer"
+              class="flex items-center gap-3 p-3 rounded-md border border-border hover:bg-accent cursor-pointer group"
+              :class="{ 'opacity-50': isFileIgnored(file.relativePath) }"
               @click="onFileClick(file)"
             >
               <component
@@ -197,10 +203,37 @@
                 class="size-5 text-muted-foreground"
               />
               <div class="flex-1 min-w-0">
-                <div class="font-medium truncate">{{ file.name }}</div>
+                <div class="font-medium truncate flex items-center gap-2">
+                  {{ file.name }}
+                  <!-- Ignored Badge -->
+                  <span
+                    v-if="isFileIgnored(file.relativePath)"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground"
+                    :title="t('ignoredHint')"
+                  >
+                    <EyeOff class="size-3" />
+                    {{ t("ignored") }}
+                  </span>
+                </div>
                 <div class="text-sm text-muted-foreground">
                   {{ file.isDirectory ? t("folder") : formatSize(file.size) }}
                 </div>
+              </div>
+              <!-- File Actions -->
+              <div
+                v-if="!file.isDirectory && !isFileIgnored(file.relativePath)"
+                class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                @click.stop
+              >
+                <ShadcnButton
+                  variant="ghost"
+                  size="icon-sm"
+                  :tooltip="t('uploadFile')"
+                  :loading="uploadingFileId === file.id"
+                  @click="uploadFileAsync(file)"
+                >
+                  <Upload class="size-4" />
+                </ShadcnButton>
               </div>
             </div>
 
@@ -232,8 +265,11 @@ import {
   Plus,
   Pencil,
   Menu,
+  Upload,
+  EyeOff,
 } from "lucide-vue-next";
 import type { SyncRule } from "@haex-space/vault-sdk";
+import { isPathIgnored } from "~/stores/files";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -250,8 +286,42 @@ const { sortedFiles: files, pathSegments } = storeToRefs(filesStore);
 const isInitialized = ref(false);
 const currentRuleId = ref<string | null>(null);
 const showSyncRuleDrawer = ref(false);
+const showErrorsDrawer = ref(false);
 const editingSyncRule = ref<SyncRule | null>(null);
 const isMobileSidebarOpen = ref(false);
+const uploadingFileId = ref<string | null>(null);
+
+// Sync status polling
+const POLL_INTERVAL_SYNCING = 1000; // 1 second when syncing
+const POLL_INTERVAL_IDLE = 30000; // 30 seconds when idle
+let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+
+const startSyncStatusPolling = () => {
+  stopSyncStatusPolling();
+
+  const poll = async () => {
+    await filesStore.loadSyncStatusAsync();
+
+    // Adjust polling interval based on sync state
+    const currentInterval = filesStore.isSyncing ? POLL_INTERVAL_SYNCING : POLL_INTERVAL_IDLE;
+
+    // Restart with new interval if needed
+    if (pollIntervalId) {
+      stopSyncStatusPolling();
+      pollIntervalId = setInterval(poll, currentInterval);
+    }
+  };
+
+  // Start with syncing interval, will adjust automatically
+  pollIntervalId = setInterval(poll, POLL_INTERVAL_SYNCING);
+};
+
+const stopSyncStatusPolling = () => {
+  if (pollIntervalId) {
+    clearInterval(pollIntervalId);
+    pollIntervalId = null;
+  }
+};
 
 // Computed
 const currentRule = computed(() =>
@@ -263,6 +333,11 @@ const currentRuleFolderName = computed(() => {
   return getFolderName(currentRule.value.localPath);
 });
 
+const hasErrors = computed(() => {
+  const status = filesStore.syncStatus;
+  return status && status.errors.length > 0;
+});
+
 // Sync status display object - derives from store's SyncStatus
 const displaySyncStatus = computed(() => {
   const status = filesStore.syncStatus;
@@ -270,16 +345,25 @@ const displaySyncStatus = computed(() => {
 
   // Determine display state based on SyncStatus from SDK
   if (status.isSyncing) {
+    const parts: string[] = [];
+    if (status.pendingUploads > 0) {
+      parts.push(t("status.uploading", { count: status.pendingUploads }));
+    }
+    if (status.pendingDownloads > 0) {
+      parts.push(t("status.downloading", { count: status.pendingDownloads }));
+    }
+    const text = parts.length > 0 ? parts.join(", ") : t("status.syncing");
+
     return {
       icon: RefreshCw,
-      text: t("status.syncing"),
+      text,
       class: "text-primary animate-spin",
     };
   }
   if (status.errors.length > 0) {
     return {
       icon: AlertCircle,
-      text: t("status.error"),
+      text: t("status.error", { count: status.errors.length }),
       class: "text-destructive",
     };
   }
@@ -302,6 +386,14 @@ const displaySyncStatus = computed(() => {
 const getFolderName = (path: string): string => {
   const segments = path.split(/[/\\]/).filter(Boolean);
   return segments[segments.length - 1] || path;
+};
+
+/**
+ * Check if a file is ignored by the current sync rule's ignore patterns
+ */
+const isFileIgnored = (relativePath: string): boolean => {
+  if (!currentRule.value) return false;
+  return isPathIgnored(relativePath, currentRule.value.ignorePatterns);
 };
 
 const selectRule = (ruleId: string) => {
@@ -330,7 +422,13 @@ const onSyncRuleCreated = async (ruleId: string) => {
   console.log(`[haex-files] Sync rule created: ${ruleId}`);
   isInitialized.value = true;
   currentRuleId.value = ruleId;
-  await filesStore.loadSyncStatusAsync();
+
+  // Auto-trigger sync after creating a new rule
+  try {
+    await filesStore.triggerSyncAsync(ruleId);
+  } catch (error) {
+    console.error("[haex-files] Auto-sync after rule creation failed:", error);
+  }
 };
 
 const onSyncRuleDeleted = (ruleId: string) => {
@@ -348,10 +446,31 @@ const onSyncRuleDeleted = (ruleId: string) => {
 };
 
 const triggerSync = async () => {
+  if (!currentRuleId.value) return;
   try {
-    await filesStore.triggerSyncAsync();
+    await filesStore.triggerSyncAsync(currentRuleId.value);
   } catch (error) {
     console.error("[haex-files] Sync failed:", error);
+  }
+};
+
+const uploadFileAsync = async (file: (typeof files.value)[0]) => {
+  if (!currentRule.value) return;
+
+  uploadingFileId.value = file.id;
+  try {
+    await filesStore.uploadFileAsync(
+      currentRule.value.spaceId,
+      file.path,
+      file.relativePath,
+      currentRule.value.backendIds
+    );
+    // Reload sync status after upload
+    await filesStore.loadSyncStatusAsync();
+  } catch (error) {
+    console.error("[haex-files] Upload failed:", error);
+  } finally {
+    uploadingFileId.value = null;
   }
 };
 
@@ -408,6 +527,13 @@ onMounted(async () => {
       currentRuleId.value = firstRule.id;
     }
   }
+
+  // Start sync status polling
+  startSyncStatusPolling();
+});
+
+onUnmounted(() => {
+  stopSyncStatusPolling();
 });
 </script>
 
@@ -425,6 +551,9 @@ de:
   settings: Einstellungen
   triggerSync: Synchronisierung starten
   emptyFolder: Dieser Ordner ist leer
+  uploadFile: Datei hochladen
+  ignored: Ignoriert
+  ignoredHint: Diese Datei wird nicht synchronisiert
   welcome:
     title: Willkommen bei haex-files
     description: Synchronisiere deine Dateien sicher und verschlüsselt zwischen deinen Geräten.
@@ -432,8 +561,10 @@ de:
   status:
     synced: Synchronisiert
     syncing: Synchronisiere...
+    uploading: "{count} hochladen"
+    downloading: "{count} herunterladen"
     pending: "{count} ausstehend"
-    error: Sync-Fehler
+    error: "{count} Fehler"
 
 en:
   title: haex-files
@@ -448,6 +579,9 @@ en:
   settings: Settings
   triggerSync: Start sync
   emptyFolder: This folder is empty
+  uploadFile: Upload file
+  ignored: Ignored
+  ignoredHint: This file will not be synced
   welcome:
     title: Welcome to haex-files
     description: Sync your files securely and encrypted between your devices.
@@ -455,6 +589,8 @@ en:
   status:
     synced: Synced
     syncing: Syncing...
+    uploading: "{count} uploading"
+    downloading: "{count} downloading"
     pending: "{count} pending"
-    error: Sync Error
+    error: "{count} errors"
 </i18n>

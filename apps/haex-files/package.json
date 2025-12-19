@@ -18,7 +18,7 @@
     "ext:build": "nuxt build --preset static && haex sign .output/public"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.34",
+    "@haex-space/vault-sdk": "^2.5.37",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.11.0",
     "@nuxt/icon": "^2.1.0",
@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.0",
     "lucide-vue-next": "^0.559.0",
+    "minimatch": "^10.1.1",
     "nuxt": "^4.2.1",
     "reka-ui": "^2.6.1",
     "shadcn-nuxt": "2.3.2",

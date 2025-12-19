@@ -152,6 +152,65 @@
           </ShadcnSelect>
         </div>
 
+        <!-- Conflict Strategy -->
+        <div class="space-y-2">
+          <ShadcnLabel>{{ t("conflict.label") }}</ShadcnLabel>
+          <ShadcnSelect v-model="form.conflictStrategy">
+            <ShadcnSelectTrigger>
+              <ShadcnSelectValue />
+            </ShadcnSelectTrigger>
+            <ShadcnSelectContent>
+              <ShadcnSelectItem value="ask">
+                <span class="flex items-center gap-2">
+                  <AlertCircle class="size-4" />
+                  {{ t("conflict.ask") }}
+                </span>
+              </ShadcnSelectItem>
+              <ShadcnSelectItem value="newer">
+                <span class="flex items-center gap-2">
+                  <Clock class="size-4" />
+                  {{ t("conflict.newer") }}
+                </span>
+              </ShadcnSelectItem>
+              <ShadcnSelectItem value="local">
+                <span class="flex items-center gap-2">
+                  <User class="size-4" />
+                  {{ t("conflict.local") }}
+                </span>
+              </ShadcnSelectItem>
+              <ShadcnSelectItem value="remote">
+                <span class="flex items-center gap-2">
+                  <HardDrive class="size-4" />
+                  {{ t("conflict.remote") }}
+                </span>
+              </ShadcnSelectItem>
+              <ShadcnSelectItem value="keepBoth">
+                <span class="flex items-center gap-2">
+                  <Copy class="size-4" />
+                  {{ t("conflict.keepBoth") }}
+                </span>
+              </ShadcnSelectItem>
+            </ShadcnSelectContent>
+          </ShadcnSelect>
+          <p class="text-xs text-muted-foreground">
+            {{ t("conflict.hint") }}
+          </p>
+        </div>
+
+        <!-- Ignore Patterns -->
+        <div class="space-y-2">
+          <ShadcnLabel>{{ t("ignore.label") }}</ShadcnLabel>
+          <ShadcnTextarea
+            v-model="form.ignorePatterns"
+            :placeholder="t('ignore.placeholder')"
+            rows="4"
+            class="font-mono text-sm"
+          />
+          <p class="text-xs text-muted-foreground">
+            {{ t("ignore.hint") }}
+          </p>
+        </div>
+
         <!-- Error -->
         <div
           v-if="error"
@@ -196,8 +255,8 @@
 </template>
 
 <script setup lang="ts">
-import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2 } from "lucide-vue-next";
-import type { SyncDirection, SyncRule } from "@haex-space/vault-sdk";
+import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy } from "lucide-vue-next";
+import type { SyncDirection, SyncRule, ConflictStrategy } from "@haex-space/vault-sdk";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
@@ -226,6 +285,8 @@ const form = reactive({
   spaceId: "",
   backendIds: [] as string[],
   direction: "both" as SyncDirection,
+  ignorePatterns: "",
+  conflictStrategy: "ask" as ConflictStrategy,
 });
 
 const isSelectingFolder = ref(false);
@@ -246,12 +307,24 @@ const isValid = computed(() => {
   );
 });
 
+// Helper to convert ignore patterns string to array
+const ignorePatternsArray = computed(() => {
+  return form.ignorePatterns
+    .split("\n")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+});
+
 const hasChanges = computed(() => {
   if (!props.editRule) return false;
   const rule = props.editRule;
   const backendsSame = rule.backendIds.length === form.backendIds.length &&
     rule.backendIds.every((id) => form.backendIds.includes(id));
-  return rule.direction !== form.direction || !backendsSame;
+  const ignorePatternsSame = JSON.stringify(rule.ignorePatterns) === JSON.stringify(ignorePatternsArray.value);
+  return rule.direction !== form.direction ||
+    rule.conflictStrategy !== form.conflictStrategy ||
+    !backendsSame ||
+    !ignorePatternsSame;
 });
 
 const selectFolderAsync = async () => {
@@ -309,6 +382,8 @@ const submitAsync = async () => {
       localPath: form.localPath.trim(),
       backendIds: form.backendIds,
       direction: form.direction,
+      ignorePatterns: ignorePatternsArray.value,
+      conflictStrategy: form.conflictStrategy,
     });
 
     emit("created", newRule.id);
@@ -333,6 +408,8 @@ const updateAsync = async () => {
       ruleId: props.editRule.id,
       backendIds: form.backendIds,
       direction: form.direction,
+      ignorePatterns: ignorePatternsArray.value,
+      conflictStrategy: form.conflictStrategy,
     });
 
     emit("updated", props.editRule.id);
@@ -368,6 +445,8 @@ const resetForm = () => {
   form.spaceId = "";
   form.backendIds = [];
   form.direction = "both";
+  form.ignorePatterns = "";
+  form.conflictStrategy = "ask";
   error.value = null;
 };
 
@@ -403,12 +482,16 @@ watch(
       form.spaceId = editRule.spaceId;
       form.backendIds = [...editRule.backendIds];
       form.direction = editRule.direction;
+      form.ignorePatterns = editRule.ignorePatterns.join("\n");
+      form.conflictStrategy = editRule.conflictStrategy;
     } else {
       // Add mode: reset form and pre-select defaults
       form.localPath = "";
       form.spaceId = spaces.value[0]?.id || "";
       form.backendIds = backends.value.map((b) => b.id);
       form.direction = "both";
+      form.ignorePatterns = "";
+      form.conflictStrategy = "ask";
       error.value = null;
     }
   },
@@ -461,6 +544,22 @@ de:
     up: Nur hochladen (Lokal → Cloud)
     down: Nur herunterladen (Cloud → Lokal)
     both: Bidirektional (Beide Richtungen)
+  conflict:
+    label: Konflikt-Strategie
+    ask: Nachfragen
+    newer: Neuere Version verwenden
+    local: Lokale Version bevorzugen
+    remote: Remote-Version bevorzugen
+    keepBoth: Beide Versionen behalten
+    hint: Wie sollen Konflikte bei gleichzeitigen Änderungen behandelt werden?
+  ignore:
+    label: Ignorierte Dateien
+    placeholder: |
+      node_modules/
+      .git/
+      *.log
+      .DS_Store
+    hint: Ein Pattern pro Zeile. Unterstützt Gitignore-Syntax.
   cancel: Abbrechen
   add: Hinzufügen
   save: Speichern
@@ -491,6 +590,22 @@ en:
     up: Upload only (Local → Cloud)
     down: Download only (Cloud → Local)
     both: Bidirectional (Both ways)
+  conflict:
+    label: Conflict Strategy
+    ask: Ask me
+    newer: Use newer version
+    local: Prefer local version
+    remote: Prefer remote version
+    keepBoth: Keep both versions
+    hint: How should conflicts be resolved when both versions have changed?
+  ignore:
+    label: Ignored Files
+    placeholder: |
+      node_modules/
+      .git/
+      *.log
+      .DS_Store
+    hint: One pattern per line. Supports gitignore syntax.
   cancel: Cancel
   add: Add
   save: Save

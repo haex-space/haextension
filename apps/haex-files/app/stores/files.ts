@@ -5,9 +5,38 @@ import type {
   FileInfo,
   SyncStatus,
   UploadFileOptions,
+  FileSyncState,
+  SyncRule,
 } from "@haex-space/vault-sdk";
+import { minimatch } from "minimatch";
 
-export type { LocalFileInfo, FileInfo, SyncStatus };
+export type { LocalFileInfo, FileInfo, SyncStatus, FileSyncState };
+export type ConflictResolution = "local" | "remote" | "keepBoth";
+
+/**
+ * Check if a file path matches any of the ignore patterns.
+ * Supports gitignore-like patterns.
+ */
+export function isPathIgnored(relativePath: string, ignorePatterns: string[]): boolean {
+  for (const pattern of ignorePatterns) {
+    const trimmedPattern = pattern.trim();
+    if (!trimmedPattern || trimmedPattern.startsWith("#")) continue;
+
+    // Match against the pattern
+    if (minimatch(relativePath, trimmedPattern, { dot: true, matchBase: true })) {
+      return true;
+    }
+
+    // For directory patterns (ending with /), also check if path starts with it
+    if (trimmedPattern.endsWith("/")) {
+      const dirPattern = trimmedPattern.slice(0, -1);
+      if (relativePath.startsWith(dirPattern + "/") || relativePath === dirPattern) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export const useFilesStore = defineStore("files", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -184,21 +213,98 @@ export const useFilesStore = defineStore("files", () => {
   };
 
   /**
-   * Trigger a manual sync via SDK
+   * Trigger a manual sync for a specific sync rule
+   * Since the backend sync engine isn't fully implemented yet,
+   * we manually scan local files and upload them.
    */
-  const triggerSyncAsync = async (): Promise<void> => {
+  const triggerSyncAsync = async (ruleId?: string): Promise<void> => {
+    const targetRuleId = ruleId || currentRuleId.value;
+    if (!targetRuleId) {
+      console.warn("[haex-files] No rule ID for sync");
+      return;
+    }
+
     isSyncing.value = true;
     try {
-      await haexVaultStore.client.filesystem.sync.triggerSyncAsync();
-      console.log("[haex-files] Sync triggered");
-      // Reload sync status after trigger
-      await loadSyncStatusAsync();
+      // Get the sync rule to know spaceId and backendIds
+      const rules = await haexVaultStore.client.filesystem.sync.listSyncRulesAsync();
+      const rule = rules.find((r) => r.id === targetRuleId);
+      if (!rule) {
+        console.warn("[haex-files] Sync rule not found:", targetRuleId);
+        return;
+      }
+
+      // Only sync if direction allows uploads (up or both)
+      if (rule.direction === "down") {
+        console.log("[haex-files] Sync rule is download-only, skipping upload sync");
+        return;
+      }
+
+      // Scan all local files recursively
+      const localFiles = await scanAllLocalFilesAsync(targetRuleId);
+      const filesToUpload = localFiles.filter((f) => !f.isDirectory);
+
+      if (filesToUpload.length === 0) {
+        console.log("[haex-files] No files to sync");
+        return;
+      }
+
+      console.log(`[haex-files] Syncing ${filesToUpload.length} files...`);
+      uploadProgress.value = { current: 0, total: filesToUpload.length };
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        if (!file) continue;
+
+        uploadProgress.value = { current: i + 1, total: filesToUpload.length };
+
+        try {
+          await haexVaultStore.client.filesystem.sync.uploadFileAsync({
+            spaceId: rule.spaceId,
+            localPath: file.path,
+            remotePath: file.relativePath,
+            backendIds: rule.backendIds,
+          });
+          successCount++;
+        } catch (error) {
+          console.warn(`[haex-files] Failed to upload ${file.name}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`[haex-files] Sync complete: ${successCount} uploaded, ${failCount} failed`);
     } catch (error) {
-      console.error("[haex-files] Failed to trigger sync:", error);
+      console.error("[haex-files] Sync failed:", error);
       throw error;
     } finally {
       isSyncing.value = false;
+      uploadProgress.value = null;
+      await loadSyncStatusAsync();
     }
+  };
+
+  /**
+   * Recursively scan all local files for a sync rule
+   */
+  const scanAllLocalFilesAsync = async (ruleId: string, subpath: string = ""): Promise<LocalFileInfo[]> => {
+    const options: ScanLocalOptions = {
+      ruleId,
+      subpath: subpath || undefined,
+    };
+    const entries = await haexVaultStore.client.filesystem.sync.scanLocalAsync(options);
+
+    const allFiles: LocalFileInfo[] = [];
+    for (const entry of entries) {
+      allFiles.push(entry);
+      if (entry.isDirectory) {
+        const subFiles = await scanAllLocalFilesAsync(ruleId, entry.relativePath);
+        allFiles.push(...subFiles);
+      }
+    }
+    return allFiles;
   };
 
   /**
@@ -244,10 +350,36 @@ export const useFilesStore = defineStore("files", () => {
     }
   };
 
+  /**
+   * Get files with conflict state
+   */
+  const conflictedFiles = computed(() => {
+    return remoteFiles.value.filter((f) => f.syncState === "conflict");
+  });
+
+  /**
+   * Resolve a file conflict via SDK
+   */
+  const resolveConflictAsync = async (
+    fileId: string,
+    resolution: ConflictResolution
+  ): Promise<void> => {
+    try {
+      await haexVaultStore.client.filesystem.sync.resolveConflictAsync(fileId, resolution);
+      console.log(`[haex-files] Resolved conflict for ${fileId}: ${resolution}`);
+      // Reload sync status to reflect changes
+      await loadSyncStatusAsync();
+    } catch (error) {
+      console.error("[haex-files] Failed to resolve conflict:", error);
+      throw error;
+    }
+  };
+
   return {
     files: computed(() => files.value),
     remoteFiles: computed(() => remoteFiles.value),
     sortedFiles,
+    conflictedFiles,
     isLoading: computed(() => isLoading.value),
     isUploading: computed(() => isUploading.value),
     isSyncing: computed(() => isSyncing.value),
@@ -267,6 +399,7 @@ export const useFilesStore = defineStore("files", () => {
     triggerSyncAsync,
     pauseSyncAsync,
     resumeSyncAsync,
+    resolveConflictAsync,
     clear,
   };
 });

@@ -10,14 +10,6 @@
       }
     ],
 
-    "http": [
-      {
-        "target": "https://*.amazonaws.com/*"
-      },
-      {
-        "target": "https://*.r2.cloudflarestorage.com/*"
-      }
-    ],
     "shell": []
   },
   "singleInstance": true,
