@@ -1,78 +1,9 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8869519b-c242-4212-a027-0068919a8e7b",
+  "id": "67730a9c-d323-42d8-ac40-4bf2d7c375d9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends": {
-      "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "encrypted_config": {
-          "name": "encrypted_config",
-          "type": "blob",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "enabled": {
-          "name": "enabled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "last_tested_at": {
-          "name": "last_tested_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(CURRENT_TIMESTAMP)"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(CURRENT_TIMESTAMP)"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends": {
       "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends",
       "columns": {
@@ -97,8 +28,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "remote_id": {
-          "name": "remote_id",
+        "remote_key": {
+          "name": "remote_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -128,19 +59,6 @@
           "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files",
           "columnsFrom": [
             "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk": {
-          "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk",
-          "tableFrom": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends",
-          "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends",
-          "columnsFrom": [
-            "backend_id"
           ],
           "columnsTo": [
             "id"
@@ -297,7 +215,7 @@
         },
         "wrapped_key": {
           "name": "wrapped_key",
-          "type": "blob",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -420,7 +338,7 @@
         },
         "wrapped_key": {
           "name": "wrapped_key",
-          "type": "blob",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -482,8 +400,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "file_id": {
-          "name": "file_id",
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "local_path": {
+          "name": "local_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relative_path": {
+          "name": "relative_path",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -509,7 +441,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 0
+          "default": 100
         },
         "status": {
           "name": "status",
@@ -518,6 +450,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'pending'"
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "error_message": {
           "name": "error_message",
@@ -534,8 +474,8 @@
           "autoincrement": false,
           "default": 0
         },
-        "scheduled_at": {
-          "name": "scheduled_at",
+        "created_at": {
+          "name": "created_at",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -559,25 +499,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_file_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files_id_fk": {
-          "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_file_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files_id_fk",
+        "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_rule_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules_id_fk": {
+          "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_rule_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules_id_fk",
           "tableFrom": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue",
-          "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files",
+          "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules",
           "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk": {
-          "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk",
-          "tableFrom": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue",
-          "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends",
-          "columnsFrom": [
-            "backend_id"
+            "rule_id"
           ],
           "columnsTo": [
             "id"
@@ -614,12 +541,13 @@
           "notNull": true,
           "autoincrement": false
         },
-        "backend_id": {
-          "name": "backend_id",
+        "backend_ids": {
+          "name": "backend_ids",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "direction": {
           "name": "direction",
@@ -636,6 +564,22 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
+        },
+        "ignore_patterns": {
+          "name": "ignore_patterns",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "conflict_strategy": {
+          "name": "conflict_strategy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ask'"
         },
         "created_at": {
           "name": "created_at",
@@ -662,19 +606,6 @@
           "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__spaces",
           "columnsFrom": [
             "space_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk": {
-          "name": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules_backend_id_52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends_id_fk",
-          "tableFrom": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules",
-          "tableTo": "52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__backends",
-          "columnsFrom": [
-            "backend_id"
           ],
           "columnsTo": [
             "id"

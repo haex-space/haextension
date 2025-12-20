@@ -33,8 +33,8 @@
     <slot name="trigger" />
 
     <!-- Dialog Content -->
-    <ShadcnDialogContent :class="contentClass">
-      <ShadcnDialogHeader v-if="title || description || $slots.header">
+    <ShadcnDialogContent :class="['flex flex-col max-h-[85vh]', contentClass]">
+      <ShadcnDialogHeader v-if="title || description || $slots.header" class="shrink-0">
         <slot name="header">
           <ShadcnDialogTitle v-if="title">{{ title }}</ShadcnDialogTitle>
           <ShadcnDialogDescription v-if="description">
@@ -43,13 +43,13 @@
         </slot>
       </ShadcnDialogHeader>
 
-      <!-- Dialog Body -->
-      <div class="space-y-4">
+      <!-- Scrollable Dialog Body -->
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
         <slot name="content" />
       </div>
 
       <!-- Dialog Footer (optional) -->
-      <ShadcnDialogFooter v-if="$slots.footer">
+      <ShadcnDialogFooter v-if="$slots.footer" class="shrink-0">
         <slot name="footer" />
       </ShadcnDialogFooter>
     </ShadcnDialogContent>

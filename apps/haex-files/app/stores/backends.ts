@@ -1,18 +1,21 @@
 // stores/backends.ts
+// Storage backends are managed centrally by haex-vault Core.
+// This store wraps the remoteStorage API for convenient access.
+
 import type {
-  StorageBackendInfo,
-  S3BackendConfig,
-  BackendConfig,
-  StorageBackendType,
+  RemoteStorageBackendInfo,
+  RemoteS3Config,
+  RemoteS3PublicConfig,
+  RemoteAddBackendRequest,
+  RemoteUpdateBackendRequest,
 } from "@haex-space/vault-sdk";
 
-// Re-export types from SDK for convenience
-export type {
-  StorageBackendInfo,
-  S3BackendConfig,
-  BackendConfig,
-  StorageBackendType,
-};
+// Type aliases for clarity
+export type StorageBackendInfo = RemoteStorageBackendInfo;
+export type S3Config = RemoteS3Config;
+export type S3PublicConfig = RemoteS3PublicConfig;
+export type AddBackendRequest = RemoteAddBackendRequest;
+export type UpdateBackendRequest = RemoteUpdateBackendRequest;
 
 export const useBackendsStore = defineStore("backends", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -23,15 +26,14 @@ export const useBackendsStore = defineStore("backends", () => {
   const testResult = ref<{ backendId: string; success: boolean; error?: string } | null>(null);
 
   /**
-   * Load all backends via SDK
+   * Load all backends via Core remoteStorage API
    */
   const loadBackendsAsync = async (): Promise<void> => {
     isLoading.value = true;
     try {
-      backends.value = await haexVaultStore.client.filesystem.sync.listBackendsAsync();
+      backends.value = await haexVaultStore.client.remoteStorage.backends.list();
     } catch (error) {
-      // FileSync API might not be implemented yet in the backend
-      console.warn("[haex-files] Failed to load backends (API may not be available yet):", error);
+      console.warn("[haex-files] Failed to load backends:", error);
       backends.value = [];
     } finally {
       isLoading.value = false;
@@ -39,47 +41,75 @@ export const useBackendsStore = defineStore("backends", () => {
   };
 
   /**
-   * Add a new storage backend via SDK
+   * Add a new storage backend via Core remoteStorage API
    */
   const addBackendAsync = async (
     name: string,
-    config: BackendConfig
+    type: "s3",
+    config: S3Config
   ): Promise<StorageBackendInfo> => {
-    const newBackend = await haexVaultStore.client.filesystem.sync.addBackendAsync({
+    const request: AddBackendRequest = {
       name,
+      type,
       config,
-    });
+    };
+    const newBackend = await haexVaultStore.client.remoteStorage.backends.add(request);
 
     backends.value.push(newBackend);
-    console.log(`[haex-files] Added backend: ${name} (${config.type})`);
+    console.log(`[haex-files] Added backend: ${name} (${type})`);
 
     return newBackend;
   };
 
   /**
-   * Remove a backend via SDK
+   * Update a storage backend via Core remoteStorage API
+   * Only provided fields are updated. Credentials are preserved if not provided.
+   */
+  const updateBackendAsync = async (
+    backendId: string,
+    name?: string,
+    config?: Partial<S3Config>
+  ): Promise<StorageBackendInfo> => {
+    const updatedBackend = await haexVaultStore.client.remoteStorage.backends.update({
+      backendId,
+      name,
+      config,
+    });
+
+    // Update local state
+    const index = backends.value.findIndex((b) => b.id === backendId);
+    if (index !== -1) {
+      backends.value[index] = updatedBackend;
+    }
+
+    console.log(`[haex-files] Updated backend: ${updatedBackend.name}`);
+    return updatedBackend;
+  };
+
+  /**
+   * Remove a backend via Core remoteStorage API
    */
   const removeBackendAsync = async (backendId: string): Promise<void> => {
-    await haexVaultStore.client.filesystem.sync.removeBackendAsync(backendId);
+    await haexVaultStore.client.remoteStorage.backends.remove(backendId);
     backends.value = backends.value.filter((b) => b.id !== backendId);
     console.log(`[haex-files] Removed backend: ${backendId}`);
   };
 
   /**
-   * Test backend connection via SDK
+   * Test backend connection via Core remoteStorage API
    */
   const testBackendAsync = async (backendId: string): Promise<boolean> => {
     testingBackendId.value = backendId;
     testResult.value = null;
 
     try {
-      const success = await haexVaultStore.client.filesystem.sync.testBackendAsync(backendId);
-      testResult.value = { backendId, success };
+      await haexVaultStore.client.remoteStorage.backends.test(backendId);
+      testResult.value = { backendId, success: true };
 
       const backend = backends.value.find((b) => b.id === backendId);
-      console.log(`[haex-files] Backend test ${success ? "passed" : "failed"}: ${backend?.name}`);
+      console.log(`[haex-files] Backend test passed: ${backend?.name}`);
 
-      return success;
+      return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       testResult.value = { backendId, success: false, error: errorMessage };
@@ -104,6 +134,7 @@ export const useBackendsStore = defineStore("backends", () => {
     testResult: computed(() => testResult.value),
     loadBackendsAsync,
     addBackendAsync,
+    updateBackendAsync,
     removeBackendAsync,
     testBackendAsync,
     getBackend,

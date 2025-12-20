@@ -1,5 +1,5 @@
 <template>
-  <UiDrawerModal v-model:open="isOpen" :title="t('title')" :description="t('description')">
+  <UiDrawerModal v-model:open="isOpen" :title="isEditMode ? t('titleEdit') : t('title')" :description="isEditMode ? t('descriptionEdit') : t('description')">
     <template #content>
       <form class="space-y-4" @submit.prevent="submitAsync">
         <!-- Backend Name -->
@@ -18,7 +18,7 @@
         <!-- Backend Type -->
         <div class="space-y-2">
           <ShadcnLabel>{{ t("type") }}</ShadcnLabel>
-          <ShadcnSelect v-model="form.type">
+          <ShadcnSelect v-model="form.type" :disabled="isEditMode">
             <ShadcnSelectTrigger>
               <ShadcnSelectValue :placeholder="t('typePlaceholder')" />
             </ShadcnSelectTrigger>
@@ -75,9 +75,12 @@
               <ShadcnInputGroupInput
                 id="accessKey"
                 v-model="form.s3.accessKeyId"
-                :placeholder="t('s3.accessKeyPlaceholder')"
+                :placeholder="isEditMode ? t('s3.accessKeyPlaceholderEdit') : t('s3.accessKeyPlaceholder')"
               />
             </ShadcnInputGroup>
+            <p v-if="isEditMode" class="text-xs text-muted-foreground">
+              {{ t("s3.credentialHint") }}
+            </p>
           </div>
 
           <!-- Secret Key -->
@@ -88,7 +91,7 @@
                 id="secretKey"
                 v-model="form.s3.secretAccessKey"
                 :type="showSecretKey ? 'text' : 'password'"
-                :placeholder="t('s3.secretKeyPlaceholder')"
+                :placeholder="isEditMode ? t('s3.secretKeyPlaceholderEdit') : t('s3.secretKeyPlaceholder')"
               />
               <ShadcnInputGroupButton
                 :icon="showSecretKey ? EyeOff : Eye"
@@ -96,6 +99,9 @@
                 @click="showSecretKey = !showSecretKey"
               />
             </ShadcnInputGroup>
+            <p v-if="isEditMode" class="text-xs text-muted-foreground">
+              {{ t("s3.credentialHint") }}
+            </p>
           </div>
 
         <!-- Error -->
@@ -123,7 +129,7 @@
           class="flex-1 sm:flex-none"
           @click="submitAsync"
         >
-          {{ t("add") }}
+          {{ isEditMode ? t("save") : t("add") }}
         </ShadcnButton>
       </div>
     </template>
@@ -132,15 +138,26 @@
 
 <script setup lang="ts">
 import { Eye, EyeOff } from "lucide-vue-next"
-import type { StorageBackendType, BackendConfig } from "@haex-space/vault-sdk"
+import type { S3Config, StorageBackendInfo } from "~/stores/backends"
 
 const isOpen = defineModel<boolean>("open", { default: false })
+
+const props = defineProps<{
+  editBackend?: StorageBackendInfo | null;
+}>()
+
+const emit = defineEmits<{
+  saved: []
+}>()
+
 const { t } = useI18n()
 const backendsStore = useBackendsStore()
 
+const isEditMode = computed(() => !!props.editBackend)
+
 const form = reactive({
   name: "",
-  type: "s3" as StorageBackendType,
+  type: "s3" as "s3",
   // S3 config
   s3: {
     endpoint: "",
@@ -158,6 +175,11 @@ const error = ref<string | null>(null)
 const isValid = computed(() => {
   if (!form.name.trim()) return false
 
+  // In edit mode, credentials are optional (keep existing if not provided)
+  if (isEditMode.value) {
+    return !!form.s3.bucket?.trim()
+  }
+
   return (
     !!form.s3.bucket?.trim() &&
     !!form.s3.accessKeyId?.trim() &&
@@ -172,22 +194,45 @@ const submitAsync = async () => {
   error.value = null
 
   try {
-    const config: BackendConfig = {
-      type: form.type as "s3" | "r2" | "minio",
-      endpoint: form.s3.endpoint?.trim() || undefined,
-      bucket: form.s3.bucket.trim(),
-      region: form.s3.region.trim() || "auto",
-      accessKeyId: form.s3.accessKeyId.trim(),
-      secretAccessKey: form.s3.secretAccessKey.trim(),
+    if (isEditMode.value && props.editBackend) {
+      // Edit mode: Use update API - only send non-empty fields
+      // Credentials are preserved if not provided
+      const config: Partial<S3Config> = {
+        endpoint: form.s3.endpoint?.trim() || undefined,
+        bucket: form.s3.bucket.trim(),
+        region: form.s3.region.trim() || "auto",
+      }
+
+      // Only include credentials if provided
+      if (form.s3.accessKeyId.trim()) {
+        config.accessKeyId = form.s3.accessKeyId.trim()
+      }
+      if (form.s3.secretAccessKey.trim()) {
+        config.secretAccessKey = form.s3.secretAccessKey.trim()
+      }
+
+      await backendsStore.updateBackendAsync(
+        props.editBackend.id,
+        form.name.trim(),
+        config
+      )
+    } else {
+      // Add mode: Full config required
+      const config: S3Config = {
+        endpoint: form.s3.endpoint?.trim() || undefined,
+        bucket: form.s3.bucket.trim(),
+        region: form.s3.region.trim() || "auto",
+        accessKeyId: form.s3.accessKeyId.trim(),
+        secretAccessKey: form.s3.secretAccessKey.trim(),
+      }
+      await backendsStore.addBackendAsync(form.name.trim(), "s3", config)
     }
 
-    await backendsStore.addBackendAsync(form.name.trim(), config)
-
-    // Reset form and close
+    emit("saved")
     resetForm()
     isOpen.value = false
   } catch (err) {
-    console.error("[AddBackend] Error:", err)
+    console.error("[Backend] Error:", err)
     error.value = err instanceof Error ? err.message : t("error")
   } finally {
     isSubmitting.value = false
@@ -208,24 +253,47 @@ const resetForm = () => {
   error.value = null
 }
 
-// Reset form when drawer closes
-watch(isOpen, (newValue) => {
-  if (!newValue) {
-    resetForm()
-  }
-})
+// Populate form when editing
+watch(
+  [isOpen, () => props.editBackend],
+  ([open, editBackend]) => {
+    if (!open) return
+
+    if (editBackend) {
+      // Edit mode: populate from backend info
+      // Note: We can't retrieve credentials from backend (security)
+      form.name = editBackend.name
+      form.type = editBackend.type as "s3"
+      // Populate config fields from saved config (credentials must be re-entered)
+      form.s3 = {
+        endpoint: editBackend.config?.endpoint || "",
+        bucket: editBackend.config?.bucket || "",
+        region: editBackend.config?.region || "auto",
+        accessKeyId: "",
+        secretAccessKey: "",
+      }
+    } else {
+      // Add mode: reset form
+      resetForm()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <i18n lang="yaml">
 de:
   title: Backend hinzufügen
+  titleEdit: Backend bearbeiten
   description: Füge einen Cloud-Speicher für die Synchronisierung hinzu.
+  descriptionEdit: Bearbeite die Konfiguration dieses Backends.
   name: Name
   namePlaceholder: z.B. Mein S3 Speicher
   type: Typ
   typePlaceholder: Backend-Typ auswählen
   cancel: Abbrechen
   add: Hinzufügen
+  save: Speichern
   error: Ein Fehler ist aufgetreten
   s3:
     endpoint: Endpoint URL (optional)
@@ -236,18 +304,24 @@ de:
     regionPlaceholder: auto
     accessKey: Access Key ID
     accessKeyPlaceholder: AKIAIOSFODNN7EXAMPLE
+    accessKeyPlaceholderEdit: Neuen Access Key eingeben
     secretKey: Secret Access Key
     secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secretKeyPlaceholderEdit: Neuen Secret Key eingeben
+    credentialHint: Leer lassen, um bestehende Zugangsdaten zu behalten.
 
 en:
   title: Add Backend
+  titleEdit: Edit Backend
   description: Add a cloud storage backend for synchronization.
+  descriptionEdit: Edit the configuration of this backend.
   name: Name
   namePlaceholder: e.g. My S3 Storage
   type: Type
   typePlaceholder: Select backend type
   cancel: Cancel
   add: Add
+  save: Save
   error: An error occurred
   s3:
     endpoint: Endpoint URL (optional)
@@ -258,6 +332,9 @@ en:
     regionPlaceholder: auto
     accessKey: Access Key ID
     accessKeyPlaceholder: AKIAIOSFODNN7EXAMPLE
+    accessKeyPlaceholderEdit: Enter new access key
     secretKey: Secret Access Key
     secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    secretKeyPlaceholderEdit: Enter new secret key
+    credentialHint: Leave empty to keep existing credentials.
 </i18n>

@@ -66,6 +66,14 @@
                 <ShadcnButton
                   variant="ghost"
                   size="icon"
+                  :tooltip="t('backends.edit')"
+                  @click="openEditBackendDrawer(backend)"
+                >
+                  <Pencil class="size-4" />
+                </ShadcnButton>
+                <ShadcnButton
+                  variant="ghost"
+                  size="icon"
                   :tooltip="t('backends.remove')"
                   @click="confirmRemoveBackend(backend)"
                 >
@@ -89,8 +97,12 @@
       </div>
     </main>
 
-    <!-- Add Backend Drawer/Modal -->
-    <DrawerAddBackend v-model:open="addBackendDrawerOpen" />
+    <!-- Add/Edit Backend Drawer/Modal -->
+    <DrawerBackend
+      v-model:open="addBackendDrawerOpen"
+      :edit-backend="editingBackend"
+      @saved="editingBackend = null"
+    />
 
     <!-- Delete Confirmation Dialog -->
     <ShadcnAlertDialog v-model:open="deleteDialogOpen">
@@ -129,8 +141,9 @@ import {
   X,
   Loader2,
   Zap,
+  Pencil,
 } from "lucide-vue-next";
-import type { StorageBackendInfo } from "@haex-space/vault-sdk";
+import type { StorageBackendInfo } from "~/stores/backends";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -139,6 +152,7 @@ const backendsStore = useBackendsStore();
 const { backends, testingBackendId, testResult } = storeToRefs(backendsStore);
 
 const addBackendDrawerOpen = ref(false);
+const editingBackend = ref<StorageBackendInfo | null>(null);
 const deleteDialogOpen = ref(false);
 const backendToDelete = ref<StorageBackendInfo | null>(null);
 
@@ -152,6 +166,12 @@ const navigateBack = () => {
 };
 
 const openAddBackendDrawer = () => {
+  editingBackend.value = null;
+  addBackendDrawerOpen.value = true;
+};
+
+const openEditBackendDrawer = (backend: StorageBackendInfo) => {
+  editingBackend.value = backend;
   addBackendDrawerOpen.value = true;
 };
 
@@ -211,6 +231,7 @@ de:
     title: Speicher-Backends
     description: Verwalte deine Cloud-Speicher für die Synchronisierung.
     add: Backend hinzufügen
+    edit: Bearbeiten
     test: Verbindung testen
     remove: Entfernen
     empty: Noch keine Backends konfiguriert. Füge einen Speicher hinzu, um mit der Synchronisierung zu beginnen.
@@ -225,6 +246,7 @@ en:
     title: Storage Backends
     description: Manage your cloud storage backends for synchronization.
     add: Add Backend
+    edit: Edit
     test: Test Connection
     remove: Remove
     empty: No backends configured yet. Add a storage backend to start syncing.

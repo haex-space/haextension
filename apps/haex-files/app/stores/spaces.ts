@@ -1,13 +1,10 @@
 // stores/spaces.ts
-import type { FileSpace } from "@haex-space/vault-sdk";
+import { eq } from "drizzle-orm";
+import { spaces as spacesTable, type SelectSpace } from "~/database/schemas";
+import { generateVaultKey, arrayBufferToBase64 } from "@haex-space/vault-sdk";
 
-// Re-export FileSpace type for convenience
-export type { FileSpace };
-
-// Local Space type that extends FileSpace with optional description
-export interface Space extends FileSpace {
-  description?: string | null;
-}
+// Export local Space type
+export type Space = SelectSpace;
 
 export const useSpacesStore = defineStore("spaces", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -16,16 +13,19 @@ export const useSpacesStore = defineStore("spaces", () => {
   const isLoading = ref(false);
 
   /**
-   * Load all spaces via SDK
+   * Load all spaces from local Drizzle DB
    */
   const loadSpacesAsync = async (): Promise<void> => {
     isLoading.value = true;
     try {
-      const fileSpaces = await haexVaultStore.client.filesystem.sync.listSpacesAsync();
-      spaces.value = fileSpaces.map((s) => ({
-        ...s,
-        description: null,
-      }));
+      const orm = haexVaultStore.orm;
+      if (!orm) {
+        console.warn("[haex-files] ORM not initialized");
+        return;
+      }
+
+      const result = await orm.select().from(spacesTable);
+      spaces.value = result;
     } catch (error) {
       console.warn("[haex-files] Failed to load spaces:", error);
       spaces.value = [];
@@ -35,30 +35,52 @@ export const useSpacesStore = defineStore("spaces", () => {
   };
 
   /**
-   * Create a new space via SDK
+   * Create a new space in local Drizzle DB
    */
-  const createSpaceAsync = async (name: string, _description?: string): Promise<Space> => {
-    const newSpace = await haexVaultStore.client.filesystem.sync.createSpaceAsync({
-      name,
-    });
+  const createSpaceAsync = async (name: string, description?: string): Promise<Space> => {
+    const orm = haexVaultStore.orm;
+    if (!orm) {
+      throw new Error("ORM not initialized");
+    }
 
-    const space: Space = {
-      ...newSpace,
-      description: _description ?? null,
+    // Generate a new space key and encode as Base64
+    const spaceKey = generateVaultKey();
+    const wrappedKey = arrayBufferToBase64(spaceKey);
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    const newSpace: Space = {
+      id,
+      name,
+      description: description ?? null,
+      wrappedKey,
+      isPersonal: true,
+      fileCount: 0,
+      totalSize: 0,
+      createdAt: now,
+      updatedAt: now,
     };
 
-    spaces.value.push(space);
-    console.log(`[haex-files] Created space: ${name} (${newSpace.id})`);
+    await orm.insert(spacesTable).values(newSpace);
+    spaces.value.push(newSpace);
 
-    return space;
+    console.log(`[haex-files] Created space: ${name} (${id})`);
+    return newSpace;
   };
 
   /**
-   * Delete a space via SDK
+   * Delete a space from local Drizzle DB
    */
   const deleteSpaceAsync = async (spaceId: string): Promise<void> => {
-    await haexVaultStore.client.filesystem.sync.deleteSpaceAsync(spaceId);
+    const orm = haexVaultStore.orm;
+    if (!orm) {
+      throw new Error("ORM not initialized");
+    }
+
+    await orm.delete(spacesTable).where(eq(spacesTable.id, spaceId));
     spaces.value = spaces.value.filter((s) => s.id !== spaceId);
+
     console.log(`[haex-files] Deleted space: ${spaceId}`);
   };
 

@@ -256,7 +256,7 @@
 
 <script setup lang="ts">
 import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy } from "lucide-vue-next";
-import type { SyncDirection, SyncRule, ConflictStrategy } from "@haex-space/vault-sdk";
+import type { SyncRule, SyncDirection, ConflictStrategy } from "~/stores/syncRules";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 

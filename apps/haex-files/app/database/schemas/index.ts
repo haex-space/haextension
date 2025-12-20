@@ -3,7 +3,6 @@ import {
   integer,
   sqliteTable,
   text,
-  blob,
   type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { getTableName } from "@haex-space/vault-sdk";
@@ -44,8 +43,8 @@ export const spaces = sqliteTable(
     id: text().primaryKey(),
     name: text().notNull(),
     description: text(),
-    // Space key wrapped with master key (Base64 encoded)
-    wrappedKey: blob("wrapped_key", { mode: "buffer" }).notNull(),
+    // Space key wrapped with master key (Base64 encoded string)
+    wrappedKey: text("wrapped_key").notNull(),
     isPersonal: integer("is_personal", { mode: "boolean" }).notNull().default(true),
     fileCount: integer("file_count").notNull().default(0),
     totalSize: integer("total_size").notNull().default(0),
@@ -72,8 +71,8 @@ export const files = sqliteTable(
     size: integer().notNull().default(0),
     contentHash: text("content_hash"), // SHA-256 of plaintext content
     isDirectory: integer("is_directory", { mode: "boolean" }).notNull().default(false),
-    // File key wrapped with space key (Base64 encoded)
-    wrappedKey: blob("wrapped_key", { mode: "buffer" }),
+    // File key wrapped with space key (Base64 encoded string)
+    wrappedKey: text("wrapped_key"),
     // Sync state
     syncState: text("sync_state").notNull().default("localOnly"), // synced, syncing, localOnly, remoteOnly, conflict, error
     lastSyncedAt: text("last_synced_at"),
@@ -105,28 +104,13 @@ export const fileChunks = sqliteTable(
 export type InsertFileChunk = typeof fileChunks.$inferInsert;
 export type SelectFileChunk = typeof fileChunks.$inferSelect;
 
-/**
- * Storage backends (S3, R2, MinIO, etc.)
- * Credentials are stored encrypted
- */
-export const backends = sqliteTable(
-  tableName("backends"),
-  {
-    id: text().primaryKey(),
-    name: text().notNull(),
-    type: text().notNull(), // s3, r2, minio, gdrive, dropbox
-    // Encrypted config (contains credentials)
-    encryptedConfig: blob("encrypted_config", { mode: "buffer" }).notNull(),
-    enabled: integer({ mode: "boolean" }).notNull().default(true),
-    lastTestedAt: text("last_tested_at"),
-    ...timestamps,
-  }
-);
-export type InsertBackend = typeof backends.$inferInsert;
-export type SelectBackend = typeof backends.$inferSelect;
+// NOTE: Storage backends are now managed centrally by haex-vault Core.
+// Use client.remoteStorage.backends.* to interact with backends.
+// The backends are stored in haex_storage_backends table in Core.
 
 /**
- * Sync rules - which folders sync to which backends
+ * Sync rules - which local folders sync to which remote backends
+ * Backend IDs reference haex_storage_backends in Core (via remoteStorage API)
  */
 export const syncRules = sqliteTable(
   tableName("sync_rules"),
@@ -135,12 +119,15 @@ export const syncRules = sqliteTable(
     spaceId: text("space_id")
       .references((): AnySQLiteColumn => spaces.id, { onDelete: "cascade" })
       .notNull(),
-    localPath: text("local_path").notNull(), // Path within the space
-    backendId: text("backend_id")
-      .references((): AnySQLiteColumn => backends.id, { onDelete: "cascade" })
-      .notNull(),
+    localPath: text("local_path").notNull(), // Local filesystem path
+    // JSON array of backend IDs (references Core haex_storage_backends)
+    backendIds: text("backend_ids").notNull().default("[]"),
     direction: text().notNull().default("both"), // up, down, both
     enabled: integer({ mode: "boolean" }).notNull().default(true),
+    // Gitignore-like patterns for files to exclude
+    ignorePatterns: text("ignore_patterns").notNull().default("[]"),
+    // Conflict resolution strategy
+    conflictStrategy: text("conflict_strategy").notNull().default("ask"), // local, remote, newer, ask, keepBoth
     ...timestamps,
   }
 );
@@ -149,6 +136,7 @@ export type SelectSyncRule = typeof syncRules.$inferSelect;
 
 /**
  * File-Backend mapping (which file is on which backends)
+ * Backend IDs reference haex_storage_backends in Core
  */
 export const fileBackends = sqliteTable(
   tableName("file_backends"),
@@ -157,10 +145,9 @@ export const fileBackends = sqliteTable(
     fileId: text("file_id")
       .references((): AnySQLiteColumn => files.id, { onDelete: "cascade" })
       .notNull(),
-    backendId: text("backend_id")
-      .references((): AnySQLiteColumn => backends.id, { onDelete: "cascade" })
-      .notNull(),
-    remoteId: text("remote_id").notNull(), // ID/path on the remote backend
+    // Backend ID (references Core haex_storage_backends)
+    backendId: text("backend_id").notNull(),
+    remoteKey: text("remote_key").notNull(), // Object key on the remote backend
     syncedAt: text("synced_at"),
     createdAt,
   }
@@ -170,23 +157,29 @@ export type SelectFileBackend = typeof fileBackends.$inferSelect;
 
 /**
  * Sync queue for pending operations
+ * Tracks upload/download operations to remote backends
  */
 export const syncQueue = sqliteTable(
   tableName("sync_queue"),
   {
     id: text().primaryKey(),
-    fileId: text("file_id")
-      .references((): AnySQLiteColumn => files.id, { onDelete: "cascade" })
+    // Reference to sync rule
+    ruleId: text("rule_id")
+      .references((): AnySQLiteColumn => syncRules.id, { onDelete: "cascade" })
       .notNull(),
-    backendId: text("backend_id")
-      .references((): AnySQLiteColumn => backends.id, { onDelete: "cascade" })
-      .notNull(),
+    // Local file path
+    localPath: text("local_path").notNull(),
+    // Relative path from sync root (used as remote key)
+    relativePath: text("relative_path").notNull(),
+    // Backend ID (references Core haex_storage_backends)
+    backendId: text("backend_id").notNull(),
     operation: text().notNull(), // upload, download, delete
-    priority: integer().notNull().default(0),
-    status: text().notNull().default("pending"), // pending, in_progress, completed, failed
+    priority: integer().notNull().default(100),
+    status: text().notNull().default("pending"), // pending, inProgress, completed, failed
+    fileSize: integer("file_size").notNull().default(0),
     errorMessage: text("error_message"),
     retryCount: integer("retry_count").notNull().default(0),
-    scheduledAt: text("scheduled_at").default(sql`(CURRENT_TIMESTAMP)`),
+    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
     startedAt: text("started_at"),
     completedAt: text("completed_at"),
   }
