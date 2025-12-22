@@ -62,14 +62,13 @@
       <!-- Tags -->
       <div v-show="!readOnly || tags.length">
         <ShadcnLabel>{{ t("item.tags.label") }}</ShadcnLabel>
-        <ShadcnTagsInput v-if="!readOnly" v-model="tags" class="mt-2">
-          <ShadcnTagsInputItem v-for="item in tags" :key="item" :value="item">
-            <ShadcnTagsInputItemText />
-            <ShadcnTagsInputItemDelete />
-          </ShadcnTagsInputItem>
-          <ShadcnTagsInputInput :placeholder="t('item.tags.placeholder')" />
-        </ShadcnTagsInput>
-        <div v-else class="flex flex-wrap gap-2 mt-2">
+        <HaexInputTags
+          v-if="!readOnly"
+          v-model="tags"
+          :placeholder="t('item.tags.placeholder')"
+          class="mt-1"
+        />
+        <div v-else class="flex flex-wrap gap-2 mt-1">
           <ShadcnBadge
             v-for="(tag, index) in tags"
             :key="index"
