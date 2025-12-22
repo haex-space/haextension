@@ -16,14 +16,14 @@
             class="hidden"
             @change="onFileChangeAsync"
           />
-          <ShadcnButton
+          <UiButton
             :icon="File"
             variant="outline"
             class="w-full justify-start"
             @click="fileInput?.click()"
           >
             {{ selectedFileName || t("chooseFile") }}
-          </ShadcnButton>
+          </UiButton>
         </div>
 
         <!-- Password Input -->
@@ -65,12 +65,12 @@
     </template>
 
     <template #footer>
-      <ShadcnButton :disabled="!canImport" @click="importAsync">
+      <UiButton :disabled="!canImport" @click="importAsync">
         {{ t("import") }}
-      </ShadcnButton>
-      <ShadcnButton variant="outline" @click="isOpen = false">
+      </UiButton>
+      <UiButton variant="outline" @click="isOpen = false">
         {{ t("cancel") }}
-      </ShadcnButton>
+      </UiButton>
     </template>
   </UiDrawerModal>
 </template>
@@ -786,7 +786,8 @@ async function importKdbxAsync(
     // Extract expiry time if set and expiry is enabled
     let expiresAt: string | null = null;
     if (entry.times.expires && entry.times.expiryTime) {
-      expiresAt = new Date(entry.times.expiryTime).toISOString().split("T")[0] || null; // Store as YYYY-MM-DD
+      expiresAt =
+        new Date(entry.times.expiryTime).toISOString().split("T")[0] || null; // Store as YYYY-MM-DD
       console.log("[KeePass Import] Entry expires at:", expiresAt);
     }
 

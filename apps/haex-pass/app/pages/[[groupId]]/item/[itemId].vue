@@ -1,16 +1,22 @@
 <template>
   <div class="h-screen flex flex-col">
-    <div class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center gap-4">
+    <div
+      class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center gap-4"
+    >
       <!-- Tab Navigation -->
       <div class="flex-1 flex justify-center">
-        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+        <div
+          class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground"
+        >
           <button
             v-for="(tab, index) in tabs"
             :key="tab.value"
             type="button"
             :class="[
               'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-              activeTab === index ? 'bg-background text-foreground shadow' : 'hover:bg-background/50'
+              activeTab === index
+                ? 'bg-background text-foreground shadow'
+                : 'hover:bg-background/50',
             ]"
             @click="scrollToSlide(index)"
           >
@@ -21,37 +27,37 @@
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <ShadcnButton
+        <UiButton
           :icon="Trash2"
+          :title="t('delete')"
           variant="destructive"
-          size="sm"
           @click="showDeleteDialog = true"
         >
-          <span class="hidden sm:inline">{{ t('delete') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
+          <span class="hidden sm:inline">{{ t("delete") }}</span>
+        </UiButton>
+        <UiButton
           v-if="readOnly"
           :icon="Pencil"
-          variant="outline"
-          size="sm"
+          :title="t('edit')"
+          variant="default"
           @click="readOnly = false"
         >
-          <span class="hidden sm:inline">{{ t('edit') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
+          <span class="hidden sm:inline">{{ t("edit") }}</span>
+        </UiButton>
+        <UiButton
           v-if="!readOnly"
           :icon="Save"
           :disabled="!hasChanges"
           :class="{ 'animate-pulse': hasChanges }"
-          size="sm"
+          :title="t('save')"
           @click="onSaveAsync"
         >
-          <span class="hidden sm:inline">{{ t('save') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
+          <span class="hidden sm:inline">{{ t("save") }}</span>
+        </UiButton>
+        <UiButton
           :icon="X"
+          :title="t('cancel')"
           variant="ghost"
-          size="sm"
           @click="onClose"
         />
       </div>
@@ -60,14 +66,16 @@
     <ShadcnCarousel
       v-if="currentItem"
       class="flex-1 overflow-hidden"
-      @init-api="(api) => {
-        if (api) {
-          carouselApi = api;
-          api.on('select', () => {
-            activeTab = api.selectedScrollSnap();
-          });
+      @init-api="
+        (api) => {
+          if (api) {
+            carouselApi = api;
+            api.on('select', () => {
+              activeTab = api.selectedScrollSnap();
+            });
+          }
         }
-      }"
+      "
     >
       <ShadcnCarouselContent class="h-full">
         <!-- Details Slide -->
@@ -112,7 +120,7 @@
     </ShadcnCarousel>
 
     <div v-else class="flex-1 flex items-center justify-center">
-      <p class="text-muted-foreground">{{ t('loading') }}</p>
+      <p class="text-muted-foreground">{{ t("loading") }}</p>
     </div>
 
     <!-- Delete Dialog -->
@@ -128,15 +136,19 @@
     <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>{{
+            t("unsavedChangesDialog.title")
+          }}</ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ t('unsavedChangesDialog.description') }}
+            {{ t("unsavedChangesDialog.description") }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogCancel>{{
+            t("unsavedChangesDialog.cancel")
+          }}</ShadcnAlertDialogCancel>
           <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
-            {{ t('unsavedChangesDialog.confirm') }}
+            {{ t("unsavedChangesDialog.confirm") }}
           </ShadcnAlertDialogAction>
         </ShadcnAlertDialogFooter>
       </ShadcnAlertDialogContent>
@@ -177,9 +189,9 @@ const attachmentsToDelete = ref<AttachmentWithSize[]>([]);
 
 // Tabs configuration
 const tabs = computed(() => [
-  { label: t('tabs.details'), value: 'details' },
-  { label: t('tabs.extra'), value: 'extra' },
-  { label: t('tabs.history'), value: 'history' },
+  { label: t("tabs.details"), value: "details" },
+  { label: t("tabs.extra"), value: "extra" },
+  { label: t("tabs.history"), value: "history" },
 ]);
 
 const activeTab = ref(0);
@@ -247,11 +259,15 @@ const hasChanges = computed(() => {
   if (!originalDetails.value) return false;
 
   // Check if details have changed
-  const detailsChanged = JSON.stringify(originalDetails.value) !== JSON.stringify(editableDetails.value);
+  const detailsChanged =
+    JSON.stringify(originalDetails.value) !==
+    JSON.stringify(editableDetails.value);
 
   // Check if there are any additions or deletions
-  const hasKeyValueChanges = keyValuesAdd.value.length > 0 || keyValuesDelete.value.length > 0;
-  const hasAttachmentChanges = attachmentsToAdd.value.length > 0 || attachmentsToDelete.value.length > 0;
+  const hasKeyValueChanges =
+    keyValuesAdd.value.length > 0 || keyValuesDelete.value.length > 0;
+  const hasAttachmentChanges =
+    attachmentsToAdd.value.length > 0 || attachmentsToDelete.value.length > 0;
 
   return detailsChanged || hasKeyValueChanges || hasAttachmentChanges;
 });
@@ -275,16 +291,16 @@ const onConfirmDiscardChanges = () => {
 };
 
 const onSaveAsync = async () => {
-  console.log('[ItemEdit] onSaveAsync called');
-  console.log('[ItemEdit] currentItem:', currentItem.value);
-  console.log('[ItemEdit] editableDetails.id:', editableDetails.value.id);
+  console.log("[ItemEdit] onSaveAsync called");
+  console.log("[ItemEdit] currentItem:", currentItem.value);
+  console.log("[ItemEdit] editableDetails.id:", editableDetails.value.id);
 
   if (!currentItem.value || !editableDetails.value.id) {
-    console.log('[ItemEdit] Early return - missing currentItem or id');
+    console.log("[ItemEdit] Early return - missing currentItem or id");
     return;
   }
 
-  console.log('[ItemEdit] Calling updateAsync with:', {
+  console.log("[ItemEdit] Calling updateAsync with:", {
     details: editableDetails.value,
     keyValues: currentItem.value.keyValues,
     keyValuesAdd: keyValuesAdd.value,
@@ -304,14 +320,14 @@ const onSaveAsync = async () => {
       attachmentsToAdd: attachmentsToAdd.value,
       attachmentsToDelete: attachmentsToDelete.value,
     });
-    console.log('[ItemEdit] updateAsync completed');
+    console.log("[ItemEdit] updateAsync completed");
 
     await syncGroupItemsAsync();
-    console.log('[ItemEdit] syncGroupItemsAsync completed');
+    console.log("[ItemEdit] syncGroupItemsAsync completed");
 
     // Reload current item to get updated attachments with data
     const updatedItem = await readAsync(editableDetails.value.id);
-    console.log('[ItemEdit] readAsync result:', updatedItem);
+    console.log("[ItemEdit] readAsync result:", updatedItem);
     if (updatedItem) {
       currentItem.value = updatedItem;
     }
@@ -326,11 +342,11 @@ const onSaveAsync = async () => {
     keyValuesDelete.value = [];
     attachmentsToAdd.value = [];
     attachmentsToDelete.value = [];
-    console.log('[ItemEdit] Save completed successfully');
+    console.log("[ItemEdit] Save completed successfully");
   } catch (error) {
     console.error("[ItemEdit] Error saving item:", error);
     const message = error instanceof Error ? error.message : String(error);
-    toast.error(t('errors.save'), {
+    toast.error(t("errors.save"), {
       description: message,
     });
   }
@@ -347,7 +363,7 @@ const onDeleteAsync = async () => {
   } catch (error) {
     console.error("Error deleting item:", error);
     const message = error instanceof Error ? error.message : String(error);
-    toast.error(t('errors.delete'), {
+    toast.error(t("errors.delete"), {
       description: message,
     });
   }

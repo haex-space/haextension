@@ -6,9 +6,8 @@
   >
     <div class="flex items-center justify-between min-h-[32px]">
       <div class="flex items-center gap-3">
-        <ShadcnButton
+        <UiButton
           variant="ghost"
-          size="sm"
           :icon="X"
           class="text-primary-foreground hover:bg-primary-foreground/10"
           @click="selectionStore.clearSelection()"
@@ -21,10 +20,9 @@
         <!-- Normal selection mode buttons -->
         <template v-if="!selectionStore.hasClipboardItems">
           <!-- Edit button - only visible when exactly 1 item is selected -->
-          <ShadcnButton
+          <UiButton
             v-if="selectionStore.selectedCount === 1"
             variant="ghost"
-            size="sm"
             :icon="Pencil"
             :tooltip="t('edit')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -32,9 +30,8 @@
           />
 
           <!-- Copy button - visible when 1 or more items selected -->
-          <ShadcnButton
+          <UiButton
             variant="ghost"
-            size="sm"
             :icon="Copy"
             :tooltip="t('copy')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -42,9 +39,8 @@
           />
 
           <!-- Cut button - visible when 1 or more items selected -->
-          <ShadcnButton
+          <UiButton
             variant="ghost"
-            size="sm"
             :icon="Scissors"
             :tooltip="t('cut')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -52,10 +48,9 @@
           />
 
           <!-- Restore button - only visible when in trash -->
-          <ShadcnButton
+          <UiButton
             v-if="isInTrash"
             variant="ghost"
-            size="sm"
             :icon="RotateCcw"
             :tooltip="t('restore')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -63,9 +58,8 @@
           />
 
           <!-- Delete button - always visible -->
-          <ShadcnButton
+          <UiButton
             variant="ghost"
-            size="sm"
             :icon="Trash2"
             :tooltip="t('delete')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -76,9 +70,8 @@
         <!-- Clipboard mode buttons -->
         <template v-else>
           <!-- Paste button -->
-          <ShadcnButton
+          <UiButton
             variant="ghost"
-            size="sm"
             :icon="ClipboardPaste"
             :tooltip="t('paste')"
             class="text-primary-foreground hover:bg-primary-foreground/10"
@@ -86,9 +79,9 @@
           />
 
           <!-- Cancel clipboard button -->
-          <ShadcnButton
+
+          <UiButton
             variant="ghost"
-            size="sm"
             :icon="XCircle"
             :tooltip="t('cancel')"
             class="text-primary-foreground hover:bg-primary-foreground/10"

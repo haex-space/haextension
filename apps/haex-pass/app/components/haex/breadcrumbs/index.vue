@@ -19,7 +19,10 @@
           </ShadcnBreadcrumbSeparator>
 
           <ShadcnBreadcrumbItem>
-            <ShadcnBreadcrumbLink v-if="index < (items?.length ?? 0) - 1" as-child>
+            <ShadcnBreadcrumbLink
+              v-if="index < (items?.length ?? 0) - 1"
+              as-child
+            >
               <NuxtLinkLocale
                 :to="{
                   name: 'passwordGroupItems',
@@ -55,20 +58,15 @@
 
       <!-- Clipboard actions - visible when clipboard has items -->
       <ShadcnButtonGroup v-if="selectionStore.hasClipboardItems">
-        <ShadcnButton
-          variant="secondary"
-          size="sm"
-          @click="selectionStore.clearClipboard()"
-        >
+        <UiButton variant="secondary" @click="selectionStore.clearClipboard()">
           {{
             t("clipboardCount", { count: selectionStore.clipboardItems.length })
           }}
-        </ShadcnButton>
-        <ShadcnButton
+        </UiButton>
+        <UiButton
           :icon="ClipboardPaste"
           :tooltip="t('paste')"
           variant="default"
-          size="sm"
           @click="$emit('paste')"
         />
       </ShadcnButtonGroup>

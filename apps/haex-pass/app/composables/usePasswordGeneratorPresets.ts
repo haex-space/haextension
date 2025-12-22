@@ -28,18 +28,21 @@ export function usePasswordGeneratorPresets() {
     return await orm.select().from(haexPasswordsGeneratorPresets).all();
   };
 
-  const getDefaultPresetAsync = async (): Promise<PasswordGeneratorPreset | null> => {
-    if (!orm) return null;
-    const results = await orm
-      .select()
-      .from(haexPasswordsGeneratorPresets)
-      .where(eq(haexPasswordsGeneratorPresets.isDefault, true))
-      .limit(1)
-      .all();
-    return results[0] ?? null;
-  };
+  const getDefaultPresetAsync =
+    async (): Promise<PasswordGeneratorPreset | null> => {
+      if (!orm) return null;
+      const results = await orm
+        .select()
+        .from(haexPasswordsGeneratorPresets)
+        .where(eq(haexPasswordsGeneratorPresets.isDefault, true))
+        .limit(1)
+        .all();
+      return results[0] ?? null;
+    };
 
-  const getPresetByIdAsync = async (id: string): Promise<PasswordGeneratorPreset | null> => {
+  const getPresetByIdAsync = async (
+    id: string
+  ): Promise<PasswordGeneratorPreset | null> => {
     if (!orm) return null;
     const results = await orm
       .select()
@@ -50,7 +53,9 @@ export function usePasswordGeneratorPresets() {
     return results[0] ?? null;
   };
 
-  const createPresetAsync = async (preset: PasswordGeneratorPresetInput): Promise<string> => {
+  const createPresetAsync = async (
+    preset: PasswordGeneratorPresetInput
+  ): Promise<string> => {
     if (!orm) throw new Error("ORM not initialized");
 
     const id = crypto.randomUUID();
@@ -81,7 +86,10 @@ export function usePasswordGeneratorPresets() {
     return id;
   };
 
-  const updatePresetAsync = async (id: string, preset: Partial<PasswordGeneratorPresetInput>): Promise<void> => {
+  const updatePresetAsync = async (
+    id: string,
+    preset: Partial<PasswordGeneratorPresetInput>
+  ): Promise<void> => {
     if (!orm) throw new Error("ORM not initialized");
 
     // If this preset should be default, unset all other defaults first

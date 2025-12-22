@@ -1,12 +1,12 @@
 <template>
-  <div class="p-4 space-y-4">
+  <div class="p-4">
     <ShadcnCard>
-      <ShadcnCardContent class="pt-6 space-y-4">
+      <ShadcnCardContent class="space-y-4">
         <div class="space-y-2">
           <ShadcnLabel>{{ t("name") }}</ShadcnLabel>
-          <UiInputText
-            ref="nameInputRef"
+          <UiInput
             v-model="groupName"
+            autofocus
             :placeholder="t('namePlaceholder')"
             :readonly="readOnly"
             @keyup.enter="$emit('submit')"
@@ -59,15 +59,6 @@ defineEmits<{
 }>();
 
 const { t } = useI18n();
-
-// Auto-focus on name field
-const nameInputRef = useTemplateRef<{ focus: () => void }>("nameInputRef");
-
-onMounted(() => {
-  nextTick(() => {
-    nameInputRef.value?.focus();
-  });
-});
 
 // Computed properties to handle null -> undefined conversion for UiInput/UiTextarea
 const groupName = computed({

@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import {
   integer,
   primaryKey,
@@ -12,7 +11,8 @@ import packageJson from "../../../package.json";
 
 // Helper function to create prefixed table names (with fallback to package.json for name)
 const extensionName = (manifest as { name?: string }).name || packageJson.name;
-const tableName = (name: string) => getTableName(manifest.publicKey, extensionName, name);
+const tableName = (name: string) =>
+  getTableName(manifest.publicKey, extensionName, name);
 
 export const haexPasswordsItemDetails = sqliteTable(
   tableName("haex_passwords_item_details"),
@@ -31,7 +31,7 @@ export const haexPasswordsItemDetails = sqliteTable(
     otpPeriod: integer("otp_period").default(30),
     otpAlgorithm: text("otp_algorithm").default("SHA1"),
     expiresAt: text("expires_at"), // ISO date string for password expiry
-    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
     updateAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
     ),
@@ -69,13 +69,13 @@ export const haexPasswordsGroups = sqliteTable(
     name: text(),
     description: text(),
     icon: text(),
-    order: integer("sort_order"),  // Renamed from 'order' to avoid SQL keyword conflict
+    order: integer("sort_order"), // Renamed from 'order' to avoid SQL keyword conflict
     color: text(),
     parentId: text("parent_id").references(
       (): AnySQLiteColumn => haexPasswordsGroups.id,
       { onDelete: "cascade" }
     ),
-    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
     updateAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
     ),
@@ -110,8 +110,8 @@ export const haexPasswordsBinaries = sqliteTable(
     hash: text().primaryKey(), // SHA-256 hash als Primary Key
     data: text().notNull(), // Base64-encoded binary data
     size: integer().notNull(),
-    type: text().default('attachment'), // 'icon' or 'attachment'
-    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
+    type: text().default("attachment"), // 'icon' or 'attachment'
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
   }
 );
 export type InsertHaexPasswordsBinaries =
@@ -155,7 +155,7 @@ export const haexPasswordsItemSnapshots = sqliteTable(
     // Snapshot-Daten als JSON (alle Entry-Felder außer Binaries)
     snapshotData: text("snapshot_data").notNull(), // JSON: { title, username, password, url, note, tags, otpSecret, keyValues, ... }
     // Timestamps
-    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
     modifiedAt: text("modified_at"), // Wann wurde der Entry in diesem Zustand zuletzt geändert
   }
 );
@@ -199,10 +199,14 @@ export const haexPasswordsGeneratorPresets = sqliteTable(
     numbers: integer({ mode: "boolean" }).notNull().default(true),
     symbols: integer({ mode: "boolean" }).notNull().default(true),
     excludeChars: text("exclude_chars").default(""),
-    usePattern: integer("use_pattern", { mode: "boolean" }).notNull().default(false),
+    usePattern: integer("use_pattern", { mode: "boolean" })
+      .notNull()
+      .default(false),
     pattern: text().default(""),
-    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-    createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
+    isDefault: integer("is_default", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
     updatedAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
     ),

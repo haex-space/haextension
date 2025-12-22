@@ -18,12 +18,12 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Variants</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton variant="default"> Default </ShadcnButton>
-            <ShadcnButton variant="destructive"> Destructive </ShadcnButton>
-            <ShadcnButton variant="outline"> Outline </ShadcnButton>
-            <ShadcnButton variant="secondary"> Secondary </ShadcnButton>
-            <ShadcnButton variant="ghost"> Ghost </ShadcnButton>
-            <ShadcnButton variant="link"> Link </ShadcnButton>
+            <UiButton variant="default"> Default </UiButton>
+            <UiButton variant="destructive"> Destructive </UiButton>
+            <UiButton variant="outline"> Outline </UiButton>
+            <UiButton variant="secondary"> Secondary </UiButton>
+            <UiButton variant="ghost"> Ghost </UiButton>
+            <UiButton variant="link"> Link </UiButton>
           </div>
         </section>
 
@@ -31,9 +31,9 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Sizes</h3>
           <div class="flex flex-wrap items-center gap-4">
-            <ShadcnButton size="sm"> Small </ShadcnButton>
-            <ShadcnButton size="default"> Default </ShadcnButton>
-            <ShadcnButton size="lg"> Large </ShadcnButton>
+            <UiButton size="sm"> Small </UiButton>
+            <UiButton size="default"> Default </UiButton>
+            <UiButton size="lg"> Large </UiButton>
           </div>
         </section>
 
@@ -41,10 +41,10 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">With Icons</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton :icon="Plus"> Add Item </ShadcnButton>
-            <ShadcnButton :icon="Trash2" variant="destructive"> Delete </ShadcnButton>
-            <ShadcnButton :icon="Download" variant="outline"> Download </ShadcnButton>
-            <ShadcnButton :icon="Check" variant="secondary"> Confirm </ShadcnButton>
+            <UiButton :icon="Plus"> Add Item </UiButton>
+            <UiButton :icon="Trash2" variant="destructive"> Delete </UiButton>
+            <UiButton :icon="Download" variant="outline"> Download </UiButton>
+            <UiButton :icon="Check" variant="secondary"> Confirm </UiButton>
           </div>
         </section>
 
@@ -52,14 +52,18 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Prepend & Append Icons</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton :prepend-icon="Plus"> Prepend Icon </ShadcnButton>
-            <ShadcnButton :append-icon="Download"> Append Icon </ShadcnButton>
-            <ShadcnButton :prepend-icon="Plus" :append-icon="Download">
+            <UiButton :prepend-icon="Plus"> Prepend Icon </UiButton>
+            <UiButton :append-icon="Download"> Append Icon </UiButton>
+            <UiButton :prepend-icon="Plus" :append-icon="Download">
               Both Icons
-            </ShadcnButton>
-            <ShadcnButton :prepend-icon="Check" :append-icon="Trash2" variant="destructive">
+            </UiButton>
+            <UiButton
+              :prepend-icon="Check"
+              :append-icon="Trash2"
+              variant="destructive"
+            >
               Delete with Confirm
-            </ShadcnButton>
+            </UiButton>
           </div>
         </section>
 
@@ -67,10 +71,20 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Icon Only</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton :icon="Plus" size="icon" tooltip="Add new item" />
-            <ShadcnButton :icon="Pencil" size="icon" variant="ghost" tooltip="Edit" />
-            <ShadcnButton :icon="Trash2" size="icon" variant="destructive" tooltip="Delete" />
-            <ShadcnButton
+            <UiButton :icon="Plus" size="icon" tooltip="Add new item" />
+            <UiButton
+              :icon="Pencil"
+              size="icon"
+              variant="ghost"
+              tooltip="Edit"
+            />
+            <UiButton
+              :icon="Trash2"
+              size="icon"
+              variant="destructive"
+              tooltip="Delete"
+            />
+            <UiButton
               :icon="MoreVertical"
               size="icon"
               variant="outline"
@@ -83,11 +97,11 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Loading State</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton loading> Loading... </ShadcnButton>
-            <ShadcnButton loading variant="outline"> Processing </ShadcnButton>
-            <ShadcnButton :icon="Download" loading variant="secondary">
+            <UiButton loading> Loading... </UiButton>
+            <UiButton loading variant="outline"> Processing </UiButton>
+            <UiButton :icon="Download" loading variant="secondary">
               Downloading
-            </ShadcnButton>
+            </UiButton>
           </div>
         </section>
 
@@ -95,9 +109,11 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Disabled State</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton disabled> Disabled </ShadcnButton>
-            <ShadcnButton disabled variant="destructive"> Disabled Destructive </ShadcnButton>
-            <ShadcnButton :icon="Plus" disabled> Disabled with Icon </ShadcnButton>
+            <UiButton disabled> Disabled </UiButton>
+            <UiButton disabled variant="destructive">
+              Disabled Destructive
+            </UiButton>
+            <UiButton :icon="Plus" disabled> Disabled with Icon </UiButton>
           </div>
         </section>
 
@@ -105,11 +121,11 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">With Tooltips</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton tooltip="This is a helpful tooltip"> Hover me </ShadcnButton>
-            <ShadcnButton :icon="Plus" tooltip="Add a new password entry">
+            <UiButton tooltip="This is a helpful tooltip"> Hover me </UiButton>
+            <UiButton :icon="Plus" tooltip="Add a new password entry">
               Add Password
-            </ShadcnButton>
-            <ShadcnButton
+            </UiButton>
+            <UiButton
               :icon="Database"
               size="icon"
               variant="ghost"
@@ -122,10 +138,10 @@
         <section class="space-y-4">
           <h3 class="text-xl font-semibold">Event Handling</h3>
           <div class="flex flex-wrap gap-4">
-            <ShadcnButton @click="handleClick"> Click Me </ShadcnButton>
-            <ShadcnButton :icon="Plus" @click="handleClick">
+            <UiButton @click="handleClick"> Click Me </UiButton>
+            <UiButton :icon="Plus" @click="handleClick">
               Add Item (with click)
-            </ShadcnButton>
+            </UiButton>
           </div>
           <p v-if="clickCount > 0" class="text-sm text-muted-foreground">
             Button clicked {{ clickCount }} time(s)
@@ -160,7 +176,10 @@
             </ShadcnInputGroup>
 
             <ShadcnInputGroup>
-              <ShadcnInputGroupInput type="email" placeholder="Enter your email" />
+              <ShadcnInputGroupInput
+                type="email"
+                placeholder="Enter your email"
+              />
               <ShadcnInputGroupAddon>
                 <Mail />
               </ShadcnInputGroupAddon>
@@ -212,7 +231,10 @@
             </ShadcnInputGroup>
 
             <ShadcnInputGroup>
-              <ShadcnInputGroupInput type="password" placeholder="Password with generator" />
+              <ShadcnInputGroupInput
+                type="password"
+                placeholder="Password with generator"
+              />
               <ShadcnInputGroupAddon align="inline-end">
                 <ShadcnInputGroupButton size="icon-xs" tooltip="Show password">
                   <Eye />
@@ -248,14 +270,16 @@
             <ShadcnCard>
               <ShadcnCardHeader>
                 <ShadcnCardTitle>Card Title</ShadcnCardTitle>
-                <ShadcnCardDescription>Card description goes here</ShadcnCardDescription>
+                <ShadcnCardDescription
+                  >Card description goes here</ShadcnCardDescription
+                >
               </ShadcnCardHeader>
               <ShadcnCardContent>
                 <p>This is the card content area.</p>
               </ShadcnCardContent>
               <ShadcnCardFooter>
-                <ShadcnButton variant="outline">Cancel</ShadcnButton>
-                <ShadcnButton>Save</ShadcnButton>
+                <UiButton variant="outline">Cancel</UiButton>
+                <UiButton>Save</UiButton>
               </ShadcnCardFooter>
             </ShadcnCard>
 
@@ -280,7 +304,7 @@
           <div class="flex flex-wrap gap-4">
             <ShadcnDropdownMenu>
               <ShadcnDropdownMenuTrigger as-child>
-                <ShadcnButton variant="outline">Open Menu</ShadcnButton>
+                <UiButton variant="outline">Open Menu</UiButton>
               </ShadcnDropdownMenuTrigger>
               <ShadcnDropdownMenuContent>
                 <ShadcnDropdownMenuLabel>My Account</ShadcnDropdownMenuLabel>
@@ -293,13 +317,15 @@
 
             <ShadcnDropdownMenu>
               <ShadcnDropdownMenuTrigger as-child>
-                <ShadcnButton :icon="MoreVertical" size="icon" variant="ghost" />
+                <UiButton :icon="MoreVertical" size="icon" variant="ghost" />
               </ShadcnDropdownMenuTrigger>
               <ShadcnDropdownMenuContent>
                 <ShadcnDropdownMenuItem>Edit</ShadcnDropdownMenuItem>
                 <ShadcnDropdownMenuItem>Duplicate</ShadcnDropdownMenuItem>
                 <ShadcnDropdownMenuSeparator />
-                <ShadcnDropdownMenuItem class="text-error">Delete</ShadcnDropdownMenuItem>
+                <ShadcnDropdownMenuItem class="text-error"
+                  >Delete</ShadcnDropdownMenuItem
+                >
               </ShadcnDropdownMenuContent>
             </ShadcnDropdownMenu>
           </div>

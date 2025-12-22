@@ -1,11 +1,9 @@
 <template>
-  <UiInput
-    ref="inputRef"
-    v-model="model"
-    v-bind="$attrs"
-  >
+  <UiInput v-model="model" ref="inputRef">
     <template #append>
-      <ShadcnInputGroupButton
+      <slot name="append" />
+      <UiButton
+        v-if="withCopy"
         :icon="copied ? Check : Copy"
         :tooltip="copied ? t('copied') : t('copy')"
         variant="ghost"
@@ -19,7 +17,9 @@
 import { useClipboard } from "@vueuse/core";
 import { Copy, Check } from "lucide-vue-next";
 
-const model = defineModel<string | number | null>();
+const model = defineModel<string | number | undefined | null>();
+
+const { withCopy = true } = defineProps<{ withCopy?: boolean }>();
 
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
@@ -33,11 +33,8 @@ const handleCopy = async () => {
   }
 };
 
-const inputRef = useTemplateRef<{ focus: () => void }>("inputRef");
-
-const focus = () => {
-  inputRef.value?.focus();
-};
+const inputRef = useTemplateRef("inputRef");
+const focus = () => inputRef.value?.focus();
 
 defineExpose({ focus });
 </script>

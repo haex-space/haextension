@@ -18,7 +18,7 @@
                   :class="{
                     'bg-accent': currentSelected === item,
                   }"
-                  class="flex gap-2 hover:bg-accent/50 px-3 py-2 items-center transition-colors cursor-pointer"
+                  class="flex gap-2 hover:bg-accent/50 px-3 py-1 items-center transition-colors cursor-pointer"
                   @click="currentSelected = item"
                 >
                   <input
@@ -30,7 +30,16 @@
                     @click.stop="currentSelected = item"
                   />
 
-                  <ShadcnButton
+                  <UiInput
+                    :ref="el => { if (index === allItems.length - 1) lastKeyInput = el as HTMLInputElement }"
+                    v-model="item.key"
+                    :readonly="currentSelected !== item || readOnly"
+                    :placeholder="t('keyPlaceholder')"
+                    class="flex-1 bg-transparent border-none outline-none text-sm"
+                    @click.stop="currentSelected = item"
+                  />
+
+                  <UiButton
                     v-if="!readOnly && currentSelected === item"
                     :icon="Trash2"
                     variant="ghost"
@@ -38,7 +47,7 @@
                     @click.stop="deleteItem(item.id)"
                   />
 
-                  <ShadcnButton
+                  <UiButton
                     :icon="copied && copiedItem === item ? Check : Copy"
                     variant="ghost"
                     size="icon-sm"
@@ -47,12 +56,20 @@
                 </div>
               </TransitionGroup>
             </div>
+
+            <UiButton
+              :icon="Plus"
+              variant="outline"
+              class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground mt-4"
+              @click="addItem"
+            >
+              {{ t("addField") }}
+            </UiButton>
           </div>
 
           <!-- Value Textarea -->
           <div v-if="allItems.length" class="flex-1 min-w-0 lg:min-w-52">
             <div class="space-y-2">
-              <ShadcnLabel>{{ t('value') }}</ShadcnLabel>
               <div class="relative">
                 <ShadcnTextarea
                   v-model="currentValue"
@@ -61,8 +78,10 @@
                   rows="8"
                   class="pr-12"
                 />
-                <ShadcnButton
-                  :icon="copied && copiedItem === currentSelected ? Check : Copy"
+                <UiButton
+                  :icon="
+                    copied && copiedItem === currentSelected ? Check : Copy
+                  "
                   variant="ghost"
                   size="icon-sm"
                   class="absolute top-2 right-2"
@@ -75,16 +94,16 @@
         </div>
       </ShadcnCardContent>
 
-      <ShadcnCardFooter v-if="!readOnly">
-        <ShadcnButton
+      <!-- <ShadcnCardFooter v-if="!readOnly">
+        <UiButton
           :icon="Plus"
           variant="outline"
           class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
           @click="addItem"
         >
-          {{ t('addField') }}
-        </ShadcnButton>
-      </ShadcnCardFooter>
+          {{ t("addField") }}
+        </UiButton>
+      </ShadcnCardFooter> -->
     </ShadcnCard>
 
     <!-- Attachments Section -->
@@ -196,7 +215,9 @@ const deleteItem = (id: string) => {
 const { copy, copied } = useClipboard();
 const copiedItem = ref<SelectHaexPasswordsItemKeyValues | undefined>();
 
-const copyValue = async (item: SelectHaexPasswordsItemKeyValues | undefined) => {
+const copyValue = async (
+  item: SelectHaexPasswordsItemKeyValues | undefined
+) => {
   if (item?.value) {
     await copy(item.value);
     copiedItem.value = item;

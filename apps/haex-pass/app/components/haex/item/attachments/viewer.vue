@@ -16,25 +16,30 @@
         </div>
 
         <!-- Text Viewer (XSS-safe with automatic escaping) -->
-        <div v-else-if="fileType === 'text' && textContent" class="p-4 bg-muted rounded">
-          <pre class="text-sm whitespace-pre-wrap break-words font-mono">{{ textContent }}</pre>
+        <div
+          v-else-if="fileType === 'text' && textContent"
+          class="p-4 bg-muted rounded"
+        >
+          <pre class="text-sm whitespace-pre-wrap break-words font-mono">{{
+            textContent
+          }}</pre>
         </div>
 
         <!-- Fallback for unsupported types -->
         <div v-else class="text-center py-8 text-muted-foreground">
-          {{ t('previewNotAvailable') }}
+          {{ t("previewNotAvailable") }}
         </div>
       </div>
 
       <ShadcnDialogFooter>
-        <ShadcnButton
+        <UiButton
           v-if="attachment"
           :icon="Download"
           variant="outline"
           @click="$emit('download', attachment)"
         >
-          {{ t('download') }}
-        </ShadcnButton>
+          {{ t("download") }}
+        </UiButton>
       </ShadcnDialogFooter>
     </ShadcnDialogContent>
   </ShadcnDialog>
@@ -48,7 +53,7 @@ interface AttachmentWithSize extends SelectHaexPasswordsItemBinaries {
   size?: number;
 }
 
-type FileType = 'image' | 'pdf' | 'text' | 'other';
+type FileType = "image" | "pdf" | "text" | "other";
 
 const props = defineProps<{
   attachment: AttachmentWithSize | null;
@@ -60,7 +65,7 @@ defineEmits<{
   download: [attachment: AttachmentWithSize];
 }>();
 
-const isOpen = defineModel<boolean>('open', { default: false });
+const isOpen = defineModel<boolean>("open", { default: false });
 
 const { t } = useI18n();
 
@@ -75,10 +80,10 @@ watchEffect(() => {
   }
 
   // Create new blob URL for PDF
-  if (props.fileType === 'pdf' && props.dataUrl) {
+  if (props.fileType === "pdf" && props.dataUrl) {
     try {
       // Extract base64 content from data URL
-      const base64Content = props.dataUrl.split(',')[1] || props.dataUrl;
+      const base64Content = props.dataUrl.split(",")[1] || props.dataUrl;
       // Decode base64 to binary
       const binaryString = atob(base64Content);
       const bytes = new Uint8Array(binaryString.length);
@@ -86,10 +91,10 @@ watchEffect(() => {
         bytes[i] = binaryString.charCodeAt(i);
       }
       // Create blob and URL
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([bytes], { type: "application/pdf" });
       pdfBlobUrl.value = URL.createObjectURL(blob);
     } catch (error) {
-      console.error('[Viewer] Failed to create PDF blob URL:', error);
+      console.error("[Viewer] Failed to create PDF blob URL:", error);
     }
   }
 });
@@ -103,11 +108,11 @@ onUnmounted(() => {
 
 // Decode text content from base64
 const textContent = computed(() => {
-  if (props.fileType !== 'text' || !props.dataUrl) return null;
+  if (props.fileType !== "text" || !props.dataUrl) return null;
 
   try {
     // Extract base64 content from data URL
-    const base64Content = props.dataUrl.split(',')[1] || props.dataUrl;
+    const base64Content = props.dataUrl.split(",")[1] || props.dataUrl;
     // Decode base64 to text (atob returns binary string, decode as UTF-8)
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
@@ -115,10 +120,10 @@ const textContent = computed(() => {
       bytes[i] = binaryString.charCodeAt(i);
     }
     // Decode UTF-8
-    const decoder = new TextDecoder('utf-8');
+    const decoder = new TextDecoder("utf-8");
     return decoder.decode(bytes);
   } catch (error) {
-    console.error('[Viewer] Failed to decode text content:', error);
+    console.error("[Viewer] Failed to decode text content:", error);
     return null;
   }
 });

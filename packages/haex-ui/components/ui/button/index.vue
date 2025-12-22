@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { buttonVariants } from "@/components/shadcn/button";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-vue-next";
+import Button from "@/components/shadcn/button/Button.vue";
+import type { ButtonVariants } from "@/components/shadcn/button";
 import type { Component, HTMLAttributes } from "vue";
 import type { PrimitiveProps } from "reka-ui";
-import type { ButtonVariants } from "@/components/shadcn/button";
-import { Primitive } from "reka-ui";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/shadcn/button";
-import { Loader2 } from "lucide-vue-next";
 
 interface Props extends PrimitiveProps {
   variant?: ButtonVariants["variant"];
@@ -36,15 +36,16 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <Primitive
-    data-slot="button"
-    :as="as"
-    :as-child="asChild"
-    :class="cn(buttonVariants({ variant, size }), props.class)"
-    :style="{ display: 'inline-flex' }"
+  <Button
+    :as
+    :class="
+      cn('cursor-pointer', buttonVariants({ variant, size }), props.class)
+    "
     :disabled="disabled || loading"
+    :style="{ display: 'inline-flex' }"
     :title="tooltip"
     @click="handleClick"
+    :variant
   >
     <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
     <component
@@ -58,5 +59,5 @@ const handleClick = (event: MouseEvent) => {
       :is="appendIcon"
       :class="iconClass"
     />
-  </Primitive>
+  </Button>
 </template>

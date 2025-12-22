@@ -1,13 +1,22 @@
 <template>
   <div class="space-y-4">
     <!-- Existing Attachments -->
-    <div v-if="attachments.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+    <div
+      v-if="attachments.length"
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2"
+    >
       <div
         v-for="attachment in attachments"
         :key="attachment.id"
         class="flex items-center gap-2 p-3 border rounded-lg transition-colors"
-        :class="editingAttachment === attachment.id ? 'bg-muted' : 'cursor-pointer hover:bg-muted/50'"
-        @click="editingAttachment !== attachment.id ? openViewer(attachment) : null"
+        :class="
+          editingAttachment === attachment.id
+            ? 'bg-muted'
+            : 'cursor-pointer hover:bg-muted/50'
+        "
+        @click="
+          editingAttachment !== attachment.id ? openViewer(attachment) : null
+        "
       >
         <!-- Image Preview -->
         <div
@@ -21,9 +30,15 @@
           />
         </div>
         <!-- PDF Icon -->
-        <FileText v-else-if="getFileType(attachment.fileName) === 'pdf'" class="h-5 w-5 text-red-500 shrink-0" />
+        <FileText
+          v-else-if="getFileType(attachment.fileName) === 'pdf'"
+          class="h-5 w-5 text-red-500 shrink-0"
+        />
         <!-- Text Icon -->
-        <FileTypeIcon v-else-if="getFileType(attachment.fileName) === 'text'" class="h-5 w-5 text-blue-500 shrink-0" />
+        <FileTypeIcon
+          v-else-if="getFileType(attachment.fileName) === 'text'"
+          class="h-5 w-5 text-blue-500 shrink-0"
+        />
         <!-- File Icon -->
         <File v-else class="h-5 w-5 text-muted-foreground shrink-0" />
 
@@ -39,7 +54,9 @@
           />
           <!-- Display mode -->
           <template v-else>
-            <p class="text-sm font-medium truncate">{{ attachment.fileName }}</p>
+            <p class="text-sm font-medium truncate">
+              {{ attachment.fileName }}
+            </p>
             <p v-if="attachment.size" class="text-xs text-muted-foreground">
               {{ formatFileSize(attachment.size) }}
             </p>
@@ -48,13 +65,13 @@
 
         <!-- Edit mode buttons -->
         <template v-if="!readOnly && editingAttachment === attachment.id">
-          <ShadcnButton
+          <UiButton
             :icon="Check"
             variant="ghost"
             size="icon-sm"
             @click.stop="saveFileName(attachment)"
           />
-          <ShadcnButton
+          <UiButton
             :icon="X"
             variant="ghost"
             size="icon-sm"
@@ -65,20 +82,20 @@
         <!-- Normal mode buttons -->
         <template v-else>
           <template v-if="!readOnly">
-            <ShadcnButton
+            <UiButton
               :icon="Pencil"
               variant="ghost"
               size="icon-sm"
               @click.stop="startEditingFileName(attachment)"
             />
-            <ShadcnButton
+            <UiButton
               :icon="Trash2"
               variant="ghost"
               size="icon-sm"
               @click.stop="removeExistingAttachment(attachment)"
             />
           </template>
-          <ShadcnButton
+          <UiButton
             :icon="Download"
             variant="ghost"
             size="icon-sm"
@@ -98,85 +115,99 @@
           v-for="attachment in attachmentsToAdd"
           :key="attachment.id"
           class="flex items-center gap-2 p-3 border rounded-lg bg-muted/50 transition-colors"
-          :class="editingAttachment === attachment.id ? 'bg-muted' : 'cursor-pointer hover:bg-muted'"
-          @click="editingAttachment !== attachment.id ? openViewer(attachment) : null"
+          :class="
+            editingAttachment === attachment.id
+              ? 'bg-muted'
+              : 'cursor-pointer hover:bg-muted'
+          "
+          @click="
+            editingAttachment !== attachment.id ? openViewer(attachment) : null
+          "
         >
-        <!-- Image Preview for new attachments -->
-        <div
-          v-if="isImage(attachment.fileName) && getAttachmentData(attachment)"
-          class="h-12 w-12 rounded overflow-hidden shrink-0"
-        >
-          <img
-            :src="getAttachmentData(attachment)"
-            :alt="attachment.fileName"
-            class="h-full w-full object-cover"
+          <!-- Image Preview for new attachments -->
+          <div
+            v-if="isImage(attachment.fileName) && getAttachmentData(attachment)"
+            class="h-12 w-12 rounded overflow-hidden shrink-0"
+          >
+            <img
+              :src="getAttachmentData(attachment)"
+              :alt="attachment.fileName"
+              class="h-full w-full object-cover"
+            />
+          </div>
+          <!-- PDF Icon -->
+          <FileText
+            v-else-if="getFileType(attachment.fileName) === 'pdf'"
+            class="h-5 w-5 text-red-500 shrink-0"
           />
-        </div>
-        <!-- PDF Icon -->
-        <FileText v-else-if="getFileType(attachment.fileName) === 'pdf'" class="h-5 w-5 text-red-500 shrink-0" />
-        <!-- Text Icon -->
-        <FileTypeIcon v-else-if="getFileType(attachment.fileName) === 'text'" class="h-5 w-5 text-blue-500 shrink-0" />
-        <!-- File Icon -->
-        <File v-else class="h-5 w-5 text-muted-foreground shrink-0" />
+          <!-- Text Icon -->
+          <FileTypeIcon
+            v-else-if="getFileType(attachment.fileName) === 'text'"
+            class="h-5 w-5 text-blue-500 shrink-0"
+          />
+          <!-- File Icon -->
+          <File v-else class="h-5 w-5 text-muted-foreground shrink-0" />
 
-        <div class="flex-1 min-w-0">
-          <!-- Edit mode -->
-          <input
-            v-if="editingAttachment === attachment.id"
-            v-model="editingFileName"
-            class="text-sm font-medium w-full bg-background border rounded px-2 py-1"
-            @click.stop
-            @keyup.enter="saveFileName(attachment)"
-            @keyup.esc="cancelEditing"
-          />
-          <!-- Display mode -->
+          <div class="flex-1 min-w-0">
+            <!-- Edit mode -->
+            <input
+              v-if="editingAttachment === attachment.id"
+              v-model="editingFileName"
+              class="text-sm font-medium w-full bg-background border rounded px-2 py-1"
+              @click.stop
+              @keyup.enter="saveFileName(attachment)"
+              @keyup.esc="cancelEditing"
+            />
+            <!-- Display mode -->
+            <template v-else>
+              <p class="text-sm font-medium truncate">
+                {{ attachment.fileName }}
+              </p>
+              <p v-if="attachment.size" class="text-xs text-muted-foreground">
+                {{ formatFileSize(attachment.size) }}
+              </p>
+            </template>
+          </div>
+
+          <!-- Edit mode buttons -->
+          <template v-if="!readOnly && editingAttachment === attachment.id">
+            <UiButton
+              :icon="Check"
+              variant="ghost"
+              size="icon-sm"
+              @click.stop="saveFileName(attachment)"
+            />
+            <UiButton
+              :icon="X"
+              variant="ghost"
+              size="icon-sm"
+              @click.stop="cancelEditing"
+            />
+          </template>
+
+          <!-- Normal mode buttons -->
           <template v-else>
-            <p class="text-sm font-medium truncate">{{ attachment.fileName }}</p>
-            <p v-if="attachment.size" class="text-xs text-muted-foreground">
-              {{ formatFileSize(attachment.size) }}
-            </p>
-          </template>
-        </div>
-
-        <!-- Edit mode buttons -->
-        <template v-if="!readOnly && editingAttachment === attachment.id">
-          <ShadcnButton
-            :icon="Check"
-            variant="ghost"
-            size="icon-sm"
-            @click.stop="saveFileName(attachment)"
-          />
-          <ShadcnButton
-            :icon="X"
-            variant="ghost"
-            size="icon-sm"
-            @click.stop="cancelEditing"
-          />
-        </template>
-
-        <!-- Normal mode buttons -->
-        <template v-else>
-          <template v-if="!readOnly">
-            <ShadcnButton
-              :icon="Pencil"
+            <template v-if="!readOnly">
+              <UiButton
+                :icon="Pencil"
+                variant="ghost"
+                size="icon-sm"
+                @click.stop="startEditingFileName(attachment)"
+              />
+              <UiButton
+                :icon="Trash2"
+                variant="ghost"
+                size="icon-sm"
+                @click.stop="removeNewAttachment(attachment)"
+              />
+            </template>
+            <UiButton
+              :icon="Download"
               variant="ghost"
               size="icon-sm"
-              @click.stop="startEditingFileName(attachment)"
-            />
-            <ShadcnButton
-              :icon="Trash2"
-              variant="ghost"
-              size="icon-sm"
-              @click.stop="removeNewAttachment(attachment)"
+              @click.stop="downloadAttachment(attachment)"
             />
           </template>
-          <ShadcnButton
-            :icon="Download"
-            variant="ghost"
-            size="icon-sm"
-            @click.stop="downloadAttachment(attachment)"
-          />
-        </template>
         </div>
       </div>
     </div>
@@ -198,14 +229,14 @@
         class="hidden"
         @change="onFileChange"
       />
-      <ShadcnButton
+      <UiButton
         :icon="Plus"
         variant="outline"
         class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
         @click="fileInput?.click()"
       >
-        {{ t('addAttachment') }}
-      </ShadcnButton>
+        {{ t("addAttachment") }}
+      </UiButton>
     </div>
 
     <!-- File Viewer -->
@@ -220,17 +251,32 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, File, FileText, FileType as FileTypeIcon, Trash2, X, Pencil, Check, Download } from "lucide-vue-next";
+import {
+  Plus,
+  File,
+  FileText,
+  FileType as FileTypeIcon,
+  Trash2,
+  X,
+  Pencil,
+  Check,
+  Download,
+} from "lucide-vue-next";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
 import "photoswipe/style.css";
 import { eq } from "drizzle-orm";
 import { haexPasswordsBinaries } from "~/database";
-import { getFileType, isImage, formatFileSize, type FileType } from "~/utils/fileTypes";
+import {
+  getFileType,
+  isImage,
+  formatFileSize,
+  type FileType,
+} from "~/utils/fileTypes";
 import type { AttachmentWithSize } from "~/types/attachment";
 
 // Type guard to check if attachment has data (new attachment)
 function isNewAttachment(attachment: AttachmentWithSize): boolean {
-  return 'data' in attachment && typeof attachment.data === 'string';
+  return "data" in attachment && typeof attachment.data === "string";
 }
 
 defineProps<{
@@ -286,13 +332,13 @@ function openViewer(attachment: AttachmentWithSize) {
   const fileType = getFileType(attachment.fileName);
 
   // For images, use PhotoSwipe gallery
-  if (fileType === 'image') {
+  if (fileType === "image") {
     openGallery(attachment);
     return;
   }
 
   // For PDF and text, use the viewer dialog
-  if (fileType === 'pdf' || fileType === 'text') {
+  if (fileType === "pdf" || fileType === "text") {
     const dataUrl = getAttachmentData(attachment);
     if (!dataUrl) return;
 
@@ -321,17 +367,19 @@ async function openGallery(attachment: AttachmentWithSize) {
       const src = getAttachmentData(img) || "";
 
       // Load image to get actual dimensions
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
-        const image = new Image();
-        image.onload = () => {
-          resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        };
-        image.onerror = () => {
-          // Fallback dimensions if image fails to load
-          resolve({ width: 1920, height: 1080 });
-        };
-        image.src = src;
-      });
+      const dimensions = await new Promise<{ width: number; height: number }>(
+        (resolve) => {
+          const image = new Image();
+          image.onload = () => {
+            resolve({ width: image.naturalWidth, height: image.naturalHeight });
+          };
+          image.onerror = () => {
+            // Fallback dimensions if image fails to load
+            resolve({ width: 1920, height: 1080 });
+          };
+          image.src = src;
+        }
+      );
 
       return {
         src,
@@ -346,7 +394,7 @@ async function openGallery(attachment: AttachmentWithSize) {
     dataSource: items,
     pswpModule: () => import("photoswipe"),
     index: imageIndex,
-    showHideAnimationType: 'zoom',
+    showHideAnimationType: "zoom",
     preload: [1, 2],
   });
 
@@ -362,7 +410,9 @@ function removeExistingAttachment(attachment: AttachmentWithSize) {
 
 // Remove new attachment
 function removeNewAttachment(attachment: AttachmentWithSize) {
-  attachmentsToAdd.value = attachmentsToAdd.value.filter((a) => a.id !== attachment.id);
+  attachmentsToAdd.value = attachmentsToAdd.value.filter(
+    (a) => a.id !== attachment.id
+  );
 }
 
 // Start editing attachment filename
@@ -426,20 +476,37 @@ async function downloadAttachment(attachment: AttachmentWithSize) {
 
       base64Data = result[0].data;
     } else {
-      console.error("[Attachments] Download - No data available for attachment");
+      console.error(
+        "[Attachments] Download - No data available for attachment"
+      );
       return;
     }
 
     // Convert base64 to Uint8Array
-    console.log("[Attachments] Download - base64Data length:", base64Data.length);
-    console.log("[Attachments] Download - base64Data starts with:", base64Data.substring(0, 50));
+    console.log(
+      "[Attachments] Download - base64Data length:",
+      base64Data.length
+    );
+    console.log(
+      "[Attachments] Download - base64Data starts with:",
+      base64Data.substring(0, 50)
+    );
 
-    const base64Content = base64Data.split(',')[1] || base64Data;
-    console.log("[Attachments] Download - base64Content length:", base64Content.length);
-    console.log("[Attachments] Download - base64Content starts with:", base64Content.substring(0, 50));
+    const base64Content = base64Data.split(",")[1] || base64Data;
+    console.log(
+      "[Attachments] Download - base64Content length:",
+      base64Content.length
+    );
+    console.log(
+      "[Attachments] Download - base64Content starts with:",
+      base64Content.substring(0, 50)
+    );
 
     const binaryString = atob(base64Content);
-    console.log("[Attachments] Download - binaryString length:", binaryString.length);
+    console.log(
+      "[Attachments] Download - binaryString length:",
+      binaryString.length
+    );
 
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -447,10 +514,17 @@ async function downloadAttachment(attachment: AttachmentWithSize) {
     }
 
     console.log("[Attachments] Download - bytes length:", bytes.length);
-    console.log("[Attachments] Download - bytes first 10:", Array.from(bytes.slice(0, 10)));
+    console.log(
+      "[Attachments] Download - bytes first 10:",
+      Array.from(bytes.slice(0, 10))
+    );
 
     // Use HaexHub Filesystem API to save file
-    console.log("[Attachments] Download - Calling saveFileAsync with", bytes.length, "bytes");
+    console.log(
+      "[Attachments] Download - Calling saveFileAsync with",
+      bytes.length,
+      "bytes"
+    );
     const saveResult = await client.filesystem.saveFileAsync(bytes, {
       defaultPath: attachment.fileName,
       title: t("saveFile"),

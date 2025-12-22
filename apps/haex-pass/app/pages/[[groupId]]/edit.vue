@@ -1,73 +1,77 @@
 <template>
   <div class="h-screen flex flex-col">
     <!-- Header -->
-    <div class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center justify-between gap-4">
-      <h1 class="text-lg font-semibold">{{ t('title') }}</h1>
+    <div
+      class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center justify-between gap-4"
+    >
+      <h1 class="text-lg font-semibold">{{ t("title") }}</h1>
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <ShadcnButton
+        <UiButton
           :icon="Trash2"
           variant="destructive"
-          size="sm"
           @click="showDeleteDialog = true"
         >
-          <span class="hidden sm:inline">{{ t('delete') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
+          <span class="hidden sm:inline">{{ t("delete") }}</span>
+        </UiButton>
+        <UiButton
           v-if="readOnly"
           :icon="Pencil"
           variant="outline"
-          size="sm"
           @click="readOnly = false"
         >
-          <span class="hidden sm:inline">{{ t('edit') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
+          <span class="hidden sm:inline">{{ t("edit") }}</span>
+        </UiButton>
+        <UiButton
           v-if="!readOnly"
           :icon="Save"
           :disabled="!hasChanges"
           :class="{ 'animate-pulse': hasChanges }"
-          size="sm"
           @click="onSaveAsync"
         >
-          <span class="hidden sm:inline">{{ t('save') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
-          :icon="X"
-          variant="ghost"
-          size="sm"
-          @click="onClose"
-        />
+          <span class="hidden sm:inline">{{ t("save") }}</span>
+        </UiButton>
+        <UiButton :icon="X" variant="ghost" @click="onClose" />
       </div>
     </div>
 
     <!-- Content -->
     <div v-if="group" class="flex-1 overflow-y-auto">
-      <HaexGroup
-        v-model="group"
-        :read-only="readOnly"
-        @submit="onSaveAsync"
-      />
+      <HaexGroup v-model="group" :read-only="readOnly" @submit="onSaveAsync" />
     </div>
 
     <div v-else class="flex-1 flex items-center justify-center">
-      <p class="text-muted-foreground">{{ t('loading') }}</p>
+      <p class="text-muted-foreground">{{ t("loading") }}</p>
     </div>
 
     <!-- Delete Dialog -->
     <ShadcnAlertDialog v-model:open="showDeleteDialog">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ inTrashGroup ? t('deleteDialog.final.title') : t('deleteDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>{{
+            inTrashGroup
+              ? t("deleteDialog.final.title")
+              : t("deleteDialog.title")
+          }}</ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ inTrashGroup ? t('deleteDialog.final.description') : t('deleteDialog.description') }}
+            {{
+              inTrashGroup
+                ? t("deleteDialog.final.description")
+                : t("deleteDialog.description")
+            }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('deleteDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogCancel>{{
+            t("deleteDialog.cancel")
+          }}</ShadcnAlertDialogCancel>
           <ShadcnAlertDialogAction @click="onDeleteAsync">
-            {{ inTrashGroup ? t('deleteDialog.final.confirm') : t('deleteDialog.confirm') }}
+            {{
+              inTrashGroup
+                ? t("deleteDialog.final.confirm")
+                : t("deleteDialog.confirm")
+            }}
           </ShadcnAlertDialogAction>
         </ShadcnAlertDialogFooter>
       </ShadcnAlertDialogContent>
@@ -77,15 +81,19 @@
     <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>{{
+            t("unsavedChangesDialog.title")
+          }}</ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ t('unsavedChangesDialog.description') }}
+            {{ t("unsavedChangesDialog.description") }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogCancel>{{
+            t("unsavedChangesDialog.cancel")
+          }}</ShadcnAlertDialogCancel>
           <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
-            {{ t('unsavedChangesDialog.confirm') }}
+            {{ t("unsavedChangesDialog.confirm") }}
           </ShadcnAlertDialogAction>
         </ShadcnAlertDialogFooter>
       </ShadcnAlertDialogContent>
@@ -94,11 +102,11 @@
 </template>
 
 <script setup lang="ts">
-import { Trash2, Pencil, Save, X } from 'lucide-vue-next';
-import type { SelectHaexPasswordsGroups } from '~/database';
+import { Trash2, Pencil, Save, X } from "lucide-vue-next";
+import type { SelectHaexPasswordsGroups } from "~/database";
 
 definePageMeta({
-  name: 'passwordGroupEdit',
+  name: "passwordGroupEdit",
 });
 
 const { t } = useI18n();
@@ -106,34 +114,39 @@ const router = useRouter();
 const localePath = useLocalePath();
 
 const { currentGroupId } = storeToRefs(usePasswordGroupStore());
-const { readGroupAsync, updateAsync, syncGroupItemsAsync } = usePasswordGroupStore();
+const { readGroupAsync, updateAsync, syncGroupItemsAsync } =
+  usePasswordGroupStore();
 const { inTrashGroup } = storeToRefs(useGroupTreeStore());
 const { deleteGroupAsync } = useGroupItemsDeleteStore();
 
 const group = ref<SelectHaexPasswordsGroups | null>(null);
-const originalGroup = ref<string>('');
+const originalGroup = ref<string>("");
 const ignoreChanges = ref(false);
 const readOnly = ref(true);
 const showDeleteDialog = ref(false);
 const showUnsavedChangesDialog = ref(false);
 
 // Load group data
-watch(currentGroupId, async () => {
-  if (!currentGroupId.value) return;
+watch(
+  currentGroupId,
+  async () => {
+    if (!currentGroupId.value) return;
 
-  ignoreChanges.value = false;
-  readOnly.value = true;
+    ignoreChanges.value = false;
+    readOnly.value = true;
 
-  try {
-    const foundGroup = await readGroupAsync(currentGroupId.value);
-    if (foundGroup) {
-      originalGroup.value = JSON.stringify(foundGroup);
-      group.value = { ...foundGroup };
+    try {
+      const foundGroup = await readGroupAsync(currentGroupId.value);
+      if (foundGroup) {
+        originalGroup.value = JSON.stringify(foundGroup);
+        group.value = { ...foundGroup };
+      }
+    } catch (error) {
+      console.error("Error loading group:", error);
     }
-  } catch (error) {
-    console.error('Error loading group:', error);
-  }
-}, { immediate: true });
+  },
+  { immediate: true }
+);
 
 const hasChanges = computed(() => {
   if (!group.value) return false;
@@ -151,7 +164,7 @@ const onSaveAsync = async () => {
     ignoreChanges.value = true;
     readOnly.value = true;
   } catch (error) {
-    console.error('Error saving group:', error);
+    console.error("Error saving group:", error);
   }
 };
 
@@ -168,14 +181,14 @@ const onDeleteAsync = async () => {
 
     await navigateTo(
       localePath({
-        name: 'passwordGroupItems',
+        name: "passwordGroupItems",
         params: {
           groupId: parentId || undefined,
         },
       })
     );
   } catch (error) {
-    console.error('Error deleting group:', error);
+    console.error("Error deleting group:", error);
   }
 };
 

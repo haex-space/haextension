@@ -1,20 +1,26 @@
 <template>
   <div class="h-screen flex flex-col">
     <!-- Header -->
-    <div class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center gap-4">
+    <div
+      class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center gap-4"
+    >
       <!-- Spacer for left side -->
       <div class="flex-1"></div>
 
       <!-- Tab Navigation (centered) -->
       <div class="flex-1 flex justify-center">
-        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+        <div
+          class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground"
+        >
           <button
             v-for="(tab, index) in tabs"
             :key="tab.value"
             type="button"
             :class="[
               'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-              activeTab === index ? 'bg-background text-foreground shadow' : 'hover:bg-background/50'
+              activeTab === index
+                ? 'bg-background text-foreground shadow'
+                : 'hover:bg-background/50',
             ]"
             @click="scrollToSlide(index)"
           >
@@ -25,35 +31,32 @@
 
       <!-- Header Actions (right side) -->
       <div class="flex-1 flex gap-2 items-center justify-end">
-        <ShadcnButton
+        <UiButton
           :icon="Save"
           :disabled="!hasChanges"
           :class="{ 'animate-pulse': hasChanges }"
           size="sm"
           @click="onSaveAsync"
         >
-          <span class="hidden sm:inline">{{ t('save') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
-          :icon="X"
-          variant="ghost"
-          size="sm"
-          @click="onClose"
-        />
+          <span class="hidden sm:inline">{{ t("save") }}</span>
+        </UiButton>
+        <UiButton :icon="X" variant="ghost" size="sm" @click="onClose" />
       </div>
     </div>
 
     <!-- Carousel Content -->
     <ShadcnCarousel
       class="flex-1 overflow-hidden"
-      @init-api="(api) => {
-        if (api) {
-          carouselApi = api;
-          api.on('select', () => {
-            activeTab = api.selectedScrollSnap();
-          });
+      @init-api="
+        (api) => {
+          if (api) {
+            carouselApi = api;
+            api.on('select', () => {
+              activeTab = api.selectedScrollSnap();
+            });
+          }
         }
-      }"
+      "
     >
       <ShadcnCarouselContent class="h-full">
         <!-- Details Slide -->
@@ -84,15 +87,19 @@
     <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>{{
+            t("unsavedChangesDialog.title")
+          }}</ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ t('unsavedChangesDialog.description') }}
+            {{ t("unsavedChangesDialog.description") }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogCancel>{{
+            t("unsavedChangesDialog.cancel")
+          }}</ShadcnAlertDialogCancel>
           <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
-            {{ t('unsavedChangesDialog.confirm') }}
+            {{ t("unsavedChangesDialog.confirm") }}
           </ShadcnAlertDialogAction>
         </ShadcnAlertDialogFooter>
       </ShadcnAlertDialogContent>
@@ -121,8 +128,8 @@ const { addAsync } = usePasswordItemStore();
 
 // Tabs configuration
 const tabs = computed(() => [
-  { label: t('tabs.details'), value: 'details' },
-  { label: t('tabs.extra'), value: 'extra' },
+  { label: t("tabs.details"), value: "details" },
+  { label: t("tabs.extra"), value: "extra" },
 ]);
 
 const activeTab = ref(0);
@@ -185,7 +192,8 @@ const showUnsavedChangesDialog = ref(false);
 
 // Check if there are unsaved changes
 const hasChanges = computed(() => {
-  const detailsChanged = JSON.stringify(item.originalDetails) !== JSON.stringify(item.details);
+  const detailsChanged =
+    JSON.stringify(item.originalDetails) !== JSON.stringify(item.details);
   return detailsChanged || item.keyValuesAdd.length > 0;
 });
 

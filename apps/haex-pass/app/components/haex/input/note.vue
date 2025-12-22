@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-2">
-    <ShadcnLabel>{{ t('note') }}</ShadcnLabel>
+    <ShadcnLabel>{{ t("note") }}</ShadcnLabel>
     <div class="relative">
       <ShadcnTextarea
         :model-value="model ?? undefined"
@@ -11,11 +11,12 @@
         v-bind="$attrs"
         @update:model-value="model = String($event) || null"
       />
-      <ShadcnButton
+      <UiButton
         :icon="copied ? Check : Copy"
         variant="ghost"
         size="icon"
         class="absolute top-2 right-2"
+        :tooltip="t('copy')"
         @click.prevent="handleCopy"
       />
     </div>
@@ -45,7 +46,8 @@ const handleCopy = async () => {
 <i18n lang="yaml">
 de:
   note: Notiz
-
+  copy: Kopieren
 en:
   note: Note
+  copy: Copy
 </i18n>

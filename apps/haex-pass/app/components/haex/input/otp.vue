@@ -1,30 +1,31 @@
 <template>
   <div class="space-y-2">
     <ShadcnLabel>{{ t("label") }}</ShadcnLabel>
-    <ShadcnInputGroup>
-      <ShadcnInputGroupInput
-        v-model="model"
-        type="text"
-        :placeholder="t('label')"
-        :readonly="readonly"
-        @keyup.enter="$emit('submit')"
-      />
-      <ShadcnInputGroupButton
-        :icon="secretCopied ? Check : Copy"
-        :tooltip="secretCopied ? t('copied') : t('copySecret')"
-        variant="ghost"
-        @click.prevent="copySecret"
-      />
-    </ShadcnInputGroup>
+
+    <UiInput
+      v-model="model"
+      type="text"
+      :placeholder="t('label')"
+      :readonly="readonly"
+      @keyup.enter="$emit('submit')"
+    >
+      <template #append>
+        <UiButton
+          :icon="secretCopied ? Check : Copy"
+          :tooltip="secretCopied ? t('copied') : t('copySecret')"
+          variant="ghost"
+          @click.prevent="copySecret"
+        />
+      </template>
+    </UiInput>
 
     <!-- OTP Settings (only show when there's a secret and not readonly) -->
-    <div
-      v-if="model && !readonly"
-      class="grid grid-cols-3 gap-2"
-    >
+    <div v-if="model && !readonly" class="grid grid-cols-3 gap-2">
       <!-- Algorithm -->
       <div>
-        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("algorithm") }}</ShadcnLabel>
+        <ShadcnLabel class="text-xs text-muted-foreground">
+          {{ t("algorithm") }}
+        </ShadcnLabel>
         <ShadcnSelect v-model="algorithmModel">
           <ShadcnSelectTrigger class="h-8 text-xs">
             <ShadcnSelectValue />
@@ -38,7 +39,9 @@
       </div>
       <!-- Digits -->
       <div>
-        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("digits") }}</ShadcnLabel>
+        <ShadcnLabel class="text-xs text-muted-foreground">
+          {{ t("digits") }}
+        </ShadcnLabel>
         <ShadcnSelect v-model="digitsModel">
           <ShadcnSelectTrigger class="h-8 text-xs">
             <ShadcnSelectValue />
@@ -52,7 +55,9 @@
       </div>
       <!-- Period -->
       <div>
-        <ShadcnLabel class="text-xs text-muted-foreground">{{ t("period") }}</ShadcnLabel>
+        <ShadcnLabel class="text-xs text-muted-foreground">
+          {{ t("period") }}
+        </ShadcnLabel>
         <ShadcnSelect v-model="periodModel">
           <ShadcnSelectTrigger class="h-8 text-xs">
             <ShadcnSelectValue />
@@ -108,7 +113,7 @@
             {{ remainingSeconds }}
           </div>
         </div>
-        <ShadcnButton
+        <UiButton
           type="button"
           :icon="copied ? Check : Copy"
           :tooltip="copied ? t('copied') : t('copyCode')"
@@ -131,7 +136,7 @@ const digits = defineModel<number | null>("digits");
 const period = defineModel<number | null>("period");
 const algorithm = defineModel<string | null>("algorithm");
 
-const props = defineProps<{
+defineProps<{
   readonly?: boolean;
 }>();
 
@@ -152,17 +157,23 @@ const effectiveAlgorithm = computed(() => algorithm.value ?? "SHA1");
 // String adapters for UiSelect (converts between number/string)
 const digitsModel = computed({
   get: () => String(effectiveDigits.value),
-  set: (val) => { digits.value = Number(val); },
+  set: (val) => {
+    digits.value = Number(val);
+  },
 });
 
 const periodModel = computed({
   get: () => String(effectivePeriod.value),
-  set: (val) => { period.value = Number(val); },
+  set: (val) => {
+    period.value = Number(val);
+  },
 });
 
 const algorithmModel = computed({
   get: () => effectiveAlgorithm.value,
-  set: (val) => { algorithm.value = val; },
+  set: (val) => {
+    algorithm.value = val;
+  },
 });
 
 // Circle animation values
@@ -207,7 +218,8 @@ const generateCodeAsync = async () => {
 // Update remaining seconds
 const updateRemainingSeconds = () => {
   const now = Math.floor(Date.now() / 1000);
-  remainingSeconds.value = effectivePeriod.value - (now % effectivePeriod.value);
+  remainingSeconds.value =
+    effectivePeriod.value - (now % effectivePeriod.value);
 };
 
 // Copy secret

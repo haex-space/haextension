@@ -30,7 +30,7 @@
       />
       <ShadcnDropdownMenu v-else>
         <ShadcnDropdownMenuTrigger as-child>
-          <ShadcnButton
+          <UiButton
             :icon="Plus"
             :tooltip="t('add')"
             variant="default"
@@ -38,7 +38,10 @@
           />
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent align="end">
-          <ShadcnDropdownMenuItem class="py-3 text-base" @select="onCreateFolder">
+          <ShadcnDropdownMenuItem
+            class="py-3 text-base"
+            @select="onCreateFolder"
+          >
             <Folder class="mr-3 size-5" />
             {{ t("addMenu.folder") }}
           </ShadcnDropdownMenuItem>
@@ -52,7 +55,7 @@
       <!-- Sort -->
       <ShadcnDropdownMenu>
         <ShadcnDropdownMenuTrigger as-child>
-          <ShadcnButton
+          <UiButton
             :icon="ArrowUpDown"
             :tooltip="t('sort')"
             variant="outline"
@@ -69,7 +72,10 @@
               class="ml-auto size-4"
             />
           </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem class="py-3 text-base" @select="sortByDateCreated">
+          <ShadcnDropdownMenuItem
+            class="py-3 text-base"
+            @select="sortByDateCreated"
+          >
             <CalendarPlus class="mr-3 size-5" />
             {{ t("sortBy.dateCreated") }}
             <component
@@ -78,7 +84,10 @@
               class="ml-auto size-4"
             />
           </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem class="py-3 text-base" @select="sortByDateModified">
+          <ShadcnDropdownMenuItem
+            class="py-3 text-base"
+            @select="sortByDateModified"
+          >
             <CalendarClock class="mr-3 size-5" />
             {{ t("sortBy.dateModified") }}
             <component
@@ -93,7 +102,7 @@
       <!-- More Menu -->
       <ShadcnDropdownMenu>
         <ShadcnDropdownMenuTrigger as-child>
-          <ShadcnButton
+          <UiButton
             :icon="MoreVertical"
             :tooltip="t('more')"
             variant="outline"
@@ -101,7 +110,10 @@
           />
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent align="end">
-          <ShadcnDropdownMenuItem class="py-3 text-base" @select="showImportDrawer = true">
+          <ShadcnDropdownMenuItem
+            class="py-3 text-base"
+            @select="showImportDrawer = true"
+          >
             <DatabaseBackup class="mr-3 size-5" />
             {{ t("moreMenu.import") }}
           </ShadcnDropdownMenuItem>
@@ -136,8 +148,11 @@ const router = useRouter();
 const localePath = useLocalePath();
 const { searchInput } = storeToRefs(useSearchStore());
 const { currentGroupId } = storeToRefs(usePasswordGroupStore());
-const { isProcessing, processingProgress } = storeToRefs(useGroupItemsDeleteStore());
-const { sortByName, sortByDateCreated, sortByDateModified } = useGroupItemsMenuStore();
+const { isProcessing, processingProgress } = storeToRefs(
+  useGroupItemsDeleteStore()
+);
+const { sortByName, sortByDateCreated, sortByDateModified } =
+  useGroupItemsMenuStore();
 const { sortField, sortDirection } = storeToRefs(useGroupItemsMenuStore());
 
 const showImportDrawer = ref(false);
@@ -168,7 +183,6 @@ const onCreateItem = async () => {
     })
   );
 };
-
 </script>
 
 <i18n lang="yaml">

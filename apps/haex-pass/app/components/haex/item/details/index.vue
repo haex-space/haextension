@@ -62,16 +62,8 @@
       <!-- Tags -->
       <div v-show="!readOnly || tags.length">
         <ShadcnLabel>{{ t("item.tags.label") }}</ShadcnLabel>
-        <ShadcnTagsInput
-          v-if="!readOnly"
-          v-model="tags"
-          class="mt-2"
-        >
-          <ShadcnTagsInputItem
-            v-for="item in tags"
-            :key="item"
-            :value="item"
-          >
+        <ShadcnTagsInput v-if="!readOnly" v-model="tags" class="mt-2">
+          <ShadcnTagsInputItem v-for="item in tags" :key="item" :value="item">
             <ShadcnTagsInputItemText />
             <ShadcnTagsInputItemDelete />
           </ShadcnTagsInputItem>
@@ -100,14 +92,21 @@
       <div v-show="!readOnly || itemDetails.expiresAt">
         <ShadcnLabel :class="{ 'text-destructive': isExpired }">
           {{ t("item.expiresAt") }}
-          <span v-if="isExpired" class="ml-2 text-xs">{{ t("item.expired") }}</span>
-          <span v-else-if="isExpiringSoon" class="ml-2 text-xs text-warning">{{ t("item.expiringSoon") }}</span>
+          <span v-if="isExpired" class="ml-2 text-xs">{{
+            t("item.expired")
+          }}</span>
+          <span v-else-if="isExpiringSoon" class="ml-2 text-xs text-warning">{{
+            t("item.expiringSoon")
+          }}</span>
         </ShadcnLabel>
         <ShadcnDatePicker
           v-if="!readOnly"
           v-model="itemDetails.expiresAt"
           :placeholder="t('item.addExpiryDate')"
-          :class="{ 'border-destructive': isExpired, 'border-warning': isExpiringSoon && !isExpired }"
+          :class="{
+            'border-destructive': isExpired,
+            'border-warning': isExpiringSoon && !isExpired,
+          }"
           :locale="locale"
         />
         <div v-else-if="itemDetails.expiresAt" class="text-sm">
@@ -116,7 +115,10 @@
       </div>
 
       <!-- Icon & Color -->
-      <div v-show="!readOnly || itemDetails.icon || itemDetails.color" class="grid grid-cols-2 gap-4">
+      <div
+        v-show="!readOnly || itemDetails.icon || itemDetails.color"
+        class="grid grid-cols-2 gap-4"
+      >
         <HaexSelectIcon
           v-model="itemDetails.icon"
           :color="itemDetails.color"
@@ -138,7 +140,7 @@
 import { onStartTyping } from "@vueuse/core";
 import type { SelectHaexPasswordsItemDetails } from "~/database";
 
-defineProps<{
+const props = defineProps<{
   defaultIcon?: string | null;
   readOnly?: boolean;
   withCopyButton?: boolean;
@@ -168,20 +170,24 @@ const tags = computed<string[]>({
 
 const titleRef = useTemplateRef<{ focus: () => void }>("titleRef");
 
+const focus = () => titleRef.value?.focus();
 onMounted(() => {
   nextTick(() => {
-    titleRef.value?.focus();
+    focus();
   });
 });
 
 onStartTyping(() => {
-  titleRef.value?.focus();
+  focus();
 });
 
+watch(
+  () => props.readOnly,
+  () => focus()
+);
 const onFaviconFetched = (iconName: string) => {
   itemDetails.value.icon = iconName;
 };
-
 
 // Format expiry date for read-only display
 const formattedExpiryDate = computed(() => {
@@ -204,7 +210,9 @@ const isExpiringSoon = computed(() => {
   const expiryDate = new Date(itemDetails.value.expiresAt);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntilExpiry = Math.ceil(
+    (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
   return daysUntilExpiry <= 30; // Warn 30 days before expiry
 });
 </script>

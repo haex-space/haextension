@@ -4,7 +4,7 @@
 
     <ShadcnPopover v-model:open="isOpen">
       <ShadcnPopoverTrigger as-child>
-        <ShadcnButton
+        <UiButton
           variant="outline"
           role="combobox"
           :aria-expanded="isOpen"
@@ -23,7 +23,7 @@
               props.color ? { color: getTextColor(props.color) } : undefined
             "
           />
-        </ShadcnButton>
+        </UiButton>
       </ShadcnPopoverTrigger>
       <ShadcnPopoverContent class="w-96 p-4 max-h-128 overflow-y-auto">
         <!-- Custom Icons Section -->
@@ -83,7 +83,7 @@
 
         <!-- Actions -->
         <div class="flex gap-2 mt-4">
-          <ShadcnButton
+          <UiButton
             v-if="iconName"
             variant="outline"
             size="sm"
@@ -91,15 +91,15 @@
             @click="clearIcon"
           >
             {{ t("clear") }}
-          </ShadcnButton>
-          <ShadcnButton
+          </UiButton>
+          <UiButton
             variant="default"
             size="sm"
             class="flex-1"
             @click="isOpen = false"
           >
             {{ t("close") }}
-          </ShadcnButton>
+          </UiButton>
         </div>
       </ShadcnPopoverContent>
     </ShadcnPopover>

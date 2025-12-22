@@ -1,50 +1,47 @@
 <template>
   <div class="h-screen flex flex-col">
     <!-- Header -->
-    <div class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center justify-between gap-4">
-      <h1 class="text-lg font-semibold">{{ t('title') }}</h1>
+    <div
+      class="sticky top-0 z-20 bg-background border-b border-border px-4 py-3 flex items-center justify-between gap-4"
+    >
+      <h1 class="text-lg font-semibold">{{ t("title") }}</h1>
 
       <!-- Header Actions -->
       <div class="flex gap-2 items-center">
-        <ShadcnButton
+        <UiButton
           :icon="Save"
           :disabled="!hasChanges"
           :class="{ 'animate-pulse': hasChanges }"
-          size="sm"
           @click="createAsync"
         >
-          <span class="hidden sm:inline">{{ t('save') }}</span>
-        </ShadcnButton>
-        <ShadcnButton
-          :icon="X"
-          variant="ghost"
-          size="sm"
-          @click="onClose"
-        />
+          <span class="hidden sm:inline">{{ t("save") }}</span>
+        </UiButton>
+        <UiButton :icon="X" variant="ghost" @click="onClose" />
       </div>
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto">
-      <HaexGroup
-        v-model="group"
-        @submit="createAsync"
-      />
+      <HaexGroup v-model="group" @submit="createAsync" />
     </div>
 
     <!-- Unsaved Changes Dialog -->
     <ShadcnAlertDialog v-model:open="showUnsavedChangesDialog">
       <ShadcnAlertDialogContent>
         <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('unsavedChangesDialog.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogTitle>
+            {{ t("unsavedChangesDialog.title") }}
+          </ShadcnAlertDialogTitle>
           <ShadcnAlertDialogDescription>
-            {{ t('unsavedChangesDialog.description') }}
+            {{ t("unsavedChangesDialog.description") }}
           </ShadcnAlertDialogDescription>
         </ShadcnAlertDialogHeader>
         <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('unsavedChangesDialog.cancel') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogCancel>
+            {{ t("unsavedChangesDialog.cancel") }}
+          </ShadcnAlertDialogCancel>
           <ShadcnAlertDialogAction @click="onConfirmDiscardChanges">
-            {{ t('unsavedChangesDialog.confirm') }}
+            {{ t("unsavedChangesDialog.confirm") }}
           </ShadcnAlertDialogAction>
         </ShadcnAlertDialogFooter>
       </ShadcnAlertDialogContent>
@@ -53,11 +50,11 @@
 </template>
 
 <script setup lang="ts">
-import { Save, X } from 'lucide-vue-next';
-import type { SelectHaexPasswordsGroups } from '~/database';
+import { Save, X } from "lucide-vue-next";
+import type { SelectHaexPasswordsGroups } from "~/database";
 
 definePageMeta({
-  name: 'passwordGroupCreate',
+  name: "passwordGroupCreate",
 });
 
 const { t } = useI18n();
@@ -67,9 +64,9 @@ const localePath = useLocalePath();
 const { currentGroupId } = storeToRefs(usePasswordGroupStore());
 
 const group = ref<SelectHaexPasswordsGroups>({
-  name: '',
-  description: '',
-  id: '',
+  name: "",
+  description: "",
+  id: "",
   color: null,
   icon: null,
   order: null,
@@ -106,14 +103,14 @@ const createAsync = async () => {
     ignoreChanges.value = true;
     await navigateTo(
       localePath({
-        name: 'passwordGroupItems',
+        name: "passwordGroupItems",
         params: {
           groupId: newGroup.id,
         },
       })
     );
   } catch (error) {
-    console.error('Error creating group:', error);
+    console.error("Error creating group:", error);
   }
 };
 

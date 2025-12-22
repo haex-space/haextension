@@ -1,21 +1,8 @@
 <template>
-  <ShadcnButton
-    variant="default"
-    class="relative overflow-hidden"
-    disabled
-  >
-    <svg
-      class="w-5 h-5"
-      viewBox="0 0 36 36"
-    >
+  <UiButton variant="default" class="relative overflow-hidden" disabled>
+    <svg class="w-5 h-5" viewBox="0 0 36 36">
       <!-- Background circle -->
-      <circle
-        cx="18"
-        cy="18"
-        r="16"
-        fill="currentColor"
-        opacity="0.3"
-      />
+      <circle cx="18" cy="18" r="16" fill="currentColor" opacity="0.3" />
       <!-- Progress pie slice -->
       <path
         :d="progressPath"
@@ -23,7 +10,7 @@
         class="transition-all duration-300"
       />
     </svg>
-  </ShadcnButton>
+  </UiButton>
 </template>
 
 <script setup lang="ts">

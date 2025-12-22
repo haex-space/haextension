@@ -3,7 +3,7 @@
     <ShadcnLabel v-if="label">{{ label }}</ShadcnLabel>
 
     <div class="flex items-center gap-2">
-      <ShadcnButton
+      <UiButton
         type="button"
         variant="outline"
         :disabled="readOnly"
@@ -12,7 +12,7 @@
         @click="colorInputRef?.click()"
       >
         {{ model || t("label") }}
-      </ShadcnButton>
+      </UiButton>
 
       <input
         ref="colorInputRef"
@@ -22,7 +22,7 @@
         class="sr-only"
       />
 
-      <ShadcnButton
+      <UiButton
         type="button"
         variant="outline"
         size="icon"
@@ -30,7 +30,7 @@
         @click="model = null"
       >
         <RotateCcw class="h-4 w-4" />
-      </ShadcnButton>
+      </UiButton>
     </div>
   </div>
 </template>

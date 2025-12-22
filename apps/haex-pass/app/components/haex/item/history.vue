@@ -39,7 +39,9 @@
               ]"
             >
               <h3 class="font-medium text-sm">
-                {{ formatRelativeDate(snapshot.modifiedAt || snapshot.createdAt) }}
+                {{
+                  formatRelativeDate(snapshot.modifiedAt || snapshot.createdAt)
+                }}
               </h3>
               <p class="text-xs text-muted-foreground">
                 {{ formatSnapshotSize(snapshot.snapshotData) }}
@@ -51,40 +53,37 @@
 
       <!-- No History Message -->
       <div v-else class="text-center text-muted-foreground py-8">
-        {{ t('noHistory') }}
+        {{ t("noHistory") }}
       </div>
     </div>
 
     <!-- Right: Snapshot Detail -->
     <div class="flex-1 overflow-y-auto px-4 py-4 border-l border-border">
-      <div v-if="selectedSnapshot && parsedSnapshotData" class="flex flex-col gap-4 max-w-2xl">
+      <div
+        v-if="selectedSnapshot && parsedSnapshotData"
+        class="flex flex-col gap-4 max-w-2xl"
+      >
         <div>
           <p class="text-sm text-muted-foreground">
-            {{ t('modified') }}: {{ formatDate(selectedSnapshot.modifiedAt) }}
+            {{ t("modified") }}: {{ formatDate(selectedSnapshot.modifiedAt) }}
           </p>
         </div>
 
         <!-- Title -->
         <div v-if="parsedSnapshotData.title">
-          <ShadcnLabel>{{ t('title') }}</ShadcnLabel>
-          <HaexInput
-            :model-value="parsedSnapshotData.title"
-            readonly
-          />
+          <ShadcnLabel>{{ t("title") }}</ShadcnLabel>
+          <HaexInput :model-value="parsedSnapshotData.title" readonly />
         </div>
 
         <!-- Username -->
         <div v-if="parsedSnapshotData.username">
-          <ShadcnLabel>{{ t('username') }}</ShadcnLabel>
-          <HaexInput
-            :model-value="parsedSnapshotData.username"
-            readonly
-          />
+          <ShadcnLabel>{{ t("username") }}</ShadcnLabel>
+          <HaexInput :model-value="parsedSnapshotData.username" readonly />
         </div>
 
         <!-- Password -->
         <div v-if="parsedSnapshotData.password">
-          <ShadcnLabel>{{ t('password') }}</ShadcnLabel>
+          <ShadcnLabel>{{ t("password") }}</ShadcnLabel>
           <HaexInputPassword
             :model-value="parsedSnapshotData.password"
             read-only
@@ -93,16 +92,13 @@
 
         <!-- URL -->
         <div v-if="parsedSnapshotData.url">
-          <ShadcnLabel>{{ t('url') }}</ShadcnLabel>
-          <HaexInput
-            :model-value="parsedSnapshotData.url"
-            readonly
-          />
+          <ShadcnLabel>{{ t("url") }}</ShadcnLabel>
+          <HaexInput :model-value="parsedSnapshotData.url" readonly />
         </div>
 
         <!-- Note -->
         <div v-if="parsedSnapshotData.note">
-          <ShadcnLabel>{{ t('note') }}</ShadcnLabel>
+          <ShadcnLabel>{{ t("note") }}</ShadcnLabel>
           <ShadcnTextarea
             :model-value="parsedSnapshotData.note"
             disabled
@@ -112,50 +108,38 @@
 
         <!-- Tags -->
         <div v-if="parsedSnapshotData.tags">
-          <ShadcnLabel>{{ t('tags') }}</ShadcnLabel>
-          <HaexInput
-            :model-value="parsedSnapshotData.tags"
-            readonly
-          />
+          <ShadcnLabel>{{ t("tags") }}</ShadcnLabel>
+          <HaexInput :model-value="parsedSnapshotData.tags" readonly />
         </div>
 
         <!-- OTP Secret -->
         <div v-if="parsedSnapshotData.otpSecret">
-          <ShadcnLabel>{{ t('otpSecret') }}</ShadcnLabel>
-          <HaexInput
-            :model-value="parsedSnapshotData.otpSecret"
-            readonly
-          />
+          <ShadcnLabel>{{ t("otpSecret") }}</ShadcnLabel>
+          <HaexInput :model-value="parsedSnapshotData.otpSecret" readonly />
         </div>
 
         <!-- Custom Fields -->
         <div v-if="parsedSnapshotData.keyValues?.length" class="space-y-3">
-          <h3 class="text-sm font-semibold">{{ t('customFields') }}</h3>
+          <h3 class="text-sm font-semibold">{{ t("customFields") }}</h3>
           <div
             v-for="(kv, index) in parsedSnapshotData.keyValues"
             :key="index"
             class="p-3 rounded-lg border border-border gap-3 grid grid-cols-1 sm:grid-cols-2"
           >
             <div>
-              <ShadcnLabel>{{ t('key') }}</ShadcnLabel>
-              <HaexInput
-                :model-value="kv.key"
-                readonly
-              />
+              <ShadcnLabel>{{ t("key") }}</ShadcnLabel>
+              <HaexInput :model-value="kv.key" readonly />
             </div>
             <div>
-              <ShadcnLabel>{{ t('value') }}</ShadcnLabel>
-              <HaexInput
-                :model-value="kv.value"
-                readonly
-              />
+              <ShadcnLabel>{{ t("value") }}</ShadcnLabel>
+              <HaexInput :model-value="kv.value" readonly />
             </div>
           </div>
         </div>
 
         <!-- Attachments -->
         <div v-if="historyAttachments.length" class="space-y-3">
-          <h3 class="text-sm font-semibold">{{ t('attachments') }}</h3>
+          <h3 class="text-sm font-semibold">{{ t("attachments") }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <div
               v-for="attachment in historyAttachments"
@@ -175,20 +159,28 @@
                 />
               </div>
               <!-- PDF Icon -->
-              <FileText v-else-if="getFileType(attachment.fileName) === 'pdf'" class="h-5 w-5 text-red-500 shrink-0" />
+              <FileText
+                v-else-if="getFileType(attachment.fileName) === 'pdf'"
+                class="h-5 w-5 text-red-500 shrink-0"
+              />
               <!-- Text Icon -->
-              <FileTypeIcon v-else-if="getFileType(attachment.fileName) === 'text'" class="h-5 w-5 text-blue-500 shrink-0" />
+              <FileTypeIcon
+                v-else-if="getFileType(attachment.fileName) === 'text'"
+                class="h-5 w-5 text-blue-500 shrink-0"
+              />
               <!-- File Icon -->
               <File v-else class="h-5 w-5 text-muted-foreground shrink-0" />
 
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium truncate">{{ attachment.fileName }}</p>
+                <p class="text-sm font-medium truncate">
+                  {{ attachment.fileName }}
+                </p>
                 <p v-if="attachment.size" class="text-xs text-muted-foreground">
                   {{ formatFileSize(attachment.size) }}
                 </p>
               </div>
 
-              <ShadcnButton
+              <UiButton
                 :icon="Download"
                 variant="ghost"
                 size="icon-sm"
@@ -201,7 +193,7 @@
 
       <!-- No Snapshot Selected -->
       <div v-else class="text-center text-muted-foreground py-8">
-        {{ t('selectSnapshot') }}
+        {{ t("selectSnapshot") }}
       </div>
     </div>
 
@@ -217,14 +209,26 @@
 </template>
 
 <script setup lang="ts">
-import { Clock, File, FileText, FileType as FileTypeIcon, Download } from 'lucide-vue-next';
-import { useTimeAgo } from '@vueuse/core';
-import PhotoSwipeLightbox from 'photoswipe/lightbox';
-import 'photoswipe/style.css';
-import { eq } from 'drizzle-orm';
-import { haexPasswordsBinaries } from '~/database';
-import type { SelectHaexPasswordsItemSnapshots } from '~/database';
-import { getFileType, isImage, formatFileSize, createDataUrl, type FileType } from '~/utils/fileTypes';
+import {
+  Clock,
+  File,
+  FileText,
+  FileType as FileTypeIcon,
+  Download,
+} from "lucide-vue-next";
+import { useTimeAgo } from "@vueuse/core";
+import PhotoSwipeLightbox from "photoswipe/lightbox";
+import "photoswipe/style.css";
+import { eq } from "drizzle-orm";
+import { haexPasswordsBinaries } from "~/database";
+import type { SelectHaexPasswordsItemSnapshots } from "~/database";
+import {
+  getFileType,
+  isImage,
+  formatFileSize,
+  createDataUrl,
+  type FileType,
+} from "~/utils/fileTypes";
 
 interface SnapshotData {
   title?: string;
@@ -275,16 +279,20 @@ const viewerState = reactive<{
 });
 
 // Load snapshots when component mounts or itemId changes
-watch(() => props.itemId, async (newItemId) => {
-  if (newItemId) {
-    try {
-      snapshots.value = await readSnapshotsAsync(newItemId);
-    } catch (error) {
-      console.error('Error loading snapshots:', error);
-      snapshots.value = [];
+watch(
+  () => props.itemId,
+  async (newItemId) => {
+    if (newItemId) {
+      try {
+        snapshots.value = await readSnapshotsAsync(newItemId);
+      } catch (error) {
+        console.error("Error loading snapshots:", error);
+        snapshots.value = [];
+      }
     }
-  }
-}, { immediate: true });
+  },
+  { immediate: true }
+);
 
 // Sort snapshots by date (newest first)
 const sortedSnapshots = computed(() => {
@@ -318,31 +326,109 @@ const parsedSnapshotData = computed<SnapshotData | null>(() => {
 });
 
 // Load attachments when snapshot changes
-watch(parsedSnapshotData, async (data) => {
-  if (!data?.attachments?.length || !orm.value) {
-    historyAttachments.value = [];
-    return;
-  }
+watch(
+  parsedSnapshotData,
+  async (data) => {
+    if (!data?.attachments?.length || !orm.value) {
+      historyAttachments.value = [];
+      return;
+    }
 
-  console.log('[History] Loading attachments:', data.attachments?.length, 'attachments');
-  console.log('[History] Attachment details:', data.attachments);
+    console.log(
+      "[History] Loading attachments:",
+      data.attachments?.length,
+      "attachments"
+    );
+    console.log("[History] Attachment details:", data.attachments);
 
-  // Load binary data for each attachment
-  const loadedAttachments = await Promise.all(
-    data.attachments.map(async (att, index) => {
-      console.log(`[History] Loading attachment ${index + 1}/${data.attachments?.length}:`, att.fileName, 'hash:', att.binaryHash);
+    // Load binary data for each attachment
+    const loadedAttachments = await Promise.all(
+      data.attachments.map(async (att, index) => {
+        console.log(
+          `[History] Loading attachment ${index + 1}/${
+            data.attachments?.length
+          }:`,
+          att.fileName,
+          "hash:",
+          att.binaryHash
+        );
 
-      try {
-        const result = await orm.value
-          ?.select()
-          .from(haexPasswordsBinaries)
-          .where(eq(haexPasswordsBinaries.hash, att.binaryHash))
-          .limit(1);
+        try {
+          const result = await orm.value
+            ?.select()
+            .from(haexPasswordsBinaries)
+            .where(eq(haexPasswordsBinaries.hash, att.binaryHash))
+            .limit(1);
 
-        console.log(`[History] Database result for ${att.fileName}:`, result?.length ? 'found' : 'NOT FOUND');
+          console.log(
+            `[History] Database result for ${att.fileName}:`,
+            result?.length ? "found" : "NOT FOUND"
+          );
 
-        if (!result?.length || !result[0]?.data) {
-          console.warn(`[History] No data found for attachment ${att.fileName}`);
+          if (!result?.length || !result[0]?.data) {
+            console.warn(
+              `[History] No data found for attachment ${att.fileName}`
+            );
+            return {
+              id: att.binaryHash,
+              itemId: props.itemId,
+              fileName: att.fileName,
+              binaryHash: att.binaryHash,
+              dataUrl: undefined,
+              size: undefined,
+            };
+          }
+
+          const binary = result[0];
+          const base64Data = binary.data;
+
+          console.log(
+            `[History] Binary data length for ${att.fileName}:`,
+            base64Data?.length || 0,
+            "bytes, size:",
+            binary.size
+          );
+
+          const fileType = getFileType(att.fileName);
+
+          // Create data URL for images, PDFs, and text files (needed for viewer)
+          if (
+            fileType === "image" ||
+            fileType === "pdf" ||
+            fileType === "text"
+          ) {
+            const dataUrl = createDataUrl(base64Data, att.fileName);
+            console.log(
+              `[History] Created data URL for ${fileType} ${att.fileName}`
+            );
+
+            return {
+              id: att.binaryHash,
+              itemId: props.itemId,
+              fileName: att.fileName,
+              binaryHash: att.binaryHash,
+              dataUrl,
+              size: binary.size ?? undefined,
+            };
+          }
+
+          console.log(
+            `[History] Other file type ${att.fileName}, type:`,
+            fileType
+          );
+          return {
+            id: att.binaryHash,
+            itemId: props.itemId,
+            fileName: att.fileName,
+            binaryHash: att.binaryHash,
+            dataUrl: undefined,
+            size: binary.size ?? undefined,
+          };
+        } catch (error) {
+          console.error(
+            `[History] Error loading attachment ${att.fileName}:`,
+            error
+          );
           return {
             id: att.binaryHash,
             itemId: props.itemId,
@@ -352,104 +438,70 @@ watch(parsedSnapshotData, async (data) => {
             size: undefined,
           };
         }
+      })
+    );
 
-        const binary = result[0];
-        const base64Data = binary.data;
+    console.log("[History] All attachments loaded:", loadedAttachments.length);
+    console.log(
+      "[History] Loaded attachment details:",
+      loadedAttachments.map((a) => ({
+        fileName: a.fileName,
+        hasDataUrl: !!a.dataUrl,
+        size: a.size,
+      }))
+    );
 
-        console.log(`[History] Binary data length for ${att.fileName}:`, base64Data?.length || 0, 'bytes, size:', binary.size);
-
-        const fileType = getFileType(att.fileName);
-
-        // Create data URL for images, PDFs, and text files (needed for viewer)
-        if (fileType === 'image' || fileType === 'pdf' || fileType === 'text') {
-          const dataUrl = createDataUrl(base64Data, att.fileName);
-          console.log(`[History] Created data URL for ${fileType} ${att.fileName}`);
-
-          return {
-            id: att.binaryHash,
-            itemId: props.itemId,
-            fileName: att.fileName,
-            binaryHash: att.binaryHash,
-            dataUrl,
-            size: binary.size ?? undefined,
-          };
-        }
-
-        console.log(`[History] Other file type ${att.fileName}, type:`, fileType);
-        return {
-          id: att.binaryHash,
-          itemId: props.itemId,
-          fileName: att.fileName,
-          binaryHash: att.binaryHash,
-          dataUrl: undefined,
-          size: binary.size ?? undefined,
-        };
-      } catch (error) {
-        console.error(`[History] Error loading attachment ${att.fileName}:`, error);
-        return {
-          id: att.binaryHash,
-          itemId: props.itemId,
-          fileName: att.fileName,
-          binaryHash: att.binaryHash,
-          dataUrl: undefined,
-          size: undefined,
-        };
-      }
-    })
-  );
-
-  console.log('[History] All attachments loaded:', loadedAttachments.length);
-  console.log('[History] Loaded attachment details:', loadedAttachments.map(a => ({ fileName: a.fileName, hasDataUrl: !!a.dataUrl, size: a.size })));
-
-  historyAttachments.value = loadedAttachments;
-}, { immediate: true });
+    historyAttachments.value = loadedAttachments;
+  },
+  { immediate: true }
+);
 
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return t('unknown');
+  if (!dateString) return t("unknown");
 
   try {
     return new Date(dateString).toLocaleString();
   } catch {
-    return t('unknown');
+    return t("unknown");
   }
 }
 
 function formatRelativeDate(dateString: string | null | undefined): string {
-  if (!dateString) return t('unknown');
+  if (!dateString) return t("unknown");
 
   try {
     // useTimeAgo has English built-in, only provide German translations
     const timeAgo = useTimeAgo(new Date(dateString), {
       messages:
-        locale.value === 'de'
+        locale.value === "de"
           ? {
-              justNow: 'gerade eben',
-              past: 'vor {0}',
-              future: 'in {0}',
+              justNow: "gerade eben",
+              past: "vor {0}",
+              future: "in {0}",
               second: (n: number) =>
-                n === 1 ? 'einer Sekunde' : `${n} Sekunden`,
+                n === 1 ? "einer Sekunde" : `${n} Sekunden`,
               minute: (n: number) =>
-                n === 1 ? 'einer Minute' : `${n} Minuten`,
-              hour: (n: number) => (n === 1 ? 'einer Stunde' : `${n} Stunden`),
-              day: (n: number) => (n === 1 ? 'einem Tag' : `${n} Tagen`),
-              week: (n: number) => (n === 1 ? 'einer Woche' : `${n} Wochen`),
-              month: (n: number) => (n === 1 ? 'einem Monat' : `${n} Monaten`),
-              year: (n: number) => (n === 1 ? 'einem Jahr' : `${n} Jahren`),
-              invalid: '',
+                n === 1 ? "einer Minute" : `${n} Minuten`,
+              hour: (n: number) => (n === 1 ? "einer Stunde" : `${n} Stunden`),
+              day: (n: number) => (n === 1 ? "einem Tag" : `${n} Tagen`),
+              week: (n: number) => (n === 1 ? "einer Woche" : `${n} Wochen`),
+              month: (n: number) => (n === 1 ? "einem Monat" : `${n} Monaten`),
+              year: (n: number) => (n === 1 ? "einem Jahr" : `${n} Jahren`),
+              invalid: "",
             }
           : undefined, // undefined = use built-in English messages
     });
     return timeAgo.value;
   } catch {
-    return t('unknown');
+    return t("unknown");
   }
 }
 
 function formatSnapshotSize(snapshotData: string | null): string {
-  if (!snapshotData) return '0 B';
+  if (!snapshotData) return "0 B";
 
   const bytes = new Blob([snapshotData]).size;
-  const units = ['B', 'KB', 'MB', 'GB'];
+  const units = ["B", "KB", "MB", "GB"];
   let size = bytes;
   let unitIndex = 0;
 
@@ -466,13 +518,13 @@ function openViewer(attachment: HistoryAttachment) {
   const fileType = getFileType(attachment.fileName);
 
   // For images, use PhotoSwipe gallery
-  if (fileType === 'image') {
+  if (fileType === "image") {
     openGallery(attachment);
     return;
   }
 
   // For PDF and text, use the viewer dialog
-  if (fileType === 'pdf' || fileType === 'text') {
+  if (fileType === "pdf" || fileType === "text") {
     if (!attachment.dataUrl) return;
 
     viewerState.attachment = attachment;
@@ -488,7 +540,9 @@ function openViewer(attachment: HistoryAttachment) {
 // Open PhotoSwipe gallery
 async function openGallery(attachment: HistoryAttachment) {
   const images = historyAttachments.value.filter((a) => isImage(a.fileName));
-  const imageIndex = images.findIndex((img) => img.binaryHash === attachment.binaryHash);
+  const imageIndex = images.findIndex(
+    (img) => img.binaryHash === attachment.binaryHash
+  );
 
   if (imageIndex === -1) return;
 
@@ -498,17 +552,19 @@ async function openGallery(attachment: HistoryAttachment) {
       const src = img.dataUrl || "";
 
       // Load image to get actual dimensions
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
-        const image = new Image();
-        image.onload = () => {
-          resolve({ width: image.naturalWidth, height: image.naturalHeight });
-        };
-        image.onerror = () => {
-          // Fallback dimensions if image fails to load
-          resolve({ width: 1920, height: 1080 });
-        };
-        image.src = src;
-      });
+      const dimensions = await new Promise<{ width: number; height: number }>(
+        (resolve) => {
+          const image = new Image();
+          image.onload = () => {
+            resolve({ width: image.naturalWidth, height: image.naturalHeight });
+          };
+          image.onerror = () => {
+            // Fallback dimensions if image fails to load
+            resolve({ width: 1920, height: 1080 });
+          };
+          image.src = src;
+        }
+      );
 
       return {
         src,
@@ -523,7 +579,7 @@ async function openGallery(attachment: HistoryAttachment) {
     dataSource: items,
     pswpModule: () => import("photoswipe"),
     index: imageIndex,
-    showHideAnimationType: 'zoom',
+    showHideAnimationType: "zoom",
     preload: [1, 2],
   });
 
@@ -554,7 +610,7 @@ async function downloadAttachment(attachment: HistoryAttachment) {
     const base64Data = result[0].data;
 
     // Convert base64 to Uint8Array
-    const base64Content = base64Data.split(',')[1] || base64Data;
+    const base64Content = base64Data.split(",")[1] || base64Data;
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {

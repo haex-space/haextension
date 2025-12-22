@@ -1,44 +1,46 @@
 <template>
   <div class="space-y-2">
-    <ShadcnLabel>{{ t('url') }}</ShadcnLabel>
-    <ShadcnInputGroup>
-      <ShadcnInputGroupInput
-        v-model.trim="model"
-        type="url"
-        :placeholder="t('url')"
-        :readonly="readonly"
-        v-bind="$attrs"
-      />
-      <ShadcnInputGroupButton
-        v-if="!readonly"
-        :icon="isLoadingFavicon ? Loader2 : Image"
-        :tooltip="t('favicon.fetch')"
-        variant="ghost"
-        :disabled="!model?.length || isLoadingFavicon"
-        :class="{ 'animate-spin': isLoadingFavicon }"
-        @click.prevent="fetchFaviconAsync"
-      />
-      <ShadcnInputGroupButton
-        :icon="ExternalLink"
-        :tooltip="t('open')"
-        variant="ghost"
-        :disabled="!model?.length"
-        @click.prevent="openUrl"
-      />
-      <ShadcnInputGroupButton
-        :icon="copied ? Check : Copy"
-        :tooltip="copied ? t('copied') : t('copy')"
-        variant="ghost"
-        @click.prevent="handleCopy"
-      />
-    </ShadcnInputGroup>
+    <ShadcnLabel>{{ t("url") }}</ShadcnLabel>
+
+    <UiInput
+      v-model.trim="model"
+      type="url"
+      :placeholder="t('url')"
+      :readonly="readonly"
+      v-bind="$attrs"
+    >
+      <template #append>
+        <UiButton
+          v-if="!readonly"
+          :icon="isLoadingFavicon ? Loader2 : Image"
+          :tooltip="t('favicon.fetch')"
+          variant="ghost"
+          :disabled="!model?.length || isLoadingFavicon"
+          :class="{ 'animate-spin': isLoadingFavicon }"
+          @click.prevent="fetchFaviconAsync"
+        />
+        <UiButton
+          :icon="ExternalLink"
+          :tooltip="t('open')"
+          variant="ghost"
+          :disabled="!model?.length"
+          @click.prevent="openUrl"
+        />
+        <UiButton
+          :icon="copied ? Check : Copy"
+          :tooltip="copied ? t('copied') : t('copy')"
+          variant="ghost"
+          @click.prevent="handleCopy"
+        />
+      </template>
+    </UiInput>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
 import { Copy, Check, ExternalLink, Image, Loader2 } from "lucide-vue-next";
-import { arrayBufferToBase64, addBinaryAsync } from '~/utils/cleanup';
+import { arrayBufferToBase64, addBinaryAsync } from "~/utils/cleanup";
 import { toast } from "vue-sonner";
 
 const model = defineModel<string | null>();
@@ -67,7 +69,7 @@ const openUrl = async () => {
 
   const haexVaultStore = useHaexVaultStore();
   if (!haexVaultStore.client) {
-    console.error('[URL] HaexHub client not available');
+    console.error("[URL] HaexHub client not available");
     return;
   }
 
@@ -75,7 +77,7 @@ const openUrl = async () => {
     await haexVaultStore.client.web.openAsync(model.value);
   } catch (error) {
     // Method not implemented yet in host application
-    console.log('[URL] web.openAsync not available, URL:', model.value);
+    console.log("[URL] web.openAsync not available, URL:", model.value, error);
   }
 };
 
@@ -84,7 +86,7 @@ const fetchFaviconAsync = async () => {
 
   const haexVaultStore = useHaexVaultStore();
   if (!haexVaultStore.client || !haexVaultStore.orm) {
-    console.error('[FaviconFetch] HaexHub client or ORM not available');
+    console.error("[FaviconFetch] HaexHub client or ORM not available");
     return;
   }
 
@@ -98,7 +100,8 @@ const fetchFaviconAsync = async () => {
       domain = url.hostname;
     } catch (urlError) {
       // Invalid URL format
-      toast.error(t('favicon.invalidUrl'));
+      toast.error(t("favicon.invalidUrl"));
+      console.error(urlError);
       return;
     }
 
@@ -118,35 +121,39 @@ const fetchFaviconAsync = async () => {
           haexVaultStore.orm,
           base64,
           response.body.byteLength,
-          'icon'
+          "icon"
         );
 
         // Emit the binary hash as icon name
-        emit('faviconFetched', `binary:${hash}`);
-        console.log('[FaviconFetch] Successfully saved favicon with hash:', hash);
+        emit("faviconFetched", `binary:${hash}`);
+        console.log(
+          "[FaviconFetch] Successfully saved favicon with hash:",
+          hash
+        );
 
         // Reload custom icons list so it appears immediately
         await loadCustomIconsAsync();
 
         // Show success toast
-        toast.success(t('favicon.downloaded'));
+        toast.success(t("favicon.downloaded"));
         return;
       }
     } catch (error: any) {
-      console.error('[FaviconFetch] Failed to fetch favicon:', error);
+      console.error("[FaviconFetch] Failed to fetch favicon:", error);
 
       // Show error toast with appropriate message
-      const errorMessage = error?.code === 1002
-        ? t('favicon.permissionError')
-        : t('favicon.fetchError');
+      const errorMessage =
+        error?.code === 1002
+          ? t("favicon.permissionError")
+          : t("favicon.fetchError");
 
       toast.error(errorMessage);
     }
   } catch (error) {
-    console.error('[FaviconFetch] Error:', error);
+    console.error("[FaviconFetch] Error:", error);
 
     // Show generic error toast
-    toast.error(t('favicon.error'));
+    toast.error(t("favicon.error"));
   } finally {
     isLoadingFavicon.value = false;
   }

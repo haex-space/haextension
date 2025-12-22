@@ -5,7 +5,10 @@
         <!-- Preset Selector -->
         <div v-if="presets.length > 0" class="space-y-2">
           <ShadcnLabel>{{ t("loadPreset") }}</ShadcnLabel>
-          <ShadcnSelect v-model="selectedPresetId" @update:model-value="loadPresetAsync">
+          <ShadcnSelect
+            v-model="selectedPresetId"
+            @update:model-value="loadPresetAsync"
+          >
             <ShadcnSelectTrigger>
               <ShadcnSelectValue :placeholder="t('selectPreset')" />
             </ShadcnSelectTrigger>
@@ -61,33 +64,33 @@
         <div class="space-y-2">
           <ShadcnLabel>{{ t("characterTypes") }}</ShadcnLabel>
           <div class="flex gap-2 flex-wrap">
-            <ShadcnButton
+            <UiButton
               :variant="options.uppercase ? 'default' : 'outline'"
               @click="toggleOption('uppercase')"
             >
               A-Z
-            </ShadcnButton>
+            </UiButton>
 
-            <ShadcnButton
+            <UiButton
               :variant="options.lowercase ? 'default' : 'outline'"
               @click="toggleOption('lowercase')"
             >
               a-z
-            </ShadcnButton>
+            </UiButton>
 
-            <ShadcnButton
+            <UiButton
               :variant="options.numbers ? 'default' : 'outline'"
               @click="toggleOption('numbers')"
             >
               0-9
-            </ShadcnButton>
+            </UiButton>
 
-            <ShadcnButton
+            <UiButton
               :variant="options.symbols ? 'default' : 'outline'"
               @click="toggleOption('symbols')"
             >
               !@#
-            </ShadcnButton>
+            </UiButton>
           </div>
         </div>
 
@@ -110,7 +113,7 @@
             </ShadcnLabel>
             <ShadcnPopover>
               <ShadcnPopoverTrigger as-child>
-                <ShadcnButton :icon="Info" size="icon" variant="ghost" />
+                <UiButton :icon="Info" size="icon" variant="ghost" />
               </ShadcnPopoverTrigger>
               <ShadcnPopoverContent class="w-96">
                 <div class="space-y-2">
@@ -181,7 +184,7 @@
               {{ t("setAsDefault") }}
             </ShadcnLabel>
           </div>
-          <ShadcnButton
+          <UiButton
             :icon="Save"
             variant="outline"
             class="w-full"
@@ -189,18 +192,19 @@
             @click="savePresetAsync"
           >
             {{ t("savePreset") }}
-          </ShadcnButton>
+          </UiButton>
         </div>
       </div>
     </template>
 
     <template #footer>
-      <ShadcnButton @click="usePasswordAsync">
-        {{ t("use") }}
-      </ShadcnButton>
-      <ShadcnButton variant="outline" @click="isOpen = false">
+      <UiButton variant="outline" @click="isOpen = false">
         {{ t("cancel") }}
-      </ShadcnButton>
+      </UiButton>
+
+      <UiButton @click="usePasswordAsync">
+        {{ t("use") }}
+      </UiButton>
     </template>
   </UiDrawerModal>
 </template>
@@ -214,12 +218,8 @@ const isOpen = defineModel<boolean>("open", { default: false });
 
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
-const {
-  getAllPresetsAsync,
-  getDefaultPresetAsync,
-  createPresetAsync,
-  setDefaultPresetAsync,
-} = usePasswordGeneratorPresets();
+const { getAllPresetsAsync, getDefaultPresetAsync, createPresetAsync } =
+  usePasswordGeneratorPresets();
 
 const options = reactive({
   length: 16,
@@ -249,6 +249,7 @@ const passwordLengthArray = computed({
 
 const passwordLength = computed(() => options.length);
 
+const { generate } = usePasswordGenerator();
 // Toggle option and regenerate password
 const toggleOption = (
   option: "uppercase" | "lowercase" | "numbers" | "symbols"
@@ -257,91 +258,17 @@ const toggleOption = (
   generatePasswordAsync();
 };
 
-// Helper function to get a random character from a string
-const getRandomChar = (charset: string): string => {
-  const array = new Uint32Array(1);
-  crypto.getRandomValues(array);
-  const randomValue = array[0] ?? 0;
-  const index = randomValue % charset.length;
-  return charset.charAt(index);
-};
-
 const generatePasswordAsync = async () => {
-  // Pattern-based generation
-  if (usePattern.value && pattern.value) {
-    const result: string[] = [];
-    const patternChars = pattern.value.split("");
-
-    for (const char of patternChars) {
-      if (char === "c") {
-        // consonant
-        result.push(getRandomChar("bcdfghjklmnpqrstvwxyz"));
-      } else if (char === "C") {
-        // uppercase consonant
-        result.push(getRandomChar("BCDFGHJKLMNPQRSTVWXYZ"));
-      } else if (char === "v") {
-        // vowel
-        result.push(getRandomChar("aeiou"));
-      } else if (char === "V") {
-        // uppercase vowel
-        result.push(getRandomChar("AEIOU"));
-      } else if (char === "d") {
-        // digit
-        result.push(getRandomChar("0123456789"));
-      } else if (char === "a") {
-        // any lowercase letter
-        result.push(getRandomChar("abcdefghijklmnopqrstuvwxyz"));
-      } else if (char === "A") {
-        // any uppercase letter
-        result.push(getRandomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
-      } else if (char === "s") {
-        // special character / symbol
-        result.push(getRandomChar("!@#$%^&*()_+-=[]{}|;:,.<>?"));
-      } else {
-        // literal character
-        result.push(char);
-      }
-    }
-
-    generatedPassword.value = result.join("");
-    return;
-  }
-
-  // Standard character-based generation
-  const charset = {
-    uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    lowercase: "abcdefghijklmnopqrstuvwxyz",
-    numbers: "0123456789",
-    symbols: "!@#$%^&*()_+-=[]{}|;:,.<>?",
-  };
-
-  let chars = "";
-  if (options.uppercase) chars += charset.uppercase;
-  if (options.lowercase) chars += charset.lowercase;
-  if (options.numbers) chars += charset.numbers;
-  if (options.symbols) chars += charset.symbols;
-
-  // Remove excluded characters
-  if (options.excludeChars) {
-    const excludeSet = new Set(options.excludeChars.split(""));
-    chars = chars
-      .split("")
-      .filter((c) => !excludeSet.has(c))
-      .join("");
-  }
-
-  if (!chars) {
-    generatedPassword.value = "";
-    return;
-  }
-
-  // Generate password using crypto.getRandomValues for better randomness
-  const array = new Uint32Array(options.length);
-  crypto.getRandomValues(array);
-
-  generatedPassword.value = Array.from(array)
-    .map((x) => chars[x % chars.length])
-    .join("");
+  generatedPassword.value = generate({
+    excludeChars: options.excludeChars,
+    length: options.length,
+    lowercase: options.lowercase,
+    numbers: options.numbers,
+    pattern: pattern.value,
+    symbols: options.symbols,
+    uppercase: options.uppercase,
+    usePattern: usePattern.value,
+  });
 };
 
 const copyPasswordAsync = async () => {
@@ -372,7 +299,7 @@ const loadPresetsAsync = async () => {
 
 // Load preset into options
 const loadPresetAsync = async (id: unknown) => {
-  if (typeof id !== 'string') return;
+  if (typeof id !== "string") return;
   const preset = presets.value.find((p) => p.id === id);
   if (!preset) return;
 
