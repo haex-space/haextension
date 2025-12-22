@@ -221,22 +221,22 @@
     </div>
 
     <!-- Upload Button -->
-    <div v-if="!readOnly">
+    <div>
       <input
+        v-if="!readOnly"
         ref="fileInput"
         type="file"
         multiple
         class="hidden"
         @change="onFileChange"
       />
-      <UiButton
+      <UiButtonPrimary
         :icon="Plus"
-        variant="outline"
-        class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
         @click="fileInput?.click()"
+        :disabled="readOnly"
       >
         {{ t("addAttachment") }}
-      </UiButton>
+      </UiButtonPrimary>
     </div>
 
     <!-- File Viewer -->

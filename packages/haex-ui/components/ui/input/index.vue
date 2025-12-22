@@ -1,6 +1,6 @@
 <template>
   <ShadcnInputGroup
-    class="group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]"
+    :class="['group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]', props.class]"
   >
     <slot name="prepend">
       <component :is="prependIcon" />
@@ -21,12 +21,15 @@
 </template>
 
 <script setup lang="ts">
+import type { HTMLAttributes } from "vue";
+
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
   prependIcon?: Component;
   appendIcon?: Component;
   autofocus?: boolean;
+  class?: HTMLAttributes["class"];
 }>();
 
 const modelValue = defineModel<string | number | null | undefined>();

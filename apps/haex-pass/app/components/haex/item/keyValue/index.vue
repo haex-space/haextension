@@ -12,7 +12,7 @@
           <div v-if="allItems.length" class="flex-1">
             <div class="border rounded-lg divide-y">
               <TransitionGroup name="list" tag="div">
-                <div
+                <!-- <div
                   v-for="(item, index) in allItems"
                   :key="item.id"
                   :class="{
@@ -20,51 +20,58 @@
                   }"
                   class="flex gap-2 hover:bg-accent/50 px-3 py-1 items-center transition-colors cursor-pointer"
                   @click="currentSelected = item"
+                > -->
+                <!-- <input
+                    :ref="el => { if (index === allItems.length - 1) lastKeyInput = el as HTMLInputElement }"
+                    v-model="item.key"
+                    :readonly="currentSelected !== item || readOnly"
+                    :placeholder="t('keyPlaceholder')"
+                    class="flex-1 bg-transparent border-none outline-none text-sm"
+                    @click.stop="currentSelected = item"
+                  /> -->
+
+                <UiInput
+                  v-for="(item, index) in allItems"
+                  :key="item.id"
+                  :ref="el => { if (index === allItems.length - 1) lastKeyInput = el as HTMLInputElement }"
+                  v-model="item.key"
+                  :readonly="currentSelected !== item || readOnly"
+                  :placeholder="t('keyPlaceholder')"
+                  :class="[
+                    'flex-1 bg-transparent text-sm rounded-none',
+                    { 'rounded-t-lg': index === 0 },
+                    { 'rounded-b-lg': index === allItems.length - 1 },
+                  ]"
+                  @click.stop="currentSelected = item"
                 >
-                  <input
-                    :ref="el => { if (index === allItems.length - 1) lastKeyInput = el as HTMLInputElement }"
-                    v-model="item.key"
-                    :readonly="currentSelected !== item || readOnly"
-                    :placeholder="t('keyPlaceholder')"
-                    class="flex-1 bg-transparent border-none outline-none text-sm"
-                    @click.stop="currentSelected = item"
-                  />
+                  <template #append>
+                    <UiButton
+                      v-if="!readOnly && currentSelected === item"
+                      :icon="Trash2"
+                      variant="ghost"
+                      size="icon-sm"
+                      @click.stop="deleteItem(item.id)"
+                    />
 
-                  <UiInput
-                    :ref="el => { if (index === allItems.length - 1) lastKeyInput = el as HTMLInputElement }"
-                    v-model="item.key"
-                    :readonly="currentSelected !== item || readOnly"
-                    :placeholder="t('keyPlaceholder')"
-                    class="flex-1 bg-transparent border-none outline-none text-sm"
-                    @click.stop="currentSelected = item"
-                  />
-
-                  <UiButton
-                    v-if="!readOnly && currentSelected === item"
-                    :icon="Trash2"
-                    variant="ghost"
-                    size="icon-sm"
-                    @click.stop="deleteItem(item.id)"
-                  />
-
-                  <UiButton
-                    :icon="copied && copiedItem === item ? Check : Copy"
-                    variant="ghost"
-                    size="icon-sm"
-                    @click.stop="copyValue(item)"
-                  />
-                </div>
+                    <UiButton
+                      :icon="copied && copiedItem === item ? Check : Copy"
+                      variant="ghost"
+                      size="icon-sm"
+                      @click.stop="copyValue(item)"
+                    />
+                  </template>
+                </UiInput>
+                <!-- </div> -->
               </TransitionGroup>
             </div>
 
-            <UiButton
+            <UiButtonPrimary
               :icon="Plus"
-              variant="outline"
-              class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground mt-4"
+              class="mt-4"
               @click="addItem"
             >
               {{ t("addField") }}
-            </UiButton>
+            </UiButtonPrimary>
           </div>
 
           <!-- Value Textarea -->
@@ -91,18 +98,23 @@
               </div>
             </div>
           </div>
+
+          <UiButtonPrimary
+            v-else
+            :disabled="readOnly"
+            :icon="Plus"
+            class="mt-4"
+            @click="addItem"
+          >
+            {{ t("addField") }}
+          </UiButtonPrimary>
         </div>
       </ShadcnCardContent>
 
       <!-- <ShadcnCardFooter v-if="!readOnly">
-        <UiButton
-          :icon="Plus"
-          variant="outline"
-          class="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-          @click="addItem"
-        >
+        <UiButtonPrimary :icon="Plus" @click="addItem">
           {{ t("addField") }}
-        </UiButton>
+        </UiButtonPrimary>
       </ShadcnCardFooter> -->
     </ShadcnCard>
 
