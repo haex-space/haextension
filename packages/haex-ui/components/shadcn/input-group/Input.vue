@@ -20,7 +20,7 @@ defineExpose({
 
 <template>
   <input
-    v-model="model"
+    :value="model"
     data-slot="input"
     ref="inputElement"
     :class="
@@ -29,5 +29,6 @@ defineExpose({
         props.class
       )
     "
+    @input="model = ($event.target as HTMLInputElement).value"
   />
 </template>

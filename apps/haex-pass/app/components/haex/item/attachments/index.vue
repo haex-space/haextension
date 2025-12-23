@@ -232,8 +232,8 @@
       />
       <UiButtonPrimary
         :icon="Plus"
-        @click="fileInput?.click()"
         :disabled="readOnly"
+        @click="fileInput?.click()"
       >
         {{ t("addAttachment") }}
       </UiButtonPrimary>

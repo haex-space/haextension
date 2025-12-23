@@ -6,9 +6,10 @@
         <ShadcnTagsInputItemDelete />
       </ShadcnTagsInputItem>
       <input
-        v-model="tagInput"
+        :value="tagInput"
         :placeholder="placeholder"
         class="focus:outline-none flex-1 bg-transparent min-w-20"
+        @input="tagInput = ($event.target as HTMLInputElement).value"
         @keydown.enter.prevent="addTag"
       />
     </ShadcnTagsInput>
