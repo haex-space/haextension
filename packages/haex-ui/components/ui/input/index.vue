@@ -1,6 +1,9 @@
 <template>
   <ShadcnInputGroup
-    :class="['group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]', props.class]"
+    :class="[
+      'group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]',
+      props.class,
+    ]"
   >
     <slot name="prepend">
       <component :is="prependIcon" />
