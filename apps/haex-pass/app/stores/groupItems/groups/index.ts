@@ -178,6 +178,7 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       id: group.id || crypto.randomUUID(),
       parentId: group.parentId,
       color: group.color,
+      description: group.description,
       icon: group.icon,
       name: group.name,
       order: group.order,

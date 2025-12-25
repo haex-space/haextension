@@ -116,7 +116,7 @@
       <!-- Icon & Color -->
       <div
         v-show="!readOnly || itemDetails.icon || itemDetails.color"
-        class="grid grid-cols-2 gap-4"
+        class="flex flex-col sm:flex-row items-stretch gap-4"
       >
         <HaexSelectIcon
           v-model="itemDetails.icon"
@@ -124,11 +124,13 @@
           :label="t('item.icon')"
           :read-only="readOnly"
           default-icon="key"
+          class="flex-1"
         />
         <HaexSelectColor
           v-model="itemDetails.color"
           :label="t('item.color')"
           :read-only="readOnly"
+          class="flex-1"
         />
       </div>
     </form>

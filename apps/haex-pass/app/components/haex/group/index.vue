@@ -5,8 +5,8 @@
         <div class="space-y-2">
           <ShadcnLabel>{{ t("name") }}</ShadcnLabel>
           <UiInput
+            ref="nameRef"
             v-model="groupName"
-            autofocus
             :placeholder="t('namePlaceholder')"
             :readonly="readOnly"
             @keyup.enter="$emit('submit')"
@@ -46,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import { onStartTyping } from "@vueuse/core";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const group = defineModel<SelectHaexPasswordsGroups>({ required: true });
@@ -74,6 +75,24 @@ const groupDescription = computed({
     group.value.description = value || null;
   },
 });
+
+const nameRef = useTemplateRef<{ focus: () => void }>("nameRef");
+
+const focus = () => nameRef.value?.focus();
+onMounted(() => {
+  nextTick(() => {
+    focus();
+  });
+});
+
+onStartTyping(() => {
+  focus();
+});
+
+watch(
+  () => readOnly,
+  () => focus()
+);
 </script>
 
 <i18n lang="yaml">
