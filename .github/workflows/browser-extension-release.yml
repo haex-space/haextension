@@ -141,11 +141,18 @@ jobs:
           cd apps/haex-pass-browser
           EXTENSION=firefox pnpm build
 
+      - name: Build XPI with web-ext
+        id: web-ext-build
+        uses: kewisch/action-web-ext@v1
+        with:
+          cmd: build
+          source: apps/haex-pass-browser/extension
+
       - name: Sign and publish to Firefox Add-ons
         uses: kewisch/action-web-ext@v1
         with:
           cmd: sign
-          source: apps/haex-pass-browser/extension
+          source: ${{ steps.web-ext-build.outputs.target }}
           channel: listed
           apiKey: ${{ secrets.FIREFOX_API_ISSUER }}
           apiSecret: ${{ secrets.FIREFOX_API_SECRET }}
