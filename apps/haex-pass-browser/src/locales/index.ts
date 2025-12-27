@@ -34,6 +34,11 @@ export const i18n = createI18n({
     en,
     de,
   },
+  // Disable message format warnings and errors for non-translation strings
+  missingWarn: false,
+  fallbackWarn: false,
+  silentTranslationWarn: true,
+  silentFallbackWarn: true,
 })
 
 /**

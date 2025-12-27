@@ -16,6 +16,7 @@ export const sharedConfig: UserConfig = {
     alias: {
       '~/': `${r('src')}/`,
       '@haex/ui': r('../../packages/haex-ui'),
+      '@haex-pass/api': r('../haex-pass/app/api/external.ts'),
     },
   },
   define: {

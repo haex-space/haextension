@@ -12,6 +12,20 @@ const showCreateForm = ref(false)
 
 const isPaired = computed(() => connectionStatusRef.value?.canSendRequests ?? false)
 
+// Check if we should show CreateEntryForm on mount (set by content script)
+onMounted(async () => {
+  try {
+    const result = await browser.storage.local.get('showCreateEntryForm')
+    if (result.showCreateEntryForm) {
+      showCreateForm.value = true
+      // Clear the flag
+      await browser.storage.local.remove('showCreateEntryForm')
+    }
+  } catch (err) {
+    console.error('Failed to check showCreateEntryForm flag:', err)
+  }
+})
+
 function openOptions() {
   browser.runtime.openOptionsPage()
 }

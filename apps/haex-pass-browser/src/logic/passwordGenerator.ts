@@ -4,9 +4,9 @@ export interface PasswordConfig {
   lowercase: boolean
   numbers: boolean
   symbols: boolean
-  excludeChars: string | null
+  excludeChars: string
   usePattern: boolean
-  pattern: string | null
+  pattern: string
 }
 
 const getRandomChar = (charset: string): string => {
@@ -19,7 +19,7 @@ const getRandomChar = (charset: string): string => {
 
 export function generatePassword(config: PasswordConfig): string {
   // 1. Pattern mode
-  if (config.usePattern && config.pattern) {
+  if (config.usePattern && config.pattern.length > 0) {
     const patternMap: Record<string, string> = {
       c: 'bcdfghjklmnpqrstvwxyz', // lowercase consonant
       C: 'BCDFGHJKLMNPQRSTVWXYZ', // uppercase consonant
@@ -59,7 +59,7 @@ export function generatePassword(config: PasswordConfig): string {
     chars += charset.symbols
   }
 
-  if (config.excludeChars) {
+  if (config.excludeChars.length > 0) {
     const excludeSet = new Set(config.excludeChars.split(''))
     chars = chars
       .split('')
@@ -85,7 +85,7 @@ export const defaultPasswordConfig: PasswordConfig = {
   lowercase: true,
   numbers: true,
   symbols: true,
-  excludeChars: null,
+  excludeChars: '',
   usePattern: false,
-  pattern: null,
+  pattern: '',
 }

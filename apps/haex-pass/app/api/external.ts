@@ -28,6 +28,10 @@ export const HAEX_PASS_METHODS = {
   GET_TOTP: "get-totp",
   /** Neues Item speichern */
   SET_ITEM: "set-item",
+  /** Passwort-Generator-Konfiguration abrufen */
+  GET_PASSWORD_CONFIG: "get-password-config",
+  /** Alle Passwort-Generator-Presets abrufen */
+  GET_PASSWORD_PRESETS: "get-password-presets",
 } as const;
 
 export type HaexPassMethod = (typeof HAEX_PASS_METHODS)[keyof typeof HAEX_PASS_METHODS];
@@ -137,6 +141,75 @@ export interface SetItemResponseData {
 }
 
 // =============================================================================
+// get-password-config
+// =============================================================================
+
+/**
+ * Payload für get-password-config Request (keine Parameter erforderlich)
+ */
+export interface GetPasswordConfigPayload {
+  // Keine Parameter erforderlich
+}
+
+/**
+ * Passwort-Generator-Konfiguration
+ */
+export interface PasswordConfig {
+  /** Passwortlänge (4-128) */
+  length: number;
+  /** Großbuchstaben verwenden (A-Z) */
+  uppercase: boolean;
+  /** Kleinbuchstaben verwenden (a-z) */
+  lowercase: boolean;
+  /** Zahlen verwenden (0-9) */
+  numbers: boolean;
+  /** Sonderzeichen verwenden (!@#$%...) */
+  symbols: boolean;
+  /** Auszuschließende Zeichen */
+  excludeChars: string | null;
+  /** Pattern-Modus verwenden */
+  usePattern: boolean;
+  /** Pattern-String (wenn usePattern true) */
+  pattern: string | null;
+}
+
+/**
+ * Response-Daten von get-password-config
+ */
+export interface GetPasswordConfigResponseData {
+  /** Passwort-Generator-Konfiguration (null wenn kein Default-Preset vorhanden) */
+  config: PasswordConfig | null;
+  /** Name des Presets (falls vorhanden) */
+  presetName: string | null;
+}
+
+// =============================================================================
+// get-password-presets
+// =============================================================================
+
+/**
+ * Ein Passwort-Generator-Preset
+ */
+export interface PasswordPreset {
+  /** Eindeutige Preset-ID */
+  id: string;
+  /** Name des Presets */
+  name: string;
+  /** Ob dies das Standard-Preset ist */
+  isDefault: boolean;
+  /** Passwort-Generator-Konfiguration */
+  config: PasswordConfig;
+}
+
+/**
+ * Response-Daten von get-password-presets
+ */
+export interface GetPasswordPresetsResponseData {
+  /** Liste aller Presets */
+  presets: PasswordPreset[];
+}
+
+// =============================================================================
 // Utility Types
 // =============================================================================
 
@@ -147,6 +220,8 @@ export interface HaexPassPayloads {
   [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsPayload;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpPayload;
   [HAEX_PASS_METHODS.SET_ITEM]: SetItemPayload;
+  [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigPayload;
+  [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: Record<string, never>;
 }
 
 /**
@@ -156,4 +231,6 @@ export interface HaexPassResponses {
   [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsResponseData;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpResponseData;
   [HAEX_PASS_METHODS.SET_ITEM]: SetItemResponseData;
+  [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigResponseData;
+  [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: GetPasswordPresetsResponseData;
 }

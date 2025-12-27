@@ -5,26 +5,37 @@
         <!-- Preset Selector -->
         <div v-if="presets.length > 0" class="space-y-2">
           <ShadcnLabel>{{ t("loadPreset") }}</ShadcnLabel>
-          <ShadcnSelect
-            v-model="selectedPresetId"
-            @update:model-value="loadPresetAsync"
-          >
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue :placeholder="t('selectPreset')" />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent>
-              <ShadcnSelectItem
-                v-for="preset in presets"
-                :key="preset.id"
-                :value="preset.id"
-              >
-                {{ preset.name }}
-                <span v-if="preset.isDefault" class="ml-2 text-xs opacity-60">
-                  ({{ t("default") }})
-                </span>
-              </ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
+          <div class="flex gap-2">
+            <ShadcnSelect
+              v-model="selectedPresetId"
+              class="flex-1"
+              @update:model-value="loadPresetAsync"
+            >
+              <ShadcnSelectTrigger>
+                <ShadcnSelectValue :placeholder="t('selectPreset')" />
+              </ShadcnSelectTrigger>
+              <ShadcnSelectContent>
+                <ShadcnSelectItem
+                  v-for="preset in presets"
+                  :key="preset.id"
+                  :value="preset.id"
+                >
+                  {{ preset.name }}
+                  <span v-if="preset.isDefault" class="ml-2 text-xs opacity-60">
+                    ({{ t("default") }})
+                  </span>
+                </ShadcnSelectItem>
+              </ShadcnSelectContent>
+            </ShadcnSelect>
+            <UiButton
+              v-if="selectedPresetId"
+              :icon="Trash2"
+              variant="destructive"
+              size="icon"
+              :title="t('deletePreset')"
+              @click="deleteSelectedPresetAsync"
+            />
+          </div>
         </div>
 
         <!-- Generated Password Display -->
@@ -211,15 +222,20 @@
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { RefreshCw, Copy, Check, Info, Save } from "lucide-vue-next";
+import { RefreshCw, Copy, Check, Info, Save, Trash2 } from "lucide-vue-next";
 
 const value = defineModel<string | null>();
 const isOpen = defineModel<boolean>("open", { default: false });
 
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
-const { getAllPresetsAsync, getDefaultPresetAsync, createPresetAsync } =
-  usePasswordGeneratorPresets();
+const {
+  getAllPresetsAsync,
+  getDefaultPresetAsync,
+  createPresetAsync,
+  updatePresetAsync,
+  deletePresetAsync,
+} = usePasswordGeneratorPresets();
 
 const options = reactive({
   length: 16,
@@ -313,14 +329,27 @@ const loadPresetAsync = async (id: unknown) => {
   pattern.value = preset.pattern ?? "";
 
   selectedPresetId.value = id;
+  presetName.value = preset.name;
+  setAsDefault.value = preset.isDefault;
   await generatePasswordAsync();
 };
 
-// Save current settings as preset
+// Delete selected preset
+const deleteSelectedPresetAsync = async () => {
+  if (!selectedPresetId.value) return;
+
+  await deletePresetAsync(selectedPresetId.value);
+  selectedPresetId.value = null;
+  presetName.value = "";
+  setAsDefault.value = false;
+  await loadPresetsAsync();
+};
+
+// Save current settings as preset (update if name unchanged, create if new/renamed)
 const savePresetAsync = async () => {
   if (!presetName.value.trim()) return;
 
-  await createPresetAsync({
+  const presetData = {
     name: presetName.value.trim(),
     length: options.length,
     uppercase: options.uppercase,
@@ -331,10 +360,23 @@ const savePresetAsync = async () => {
     usePattern: usePattern.value,
     pattern: pattern.value,
     isDefault: setAsDefault.value,
-  });
+  };
+
+  // Check if we should update: preset selected AND name unchanged
+  const selectedPreset = presets.value.find((p) => p.id === selectedPresetId.value);
+  const shouldUpdate = selectedPreset && selectedPreset.name === presetName.value.trim();
+
+  if (shouldUpdate && selectedPresetId.value) {
+    // Update existing preset (same name)
+    await updatePresetAsync(selectedPresetId.value, presetData);
+  } else {
+    // Create new preset (new name or no preset selected)
+    await createPresetAsync(presetData);
+  }
 
   presetName.value = "";
   setAsDefault.value = false;
+  selectedPresetId.value = null;
   await loadPresetsAsync();
 };
 
@@ -389,6 +431,7 @@ de:
   presetNamePlaceholder: Name des Presets
   setAsDefault: Als Standard setzen
   savePreset: Preset speichern
+  deletePreset: Preset löschen
   cancel: Abbrechen
   use: Verwenden
   copied: Passwort kopiert
@@ -428,6 +471,7 @@ en:
   presetNamePlaceholder: Preset name
   setAsDefault: Set as default
   savePreset: Save Preset
+  deletePreset: Delete Preset
   cancel: Cancel
   use: Use
   copied: Password copied

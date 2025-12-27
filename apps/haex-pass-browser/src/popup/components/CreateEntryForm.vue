@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { Check, Key, Loader2, X } from 'lucide-vue-next'
+import type { GetPasswordConfigResponseData } from '~/logic/messages'
+import { Check, Eye, EyeOff, Key, Loader2, X } from 'lucide-vue-next'
 import { useI18n } from '~/locales'
-import { MSG_SET_ITEM } from '~/logic/messages'
+import { MSG_SET_ITEM, MSG_GET_PASSWORD_CONFIG } from '~/logic/messages'
+import { generatePassword, defaultPasswordConfig } from '~/logic/passwordGenerator'
 import PasswordGenerator from './PasswordGenerator.vue'
 
 const emit = defineEmits<{
@@ -20,6 +22,7 @@ const createForm = ref({
 const isCreating = ref(false)
 const createSuccess = ref(false)
 const createError = ref<string | null>(null)
+const showPassword = ref(false)
 
 async function getCurrentTabUrl() {
   try {
@@ -36,6 +39,43 @@ async function getCurrentTabUrl() {
     }
   } catch (err) {
     console.error('Failed to get current tab:', err)
+  }
+}
+
+async function generateInitialPassword() {
+  try {
+    // Try to load remote config from haex-pass
+    const response = await browser.runtime.sendMessage({ type: MSG_GET_PASSWORD_CONFIG }) as {
+      success: boolean
+      data?: GetPasswordConfigResponseData
+      error?: string
+    }
+
+    if (response.success && response.data?.config) {
+      const remoteConfig = response.data.config
+      createForm.value.password = generatePassword({
+        length: remoteConfig.length,
+        uppercase: remoteConfig.uppercase,
+        lowercase: remoteConfig.lowercase,
+        numbers: remoteConfig.numbers,
+        symbols: remoteConfig.symbols,
+        excludeChars: remoteConfig.excludeChars ?? '',
+        usePattern: remoteConfig.usePattern,
+        pattern: remoteConfig.pattern ?? '',
+      })
+      showPassword.value = true // Show password so user can see the generated one
+      console.log('[CreateEntryForm] Generated password with remote config')
+    } else {
+      // Use default config
+      createForm.value.password = generatePassword(defaultPasswordConfig)
+      showPassword.value = true
+      console.log('[CreateEntryForm] Generated password with default config')
+    }
+  } catch (err) {
+    // Fallback to default
+    createForm.value.password = generatePassword(defaultPasswordConfig)
+    showPassword.value = true
+    console.log('[CreateEntryForm] Generated password with fallback config:', err)
   }
 }
 
@@ -84,8 +124,16 @@ async function submitForm() {
   }
 }
 
-function openPasswordGenerator() {
-  showPasswordGenerator.value = true
+function openPasswordGenerator(event: Event) {
+  event.preventDefault()
+  event.stopPropagation()
+  console.log('[CreateEntryForm] Opening password generator, current state:', showPasswordGenerator.value)
+  try {
+    showPasswordGenerator.value = true
+    console.log('[CreateEntryForm] Password generator state set to:', showPasswordGenerator.value)
+  } catch (err) {
+    console.error('[CreateEntryForm] Error opening password generator:', err)
+  }
 }
 
 function closePasswordGenerator() {
@@ -99,6 +147,7 @@ function usePassword(password: string) {
 
 onMounted(() => {
   getCurrentTabUrl()
+  generateInitialPassword()
 })
 </script>
 
@@ -171,15 +220,24 @@ onMounted(() => {
         <div class="flex gap-1">
           <input
             v-model="createForm.password"
-            type="password"
+            :type="showPassword ? 'text' : 'password'"
             :placeholder="t('createEntry.fieldPasswordPlaceholder')"
             class="flex-1 rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
           <button
             type="button"
             class="rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
+            :title="t('createEntry.togglePassword')"
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" class="w-4 h-4" />
+            <Eye v-else class="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            class="rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
             :title="t('createEntry.generatePassword')"
-            @click="openPasswordGenerator"
+            @click.stop.prevent="openPasswordGenerator($event)"
           >
             <Key class="w-4 h-4" />
           </button>

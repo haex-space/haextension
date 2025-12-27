@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { PasswordConfig } from '~/logic/passwordGenerator'
+import type { GetPasswordPresetsResponseData, PasswordPreset } from '~/logic/messages'
 import { Check, ChevronLeft, Copy, HelpCircle, RefreshCw } from 'lucide-vue-next'
 import { useI18n } from '~/locales'
 import { defaultPasswordConfig, generatePassword } from '~/logic/passwordGenerator'
+import { MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 
 const emit = defineEmits<{
   close: []
@@ -15,6 +17,55 @@ const showPatternHelp = ref(false)
 const generatedPassword = ref('')
 const passwordCopied = ref(false)
 const passwordConfig = ref<PasswordConfig>({ ...defaultPasswordConfig })
+const presets = ref<PasswordPreset[]>([])
+const selectedPresetId = ref<string | null>(null)
+
+async function loadRemotePresets() {
+  try {
+    const response = await browser.runtime.sendMessage({ type: MSG_GET_PASSWORD_PRESETS }) as {
+      success: boolean
+      data?: GetPasswordPresetsResponseData
+      error?: string
+    }
+
+    if (response.success && response.data?.presets) {
+      presets.value = response.data.presets
+      console.log('[PasswordGenerator] Loaded presets from haex-pass:', presets.value.length)
+
+      // Auto-select default preset if exists
+      const defaultPreset = presets.value.find(p => p.isDefault)
+      if (defaultPreset) {
+        loadPreset(defaultPreset)
+      } else if (presets.value.length > 0) {
+        // If no default, select first preset
+        loadPreset(presets.value[0])
+      } else {
+        regeneratePassword()
+      }
+    } else {
+      console.log('[PasswordGenerator] No presets available, using defaults')
+      regeneratePassword()
+    }
+  } catch (err) {
+    console.log('[PasswordGenerator] Could not load presets:', err)
+    regeneratePassword()
+  }
+}
+
+function loadPreset(preset: PasswordPreset) {
+  selectedPresetId.value = preset.id
+  passwordConfig.value = {
+    length: preset.config.length,
+    uppercase: preset.config.uppercase,
+    lowercase: preset.config.lowercase,
+    numbers: preset.config.numbers,
+    symbols: preset.config.symbols,
+    excludeChars: preset.config.excludeChars ?? '',
+    usePattern: preset.config.usePattern,
+    pattern: preset.config.pattern ?? '',
+  }
+  regeneratePassword()
+}
 
 function regeneratePassword() {
   generatedPassword.value = generatePassword(passwordConfig.value)
@@ -53,7 +104,8 @@ watch(() => passwordConfig.value.pattern, () => {
 })
 
 onMounted(() => {
-  regeneratePassword()
+  console.log('[PasswordGenerator] Component mounted')
+  loadRemotePresets()
 })
 </script>
 
@@ -73,6 +125,25 @@ onMounted(() => {
     </div>
 
     <div class="space-y-3">
+      <!-- Preset Selector -->
+      <div v-if="presets.length > 0">
+        <label class="block text-xs font-medium mb-1">
+          {{ t('passwordGenerator.preset') }}
+        </label>
+        <select
+          :value="selectedPresetId"
+          class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+          @change="(e) => {
+            const preset = presets.find(p => p.id === (e.target as HTMLSelectElement).value)
+            if (preset) loadPreset(preset)
+          }"
+        >
+          <option v-for="preset in presets" :key="preset.id" :value="preset.id">
+            {{ preset.name }}{{ preset.isDefault ? ` (${t('passwordGenerator.default')})` : '' }}
+          </option>
+        </select>
+      </div>
+
       <!-- Generated Password Display -->
       <div class="flex gap-1">
         <input

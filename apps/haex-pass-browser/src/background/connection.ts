@@ -15,6 +15,7 @@ import {
   ExternalConnectionState,
   type ExternalConnection,
 } from '@haex-space/vault-sdk'
+import { HAEX_PASS_METHODS } from '@haex-pass/api'
 import { getExtensionIdentifiers, getWebSocketPort } from '~/logic/settings'
 
 const PROTOCOL_VERSION = 1
@@ -493,15 +494,23 @@ class VaultConnectionManager {
   }
 
   async getItems(url: string, fields: string[]): Promise<unknown> {
-    return this.sendRequest('get-items', { url, fields })
+    return this.sendRequest(HAEX_PASS_METHODS.GET_ITEMS, { url, fields })
   }
 
   async setItem(entry: object): Promise<unknown> {
-    return this.sendRequest('set-item', entry)
+    return this.sendRequest(HAEX_PASS_METHODS.SET_ITEM, entry)
   }
 
   async getTotp(entryId: string): Promise<unknown> {
-    return this.sendRequest('get-totp', { entryId })
+    return this.sendRequest(HAEX_PASS_METHODS.GET_TOTP, { entryId })
+  }
+
+  async getPasswordConfig(): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.GET_PASSWORD_CONFIG, {})
+  }
+
+  async getPasswordPresets(): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.GET_PASSWORD_PRESETS, {})
   }
 
   disconnect() {

@@ -71,9 +71,11 @@ import { detectInputFields, type DetectedField } from './detector'
         matchingEntries = innerData?.data?.entries || []
         console.log('[haex-pass] Matching entries:', matchingEntries.length, matchingEntries)
 
-        // Inject icons if we have matches
+        // Inject icons if we have matches, otherwise show "Add new" button
         if (matchingEntries.length > 0) {
           injectIcons()
+        } else {
+          injectAddNewButton()
         }
       } else {
         console.log('[haex-pass] Request failed:', (response as { error?: string }).error)
@@ -84,6 +86,162 @@ import { detectInputFields, type DetectedField } from './detector'
     }
   }
 
+  // Inject "Add new" button when no entries exist for this page
+  function injectAddNewButton() {
+    // Only inject for username/password fields (primary login fields)
+    const primaryFields = detectedFields.filter((field) => {
+      const identifier = field.identifier.toLowerCase()
+      // Check if field matches username or password aliases
+      for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
+        if (key === 'otpSecret') continue // Skip OTP for "Add new" button
+        if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
+          return true
+        }
+      }
+      return false
+    })
+
+    if (primaryFields.length === 0) return
+
+    // Only inject on first field to avoid multiple buttons
+    const field = primaryFields[0]
+    const input = document.querySelector(`[data-haex-field-id="${field.id}"]`) as HTMLInputElement
+      || document.getElementById(field.element.id)
+      || document.querySelector(`[name="${field.element.name}"]`)
+
+    if (!input || input.dataset.haexInjected) return
+
+    input.dataset.haexInjected = 'true'
+    input.dataset.haexFieldId = field.id
+
+    // Create icon container with haex-pass logo and + badge
+    const iconContainer = document.createElement('div')
+    iconContainer.className = 'haex-pass-icon haex-pass-add-new'
+    iconContainer.dataset.fieldId = field.id
+
+    const logoImg = document.createElement('img')
+    logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
+    logoImg.alt = 'haex-pass'
+    logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
+    iconContainer.appendChild(logoImg)
+
+    // Add a small + badge
+    const badge = document.createElement('div')
+    badge.textContent = '+'
+    badge.style.cssText = `
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 14px;
+      height: 14px;
+      background: #10b981;
+      color: white;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    `
+    iconContainer.appendChild(badge)
+
+    // Position the icon inside the input - full height, square
+    const inputStyles = window.getComputedStyle(input)
+    const inputHeight = input.offsetHeight
+
+    iconContainer.style.cssText = `
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      width: ${inputHeight - 16}px;
+      height: ${inputHeight - 16}px;
+      cursor: pointer;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    `
+
+    // Wrap input if needed
+    const wrapper = document.createElement('div')
+    wrapper.style.cssText = `
+      position: relative;
+      display: inline-block;
+      width: ${inputStyles.width};
+    `
+
+    input.parentNode?.insertBefore(wrapper, input)
+    wrapper.appendChild(input)
+    wrapper.appendChild(iconContainer)
+
+    // Add padding to input to make room for icon
+    input.style.paddingRight = `${inputHeight + 4}px`
+
+    // Click handler to open popup with CreateEntryForm
+    iconContainer.addEventListener('click', async (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Set flag in storage to show CreateEntryForm when popup opens
+      await browser.storage.local.set({ showCreateEntryForm: true })
+
+      // Request background script to open popup
+      try {
+        const response = await sendMessage('open-popup', {}, 'background')
+        if (!(response as { success: boolean }).success) {
+          showAddNewTooltip(iconContainer)
+        }
+      } catch {
+        // Fallback: show a tooltip suggesting to click the extension icon
+        showAddNewTooltip(iconContainer)
+      }
+    })
+
+    // Hover effects
+    iconContainer.addEventListener('mouseenter', () => {
+      iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
+      iconContainer.style.transform = 'scale(1.05)'
+    })
+    iconContainer.addEventListener('mouseleave', () => {
+      iconContainer.style.backgroundColor = 'transparent'
+      iconContainer.style.transform = 'scale(1)'
+    })
+  }
+
+  // Show tooltip when popup can't be opened programmatically
+  function showAddNewTooltip(anchorEl: HTMLElement) {
+    const tooltip = document.createElement('div')
+    tooltip.className = 'haex-pass-tooltip'
+    tooltip.textContent = 'Click the haex-pass icon in your browser toolbar to add a new entry'
+    tooltip.style.cssText = `
+      position: fixed;
+      background: #1f2937;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      max-width: 250px;
+      z-index: 2147483647;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `
+
+    document.body.appendChild(tooltip)
+
+    const anchorRect = anchorEl.getBoundingClientRect()
+    tooltip.style.left = `${Math.max(8, anchorRect.left - tooltip.offsetWidth / 2 + anchorRect.width / 2)}px`
+    tooltip.style.top = `${anchorRect.bottom + 8}px`
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      tooltip.style.opacity = '0'
+      tooltip.style.transition = 'opacity 0.2s'
+      setTimeout(() => tooltip.remove(), 200)
+    }, 3000)
+  }
+
   // Inject haex-pass icons into input fields
   function injectIcons() {
     detectedFields.forEach((field) => {
@@ -92,6 +250,10 @@ import { detectInputFields, type DetectedField } from './detector'
         || document.querySelector(`[name="${field.element.name}"]`)
 
       if (!input || input.dataset.haexInjected)
+        return
+
+      // Check if we should show icon for this field
+      if (!shouldShowIconForField(field))
         return
 
       input.dataset.haexInjected = 'true'
@@ -105,27 +267,25 @@ import { detectInputFields, type DetectedField } from './detector'
       const logoImg = document.createElement('img')
       logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
       logoImg.alt = 'haex-pass'
-      logoImg.style.cssText = 'width: 18px; height: 18px; object-fit: contain;'
+      logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
       iconContainer.appendChild(logoImg)
 
-      // Position the icon inside the input
-      const inputRect = input.getBoundingClientRect()
+      // Position the icon inside the input - full height, square
       const inputStyles = window.getComputedStyle(input)
+      const inputHeight = input.offsetHeight
 
       iconContainer.style.cssText = `
         position: absolute;
         right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
+        top: 8px;
+        width: ${inputHeight - 16}px;
+        height: ${inputHeight - 16}px;
         cursor: pointer;
-        color: #666;
-        z-index: 10000;
+        z-index: 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 4px;
+        box-sizing: border-box;
         transition: all 0.2s;
       `
 
@@ -142,7 +302,7 @@ import { detectInputFields, type DetectedField } from './detector'
       wrapper.appendChild(iconContainer)
 
       // Add padding to input to make room for icon
-      input.style.paddingRight = '32px'
+      input.style.paddingRight = `${inputHeight + 4}px`
 
       // Click handler to show dropdown
       iconContainer.addEventListener('click', (e) => {
@@ -154,11 +314,11 @@ import { detectInputFields, type DetectedField } from './detector'
       // Hover effects
       iconContainer.addEventListener('mouseenter', () => {
         iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
-        iconContainer.style.transform = 'translateY(-50%) scale(1.1)'
+        iconContainer.style.transform = 'scale(1.05)'
       })
       iconContainer.addEventListener('mouseleave', () => {
         iconContainer.style.backgroundColor = 'transparent'
-        iconContainer.style.transform = 'translateY(-50%) scale(1)'
+        iconContainer.style.transform = 'scale(1)'
       })
     })
   }
@@ -323,10 +483,44 @@ import { detectInputFields, type DetectedField } from './detector'
   }
 
   // Default aliases for standard fields (used when no custom aliases are set)
+  // Fields with default aliases always show the icon
   const DEFAULT_ALIASES: Record<string, string[]> = {
     username: ['email', 'login', 'user', 'e-mail', 'mail'],
     password: ['pass', 'pwd', 'secret'],
     otpSecret: ['otp', 'totp', '2fa', 'code', 'token'],
+  }
+
+  // Check if a field should show the icon
+  function shouldShowIconForField(field: DetectedField): boolean {
+    const identifier = field.identifier.toLowerCase()
+
+    // Always show for fields that match default alias keys or their aliases
+    for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
+      if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
+        return true
+      }
+    }
+
+    // For other fields, check if any entry has a matching value
+    for (const entry of matchingEntries) {
+      const e = entry as { fields: Record<string, string>, autofillAliases?: Record<string, string[]> | null }
+
+      // Check exact match
+      if (e.fields[field.identifier]) {
+        return true
+      }
+
+      // Check custom aliases from entry
+      for (const [fieldKey, fieldValue] of Object.entries(e.fields)) {
+        if (!fieldValue) continue
+        const aliases = e.autofillAliases?.[fieldKey] ?? []
+        if (aliases.some(alias => alias.toLowerCase() === identifier)) {
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   // Fill all fields with entry data, using aliases for matching

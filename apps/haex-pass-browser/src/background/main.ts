@@ -1,6 +1,6 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { vaultConnection } from './connection'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_SET_ITEM } from '~/logic/messages'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_SET_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -63,6 +63,30 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
       .catch(err => ({ success: false, error: String(err) }))
   }
 
+  if (message.type === MSG_GET_PASSWORD_CONFIG) {
+    return vaultConnection.getPasswordConfig()
+      .then((result) => {
+        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
+        if (haexResponse.success) {
+          return { success: true, data: haexResponse.data }
+        }
+        return { success: false, error: haexResponse.error || 'Unknown error' }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === MSG_GET_PASSWORD_PRESETS) {
+    return vaultConnection.getPasswordPresets()
+      .then((result) => {
+        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
+        if (haexResponse.success) {
+          return { success: true, data: haexResponse.data }
+        }
+        return { success: false, error: haexResponse.error || 'Unknown error' }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
   return undefined
 })
 
@@ -84,6 +108,17 @@ onMessage('connect', async () => {
 onMessage('disconnect', async () => {
   vaultConnection.disconnect()
   return { success: true }
+})
+
+// Handle open-popup request from content script
+onMessage('open-popup', async () => {
+  try {
+    await browser.action.openPopup()
+    return { success: true }
+  } catch (err) {
+    console.error('[haex-pass] Failed to open popup:', err)
+    return { success: false, error: String(err) }
+  }
 })
 
 // Handle messages from content scripts
