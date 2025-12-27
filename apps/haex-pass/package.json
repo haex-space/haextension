@@ -1,6 +1,6 @@
 {
   "name": "haex-pass",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "type": "module",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.65",
+    "@haex-space/vault-sdk": "^2.5.70",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",

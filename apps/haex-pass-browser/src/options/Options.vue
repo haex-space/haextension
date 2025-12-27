@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import {
-  canExternalClientSendRequests,
-  ExternalConnectionState,
-} from '@haex-space/vault-sdk'
-import { PlugZap } from 'lucide-vue-next'
 import type { SupportedLocale } from '~/locales'
+import { canExternalClientSendRequests, ExternalConnectionState } from '@haex-space/vault-sdk'
+import { PlugZap } from 'lucide-vue-next'
 import { getLocaleSetting, setLocale, useI18n } from '~/locales'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
-import { getWebSocketPort, setWebSocketPort } from '~/logic/settings'
+import {
+  MSG_CONNECT,
+  MSG_CONNECTION_STATE,
+  MSG_DISCONNECT,
+  MSG_GET_CONNECTION_STATE,
+} from '~/logic/messages'
+import { getDevMode, getWebSocketPort, setDevMode, setWebSocketPort } from '~/logic/settings'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
@@ -17,6 +19,8 @@ const currentPort = ref<number>(19455)
 const portInput = ref<string>('19455')
 const portError = ref<string | null>(null)
 const portSaved = ref(false)
+const devMode = ref(false)
+const devModeSaved = ref(false)
 const connectionState = ref<ExternalConnectionState>(ExternalConnectionState.DISCONNECTED)
 const isConnecting = ref(false)
 
@@ -26,15 +30,15 @@ const showDisconnectButton = computed(() => canExternalClientSendRequests(connec
 const statusText = computed(() => {
   switch (connectionState.value) {
     case ExternalConnectionState.PAIRED:
-      return t('statusConnected')
+      return t('status.connected')
     case ExternalConnectionState.PENDING_APPROVAL:
-      return t('statusPendingApproval')
+      return t('status.pendingApproval')
     case ExternalConnectionState.CONNECTED:
-      return t('statusConnectedNotPaired')
+      return t('status.connectedNotPaired')
     case ExternalConnectionState.CONNECTING:
-      return t('statusConnecting')
+      return t('status.connecting')
     default:
-      return t('statusDisconnected')
+      return t('status.disconnected')
   }
 })
 
@@ -55,10 +59,11 @@ const statusClass = computed(() => {
 
 async function fetchConnectionState() {
   try {
-    const response = await browser.runtime.sendMessage({ type: MSG_GET_CONNECTION_STATE }) as { state?: ExternalConnectionState }
+    const response = (await browser.runtime.sendMessage({
+      type: MSG_GET_CONNECTION_STATE,
+    })) as { state?: ExternalConnectionState }
     connectionState.value = response?.state ?? ExternalConnectionState.DISCONNECTED
-  }
-  catch {
+  } catch {
     connectionState.value = ExternalConnectionState.DISCONNECTED
   }
 }
@@ -67,8 +72,7 @@ async function handleDisconnect() {
   try {
     await browser.runtime.sendMessage({ type: MSG_DISCONNECT })
     connectionState.value = ExternalConnectionState.DISCONNECTED
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Failed to disconnect:', err)
   }
 }
@@ -78,27 +82,28 @@ async function handleConnect() {
   try {
     await browser.runtime.sendMessage({ type: MSG_CONNECT })
     await fetchConnectionState()
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Failed to connect:', err)
-  }
-  finally {
+  } finally {
     isConnecting.value = false
   }
 }
 
 // Listen for connection state updates
 browser.runtime.onMessage.addListener((message: unknown) => {
-  const msg = message as { type?: string, state?: { state?: ExternalConnectionState } }
+  const msg = message as {
+    type?: string
+    state?: { state?: ExternalConnectionState }
+  }
   if (msg.type === MSG_CONNECTION_STATE && msg.state?.state !== undefined) {
     connectionState.value = msg.state.state
   }
 })
 
 const languageOptions = computed(() => [
-  { value: 'auto', label: t('languageAuto') },
-  { value: 'en', label: t('languageEnglish') },
-  { value: 'de', label: t('languageGerman') },
+  { value: 'auto', label: t('settings.language.auto') },
+  { value: 'en', label: t('settings.language.english') },
+  { value: 'de', label: t('settings.language.german') },
 ])
 
 async function handleLocaleChange(event: Event) {
@@ -111,7 +116,7 @@ async function handleLocaleChange(event: Event) {
 async function handlePortSave() {
   const port = Number.parseInt(portInput.value, 10)
   if (Number.isNaN(port) || port < 1 || port > 65535) {
-    portError.value = t('settingsPortInvalid')
+    portError.value = t('settings.port.invalid')
     return
   }
 
@@ -131,10 +136,21 @@ function handlePortInput(event: Event) {
   portSaved.value = false
 }
 
+async function handleDevModeChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  devMode.value = target.checked
+  await setDevMode(target.checked)
+  devModeSaved.value = true
+  setTimeout(() => {
+    devModeSaved.value = false
+  }, 2000)
+}
+
 onMounted(async () => {
   currentLocale.value = await getLocaleSetting()
   currentPort.value = await getWebSocketPort()
   portInput.value = currentPort.value.toString()
+  devMode.value = await getDevMode()
   await fetchConnectionState()
 })
 </script>
@@ -144,13 +160,13 @@ onMounted(async () => {
     <div class="max-w-2xl mx-auto">
       <!-- Header -->
       <div class="flex items-center gap-4 mb-8">
-        <img :src="logoUrl" alt="haex-pass" class="w-12 h-12">
+        <img :src="logoUrl" alt="haex-pass" class="w-12 h-12" />
         <div>
           <h1 class="text-2xl font-bold">
-            {{ t('extensionName') }}
+            {{ t('extension.name') }}
           </h1>
           <p class="text-muted-foreground">
-            {{ t('settingsTitle') }}
+            {{ t('settings.title') }}
           </p>
         </div>
       </div>
@@ -160,10 +176,10 @@ onMounted(async () => {
         <!-- Language Setting -->
         <div class="rounded-lg border p-4">
           <label for="language-select" class="block font-medium mb-1">
-            {{ t('settingsLanguage') }}
+            {{ t('settings.language.label') }}
           </label>
           <p class="text-sm text-muted-foreground mb-3">
-            {{ t('settingsLanguageDescription') }}
+            {{ t('settings.language.description') }}
           </p>
           <select
             id="language-select"
@@ -171,11 +187,7 @@ onMounted(async () => {
             class="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             @change="handleLocaleChange"
           >
-            <option
-              v-for="option in languageOptions"
-              :key="option.value"
-              :value="option.value"
-            >
+            <option v-for="option in languageOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
@@ -184,19 +196,43 @@ onMounted(async () => {
         <!-- Connection Setting -->
         <div class="rounded-lg border p-4">
           <h3 class="font-medium mb-1">
-            {{ t('settingsConnection') }}
+            {{ t('settings.connection.label') }}
           </h3>
           <p class="text-sm text-muted-foreground mb-4">
-            {{ t('settingsConnectionDescription') }}
+            {{ t('settings.connection.description') }}
           </p>
 
           <div class="space-y-3">
+            <!-- Dev Mode Toggle -->
+            <div class="flex items-center justify-between">
+              <div>
+                <label for="dev-mode" class="block text-sm font-medium">
+                  {{ t('settings.devMode.label') }}
+                </label>
+                <p class="text-xs text-muted-foreground">
+                  {{ t('settings.devMode.description') }}
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input
+                  id="dev-mode"
+                  type="checkbox"
+                  :checked="devMode"
+                  class="rounded"
+                  @change="handleDevModeChange"
+                />
+                <span v-if="devModeSaved" class="text-xs text-green-500">
+                  {{ t('settings.saved') }}
+                </span>
+              </div>
+            </div>
+
             <div>
               <label for="port-input" class="block text-sm font-medium mb-1">
-                {{ t('settingsPort') }}
+                {{ t('settings.port.label') }}
               </label>
               <p class="text-xs text-muted-foreground mb-2">
-                {{ t('settingsPortDescription') }}
+                {{ t('settings.port.description') }}
               </p>
               <div class="flex gap-2">
                 <input
@@ -205,38 +241,41 @@ onMounted(async () => {
                   min="1"
                   max="65535"
                   :value="portInput"
-                  :placeholder="t('settingsPortPlaceholder')"
+                  :placeholder="t('settings.port.placeholder')"
                   class="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   @input="handlePortInput"
-                >
+                />
                 <button
                   class="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
                   :disabled="portInput === currentPort.toString()"
                   @click="handlePortSave"
                 >
-                  {{ t('settingsSave') }}
+                  {{ t('settings.save') }}
                 </button>
               </div>
               <p v-if="portError" class="text-sm text-red-500 mt-1">
                 {{ portError }}
               </p>
               <p v-else-if="portSaved" class="text-sm text-green-500 mt-1">
-                {{ t('settingsSaved') }}
+                {{ t('settings.saved') }}
               </p>
             </div>
 
             <p v-if="portSaved" class="text-xs text-amber-500">
-              {{ t('settingsRestartRequired') }}
+              {{ t('settings.restartRequired') }}
             </p>
           </div>
 
           <!-- Connection Status & Buttons -->
           <div class="pt-3 border-t">
             <label class="block text-sm font-medium mb-1">
-              {{ t('settingsConnectionStatus') }}
+              {{ t('settings.connection.status') }}
             </label>
             <div class="flex items-center gap-2 mb-3">
-              <span class="inline-block w-2 h-2 rounded-full" :class="statusClass.replace('text-', 'bg-')" />
+              <span
+                class="inline-block w-2 h-2 rounded-full"
+                :class="statusClass.replace('text-', 'bg-')"
+              />
               <span class="text-sm" :class="statusClass">{{ statusText }}</span>
             </div>
             <button
@@ -246,14 +285,14 @@ onMounted(async () => {
               @click="handleConnect"
             >
               <PlugZap class="w-4 h-4" />
-              {{ t('buttonConnect') }}
+              {{ t('button.connect') }}
             </button>
             <button
               v-else
               class="px-4 py-2 rounded-md border text-sm font-medium hover:bg-accent"
               @click="handleDisconnect"
             >
-              {{ t('settingsDisconnectButton') }}
+              {{ t('settings.disconnect.button') }}
             </button>
           </div>
         </div>

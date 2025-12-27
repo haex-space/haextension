@@ -28,12 +28,18 @@ import { detectInputFields, type DetectedField } from './detector'
   setupApp(app)
   const vm = app.mount(root)
 
+  // Entry type from haex-pass API
+  interface EntryWithAliases {
+    fields: Record<string, string>
+    autofillAliases?: Record<string, string[]> | null
+  }
+
   // Expose state to Vue app
   ;(window as unknown as { __haexPass: unknown }).__haexPass = {
     getFields: () => detectedFields,
     getEntries: () => matchingEntries,
     fillField: (fieldId: string, value: string) => fillField(fieldId, value),
-    fillAllFields: (entry: Record<string, string>) => fillAllFields(entry),
+    fillAllFields: (entry: EntryWithAliases) => fillAllFields(entry.fields, entry.autofillAliases),
   }
 
   // Detect input fields and request matching entries
@@ -50,8 +56,8 @@ import { detectInputFields, type DetectedField } from './detector'
 
     // Request matching entries from background script
     try {
-      console.log('[haex-pass] Requesting logins for URL:', window.location.href)
-      const response = await sendMessage('get-logins', {
+      console.log('[haex-pass] Requesting items for URL:', window.location.href)
+      const response = await sendMessage('get-items', {
         url: window.location.href,
         fields: detectedFields.map(f => f.identifier),
       }, 'background')
@@ -74,7 +80,7 @@ import { detectInputFields, type DetectedField } from './detector'
       }
     }
     catch (err) {
-      console.error('[haex-pass] Failed to get logins:', err)
+      console.error('[haex-pass] Failed to get items:', err)
     }
   }
 
@@ -189,7 +195,7 @@ import { detectInputFields, type DetectedField } from './detector'
     }
     else {
       matchingEntries.forEach((entry: unknown, index: number) => {
-        const e = entry as { id: string, title: string, fields: Record<string, string> }
+        const e = entry as { id: string, title: string, fields: Record<string, string>, autofillAliases?: Record<string, string[]> | null }
         const item = document.createElement('div')
         item.style.cssText = `
           padding: 10px 12px;
@@ -217,7 +223,7 @@ import { detectInputFields, type DetectedField } from './detector'
         })
 
         item.addEventListener('click', () => {
-          fillAllFields(e.fields)
+          fillAllFields(e.fields, e.autofillAliases)
           dropdown.remove()
         })
 
@@ -316,10 +322,46 @@ import { detectInputFields, type DetectedField } from './detector'
     }
   }
 
-  // Fill all fields with entry data
-  function fillAllFields(fields: Record<string, string>) {
+  // Default aliases for standard fields (used when no custom aliases are set)
+  const DEFAULT_ALIASES: Record<string, string[]> = {
+    username: ['email', 'login', 'user', 'e-mail', 'mail'],
+    password: ['pass', 'pwd', 'secret'],
+    otpSecret: ['otp', 'totp', '2fa', 'code', 'token'],
+  }
+
+  // Fill all fields with entry data, using aliases for matching
+  function fillAllFields(
+    fields: Record<string, string>,
+    autofillAliases?: Record<string, string[]> | null,
+  ) {
     detectedFields.forEach((field) => {
-      const value = fields[field.identifier]
+      // First try exact match with field identifier
+      let value = fields[field.identifier]
+
+      // If no exact match, try reverse alias lookup
+      // For each field in the entry, check if the form field identifier matches one of its aliases
+      if (!value) {
+        for (const [fieldKey, fieldValue] of Object.entries(fields)) {
+          // Get aliases for this field (custom > default)
+          const aliases = autofillAliases?.[fieldKey] ?? DEFAULT_ALIASES[fieldKey] ?? []
+          const identifier = field.identifier.toLowerCase()
+
+          // Check if the form field identifier matches any alias
+          if (aliases.some(alias => alias.toLowerCase() === identifier)) {
+            value = fieldValue
+            break
+          }
+        }
+      }
+
+      // Also try matching by field type (e.g., email field could use username value)
+      if (!value && (field.type === 'email' || field.type === 'username')) {
+        value = fields.username || fields.email || fields.login || fields.user
+      }
+      if (!value && field.type === 'password') {
+        value = fields.password || fields.pass || fields.pwd
+      }
+
       if (value) {
         fillField(field.id, value)
       }

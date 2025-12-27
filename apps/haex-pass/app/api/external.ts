@@ -22,24 +22,24 @@
  * Verfügbare Methoden für haex-pass External Requests
  */
 export const HAEX_PASS_METHODS = {
-  /** Logins für eine URL und optionale Feldnamen abrufen */
-  GET_LOGINS: "get-logins",
+  /** Items für eine URL und optionale Feldnamen abrufen */
+  GET_ITEMS: "get-items",
   /** TOTP-Code für einen Eintrag abrufen */
   GET_TOTP: "get-totp",
-  /** Neue Login-Daten speichern */
-  SET_LOGIN: "set-login",
+  /** Neues Item speichern */
+  SET_ITEM: "set-item",
 } as const;
 
 export type HaexPassMethod = (typeof HAEX_PASS_METHODS)[keyof typeof HAEX_PASS_METHODS];
 
 // =============================================================================
-// get-logins
+// get-items
 // =============================================================================
 
 /**
- * Payload für get-logins Request
+ * Payload für get-items Request
  */
-export interface GetLoginsPayload {
+export interface GetItemsPayload {
   /** URL zum Abgleich der Einträge (erforderlich, wird zur Laufzeit validiert) */
   url?: string;
   /**
@@ -51,9 +51,9 @@ export interface GetLoginsPayload {
 }
 
 /**
- * Ein Login-Eintrag aus get-logins
+ * Ein Item-Eintrag aus get-items
  */
-export interface LoginEntry {
+export interface ItemEntry {
   /** Eindeutige Entry-ID (für get-totp verwenden) */
   id: string;
   /** Entry-Titel (z.B. "GitHub Account") */
@@ -68,14 +68,20 @@ export interface LoginEntry {
   fields: Record<string, string>;
   /** Ob TOTP für diesen Eintrag konfiguriert ist */
   hasTotp: boolean;
+  /**
+   * Autofill-Aliase für Feld-Zuordnung.
+   * Ermöglicht Matching, wenn das Form-Feld anders heißt als das gespeicherte Feld.
+   * z.B. { "username": ["email", "login"], "password": ["pass"] }
+   */
+  autofillAliases?: Record<string, string[]> | null;
 }
 
 /**
- * Response-Daten von get-logins
+ * Response-Daten von get-items
  */
-export interface GetLoginsResponseData {
+export interface GetItemsResponseData {
   /** Liste der passenden Einträge */
-  entries: LoginEntry[];
+  entries: ItemEntry[];
 }
 
 // =============================================================================
@@ -101,14 +107,14 @@ export interface GetTotpResponseData {
 }
 
 // =============================================================================
-// set-login
+// set-item
 // =============================================================================
 
 /**
- * Payload für set-login Request
+ * Payload für set-item Request
  */
-export interface SetLoginPayload {
-  /** URL für das Login (für Matching und Auto-Fill) */
+export interface SetItemPayload {
+  /** URL für das Item (für Matching und Auto-Fill) */
   url?: string;
   /** Titel für den Eintrag (wenn nicht angegeben, wird Domain aus URL extrahiert) */
   title?: string;
@@ -121,9 +127,9 @@ export interface SetLoginPayload {
 }
 
 /**
- * Response-Daten von set-login
+ * Response-Daten von set-item
  */
-export interface SetLoginResponseData {
+export interface SetItemResponseData {
   /** ID des neu erstellten Eintrags */
   entryId: string;
   /** Titel des erstellten Eintrags */
@@ -138,16 +144,16 @@ export interface SetLoginResponseData {
  * Map von Methoden zu ihren Payload-Typen
  */
 export interface HaexPassPayloads {
-  [HAEX_PASS_METHODS.GET_LOGINS]: GetLoginsPayload;
+  [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsPayload;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpPayload;
-  [HAEX_PASS_METHODS.SET_LOGIN]: SetLoginPayload;
+  [HAEX_PASS_METHODS.SET_ITEM]: SetItemPayload;
 }
 
 /**
  * Map von Methoden zu ihren Response-Daten-Typen
  */
 export interface HaexPassResponses {
-  [HAEX_PASS_METHODS.GET_LOGINS]: GetLoginsResponseData;
+  [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsResponseData;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpResponseData;
-  [HAEX_PASS_METHODS.SET_LOGIN]: SetLoginResponseData;
+  [HAEX_PASS_METHODS.SET_ITEM]: SetItemResponseData;
 }

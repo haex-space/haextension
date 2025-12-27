@@ -11,13 +11,13 @@ import * as schema from "~/database/schemas";
 import type { ExternalRequest, ExternalResponse } from "@haex-space/vault-sdk";
 import {
   HAEX_PASS_METHODS,
-  type GetLoginsPayload,
+  type GetItemsPayload,
   type GetTotpPayload,
-  type SetLoginPayload,
-  type LoginEntry,
-  type GetLoginsResponseData,
+  type SetItemPayload,
+  type ItemEntry,
+  type GetItemsResponseData,
   type GetTotpResponseData,
-  type SetLoginResponseData,
+  type SetItemResponseData,
 } from "~/api/external";
 
 export function useExternalRequestHandlers() {
@@ -30,10 +30,10 @@ export function useExternalRequestHandlers() {
   const registerHandlers = () => {
     const client = haexVaultStore.client;
 
-    // Handler: get-logins
+    // Handler: get-items
     // Returns matching entries for a given URL and field names
-    client.onExternalRequest(HAEX_PASS_METHODS.GET_LOGINS, async (request) => {
-      return handleGetLogins(request);
+    client.onExternalRequest(HAEX_PASS_METHODS.GET_ITEMS, async (request) => {
+      return handleGetItems(request);
     });
 
     // Handler: get-totp
@@ -42,23 +42,23 @@ export function useExternalRequestHandlers() {
       return handleGetTotp(request);
     });
 
-    // Handler: set-login
+    // Handler: set-item
     // Saves new credentials from browser extension
-    client.onExternalRequest(HAEX_PASS_METHODS.SET_LOGIN, async (request) => {
-      return handleSetLogin(request);
+    client.onExternalRequest(HAEX_PASS_METHODS.SET_ITEM, async (request) => {
+      return handleSetItem(request);
     });
 
     console.log("[haex-pass] External request handlers registered");
   };
 
   /**
-   * Handle get-logins request
+   * Handle get-items request
    * Finds entries matching the URL and returns them with their custom fields
    */
-  const handleGetLogins = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { url, fields } = request.payload as GetLoginsPayload;
+  const handleGetItems = async (request: ExternalRequest): Promise<ExternalResponse> => {
+    const { url, fields } = request.payload as GetItemsPayload;
 
-    console.log("[haex-pass] handleGetLogins called with:", { url, fields });
+    console.log("[haex-pass] handleGetItems called with:", { url, fields });
 
     if (!url) {
       return {
@@ -99,6 +99,7 @@ export function useExternalRequestHandlers() {
           password: schema.haexPasswordsItemDetails.password,
           url: schema.haexPasswordsItemDetails.url,
           otpSecret: schema.haexPasswordsItemDetails.otpSecret,
+          autofillAliases: schema.haexPasswordsItemDetails.autofillAliases,
         })
         .from(schema.haexPasswordsItemDetails)
         .where(
@@ -142,7 +143,8 @@ export function useExternalRequestHandlers() {
             url: entry.url,
             fields: entryFields,
             hasTotp: !!entry.otpSecret,
-          } satisfies LoginEntry;
+            autofillAliases: entry.autofillAliases,
+          } satisfies ItemEntry;
         })
       );
 
@@ -153,7 +155,7 @@ export function useExternalRequestHandlers() {
           )
         : entriesWithFields;
 
-      const responseData: GetLoginsResponseData = {
+      const responseData: GetItemsResponseData = {
         entries: filteredEntries,
       };
 
@@ -163,7 +165,7 @@ export function useExternalRequestHandlers() {
         data: responseData,
       };
     } catch (error) {
-      console.error("[haex-pass] get-logins error:", error);
+      console.error("[haex-pass] get-items error:", error);
       return {
         requestId: request.requestId,
         success: false,
@@ -252,11 +254,11 @@ export function useExternalRequestHandlers() {
   };
 
   /**
-   * Handle set-login request
+   * Handle set-item request
    * Saves new credentials from browser extension
    */
-  const handleSetLogin = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { url, title, username, password, groupId } = request.payload as SetLoginPayload;
+  const handleSetItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
+    const { url, title, username, password, groupId } = request.payload as SetItemPayload;
 
     // At minimum, we need a URL or title to create an entry
     if (!url && !title) {
@@ -338,7 +340,7 @@ export function useExternalRequestHandlers() {
       const { syncGroupItemsAsync } = usePasswordGroupStore();
       await syncGroupItemsAsync();
 
-      const responseData: SetLoginResponseData = {
+      const responseData: SetItemResponseData = {
         entryId: newEntryId,
         title: entryTitle || "",
       };
@@ -349,7 +351,7 @@ export function useExternalRequestHandlers() {
         data: responseData,
       };
     } catch (error) {
-      console.error("[haex-pass] set-login error:", error);
+      console.error("[haex-pass] set-item error:", error);
       return {
         requestId: request.requestId,
         success: false,

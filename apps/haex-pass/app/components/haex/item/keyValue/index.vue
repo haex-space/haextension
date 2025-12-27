@@ -134,19 +134,45 @@
         />
       </ShadcnCardContent>
     </ShadcnCard>
+
+    <!-- Autofill Aliases -->
+    <ShadcnCard v-if="itemDetails">
+      <ShadcnCardHeader>
+        <ShadcnCardTitle class="flex items-center gap-2">
+          <Globe class="h-5 w-5" />
+          {{ t("autofillAliases.title") }}
+        </ShadcnCardTitle>
+        <ShadcnCardDescription>
+          {{ t("autofillAliases.description") }}
+        </ShadcnCardDescription>
+      </ShadcnCardHeader>
+
+      <ShadcnCardContent>
+        <HaexItemAutofillAliases
+          v-model="itemDetails"
+          :key-values="allItems"
+          :read-only="readOnly"
+        />
+      </ShadcnCardContent>
+    </ShadcnCard>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useClipboard, useFocus } from "@vueuse/core";
-import { Plus, Trash2, Copy, Check } from "lucide-vue-next";
-import type { SelectHaexPasswordsItemKeyValues } from "~/database";
+import { Plus, Trash2, Copy, Check, Globe } from "lucide-vue-next";
+import type {
+  SelectHaexPasswordsItemDetails,
+  SelectHaexPasswordsItemKeyValues,
+} from "~/database";
 import type { AttachmentWithSize } from "~/types/attachment";
 
 const { itemId, readOnly } = defineProps<{
   readOnly?: boolean;
   itemId: string;
 }>();
+
+const itemDetails = defineModel<SelectHaexPasswordsItemDetails>("itemDetails");
 
 const items = defineModel<SelectHaexPasswordsItemKeyValues[]>({ default: [] });
 
@@ -249,6 +275,9 @@ de:
   valuePlaceholder: Wert eingeben
   customFields: Benutzerdefinierte Felder
   attachments: Anhänge
+  autofillAliases:
+    title: Autofill-Zuordnung
+    description: Konfiguriere alternative Feldnamen für das Browser-Autofill. Die Standard-Aliase werden automatisch verwendet, wenn keine eigenen definiert sind.
 
 en:
   addField: Add field
@@ -258,4 +287,7 @@ en:
   valuePlaceholder: Enter value
   customFields: Custom Fields
   attachments: Attachments
+  autofillAliases:
+    title: Autofill Mapping
+    description: Configure alternative field names for browser autofill. Default aliases are used automatically if no custom ones are defined.
 </i18n>

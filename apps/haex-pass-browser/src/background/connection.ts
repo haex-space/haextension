@@ -46,9 +46,6 @@ interface ClientInfo {
   requestedExtensions?: RequestedExtension[]
 }
 
-// haex-pass extension public key from its manifest.json (identifies the haex-vault extension)
-const HAEX_PASS_EXTENSION_PUBLIC_KEY = 'b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca'
-
 interface HandshakeRequest {
   type: 'handshake'
   version: number
@@ -293,9 +290,13 @@ class VaultConnectionManager {
     })
   }
 
-  private sendHandshake(): void {
+  private async sendHandshake(): Promise<void> {
     if (!this.ws || !this.clientId || !this.publicKeyBase64)
       return
+
+    // Get extension identifiers (with dev_ prefix if dev mode is enabled)
+    const extensionIds = await getExtensionIdentifiers()
+    console.log('[haex-pass] Sending handshake with extension identifiers:', extensionIds)
 
     const handshake: HandshakeRequest = {
       type: 'handshake',
@@ -306,7 +307,7 @@ class VaultConnectionManager {
         publicKey: this.publicKeyBase64,
         // Request access to haex-pass extension (will be pre-selected in authorization dialog)
         requestedExtensions: [
-          { name: 'haex-pass', extensionPublicKey: HAEX_PASS_EXTENSION_PUBLIC_KEY },
+          { name: extensionIds.name, extensionPublicKey: extensionIds.publicKey },
         ],
       },
     }
@@ -453,6 +454,7 @@ class VaultConnectionManager {
 
     // Get target extension identifiers
     const extensionIds = await getExtensionIdentifiers()
+    console.log('[haex-pass] Sending request with extension identifiers:', extensionIds)
 
     // Create encrypted envelope
     const encrypted = await createEncryptedMessage(
@@ -490,12 +492,12 @@ class VaultConnectionManager {
     })
   }
 
-  async getLogins(url: string, fields: string[]): Promise<unknown> {
-    return this.sendRequest('get-logins', { url, fields })
+  async getItems(url: string, fields: string[]): Promise<unknown> {
+    return this.sendRequest('get-items', { url, fields })
   }
 
-  async setLogin(entry: object): Promise<unknown> {
-    return this.sendRequest('set-login', entry)
+  async setItem(entry: object): Promise<unknown> {
+    return this.sendRequest('set-item', entry)
   }
 
   async getTotp(entryId: string): Promise<unknown> {

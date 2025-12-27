@@ -95,6 +95,7 @@
           <div class="h-full overflow-hidden">
             <HaexItemKeyValue
               v-model="keyValues"
+              v-model:item-details="editableDetails"
               v-model:items-to-add="keyValuesAdd"
               v-model:items-to-delete="keyValuesDelete"
               v-model:attachments="attachments"
@@ -254,6 +255,7 @@ const createEmptyDetails = (): SelectHaexPasswordsItemDetails => ({
   otpPeriod: null,
   otpAlgorithm: null,
   expiresAt: null,
+  autofillAliases: null,
 });
 
 // Initialize based on mode

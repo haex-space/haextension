@@ -1,6 +1,6 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { vaultConnection } from './connection'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_SET_ITEM } from '~/logic/messages'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -46,6 +46,23 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
     return Promise.resolve({ success: true })
   }
 
+  if (message.type === MSG_SET_ITEM) {
+    const data = (msg as { data?: object }).data
+    if (!data) {
+      return Promise.resolve({ success: false, error: 'Missing data' })
+    }
+    return vaultConnection.setItem(data)
+      .then((result) => {
+        // Result from haex-pass is { requestId, success, data, error? }
+        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
+        if (haexResponse.success) {
+          return { success: true, data: haexResponse.data }
+        }
+        return { success: false, error: haexResponse.error || 'Unknown error' }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
   return undefined
 })
 
@@ -70,17 +87,17 @@ onMessage('disconnect', async () => {
 })
 
 // Handle messages from content scripts
-onMessage('get-logins', async (message) => {
+onMessage('get-items', async (message) => {
   const { url, fields } = message.data as { url: string, fields: string[] }
-  console.log('[haex-pass] get-logins request:', { url, fields })
+  console.log('[haex-pass] get-items request:', { url, fields })
   console.log('[haex-pass] Connection state:', vaultConnection.getState())
   try {
-    const result = await vaultConnection.getLogins(url, fields)
-    console.log('[haex-pass] get-logins result:', result)
+    const result = await vaultConnection.getItems(url, fields)
+    console.log('[haex-pass] get-items result:', result)
     return { success: true, data: result }
   }
   catch (err) {
-    console.error('[haex-pass] get-logins error:', err)
+    console.error('[haex-pass] get-items error:', err)
     return { success: false, error: String(err) }
   }
 })

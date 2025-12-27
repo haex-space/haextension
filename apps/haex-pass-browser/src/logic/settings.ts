@@ -5,6 +5,7 @@ const DEFAULT_PORT = 19455
 // These identify the haex-vault extension that handles password management requests
 const STORAGE_KEY_EXTENSION_PUBLIC_KEY = 'haex-pass-extension-public-key'
 const STORAGE_KEY_EXTENSION_NAME = 'haex-pass-extension-name'
+const STORAGE_KEY_DEV_MODE = 'haex-pass-dev-mode'
 const DEFAULT_EXTENSION_PUBLIC_KEY = 'b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca'
 const DEFAULT_EXTENSION_NAME = 'haex-pass'
 
@@ -16,8 +17,7 @@ export async function getWebSocketPort(): Promise<number> {
     const result = await browser.storage.local.get(STORAGE_KEY_PORT)
     const port = result[STORAGE_KEY_PORT]
     return typeof port === 'number' && port > 0 && port <= 65535 ? port : DEFAULT_PORT
-  }
-  catch {
+  } catch {
     return DEFAULT_PORT
   }
 }
@@ -47,8 +47,7 @@ export async function getExtensionPublicKey(): Promise<string> {
     const result = await browser.storage.local.get(STORAGE_KEY_EXTENSION_PUBLIC_KEY)
     const key = result[STORAGE_KEY_EXTENSION_PUBLIC_KEY]
     return typeof key === 'string' && key.length > 0 ? key : DEFAULT_EXTENSION_PUBLIC_KEY
-  }
-  catch {
+  } catch {
     return DEFAULT_EXTENSION_PUBLIC_KEY
   }
 }
@@ -68,8 +67,7 @@ export async function getExtensionName(): Promise<string> {
     const result = await browser.storage.local.get(STORAGE_KEY_EXTENSION_NAME)
     const name = result[STORAGE_KEY_EXTENSION_NAME]
     return typeof name === 'string' && name.length > 0 ? name : DEFAULT_EXTENSION_NAME
-  }
-  catch {
+  } catch {
     return DEFAULT_EXTENSION_NAME
   }
 }
@@ -82,12 +80,41 @@ export async function setExtensionName(name: string): Promise<void> {
 }
 
 /**
+ * Get the dev mode setting
+ */
+export async function getDevMode(): Promise<boolean> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEY_DEV_MODE)
+    return result[STORAGE_KEY_DEV_MODE] === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Set the dev mode setting
+ */
+export async function setDevMode(devMode: boolean): Promise<void> {
+  await browser.storage.local.set({ [STORAGE_KEY_DEV_MODE]: devMode })
+}
+
+/**
  * Get both extension identifiers at once
+ * When dev mode is enabled, prepends 'dev_' to public key
  */
 export async function getExtensionIdentifiers(): Promise<{ publicKey: string, name: string }> {
-  const [publicKey, name] = await Promise.all([
+  const [publicKey, name, devMode] = await Promise.all([
     getExtensionPublicKey(),
     getExtensionName(),
+    getDevMode(),
   ])
+
+  if (devMode) {
+    return {
+      publicKey: `dev_${publicKey}`,
+      name,
+    }
+  }
+
   return { publicKey, name }
 }

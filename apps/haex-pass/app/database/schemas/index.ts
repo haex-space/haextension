@@ -31,6 +31,11 @@ export const haexPasswordsItemDetails = sqliteTable(
     otpPeriod: integer("otp_period").default(30),
     otpAlgorithm: text("otp_algorithm").default("SHA1"),
     expiresAt: text("expires_at"), // ISO date string for password expiry
+    // Autofill aliases: JSON object mapping field keys to alias arrays
+    // e.g., { "username": ["email", "login"], "password": ["pass"] }
+    autofillAliases: text("autofill_aliases", { mode: "json" }).$type<
+      Record<string, string[]>
+    >(),
     createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
     updateAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
       () => new Date()
