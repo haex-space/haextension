@@ -10,12 +10,17 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
         type: string
+      skip_stores:
+        description: 'Skip publishing to Chrome/Firefox stores'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -34,6 +39,15 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Get version from tag or input
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/haex-pass-browser-v}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Chrome extension
         run: pnpm --filter haex-pass-browser build
@@ -55,25 +69,122 @@ jobs:
           pnpm pack:xpi
           mv extension.xpi extension-firefox.xpi
 
-      - name: Get version from tag or input
-        id: version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/haex-pass-browser-v}" >> $GITHUB_OUTPUT
-          fi
+      - name: Upload Chrome artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension
+          path: apps/haex-pass-browser/extension-chrome.zip
+
+      - name: Upload Firefox artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension
+          path: apps/haex-pass-browser/extension-firefox.xpi
+
+      - name: Upload Firefox source (for AMO review)
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-source
+          path: |
+            apps/haex-pass-browser/src/
+            apps/haex-pass-browser/package.json
+            apps/haex-pass-browser/vite.config.mts
+            apps/haex-pass-browser/tsconfig.json
+
+  # TODO: Enable when Chrome Web Store credentials are configured
+  # publish-chrome:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: ${{ !inputs.skip_stores }}
+  #
+  #   steps:
+  #     - name: Download Chrome artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: chrome-extension
+  #
+  #     - name: Publish to Chrome Web Store
+  #       uses: mnao305/chrome-extension-upload@v5.0.0
+  #       with:
+  #         file-path: extension-chrome.zip
+  #         extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+  #         client-id: ${{ secrets.CHROME_CLIENT_ID }}
+  #         client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+  #         refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+  #         publish: true
+
+  publish-firefox:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_stores }}
+
+    steps:
+      - name: Download Firefox artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-extension
+
+      - name: Download Firefox source
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-source
+          path: source
+
+      - name: Create source archive for AMO
+        run: zip -r source.zip source/
+
+      - name: Publish to Firefox Add-ons
+        uses: browser-actions/release-firefox-addon@v0.2.0
+        with:
+          addon-id: ${{ secrets.FIREFOX_ADDON_ID }}
+          addon-path: extension-firefox.xpi
+          source-path: source.zip
+          auth-api-issuer: ${{ secrets.FIREFOX_API_ISSUER }}
+          auth-api-secret: ${{ secrets.FIREFOX_API_SECRET }}
+
+  github-release:
+    needs: [build, publish-firefox]  # Add publish-chrome when enabled
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result == 'success'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Chrome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension
+
+      - name: Download Firefox artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-extension
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: haex-pass-browser-v${{ steps.version.outputs.version }}
-          name: haex-pass Browser Extension v${{ steps.version.outputs.version }}
+          tag_name: haex-pass-browser-v${{ needs.build.outputs.version }}
+          name: haex-pass Browser Extension v${{ needs.build.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## Installation
+
+            ### Chrome / Edge / Brave
+            1. Download `extension-chrome.zip`
+            2. Go to `chrome://extensions`
+            3. Enable "Developer mode"
+            4. Drag & drop the ZIP file
+
+            Or install from [Chrome Web Store](https://chromewebstore.google.com/detail/${{ secrets.CHROME_EXTENSION_ID }})
+
+            ### Firefox
+            Install from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/${{ secrets.FIREFOX_ADDON_SLUG }}/)
+
+            Or download `extension-firefox.xpi` for manual installation.
           files: |
-            apps/haex-pass-browser/extension-chrome.zip
-            apps/haex-pass-browser/extension-firefox.xpi
+            extension-chrome.zip
+            extension-firefox.xpi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
