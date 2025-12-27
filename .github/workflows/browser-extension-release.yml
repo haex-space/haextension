@@ -119,28 +119,37 @@ jobs:
     if: ${{ !inputs.skip_stores }}
 
     steps:
-      - name: Download Firefox artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: firefox-extension
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Download Firefox source
-        uses: actions/download-artifact@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          name: firefox-source
-          path: source
+          version: 9
 
-      - name: Create source archive for AMO
-        run: zip -r source.zip source/
-
-      - name: Publish to Firefox Add-ons
-        uses: browser-actions/release-firefox-addon@v0.2.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          addon-id: ${{ secrets.FIREFOX_ADDON_ID }}
-          addon-path: extension-firefox.xpi
-          source-path: source.zip
-          auth-api-issuer: ${{ secrets.FIREFOX_API_ISSUER }}
-          auth-api-secret: ${{ secrets.FIREFOX_API_SECRET }}
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Firefox extension
+        run: |
+          cd apps/haex-pass-browser
+          EXTENSION=firefox pnpm build
+
+      - name: Sign and publish to Firefox Add-ons
+        uses: kewisch/action-web-ext@v1
+        with:
+          cmd: sign
+          source: apps/haex-pass-browser/extension
+          channel: listed
+          apiKey: ${{ secrets.FIREFOX_API_ISSUER }}
+          apiSecret: ${{ secrets.FIREFOX_API_SECRET }}
+          timeout: 900000
 
   github-release:
     needs: [build, publish-firefox]  # Add publish-chrome when enabled

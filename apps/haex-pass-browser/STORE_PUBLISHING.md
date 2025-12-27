@@ -49,10 +49,11 @@ Die Response enthält den `refresh_token`.
 
 | Secret | Beschreibung |
 |--------|--------------|
-| `FIREFOX_ADDON_ID` | Die Add-on ID/GUID (z.B. `{12345678-1234-1234-1234-123456789abc}` oder `haex-pass@haex.space`) |
 | `FIREFOX_ADDON_SLUG` | Der URL-Slug für den Store-Link (z.B. `haex-pass`) |
 | `FIREFOX_API_ISSUER` | JWT API Key (Issuer) |
 | `FIREFOX_API_SECRET` | JWT API Secret |
+
+> **Hinweis**: Der Workflow verwendet [kewisch/action-web-ext](https://github.com/kewisch/action-web-ext), das Mozillas offizielles `web-ext` CLI-Tool nutzt.
 
 #### Firefox Credentials erstellen
 
@@ -97,7 +98,7 @@ Verwende die Option `skip_stores: true` beim manuellen Workflow-Trigger.
 
 ### Source Code (Firefox)
 
-Firefox erfordert bei minifizierten/transpilierten Extensions den Source Code zur Review. Der Workflow lädt automatisch die relevanten Quelldateien hoch.
+Firefox erfordert bei minifizierten/transpilierten Extensions den Source Code zur Review. Bei der ersten manuellen Einreichung sollte der Source Code als ZIP hochgeladen werden. Bei späteren automatischen Updates übernimmt AMO die Verknüpfung.
 
 ## Troubleshooting
 
