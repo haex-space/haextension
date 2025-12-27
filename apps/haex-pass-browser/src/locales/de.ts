@@ -1,6 +1,6 @@
 export default {
   extension: {
-    name: 'haex-pass',
+    name: 'HaexPass',
     description: 'Passwort-Manager',
   },
   status: {
@@ -11,9 +11,9 @@ export default {
     disconnected: 'Nicht verbunden',
   },
   hint: {
-    vaultNotRunning: 'Stelle sicher, dass haex-vault auf deinem Computer gestartet ist.',
-    pendingApproval: 'Bitte genehmige diese Verbindung in haex-vault, um fortzufahren.',
-    autoFillActive: 'Auto-Ausfüllen ist aktiv. Klicke auf das haex-pass Symbol in einem Login-Formular, um Zugangsdaten einzufügen.',
+    vaultNotRunning: 'Stelle sicher, dass HaexVault auf deinem Computer gestartet ist.',
+    pendingApproval: 'Bitte genehmige diese Verbindung in HaexVault, um fortzufahren.',
+    autoFillActive: 'Auto-Ausfüllen ist aktiv. Klicke auf das HaexPass Symbol in einem Login-Formular, um Zugangsdaten einzufügen.',
   },
   button: {
     connect: 'Verbinden',
@@ -80,25 +80,25 @@ export default {
     },
     connection: {
       label: 'Verbindung',
-      description: 'Konfiguriere die Verbindung zu haex-vault.',
+      description: 'Konfiguriere die Verbindung zu HaexVault.',
       status: 'Verbindungsstatus',
     },
     port: {
       label: 'WebSocket Port',
-      description: 'Der Port, auf dem haex-vault lauscht. Standard: 19455',
+      description: 'Der Port, auf dem HaexVault lauscht. Standard: 19455',
       placeholder: 'Port (1-65535)',
       invalid: 'Port muss zwischen 1 und 65535 liegen',
     },
     devMode: {
       label: 'Entwicklermodus',
-      description: 'Aktivieren, wenn haex-pass im Dev-Modus in haex-vault läuft.',
+      description: 'Aktivieren, wenn HaexPass im Dev-Modus in HaexVault läuft.',
     },
     save: 'Speichern',
     saved: 'Gespeichert!',
     restartRequired: 'Neuverbindung erforderlich, damit Änderungen wirksam werden.',
     disconnect: {
       label: 'Verbindung trennen',
-      description: 'Trenne die aktuelle Verbindung zu haex-vault.',
+      description: 'Trenne die aktuelle Verbindung zu HaexVault.',
       button: 'Trennen',
       success: 'Verbindung getrennt',
     },

@@ -121,7 +121,7 @@ import { detectInputFields, type DetectedField } from './detector'
 
     const logoImg = document.createElement('img')
     logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-    logoImg.alt = 'haex-pass'
+    logoImg.alt = 'HaexPass'
     logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
     iconContainer.appendChild(logoImg)
 
@@ -215,7 +215,7 @@ import { detectInputFields, type DetectedField } from './detector'
   function showAddNewTooltip(anchorEl: HTMLElement) {
     const tooltip = document.createElement('div')
     tooltip.className = 'haex-pass-tooltip'
-    tooltip.textContent = 'Click the haex-pass icon in your browser toolbar to add a new entry'
+    tooltip.textContent = 'Click the HaexPass icon in your browser toolbar to add a new entry'
     tooltip.style.cssText = `
       position: fixed;
       background: #1f2937;
@@ -266,7 +266,7 @@ import { detectInputFields, type DetectedField } from './detector'
 
       const logoImg = document.createElement('img')
       logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-      logoImg.alt = 'haex-pass'
+      logoImg.alt = 'HaexPass'
       logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
       iconContainer.appendChild(logoImg)
 

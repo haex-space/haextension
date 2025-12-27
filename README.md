@@ -8,7 +8,7 @@ Haextension ist eine Sammlung von Extensions für [HaexVault](https://haex.space
 
 ## Extensions
 
-### haex-pass - Passwort-Manager
+### HaexPass - Passwort-Manager
 
 Ein moderner Passwort-Manager, inspiriert von KeePass - aber besser.
 
@@ -21,11 +21,11 @@ Ein moderner Passwort-Manager, inspiriert von KeePass - aber besser.
 - TOTP-Unterstützung (2FA)
 - Ende-zu-Ende-Verschlüsselung
 
-**Installation:** [haex-pass im Marketplace](https://haex.space/marketplace/haex-pass)
+**Installation:** [HaexPass im Marketplace](https://haex.space/marketplace/haex-pass)
 
-### haex-pass-browser - Browser-Extension
+### HaexPass Browser - Browser-Extension
 
-Browser-Extension für haex-pass zum automatischen Ausfüllen von Login-Formularen.
+Browser-Extension für HaexPass zum automatischen Ausfüllen von Login-Formularen.
 
 **Features:**
 - Sichere WebSocket-Verbindung zu HaexVault
@@ -35,7 +35,7 @@ Browser-Extension für haex-pass zum automatischen Ausfüllen von Login-Formular
 - Keine Datensammlung - alles bleibt lokal
 
 **Installation:**
-- **Firefox:** [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/haex-pass/)
+- **Firefox:** [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/haexpass/)
 - **Chrome/Chromium:** [Releases](https://github.com/haex-space/haextension/releases) herunterladen und als "unpacked extension" laden
 
 ### haex-files - E2E-verschlüsselter File-Sync (in Entwicklung)
@@ -116,15 +116,15 @@ pnpm --filter haex-pass-browser pack:xpi
 
 ## Nutzung der Extensions
 
-### haex-pass
+### HaexPass
 
 1. **Installation:**
    - Öffne HaexVault auf deinem Gerät
    - Navigiere zum Marketplace
-   - Installiere "haex-pass"
+   - Installiere "HaexPass"
 
 2. **KeePass-Import:**
-   - Öffne haex-pass in HaexVault
+   - Öffne HaexPass in HaexVault
    - Klicke auf "Importieren"
    - Wähle deine `.kdbx`-Datei
    - Gib das Master-Passwort ein
@@ -139,12 +139,12 @@ pnpm --filter haex-pass-browser pack:xpi
    - Nutze die Suchleiste für Fuzzy-Suche
    - Tippe einen Teil des Titels oder Benutzernamens
 
-### haex-pass-browser
+### HaexPass Browser
 
 1. **Setup:**
    - Installiere die Browser-Extension (siehe oben)
    - Starte HaexVault auf deinem Computer
-   - Klicke auf das haex-pass Icon in der Browser-Toolbar
+   - Klicke auf das HaexPass Icon in der Browser-Toolbar
 
 2. **Verbindung herstellen:**
    - Klicke "Verbinden" im Extension-Popup
@@ -153,7 +153,7 @@ pnpm --filter haex-pass-browser pack:xpi
 
 3. **Autofill nutzen:**
    - Navigiere zu einer Login-Seite
-   - Klicke auf das haex-pass Icon im Eingabefeld
+   - Klicke auf das HaexPass Icon im Eingabefeld
    - Wähle den gewünschten Eintrag
    - Benutzername und Passwort werden automatisch ausgefüllt
 

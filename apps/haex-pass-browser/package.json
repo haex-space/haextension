@@ -1,10 +1,10 @@
 {
   "name": "haex-pass-browser",
-  "displayName": "haex-pass Browser Extension",
+  "displayName": "HaexPass Browser Extension",
   "version": "1.0.10",
   "private": true,
   "packageManager": "pnpm@9.7.1",
-  "description": "Browser extension for haex-pass password manager",
+  "description": "Browser extension for HaexPass password manager",
   "scripts": {
     "dev": "npm run clear && cross-env NODE_ENV=development run-p dev:*",
     "dev-firefox": "npm run clear && cross-env NODE_ENV=development EXTENSION=firefox run-p dev:*",

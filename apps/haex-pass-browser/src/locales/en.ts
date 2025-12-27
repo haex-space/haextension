@@ -1,6 +1,6 @@
 export default {
   extension: {
-    name: 'haex-pass',
+    name: 'HaexPass',
     description: 'Password Manager',
   },
   status: {
@@ -11,9 +11,9 @@ export default {
     disconnected: 'Disconnected',
   },
   hint: {
-    vaultNotRunning: 'Make sure haex-vault is running on your computer.',
-    pendingApproval: 'Please approve this connection in haex-vault to continue.',
-    autoFillActive: 'Auto-fill is active. Click on the haex-pass icon in any login form to fill credentials.',
+    vaultNotRunning: 'Make sure HaexVault is running on your computer.',
+    pendingApproval: 'Please approve this connection in HaexVault to continue.',
+    autoFillActive: 'Auto-fill is active. Click on the HaexPass icon in any login form to fill credentials.',
   },
   button: {
     connect: 'Connect',
@@ -80,25 +80,25 @@ export default {
     },
     connection: {
       label: 'Connection',
-      description: 'Configure the connection to haex-vault.',
+      description: 'Configure the connection to HaexVault.',
       status: 'Connection Status',
     },
     port: {
       label: 'WebSocket Port',
-      description: 'The port haex-vault is listening on. Default: 19455',
+      description: 'The port HaexVault is listening on. Default: 19455',
       placeholder: 'Port (1-65535)',
       invalid: 'Port must be between 1 and 65535',
     },
     devMode: {
       label: 'Developer Mode',
-      description: 'Enable when haex-pass runs in dev mode in haex-vault.',
+      description: 'Enable when HaexPass runs in dev mode in HaexVault.',
     },
     save: 'Save',
     saved: 'Saved!',
     restartRequired: 'Reconnect required for changes to take effect.',
     disconnect: {
       label: 'Disconnect',
-      description: 'Disconnect the current connection to haex-vault.',
+      description: 'Disconnect the current connection to HaexVault.',
       button: 'Disconnect',
       success: 'Disconnected',
     },

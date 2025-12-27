@@ -1,8 +1,8 @@
-# haex-pass
+# HaexPass
 
 A modern password manager, inspired by KeePass – but better.
 
-## Why haex-pass?
+## Why HaexPass?
 
 KeePass is great and one of my favorite tools. But some things always bothered me:
 
@@ -11,7 +11,7 @@ KeePass is great and one of my favorite tools. But some things always bothered m
 - **No fuzzy search** – You need to know the exact name to find entries.
 - **Syncing is painful** – Anyone using KeePass on multiple devices knows this: keeping database files in sync is tedious and error-prone.
 
-**haex-pass solves all of these problems.** It offers almost all KeePass features – plus a consistent, responsive interface, fast fuzzy search, and seamless synchronization via HaexSpace.
+**HaexPass solves all of these problems.** It offers almost all KeePass features – plus a consistent, responsive interface, fast fuzzy search, and seamless synchronization via HaexSpace.
 
 ## Features
 
@@ -25,9 +25,9 @@ KeePass is great and one of my favorite tools. But some things always bothered m
 
 ## Installation
 
-haex-pass is available as an extension for [HaexSpace](https://haex.space):
+HaexPass is available as an extension for [HaexSpace](https://haex.space):
 
-**[haex-pass on the Marketplace](https://haex.space/marketplace/haex-pass)**
+**[HaexPass on the Marketplace](https://haex.space/marketplace/haex-pass)**
 
 ## Development
 
