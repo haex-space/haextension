@@ -110,19 +110,40 @@
           />
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent align="end">
-          <ShadcnDropdownMenuItem
-            class="py-3 text-base"
-            @select="showImportDrawer = true"
-          >
-            <DatabaseBackup class="mr-3 size-5" />
-            {{ t("moreMenu.import") }}
-          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuSub>
+            <ShadcnDropdownMenuSubTrigger class="py-3 text-base">
+              <DatabaseBackup class="mr-3 size-5" />
+              {{ t("moreMenu.import") }}
+            </ShadcnDropdownMenuSubTrigger>
+            <ShadcnDropdownMenuSubContent>
+              <ShadcnDropdownMenuItem
+                class="py-3 text-base"
+                @select="showImportKeepassDrawer = true"
+              >
+                {{ t("moreMenu.importKeepass") }}
+              </ShadcnDropdownMenuItem>
+              <ShadcnDropdownMenuItem
+                class="py-3 text-base"
+                @select="showImportBitwardenDrawer = true"
+              >
+                {{ t("moreMenu.importBitwarden") }}
+              </ShadcnDropdownMenuItem>
+              <ShadcnDropdownMenuItem
+                class="py-3 text-base"
+                @select="showImportLastpassDrawer = true"
+              >
+                {{ t("moreMenu.importLastpass") }}
+              </ShadcnDropdownMenuItem>
+            </ShadcnDropdownMenuSubContent>
+          </ShadcnDropdownMenuSub>
         </ShadcnDropdownMenuContent>
       </ShadcnDropdownMenu>
     </div>
 
-    <!-- Import Drawer -->
-    <HaexDrawerImportKeepass v-model:open="showImportDrawer" />
+    <!-- Import Drawers -->
+    <HaexDrawerImportKeepass v-model:open="showImportKeepassDrawer" />
+    <HaexDrawerImportBitwarden v-model:open="showImportBitwardenDrawer" />
+    <HaexDrawerImportLastpass v-model:open="showImportLastpassDrawer" />
   </div>
 </template>
 
@@ -155,7 +176,9 @@ const { sortByName, sortByDateCreated, sortByDateModified } =
   useGroupItemsMenuStore();
 const { sortField, sortDirection } = storeToRefs(useGroupItemsMenuStore());
 
-const showImportDrawer = ref(false);
+const showImportKeepassDrawer = ref(false);
+const showImportBitwardenDrawer = ref(false);
+const showImportLastpassDrawer = ref(false);
 
 // Prevent Ctrl+A from selecting all items when focused on search input
 const onSearchKeydown = (event: KeyboardEvent) => {
@@ -199,7 +222,10 @@ de:
     dateCreated: Nach Erstelldatum
     dateModified: Nach Änderungsdatum
   moreMenu:
-    import: KeePass Import
+    import: Importieren
+    importKeepass: KeePass (.kdbx)
+    importBitwarden: Bitwarden (.csv, .json)
+    importLastpass: LastPass (.csv)
 
 en:
   search: Search...
@@ -214,5 +240,8 @@ en:
     dateCreated: By date created
     dateModified: By date modified
   moreMenu:
-    import: KeePass Import
+    import: Import
+    importKeepass: KeePass (.kdbx)
+    importBitwarden: Bitwarden (.csv, .json)
+    importLastpass: LastPass (.csv)
 </i18n>
