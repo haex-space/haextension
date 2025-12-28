@@ -5,12 +5,12 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 min-h-0 overflow-hidden">
-      <!-- Mobile: Overlay Sidebar via Sheet -->
-      <ShadcnSheet v-model:open="mobileOpen">
-        <ShadcnSheetContent :side="side" class="w-96 p-0 [&>button]:hidden">
+      <!-- Mobile: Overlay Sidebar via Drawer with swipe-to-close -->
+      <ShadcnDrawer v-model:open="mobileOpen" :direction="side">
+        <ShadcnDrawerContent class="h-full w-80 p-0">
           <slot name="sidebar" />
-        </ShadcnSheetContent>
-      </ShadcnSheet>
+        </ShadcnDrawerContent>
+      </ShadcnDrawer>
 
       <!-- Mobile: Content only -->
       <div class="md:hidden h-full overflow-y-auto">
