@@ -329,7 +329,7 @@ const setupLongPress = (el: Element | ComponentPublicInstance | null, file: Loca
     element,
     () => {
       longPressedHook.value = true;
-      selectionStore.toggleSelection(file.relativePath);
+      selectionStore.selectFile(file.relativePath);
     },
     { delay: 500 }
   );
@@ -608,17 +608,26 @@ const navigateToPath = async (index: number) => {
 };
 
 const onFileClick = async (file: (typeof files.value)[0], event: MouseEvent) => {
+  // If long press just happened and item is selected, ignore the click event that follows
+  if (longPressedHook.value && selectionStore.isSelected(file.relativePath)) {
+    event.preventDefault();
+    longPressedHook.value = false;
+    return;
+  }
+
   // Ctrl/Cmd click toggles selection
   if (event.ctrlKey || event.metaKey) {
     if (!file.isDirectory) {
       selectionStore.toggleSelection(file.relativePath);
     }
+    longPressedHook.value = false;
     return;
   }
 
   // If in selection mode and clicking a file, toggle selection
   if (selectionStore.isSelectionMode && !file.isDirectory) {
     selectionStore.toggleSelection(file.relativePath);
+    longPressedHook.value = false;
     return;
   }
 
