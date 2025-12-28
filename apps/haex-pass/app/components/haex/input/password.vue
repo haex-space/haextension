@@ -1,8 +1,10 @@
 <template>
   <div>
+    <!-- Hidden password mode: normal input -->
     <HaexInput
+      v-if="!showPassword"
       v-model="model"
-      :type="showPassword ? 'text' : 'password'"
+      type="password"
       v-bind="$attrs"
     >
       <template #append>
@@ -21,13 +23,56 @@
           @click.prevent="drawerOpen = true"
         />
         <UiButton
-          :icon="showPassword ? EyeOff : Eye"
-          :tooltip="showPassword ? t('hide') : t('show')"
+          :icon="Eye"
+          :tooltip="t('show')"
           variant="ghost"
-          @click.prevent="showPassword = !showPassword"
+          @click.prevent="showPassword = true"
         />
       </template>
     </HaexInput>
+
+    <!-- Visible password mode: colored display with editable input -->
+    <ShadcnInputGroup
+      v-else
+      class="group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]"
+    >
+      <!-- Colored password display overlay -->
+      <div class="relative flex-1 min-w-0">
+        <HaexInputPasswordDisplay
+          :model-value="model"
+          :placeholder="$attrs.placeholder as string"
+          class="absolute inset-0 flex items-center px-3 pointer-events-none z-10"
+        />
+        <!-- Invisible input for editing -->
+        <input
+          v-model="model"
+          type="text"
+          class="w-full h-9 px-3 bg-transparent text-transparent caret-foreground focus:outline-none font-mono text-sm tracking-wide"
+          v-bind="$attrs"
+        >
+      </div>
+
+      <UiButton
+        v-if="!readOnly"
+        :icon="Dices"
+        :tooltip="t('generateQuick')"
+        variant="ghost"
+        @click.prevent="generateQuickPasswordAsync"
+      />
+      <UiButton
+        v-if="!readOnly"
+        :icon="KeyRound"
+        :tooltip="t('generateAdvanced')"
+        variant="ghost"
+        @click.prevent="drawerOpen = true"
+      />
+      <UiButton
+        :icon="EyeOff"
+        :tooltip="t('hide')"
+        variant="ghost"
+        @click.prevent="showPassword = false"
+      />
+    </ShadcnInputGroup>
 
     <HaexDrawerPasswordGenerator v-model="model" v-model:open="drawerOpen" />
   </div>
