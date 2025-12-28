@@ -2,9 +2,34 @@
   <UiDrawerModal v-model:open="isOpen" :title="isEditMode ? t('titleEdit') : t('title')" :description="isEditMode ? t('descriptionEdit') : t('description')">
     <template #content>
       <form class="space-y-4" @submit.prevent="submitAsync">
-        <!-- Folder Selection -->
+        <!-- Source Type Toggle (only in add mode) -->
+        <div v-if="!isEditMode" class="space-y-2">
+          <ShadcnLabel>{{ t("sourceType.label") }}</ShadcnLabel>
+          <div class="flex gap-2">
+            <ShadcnButton
+              type="button"
+              :variant="form.direction !== 'down' ? 'default' : 'outline'"
+              class="flex-1"
+              @click="form.direction = 'up'"
+            >
+              <Upload class="size-4 mr-2" />
+              {{ t("sourceType.local") }}
+            </ShadcnButton>
+            <ShadcnButton
+              type="button"
+              :variant="form.direction === 'down' ? 'default' : 'outline'"
+              class="flex-1"
+              @click="form.direction = 'down'"
+            >
+              <Download class="size-4 mr-2" />
+              {{ t("sourceType.remote") }}
+            </ShadcnButton>
+          </div>
+        </div>
+
+        <!-- Local Folder Selection -->
         <div class="space-y-2">
-          <ShadcnLabel>{{ t("folder") }}</ShadcnLabel>
+          <ShadcnLabel>{{ form.direction === 'down' ? t("destinationFolder") : t("folder") }}</ShadcnLabel>
           <div class="flex gap-2">
             <ShadcnInputGroup class="flex-1">
               <ShadcnInputGroupInput
@@ -25,6 +50,40 @@
             </ShadcnButton>
           </div>
         </div>
+
+        <!-- Remote Paths (only for download rules) -->
+        <div v-if="form.direction === 'down'" class="space-y-2">
+          <ShadcnLabel>{{ t("remotePath.label") }}</ShadcnLabel>
+          <div class="flex gap-2">
+            <ShadcnInputGroup class="flex-1">
+              <ShadcnInputGroupInput
+                :model-value="remotePathsDisplay"
+                :placeholder="t('remotePath.placeholder')"
+                readonly
+              />
+            </ShadcnInputGroup>
+            <ShadcnButton
+              v-if="!isEditMode"
+              type="button"
+              variant="outline"
+              :disabled="form.backendIds.length === 0"
+              @click="showRemoteBrowser = true"
+            >
+              <Search class="size-4 mr-2" />
+              {{ t("browse") }}
+            </ShadcnButton>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ t("remotePath.hint") }}
+          </p>
+        </div>
+
+        <!-- Remote Browser Dialog -->
+        <DialogRemoteBrowser
+          v-model:open="showRemoteBrowser"
+          :backend-ids="form.backendIds"
+          @select="onRemotePathsSelected"
+        />
 
         <!-- Space Selection -->
         <div class="space-y-2">
@@ -122,8 +181,8 @@
           </div>
         </div>
 
-        <!-- Sync Direction -->
-        <div class="space-y-2">
+        <!-- Sync Direction (only in edit mode) -->
+        <div v-if="isEditMode" class="space-y-2">
           <ShadcnLabel>{{ t("direction.label") }}</ShadcnLabel>
           <ShadcnSelect v-model="form.direction">
             <ShadcnSelectTrigger>
@@ -255,7 +314,7 @@
 </template>
 
 <script setup lang="ts">
-import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy } from "lucide-vue-next";
+import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy, Search } from "lucide-vue-next";
 import type { SyncRule, SyncDirection, ConflictStrategy } from "~/stores/syncRules";
 
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -282,9 +341,10 @@ const isEditMode = computed(() => !!props.editRule);
 
 const form = reactive({
   localPath: "",
+  remotePaths: [] as string[],
   spaceId: "",
   backendIds: [] as string[],
-  direction: "both" as SyncDirection,
+  direction: "up" as SyncDirection,
   ignorePatterns: "",
   conflictStrategy: "ask" as ConflictStrategy,
 });
@@ -298,6 +358,9 @@ const error = ref<string | null>(null);
 const showNewSpaceDialog = ref(false);
 const newSpaceName = ref("");
 const isCreatingSpace = ref(false);
+
+// Remote Browser Dialog state
+const showRemoteBrowser = ref(false);
 
 const isValid = computed(() => {
   return (
@@ -315,16 +378,21 @@ const ignorePatternsArray = computed(() => {
     .filter((p) => p.length > 0);
 });
 
+// Computed display value for remote paths (semicolon-separated)
+const remotePathsDisplay = computed(() => form.remotePaths.join("; "));
+
 const hasChanges = computed(() => {
   if (!props.editRule) return false;
   const rule = props.editRule;
   const backendsSame = rule.backendIds.length === form.backendIds.length &&
     rule.backendIds.every((id) => form.backendIds.includes(id));
   const ignorePatternsSame = JSON.stringify(rule.ignorePatterns) === JSON.stringify(ignorePatternsArray.value);
+  const remotePathsSame = JSON.stringify(rule.remotePaths) === JSON.stringify(form.remotePaths);
   return rule.direction !== form.direction ||
     rule.conflictStrategy !== form.conflictStrategy ||
     !backendsSame ||
-    !ignorePatternsSame;
+    !ignorePatternsSame ||
+    !remotePathsSame;
 });
 
 const selectFolderAsync = async () => {
@@ -351,6 +419,11 @@ const toggleBackend = (backendId: string) => {
   } else {
     form.backendIds.splice(index, 1);
   }
+};
+
+const onRemotePathsSelected = (paths: string[]) => {
+  if (paths.length === 0) return;
+  form.remotePaths = paths;
 };
 
 const createSpaceAsync = async () => {
@@ -380,6 +453,7 @@ const submitAsync = async () => {
     const newRule = await syncRulesStore.addSyncRuleAsync({
       spaceId: form.spaceId,
       localPath: form.localPath.trim(),
+      remotePaths: form.direction === "down" ? form.remotePaths : undefined,
       backendIds: form.backendIds,
       direction: form.direction,
       ignorePatterns: ignorePatternsArray.value,
@@ -406,6 +480,7 @@ const updateAsync = async () => {
   try {
     await syncRulesStore.updateSyncRuleAsync({
       ruleId: props.editRule.id,
+      remotePaths: form.direction === "down" ? form.remotePaths : [],
       backendIds: form.backendIds,
       direction: form.direction,
       ignorePatterns: ignorePatternsArray.value,
@@ -442,9 +517,10 @@ const deleteAsync = async () => {
 
 const resetForm = () => {
   form.localPath = "";
+  form.remotePaths = [];
   form.spaceId = "";
   form.backendIds = [];
-  form.direction = "both";
+  form.direction = "up";
   form.ignorePatterns = "";
   form.conflictStrategy = "ask";
   error.value = null;
@@ -479,6 +555,7 @@ watch(
     if (editRule) {
       // Edit mode: populate form from rule
       form.localPath = editRule.localPath;
+      form.remotePaths = [...editRule.remotePaths];
       form.spaceId = editRule.spaceId;
       form.backendIds = [...editRule.backendIds];
       form.direction = editRule.direction;
@@ -487,9 +564,10 @@ watch(
     } else {
       // Add mode: reset form and pre-select defaults
       form.localPath = "";
+      form.remotePaths = [];
       form.spaceId = spaces.value[0]?.id || "";
       form.backendIds = backends.value.map((b) => b.id);
-      form.direction = "both";
+      form.direction = "up";
       form.ignorePatterns = "";
       form.conflictStrategy = "ask";
       error.value = null;
@@ -525,9 +603,18 @@ de:
   titleEdit: Sync-Regel bearbeiten
   description: Wähle einen Ordner und konfiguriere die Synchronisierung.
   descriptionEdit: Bearbeite oder lösche diese Sync-Regel.
+  sourceType:
+    label: Quelle
+    local: Lokaler Ordner
+    remote: Remote-Ordner
   folder: Ordner
+  destinationFolder: Ziel-Ordner
   folderPlaceholder: Ordner auswählen...
   browse: Durchsuchen
+  remotePath:
+    label: Remote-Pfade
+    placeholder: Klicke auf Durchsuchen...
+    hint: Wähle Ordner oder Dateien aus der Cloud zum Synchronisieren.
   space: Space
   spacePlaceholder: Space auswählen
   newSpace: Neuen Space erstellen
@@ -571,9 +658,18 @@ en:
   titleEdit: Edit Sync Rule
   description: Select a folder and configure synchronization.
   descriptionEdit: Edit or delete this sync rule.
+  sourceType:
+    label: Source
+    local: Local Folder
+    remote: Remote Folder
   folder: Folder
+  destinationFolder: Destination Folder
   folderPlaceholder: Select folder...
   browse: Browse
+  remotePath:
+    label: Remote Paths
+    placeholder: Click Browse...
+    hint: Select folders or files from the cloud to synchronize.
   space: Space
   spacePlaceholder: Select space
   newSpace: Create new space

@@ -8,6 +8,20 @@
       "when": 1766181795617,
       "tag": "0000_next_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1766882423188,
+      "tag": "0001_fixed_donald_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1766889163915,
+      "tag": "0002_cheerful_johnny_storm",
+      "breakpoints": true
     }
   ]
 }

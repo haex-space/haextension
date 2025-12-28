@@ -1,0 +1,1 @@
+ALTER TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules` ADD `remote_path` text;

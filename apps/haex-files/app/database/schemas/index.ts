@@ -119,7 +119,9 @@ export const syncRules = sqliteTable(
     spaceId: text("space_id")
       .references((): AnySQLiteColumn => spaces.id, { onDelete: "cascade" })
       .notNull(),
-    localPath: text("local_path").notNull(), // Local filesystem path
+    localPath: text("local_path").notNull(), // Local filesystem path (source for up, destination for down)
+    // Remote path/prefix for download rules (optional, only used when direction is "down")
+    remotePath: text("remote_path"), // Remote prefix to sync from (e.g., "photos/2024/")
     // JSON array of backend IDs (references Core haex_storage_backends)
     backendIds: text("backend_ids").notNull().default("[]"),
     direction: text().notNull().default("both"), // up, down, both
@@ -186,3 +188,32 @@ export const syncQueue = sqliteTable(
 );
 export type InsertSyncQueue = typeof syncQueue.$inferInsert;
 export type SelectSyncQueue = typeof syncQueue.$inferSelect;
+
+/**
+ * Sync state - tracks known files for deletion detection
+ * When a file is synced, its path is recorded here
+ * If a file exists in syncState but not locally, it was deleted
+ * If a file exists locally but not in syncState, it's new
+ */
+export const syncState = sqliteTable(
+  tableName("sync_state"),
+  {
+    id: text().primaryKey(),
+    // Reference to sync rule
+    ruleId: text("rule_id")
+      .references((): AnySQLiteColumn => syncRules.id, { onDelete: "cascade" })
+      .notNull(),
+    // Relative path from sync root
+    relativePath: text("relative_path").notNull(),
+    // Backend ID (references Core haex_storage_backends)
+    backendId: text("backend_id").notNull(),
+    // File metadata at last sync
+    fileSize: integer("file_size").notNull().default(0),
+    lastModified: text("last_modified"),
+    contentHash: text("content_hash"), // For conflict detection
+    // When this file was last synced
+    lastSyncedAt: text("last_synced_at").default(sql`(CURRENT_TIMESTAMP)`),
+  }
+);
+export type InsertSyncState = typeof syncState.$inferInsert;
+export type SelectSyncState = typeof syncState.$inferSelect;

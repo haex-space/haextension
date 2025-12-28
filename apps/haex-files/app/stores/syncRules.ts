@@ -13,6 +13,8 @@ export interface SyncRule {
   id: string;
   spaceId: string;
   localPath: string;
+  /** Remote paths/prefixes for download rules (optional, multiple allowed) */
+  remotePaths: string[];
   backendIds: string[];
   direction: SyncDirection;
   enabled: boolean;
@@ -25,6 +27,8 @@ export interface SyncRule {
 export interface AddSyncRuleOptions {
   spaceId: string;
   localPath: string;
+  /** Remote paths/prefixes for download rules (optional, multiple allowed) */
+  remotePaths?: string[];
   backendIds: string[];
   direction?: SyncDirection;
   ignorePatterns?: string[];
@@ -33,11 +37,30 @@ export interface AddSyncRuleOptions {
 
 export interface UpdateSyncRuleOptions {
   ruleId: string;
+  remotePaths?: string[];
   backendIds?: string[];
   direction?: SyncDirection;
   enabled?: boolean;
   ignorePatterns?: string[];
   conflictStrategy?: ConflictStrategy;
+}
+
+/**
+ * Parse remotePath field - handles both legacy string and new JSON array format
+ */
+function parseRemotePaths(remotePath: string | null | undefined): string[] {
+  if (!remotePath) return [];
+  try {
+    // Try parsing as JSON array first
+    const parsed = JSON.parse(remotePath);
+    if (Array.isArray(parsed)) return parsed;
+    // If it's a string in JSON, wrap in array
+    if (typeof parsed === "string") return [parsed];
+    return [];
+  } catch {
+    // Legacy format: single string path
+    return [remotePath];
+  }
 }
 
 /**
@@ -48,6 +71,7 @@ function dbRowToSyncRule(row: SelectSyncRule): SyncRule {
     id: row.id,
     spaceId: row.spaceId,
     localPath: row.localPath,
+    remotePaths: parseRemotePaths(row.remotePath),
     backendIds: JSON.parse(row.backendIds) as string[],
     direction: row.direction as SyncDirection,
     enabled: row.enabled ?? true,
@@ -96,10 +120,12 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const remotePaths = options.remotePaths || [];
     const newRow = {
       id,
       spaceId: options.spaceId,
       localPath: options.localPath,
+      remotePath: remotePaths.length > 0 ? JSON.stringify(remotePaths) : null,
       backendIds: JSON.stringify(options.backendIds),
       direction: options.direction || "both",
       enabled: true,
@@ -115,6 +141,7 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
       id,
       spaceId: options.spaceId,
       localPath: options.localPath,
+      remotePaths,
       backendIds: options.backendIds,
       direction: options.direction || "both",
       enabled: true,
@@ -147,6 +174,7 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
     const now = new Date().toISOString();
 
     const updates: Partial<{
+      remotePath: string | null;
       backendIds: string;
       direction: string;
       enabled: boolean;
@@ -157,6 +185,9 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
       updatedAt: now,
     };
 
+    if (options.remotePaths !== undefined) {
+      updates.remotePath = options.remotePaths.length > 0 ? JSON.stringify(options.remotePaths) : null;
+    }
     if (options.backendIds !== undefined) {
       updates.backendIds = JSON.stringify(options.backendIds);
     }
@@ -180,6 +211,7 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
 
     const updatedRule: SyncRule = {
       ...existing,
+      remotePaths: options.remotePaths !== undefined ? options.remotePaths : existing.remotePaths,
       backendIds: options.backendIds ?? existing.backendIds,
       direction: options.direction ?? existing.direction,
       enabled: options.enabled ?? existing.enabled,

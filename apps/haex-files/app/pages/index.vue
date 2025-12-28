@@ -723,6 +723,9 @@ onMounted(async () => {
       // Load queue entries for the first rule to show correct status
       await filesStore.loadQueueEntriesAsync(firstRule.id);
     }
+
+    // Start auto-sync watcher (native file watcher + fallback polling every 5 min)
+    filesStore.startWatcher();
   }
 
   // Start sync status polling
@@ -731,6 +734,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopSyncStatusPolling();
+  filesStore.stopWatcher();
 });
 </script>
 
