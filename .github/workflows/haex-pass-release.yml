@@ -46,6 +46,12 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/haex-pass-v}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Setup signing keys
+        run: |
+          mkdir -p apps/haex-pass/haextension
+          echo "${{ secrets.HAEX_PASS_PRIVATE_KEY }}" > apps/haex-pass/haextension/private.key
+          echo "${{ secrets.HAEX_PASS_PUBLIC_KEY }}" > apps/haex-pass/haextension/public.key
+
       - name: Build extension
         run: pnpm --filter haex-pass build:release
 
