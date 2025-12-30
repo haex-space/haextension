@@ -22,7 +22,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.71",
+    "@haex-space/vault-sdk": "^2.5.81",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
