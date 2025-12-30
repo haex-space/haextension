@@ -513,6 +513,41 @@ class VaultConnectionManager {
     return this.sendRequest(HAEX_PASS_METHODS.GET_PASSWORD_PRESETS, {})
   }
 
+  async createPasskey(payload: {
+    relyingPartyId: string
+    relyingPartyName: string
+    userHandle: string
+    userName: string
+    userDisplayName?: string
+    challenge: string
+    excludeCredentials?: string[]
+    requireResidentKey?: boolean
+    userVerification?: 'required' | 'preferred' | 'discouraged'
+  }): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_CREATE, payload)
+  }
+
+  async getPasskey(payload: {
+    relyingPartyId: string
+    challenge: string
+    allowCredentials?: Array<{
+      id: string
+      type: 'public-key'
+      transports?: string[]
+    }>
+    userVerification?: 'required' | 'preferred' | 'discouraged'
+  }): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_GET, payload)
+  }
+
+  async listPasskeys(payload: {
+    relyingPartyId?: string
+    itemId?: string
+    discoverableOnly?: boolean
+  }): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_LIST, payload)
+  }
+
   disconnect() {
     if (this.ws) {
       this.ws.close()

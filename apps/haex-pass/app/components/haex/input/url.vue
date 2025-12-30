@@ -70,14 +70,35 @@ const openUrl = async () => {
   const haexVaultStore = useHaexVaultStore();
   if (!haexVaultStore.client) {
     console.error("[URL] HaexHub client not available");
+    toast.error(t("openUrl.error"));
+    return;
+  }
+
+  // Validate URL format first
+  try {
+    const url = new URL(model.value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      toast.error(t("openUrl.invalidProtocol"));
+      return;
+    }
+  } catch {
+    toast.error(t("openUrl.invalidUrl"), {
+      duration: 5000,
+      description: t("openUrl.invalidUrlDescription"),
+    });
     return;
   }
 
   try {
     await haexVaultStore.client.web.openAsync(model.value);
-  } catch (error) {
-    // Method not implemented yet in host application
-    console.log("[URL] web.openAsync not available, URL:", model.value, error);
+  } catch (error: unknown) {
+    console.error("[URL] Failed to open URL:", error);
+    const errorCode = (error as { code?: number })?.code;
+    const errorMessage =
+      errorCode === 1002
+        ? t("openUrl.permissionError")
+        : t("openUrl.error");
+    toast.error(errorMessage);
   }
 };
 
@@ -87,73 +108,73 @@ const fetchFaviconAsync = async () => {
   const haexVaultStore = useHaexVaultStore();
   if (!haexVaultStore.client || !haexVaultStore.orm) {
     console.error("[FaviconFetch] HaexHub client or ORM not available");
+    toast.error(t("favicon.error"));
     return;
   }
 
+  // Extract domain from URL first (before setting loading state)
+  let domain: string;
   try {
-    isLoadingFavicon.value = true;
+    const url = new URL(model.value);
+    domain = url.hostname;
+  } catch (urlError) {
+    // Invalid URL format - show error and return early
+    console.error("[FaviconFetch] Invalid URL format:", urlError);
+    toast.error(t("favicon.invalidUrl"), {
+      duration: 5000,
+      description: t("favicon.invalidUrlDescription"),
+    });
+    return;
+  }
 
-    // Extract domain from URL
-    let domain: string;
-    try {
-      const url = new URL(model.value);
-      domain = url.hostname;
-    } catch (urlError) {
-      // Invalid URL format
-      toast.error(t("favicon.invalidUrl"));
-      console.error(urlError);
-      return;
+  // Use DuckDuckGo's icon service - it's reliable and doesn't require per-domain permissions
+  const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+
+  isLoadingFavicon.value = true;
+
+  try {
+    const response = await haexVaultStore.client.web.fetchAsync(faviconUrl);
+
+    // Check if response is successful (status 200-299) and has content
+    if (response.status >= 200 && response.status < 300 && response.body) {
+      // Convert ArrayBuffer to base64 using utility function
+      const base64 = arrayBufferToBase64(response.body);
+
+      // Save to database as icon
+      const hash = await addBinaryAsync(
+        haexVaultStore.orm,
+        base64,
+        response.body.byteLength,
+        "icon"
+      );
+
+      // Emit the binary hash as icon name
+      emit("faviconFetched", `binary:${hash}`);
+      console.log(
+        "[FaviconFetch] Successfully saved favicon with hash:",
+        hash
+      );
+
+      // Reload custom icons list so it appears immediately
+      await loadCustomIconsAsync();
+
+      // Show success toast
+      toast.success(t("favicon.downloaded"));
+    } else {
+      // Response was not successful
+      toast.error(t("favicon.fetchError"));
     }
+  } catch (error: unknown) {
+    console.error("[FaviconFetch] Failed to fetch favicon:", error);
 
-    // Use DuckDuckGo's icon service - it's reliable and doesn't require per-domain permissions
-    const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+    // Show error toast with appropriate message
+    const errorCode = (error as { code?: number })?.code;
+    const errorMessage =
+      errorCode === 1002
+        ? t("favicon.permissionError")
+        : t("favicon.fetchError");
 
-    try {
-      const response = await haexVaultStore.client.web.fetchAsync(faviconUrl);
-
-      // Check if response is successful (status 200-299) and has content
-      if (response.status >= 200 && response.status < 300 && response.body) {
-        // Convert ArrayBuffer to base64 using utility function
-        const base64 = arrayBufferToBase64(response.body);
-
-        // Save to database as icon
-        const hash = await addBinaryAsync(
-          haexVaultStore.orm,
-          base64,
-          response.body.byteLength,
-          "icon"
-        );
-
-        // Emit the binary hash as icon name
-        emit("faviconFetched", `binary:${hash}`);
-        console.log(
-          "[FaviconFetch] Successfully saved favicon with hash:",
-          hash
-        );
-
-        // Reload custom icons list so it appears immediately
-        await loadCustomIconsAsync();
-
-        // Show success toast
-        toast.success(t("favicon.downloaded"));
-        return;
-      }
-    } catch (error: any) {
-      console.error("[FaviconFetch] Failed to fetch favicon:", error);
-
-      // Show error toast with appropriate message
-      const errorMessage =
-        error?.code === 1002
-          ? t("favicon.permissionError")
-          : t("favicon.fetchError");
-
-      toast.error(errorMessage);
-    }
-  } catch (error) {
-    console.error("[FaviconFetch] Error:", error);
-
-    // Show generic error toast
-    toast.error(t("favicon.error"));
+    toast.error(errorMessage);
   } finally {
     isLoadingFavicon.value = false;
   }
@@ -166,24 +187,38 @@ de:
   open: URL öffnen
   copy: Kopieren
   copied: Kopiert!
+  openUrl:
+    error: URL konnte nicht geöffnet werden
+    invalidUrl: Ungültige URL
+    invalidUrlDescription: Bitte gib eine vollständige URL mit Protokoll ein (z.B. https://example.com)
+    invalidProtocol: Nur http und https URLs werden unterstützt
+    permissionError: Keine Berechtigung zum Öffnen dieser URL
   favicon:
     fetch: Favicon herunterladen
     downloaded: Favicon erfolgreich heruntergeladen
     permissionError: Keine Berechtigung für Favicon-Download. Bitte Extension neu laden.
     fetchError: Favicon konnte nicht heruntergeladen werden
     error: Fehler beim Favicon-Download
-    invalidUrl: Ungültige URL. Bitte gib eine vollständige URL mit Protokoll ein (z.B. https://example.com)
+    invalidUrl: Ungültige URL
+    invalidUrlDescription: Bitte gib eine vollständige URL mit Protokoll ein (z.B. https://example.com)
 
 en:
   url: URL
   open: Open URL
   copy: Copy
   copied: Copied!
+  openUrl:
+    error: Failed to open URL
+    invalidUrl: Invalid URL
+    invalidUrlDescription: Please enter a complete URL with protocol (e.g. https://example.com)
+    invalidProtocol: Only http and https URLs are supported
+    permissionError: No permission to open this URL
   favicon:
     fetch: Download favicon
     downloaded: Favicon downloaded successfully
     permissionError: No permission for favicon download. Please reload extension.
     fetchError: Failed to download favicon
     error: Error downloading favicon
-    invalidUrl: Invalid URL. Please enter a complete URL with protocol (e.g. https://example.com)
+    invalidUrl: Invalid URL
+    invalidUrlDescription: Please enter a complete URL with protocol (e.g. https://example.com)
 </i18n>

@@ -12,12 +12,6 @@
           class="h-4 w-4 text-muted-foreground"
         />
         <span class="text-sm font-medium">{{ field.label }}</span>
-        <span
-          v-if="!hasValue(field.key)"
-          class="text-xs text-muted-foreground"
-        >
-          ({{ t("notSet") }})
-        </span>
       </div>
       <HaexInputTags
         v-model="fieldAliases[field.key]"
@@ -53,13 +47,6 @@
       />
     </div>
 
-    <!-- Empty State -->
-    <div
-      v-if="standardFields.every(f => !hasValue(f.key)) && customFields.length === 0"
-      class="text-center py-4 text-muted-foreground"
-    >
-      <p class="text-sm">{{ t("noFieldsToMap") }}</p>
-    </div>
   </div>
 </template>
 
@@ -114,12 +101,6 @@ const standardFields = computed(() => [
 const customFields = computed(() => {
   return (props.keyValues || []).filter((kv) => kv.key && kv.key.trim() !== "");
 });
-
-// Check if a standard field has a value
-const hasValue = (key: string): boolean => {
-  const value = itemDetails.value[key as keyof SelectHaexPasswordsItemDetails];
-  return value !== null && value !== undefined && value !== "";
-};
 
 // Local state for aliases (initialized from itemDetails.autofillAliases)
 const fieldAliases = ref<Record<string, string[]>>({});
@@ -181,10 +162,7 @@ const onAliasesChange = (key: string, aliases: string[]) => {
 <i18n lang="yaml">
 de:
   aliasPlaceholder: Alias hinzufügen...
-  defaultAliases: Standard-Aliase
-  notSet: nicht gesetzt
   customField: Benutzerdefiniert
-  noFieldsToMap: Keine Felder zum Zuordnen vorhanden
   fields:
     username: Nutzername
     password: Passwort
@@ -192,10 +170,7 @@ de:
 
 en:
   aliasPlaceholder: Add alias...
-  defaultAliases: Default aliases
-  notSet: not set
   customField: Custom
-  noFieldsToMap: No fields to map
   fields:
     username: Username
     password: Password

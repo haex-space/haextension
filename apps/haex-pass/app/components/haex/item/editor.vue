@@ -101,6 +101,8 @@
               v-model:attachments="attachments"
               v-model:attachments-to-add="attachmentsToAdd"
               v-model:attachments-to-delete="attachmentsToDelete"
+              v-model:passkeys-to-add="passkeysToAdd"
+              v-model:passkeys-to-delete="passkeysToDelete"
               :item-id="editableDetails.id || ''"
               :read-only="mode === 'edit' && readOnly"
             />
@@ -167,6 +169,7 @@ import { toast } from "vue-sonner";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,
+  SelectHaexPasswordsPasskeys,
 } from "~/database";
 import type { AttachmentWithSize } from "~/types/attachment";
 import type { UnwrapRefCarouselApi } from "@/components/shadcn/carousel/interface";
@@ -186,6 +189,7 @@ const { addAsync, updateAsync, deleteAsync, readAsync } =
   usePasswordItemStore();
 const { syncGroupItemsAsync } = usePasswordGroupStore();
 const { inTrashGroup } = storeToRefs(useGroupTreeStore());
+const passkeyStore = usePasskeyStore();
 
 // Tabs configuration
 const tabs = computed(() => {
@@ -237,6 +241,10 @@ const attachments = ref<AttachmentWithSize[]>([]);
 const attachmentsToAdd = ref<AttachmentWithSize[]>([]);
 const attachmentsToDelete = ref<AttachmentWithSize[]>([]);
 
+// Passkeys tracking
+const passkeysToAdd = ref<SelectHaexPasswordsPasskeys[]>([]);
+const passkeysToDelete = ref<SelectHaexPasswordsPasskeys[]>([]);
+
 // Empty item template
 const createEmptyDetails = (): SelectHaexPasswordsItemDetails => ({
   id: "",
@@ -269,6 +277,8 @@ const initializeItem = () => {
     attachments.value = [];
     attachmentsToAdd.value = [];
     attachmentsToDelete.value = [];
+    passkeysToAdd.value = [];
+    passkeysToDelete.value = [];
   }
 };
 
@@ -290,6 +300,10 @@ watch(
       attachments.value = item.attachments ? [...item.attachments] : [];
       attachmentsToAdd.value = [];
       attachmentsToDelete.value = [];
+
+      // Reset passkeys tracking
+      passkeysToAdd.value = [];
+      passkeysToDelete.value = [];
     }
   },
   { immediate: true }
@@ -316,7 +330,9 @@ const hasChanges = computed(() => {
   const hasAttachmentChanges =
     attachmentsToAdd.value.length > 0 || attachmentsToDelete.value.length > 0;
 
-  return detailsChanged || hasKeyValueChanges || hasAttachmentChanges;
+  const hasPasskeyChanges = passkeysToAdd.value.length > 0 || passkeysToDelete.value.length > 0;
+
+  return detailsChanged || hasKeyValueChanges || hasAttachmentChanges || hasPasskeyChanges;
 });
 
 // Actions
@@ -332,6 +348,14 @@ const onSaveAsync = async () => {
       );
 
       if (newId) {
+        // Save passkeys with the new item ID
+        for (const passkey of passkeysToAdd.value) {
+          await passkeyStore.addPasskeyAsync({
+            ...passkey,
+            itemId: newId,
+          });
+        }
+
         ignoreChanges.value = true;
         await syncGroupItemsAsync();
         router.back();
@@ -348,6 +372,19 @@ const onSaveAsync = async () => {
         attachmentsToAdd: attachmentsToAdd.value,
         attachmentsToDelete: attachmentsToDelete.value,
       });
+
+      // Delete passkeys that were marked for deletion
+      for (const passkey of passkeysToDelete.value) {
+        await passkeyStore.deletePasskeyAsync(passkey.id);
+      }
+
+      // Save new passkeys
+      for (const passkey of passkeysToAdd.value) {
+        await passkeyStore.addPasskeyAsync({
+          ...passkey,
+          itemId: editableDetails.value.id,
+        });
+      }
 
       await syncGroupItemsAsync();
 
@@ -367,6 +404,8 @@ const onSaveAsync = async () => {
       keyValuesDelete.value = [];
       attachmentsToAdd.value = [];
       attachmentsToDelete.value = [];
+      passkeysToAdd.value = [];
+      passkeysToDelete.value = [];
     }
   } catch (error) {
     console.error("Error saving item:", error);

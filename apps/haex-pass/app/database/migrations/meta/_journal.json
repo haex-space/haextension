@@ -29,6 +29,13 @@
       "when": 1766826212682,
       "tag": "0003_colorful_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1767099085915,
+      "tag": "0004_brown_nuke",
+      "breakpoints": true
     }
   ]
 }

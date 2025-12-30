@@ -221,3 +221,56 @@ export type InsertHaexPasswordsGeneratorPresets =
   typeof haexPasswordsGeneratorPresets.$inferInsert;
 export type SelectHaexPasswordsGeneratorPresets =
   typeof haexPasswordsGeneratorPresets.$inferSelect;
+
+// Passkeys (WebAuthn credentials)
+export const haexPasswordsPasskeys = sqliteTable(
+  tableName("haex_passwords_passkeys"),
+  {
+    id: text().primaryKey(),
+    // Optional link to a password item
+    itemId: text("item_id").references(
+      (): AnySQLiteColumn => haexPasswordsItemDetails.id,
+      { onDelete: "cascade" }
+    ),
+
+    // WebAuthn credential identifier (unique per credential)
+    credentialId: text("credential_id").notNull().unique(),
+
+    // Relying Party information
+    relyingPartyId: text("relying_party_id").notNull(), // e.g., "github.com"
+    relyingPartyName: text("relying_party_name"), // e.g., "GitHub"
+
+    // User information (as provided by the relying party)
+    userHandle: text("user_handle").notNull(), // Base64-encoded user ID
+    userName: text("user_name"), // e.g., "max@example.com"
+    userDisplayName: text("user_display_name"), // e.g., "Max Mustermann"
+
+    // Cryptographic keys (DB file is already encrypted)
+    privateKey: text("private_key").notNull(), // PKCS8 format, Base64
+    publicKey: text("public_key").notNull(), // SPKI format, Base64
+
+    // COSE algorithm identifier (-7 = ES256, -8 = EdDSA, -257 = RS256)
+    algorithm: integer("algorithm").notNull().default(-7),
+
+    // Signature counter for replay protection (incremented after each use)
+    signCount: integer("sign_count").notNull().default(0),
+
+    // Metadata
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+    lastUsedAt: text("last_used_at"),
+
+    // Discoverable credential (resident key)
+    isDiscoverable: integer("is_discoverable", { mode: "boolean" })
+      .notNull()
+      .default(true),
+
+    // UI customization
+    icon: text(),
+    color: text(),
+    nickname: text(), // User-defined name for the passkey
+  }
+);
+export type InsertHaexPasswordsPasskeys =
+  typeof haexPasswordsPasskeys.$inferInsert;
+export type SelectHaexPasswordsPasskeys =
+  typeof haexPasswordsPasskeys.$inferSelect;

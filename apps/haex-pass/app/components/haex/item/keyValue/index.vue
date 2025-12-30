@@ -135,6 +135,28 @@
       </ShadcnCardContent>
     </ShadcnCard>
 
+    <!-- Passkeys -->
+    <ShadcnCard>
+      <ShadcnCardHeader>
+        <ShadcnCardTitle class="flex items-center gap-2">
+          <KeyRound class="h-5 w-5" />
+          {{ t("passkeys.title") }}
+        </ShadcnCardTitle>
+        <ShadcnCardDescription>
+          {{ t("passkeys.description") }}
+        </ShadcnCardDescription>
+      </ShadcnCardHeader>
+
+      <ShadcnCardContent>
+        <HaexItemPasskeys
+          v-model:item-id="passkeysItemId"
+          v-model:passkeys-to-add="passkeysToAdd"
+          v-model:passkeys-to-delete="passkeysToDelete"
+          :read-only="readOnly"
+        />
+      </ShadcnCardContent>
+    </ShadcnCard>
+
     <!-- Autofill Aliases -->
     <ShadcnCard v-if="itemDetails">
       <ShadcnCardHeader>
@@ -160,10 +182,11 @@
 
 <script setup lang="ts">
 import { useClipboard, useFocus } from "@vueuse/core";
-import { Plus, Trash2, Copy, Check, Globe } from "lucide-vue-next";
+import { Plus, Trash2, Copy, Check, Globe, KeyRound } from "lucide-vue-next";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,
+  SelectHaexPasswordsPasskeys,
 } from "~/database";
 import type { AttachmentWithSize } from "~/types/attachment";
 
@@ -196,7 +219,22 @@ const attachmentsToDelete = defineModel<AttachmentWithSize[]>(
   { default: [] }
 );
 
+// Passkeys for new items (before item is saved)
+const passkeysToAdd = defineModel<SelectHaexPasswordsPasskeys[]>(
+  "passkeysToAdd",
+  { default: [] }
+);
+
+// Passkeys to delete
+const passkeysToDelete = defineModel<SelectHaexPasswordsPasskeys[]>(
+  "passkeysToDelete",
+  { default: [] }
+);
+
 const { t } = useI18n();
+
+// Passkeys item ID (computed from itemId prop)
+const passkeysItemId = computed(() => itemId);
 
 const allItems = computed(() => [...items.value, ...itemsToAdd.value]);
 
@@ -278,6 +316,9 @@ de:
   autofillAliases:
     title: Autofill-Zuordnung
     description: Konfiguriere alternative Feldnamen für das Browser-Autofill. Die Standard-Aliase werden automatisch verwendet, wenn keine eigenen definiert sind.
+  passkeys:
+    title: Passkeys
+    description: Passkeys ermöglichen passwortlose Anmeldung. Um einen Passkey hinzuzufügen, besuche eine Website mit Passkey-Unterstützung und wähle 'Mit Passkey registrieren'. Die HaexPass Browser-Erweiterung erstellt den Passkey automatisch.
 
 en:
   addField: Add field
@@ -290,4 +331,7 @@ en:
   autofillAliases:
     title: Autofill Mapping
     description: Configure alternative field names for browser autofill. Default aliases are used automatically if no custom ones are defined.
+  passkeys:
+    title: Passkeys
+    description: Passkeys enable passwordless sign-in. To add a passkey, visit a website with passkey support and select 'Register with passkey'. The HaexPass browser extension will automatically create the passkey.
 </i18n>

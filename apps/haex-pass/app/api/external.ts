@@ -32,6 +32,12 @@ export const HAEX_PASS_METHODS = {
   GET_PASSWORD_CONFIG: "get-password-config",
   /** Alle Passwort-Generator-Presets abrufen */
   GET_PASSWORD_PRESETS: "get-password-presets",
+  /** Neuen Passkey erstellen (WebAuthn Registration) */
+  PASSKEY_CREATE: "passkey-create",
+  /** Mit Passkey authentifizieren (WebAuthn Authentication) */
+  PASSKEY_GET: "passkey-get",
+  /** Passkeys für eine Relying Party abrufen */
+  PASSKEY_LIST: "passkey-list",
 } as const;
 
 export type HaexPassMethod = (typeof HAEX_PASS_METHODS)[keyof typeof HAEX_PASS_METHODS];
@@ -222,6 +228,9 @@ export interface HaexPassPayloads {
   [HAEX_PASS_METHODS.SET_ITEM]: SetItemPayload;
   [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigPayload;
   [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: Record<string, never>;
+  [HAEX_PASS_METHODS.PASSKEY_CREATE]: PasskeyCreatePayload;
+  [HAEX_PASS_METHODS.PASSKEY_GET]: PasskeyGetPayload;
+  [HAEX_PASS_METHODS.PASSKEY_LIST]: PasskeyListPayload;
 }
 
 /**
@@ -233,4 +242,153 @@ export interface HaexPassResponses {
   [HAEX_PASS_METHODS.SET_ITEM]: SetItemResponseData;
   [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigResponseData;
   [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: GetPasswordPresetsResponseData;
+  [HAEX_PASS_METHODS.PASSKEY_CREATE]: PasskeyCreateResponseData;
+  [HAEX_PASS_METHODS.PASSKEY_GET]: PasskeyGetResponseData;
+  [HAEX_PASS_METHODS.PASSKEY_LIST]: PasskeyListResponseData;
+}
+
+// =============================================================================
+// passkey-create (WebAuthn Registration)
+// =============================================================================
+
+/**
+ * Payload für passkey-create Request
+ * Enthält die WebAuthn PublicKeyCredentialCreationOptions
+ */
+export interface PasskeyCreatePayload {
+  /** Relying Party ID (z.B. "github.com") */
+  relyingPartyId: string;
+  /** Relying Party Name (z.B. "GitHub") */
+  relyingPartyName: string;
+  /** Base64-encoded User Handle (von der Relying Party bereitgestellt) */
+  userHandle: string;
+  /** Username (z.B. E-Mail-Adresse) */
+  userName: string;
+  /** Anzeigename des Users */
+  userDisplayName?: string;
+  /** Base64-encoded Challenge */
+  challenge: string;
+  /** Credential IDs, die ausgeschlossen werden sollen (bereits registrierte Passkeys) */
+  excludeCredentials?: string[];
+  /** Ob ein Discoverable Credential (Resident Key) erstellt werden soll */
+  requireResidentKey?: boolean;
+  /** User Verification Anforderung */
+  userVerification?: "required" | "preferred" | "discouraged";
+  /** Optionale Item-ID zum Verknüpfen des Passkeys */
+  itemId?: string;
+}
+
+/**
+ * Response-Daten von passkey-create
+ * Enthält die Attestation Response für die Relying Party
+ */
+export interface PasskeyCreateResponseData {
+  /** Base64-encoded Credential ID */
+  credentialId: string;
+  /** Base64-encoded Public Key (SPKI Format) */
+  publicKey: string;
+  /** Base64-encoded Public Key (COSE Format für WebAuthn) */
+  publicKeyCose: string;
+  /** Base64-encoded Attestation Object */
+  attestationObject: string;
+  /** Base64-encoded Client Data JSON */
+  clientDataJson: string;
+  /** Interne Passkey-ID in haex-pass */
+  passkeyId: string;
+  /** Supported transports */
+  transports: string[];
+}
+
+// =============================================================================
+// passkey-get (WebAuthn Authentication)
+// =============================================================================
+
+/**
+ * Payload für passkey-get Request
+ * Enthält die WebAuthn PublicKeyCredentialRequestOptions
+ */
+export interface PasskeyGetPayload {
+  /** Relying Party ID (z.B. "github.com") */
+  relyingPartyId: string;
+  /** Base64-encoded Challenge */
+  challenge: string;
+  /** Erlaubte Credential IDs (leer = alle Discoverable Credentials für diese RP) */
+  allowCredentials?: Array<{
+    id: string;
+    type: "public-key";
+    transports?: string[];
+  }>;
+  /** User Verification Anforderung */
+  userVerification?: "required" | "preferred" | "discouraged";
+}
+
+/**
+ * Response-Daten von passkey-get
+ * Enthält die Assertion Response für die Relying Party
+ */
+export interface PasskeyGetResponseData {
+  /** Base64-encoded Credential ID */
+  credentialId: string;
+  /** Base64-encoded Authenticator Data */
+  authenticatorData: string;
+  /** Base64-encoded Signature */
+  signature: string;
+  /** Base64-encoded Client Data JSON */
+  clientDataJson: string;
+  /** Base64-encoded User Handle (für Discoverable Credentials) */
+  userHandle?: string;
+  /** Interne Passkey-ID in haex-pass */
+  passkeyId: string;
+}
+
+// =============================================================================
+// passkey-list
+// =============================================================================
+
+/**
+ * Payload für passkey-list Request
+ */
+export interface PasskeyListPayload {
+  /** Optional: Filter nach Relying Party ID */
+  relyingPartyId?: string;
+  /** Optional: Filter nach verknüpfter Item-ID */
+  itemId?: string;
+  /** Nur Discoverable Credentials zurückgeben */
+  discoverableOnly?: boolean;
+}
+
+/**
+ * Ein Passkey-Eintrag aus passkey-list
+ */
+export interface PasskeyEntry {
+  /** Interne Passkey-ID */
+  id: string;
+  /** Base64-encoded Credential ID */
+  credentialId: string;
+  /** Relying Party ID */
+  relyingPartyId: string;
+  /** Relying Party Name */
+  relyingPartyName: string | null;
+  /** Username */
+  userName: string | null;
+  /** Anzeigename */
+  userDisplayName: string | null;
+  /** Benutzerdefinierter Name */
+  nickname: string | null;
+  /** Erstellungsdatum (ISO) */
+  createdAt: string | null;
+  /** Letztes Verwendungsdatum (ISO) */
+  lastUsedAt: string | null;
+  /** Ob es ein Discoverable Credential ist */
+  isDiscoverable: boolean;
+  /** Verknüpfte Item-ID (falls vorhanden) */
+  itemId: string | null;
+}
+
+/**
+ * Response-Daten von passkey-list
+ */
+export interface PasskeyListResponseData {
+  /** Liste der Passkeys */
+  passkeys: PasskeyEntry[];
 }

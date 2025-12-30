@@ -4,10 +4,14 @@ import { createApp } from 'vue'
 import App from './views/App.vue'
 import { setupApp } from '~/logic/common-setup'
 import { detectInputFields, type DetectedField } from './detector'
+import { initWebAuthnBridge } from './webauthn-bridge'
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 ;(() => {
   console.info('[haex-pass] Content script loaded')
+
+  // Initialize WebAuthn bridge for passkey support
+  initWebAuthnBridge()
 
   // State
   let detectedFields: DetectedField[] = []

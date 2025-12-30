@@ -55,6 +55,16 @@ export async function getManifest() {
     host_permissions: ['*://*/*'],
     content_scripts: [
       {
+        // WebAuthn interception - must run before page scripts
+        // Runs in MAIN world to intercept navigator.credentials API
+        matches: ['<all_urls>'],
+        js: ['dist/contentScripts/webauthn-inject.js'],
+        run_at: 'document_start',
+        // 'world' is supported in Chrome 95+ and Firefox 128+
+        world: 'MAIN',
+      } as Manifest.ContentScript & { world?: string },
+      {
+        // Main content script for autofill and messaging
         matches: ['<all_urls>'],
         js: ['dist/contentScripts/index.global.js'],
         run_at: 'document_idle',
@@ -62,7 +72,10 @@ export async function getManifest() {
     ],
     web_accessible_resources: [
       {
-        resources: ['dist/contentScripts/style.css', 'assets/*'],
+        resources: [
+          'dist/contentScripts/style.css',
+          'assets/*',
+        ],
         matches: ['<all_urls>'],
       },
     ],

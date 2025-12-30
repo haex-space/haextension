@@ -160,3 +160,70 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 })
+
+// =============================================================================
+// WebAuthn / Passkey Handlers
+// =============================================================================
+
+// Handle passkey create request from content script
+onMessage('passkey-create', async (message) => {
+  const payload = message.data as {
+    relyingPartyId: string
+    relyingPartyName: string
+    userHandle: string
+    userName: string
+    userDisplayName?: string
+    challenge: string
+    excludeCredentials?: string[]
+    requireResidentKey?: boolean
+    userVerification?: 'required' | 'preferred' | 'discouraged'
+  }
+
+  console.log('[haex-pass] passkey-create request:', payload.relyingPartyId)
+
+  try {
+    const result = await vaultConnection.createPasskey(payload)
+    console.log('[haex-pass] passkey-create result:', result)
+
+    const haexResponse = result as { success: boolean, data?: unknown, error?: string }
+    if (haexResponse.success) {
+      return { success: true, data: haexResponse.data }
+    }
+    return { success: false, error: haexResponse.error || 'Unknown error' }
+  }
+  catch (err) {
+    console.error('[haex-pass] passkey-create error:', err)
+    return { success: false, error: String(err) }
+  }
+})
+
+// Handle passkey get request from content script
+onMessage('passkey-get', async (message) => {
+  const payload = message.data as {
+    relyingPartyId: string
+    challenge: string
+    allowCredentials?: Array<{
+      id: string
+      type: 'public-key'
+      transports?: string[]
+    }>
+    userVerification?: 'required' | 'preferred' | 'discouraged'
+  }
+
+  console.log('[haex-pass] passkey-get request:', payload.relyingPartyId)
+
+  try {
+    const result = await vaultConnection.getPasskey(payload)
+    console.log('[haex-pass] passkey-get result:', result)
+
+    const haexResponse = result as { success: boolean, data?: unknown, error?: string }
+    if (haexResponse.success) {
+      return { success: true, data: haexResponse.data }
+    }
+    return { success: false, error: haexResponse.error || 'Unknown error' }
+  }
+  catch (err) {
+    console.error('[haex-pass] passkey-get error:', err)
+    return { success: false, error: String(err) }
+  }
+})
