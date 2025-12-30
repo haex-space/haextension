@@ -34,7 +34,7 @@ jobs:
 
       - name: Prepare dependencies
         run: |
-          pnpm --filter haex-ui exec nuxt prepare
+          cd packages/haex-ui && npx nuxt prepare && cd ../..
           pnpm --filter haex-pass exec nuxt prepare
 
       - name: Get version
