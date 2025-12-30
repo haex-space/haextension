@@ -81,8 +81,12 @@ function convertCreateOptions(options: PublicKeyCredentialCreationOptions): Reco
     excludeCredentials: options.excludeCredentials?.map(cred =>
       arrayBufferToBase64(cred.id as ArrayBuffer)
     ) || [],
-    requireResidentKey: options.authenticatorSelection?.residentKey === 'required' ||
-      options.authenticatorSelection?.requireResidentKey === true,
+    // Passkeys sollten discoverable sein, außer wenn explizit discouraged
+    // 'required' = muss discoverable sein
+    // 'preferred' = sollte discoverable sein (default)
+    // 'discouraged' = sollte nicht discoverable sein
+    requireResidentKey: options.authenticatorSelection?.residentKey !== 'discouraged' &&
+      options.authenticatorSelection?.requireResidentKey !== false,
     userVerification: options.authenticatorSelection?.userVerification || 'preferred',
   }
 }
@@ -289,26 +293,20 @@ window.addEventListener('message', (event) => {
 
   pendingRequests.delete(message.requestId)
 
-  // Fehler behandeln
+  // Bei JEDEM Fehler auf Browser-Fallback umschalten
+  // Wir können nicht alle möglichen Fehlermeldungen von verschiedenen Seiten vorhersehen,
+  // daher: Nur bei explizitem Erfolg haex-pass verwenden, sonst immer Browser-Fallback
   if (message.error) {
-    // Bei bestimmten Fehlern auf Browser-Fallback umschalten
-    if (message.error === 'NO_HAEX_PASS_CONNECTION' ||
-        message.error === 'USER_CANCELLED' ||
-        message.error === 'NO_MATCHING_PASSKEY') {
-      console.log('[HaexPass WebAuthn] Falling back to browser WebAuthn:', message.error)
-      if (pending.type === 'create') {
-        originalCreate(pending.options as CredentialCreationOptions)
-          .then(pending.resolve)
-          .catch(pending.reject)
-      } else {
-        originalGet(pending.options as CredentialRequestOptions)
-          .then(pending.resolve)
-          .catch(pending.reject)
-      }
-      return
+    console.log('[HaexPass WebAuthn] Falling back to browser WebAuthn due to error:', message.error)
+    if (pending.type === 'create') {
+      originalCreate(pending.options as CredentialCreationOptions)
+        .then(pending.resolve)
+        .catch(pending.reject)
+    } else {
+      originalGet(pending.options as CredentialRequestOptions)
+        .then(pending.resolve)
+        .catch(pending.reject)
     }
-
-    pending.reject(new DOMException(message.error, 'NotAllowedError'))
     return
   }
 
