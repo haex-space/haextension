@@ -22,7 +22,10 @@
     "db:generate": "drizzle-kit generate && npx tsx scripts/fix-migrations.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^2.5.84",
@@ -59,7 +62,8 @@
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
     "tailwindcss": "^4.1.18",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.3"
   },
   "pnpm": {
     "overrides": {

@@ -37,6 +37,9 @@ jobs:
           cd packages/haex-ui && npx nuxt prepare && cd ../..
           pnpm --filter haex-pass exec nuxt prepare
 
+      - name: Run tests
+        run: pnpm --filter haex-pass test
+
       - name: Get version
         id: version
         run: |
