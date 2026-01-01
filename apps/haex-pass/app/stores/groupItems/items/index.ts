@@ -270,35 +270,49 @@ const readByGroupIdAsync = async (groupId?: string | null) => {
     const haexVaultStore = useHaexVaultStore();
     if (!haexVaultStore.orm) throw new Error("Database not initialized");
 
-    // Explicit column selection avoids dynamic table name keys in join results.
-    // Without this, Drizzle returns { [tableName]: { ...fields } } where tableName
-    // can have a prefix (e.g., "haex_passwords_item_details"), causing type issues.
-    const baseQuery = haexVaultStore.orm
-      .select({
-        id: haexPasswordsItemDetails.id,
-        title: haexPasswordsItemDetails.title,
-        username: haexPasswordsItemDetails.username,
-        password: haexPasswordsItemDetails.password,
-        url: haexPasswordsItemDetails.url,
-        note: haexPasswordsItemDetails.note,
-        icon: haexPasswordsItemDetails.icon,
-        color: haexPasswordsItemDetails.color,
-        tags: haexPasswordsItemDetails.tags,
-        otpSecret: haexPasswordsItemDetails.otpSecret,
-      })
-      .from(haexPasswordsGroupItems)
-      .innerJoin(
-        haexPasswordsItemDetails,
-        eq(haexPasswordsItemDetails.id, haexPasswordsGroupItems.itemId)
-      );
+    // Step 1: Get all group items for this group
+    const groupItemsQuery = groupId
+      ? haexVaultStore.orm
+          .select()
+          .from(haexPasswordsGroupItems)
+          .where(eq(haexPasswordsGroupItems.groupId, groupId))
+      : haexVaultStore.orm
+          .select()
+          .from(haexPasswordsGroupItems)
+          .where(isNull(haexPasswordsGroupItems.groupId));
 
-    const result = groupId
-      ? await baseQuery.where(eq(haexPasswordsGroupItems.groupId, groupId))
-      : await baseQuery.where(isNull(haexPasswordsGroupItems.groupId));
+    const groupItems = await groupItemsQuery;
 
-    return result as SelectHaexPasswordsItemDetails[];
+    if (groupItems.length === 0) {
+      return [];
+    }
+
+    // Step 2: Get the item IDs
+    const itemIds = groupItems
+      .map((gi) => gi.itemId)
+      .filter((id): id is string => id !== null);
+
+    if (itemIds.length === 0) {
+      return [];
+    }
+
+    // Step 3: Fetch item details for each ID
+    const results: SelectHaexPasswordsItemDetails[] = [];
+    for (const itemId of itemIds) {
+      const itemResult = await haexVaultStore.orm
+        .select()
+        .from(haexPasswordsItemDetails)
+        .where(eq(haexPasswordsItemDetails.id, itemId))
+        .limit(1);
+
+      if (itemResult[0]) {
+        results.push(itemResult[0]);
+      }
+    }
+
+    return results;
   } catch (error) {
-    console.error(error);
+    console.error('[readByGroupIdAsync] Error:', error);
     return [];
   }
 };

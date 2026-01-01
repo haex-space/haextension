@@ -28,7 +28,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.84",
+    "@haex-space/vault-sdk": "^2.5.87",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
