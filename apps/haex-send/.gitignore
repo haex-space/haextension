@@ -25,3 +25,4 @@ logs
 
 # Extension packages
 *.xt
+haextension/private.key

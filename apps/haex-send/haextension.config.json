@@ -1,4 +1,9 @@
 {
-  "port": 3002,
-  "privateKeyPath": "../../haextension.pem"
+  "dev": {
+    "port": 3002,
+    "host": "localhost"
+  },
+  "build": {
+    "distDir": "dist"
+  }
 }
