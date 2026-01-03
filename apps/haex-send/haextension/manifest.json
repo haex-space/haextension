@@ -1,0 +1,20 @@
+{
+  "author": "haex",
+  "description": "Local file sharing with LocalSend protocol",
+  "icon": "haextension/haex-send-logo.png",
+  "publicKey": "",
+  "signature": "",
+  "displayMode": "auto",
+  "permissions": {
+    "database": [],
+    "filesystem": [
+      {
+        "path": "*",
+        "actions": ["read", "write"]
+      }
+    ],
+    "http": [],
+    "shell": []
+  },
+  "singleInstance": true
+}

@@ -1,0 +1,4 @@
+{
+  "port": 3002,
+  "privateKeyPath": "../../haextension.pem"
+}
