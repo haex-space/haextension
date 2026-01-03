@@ -173,28 +173,46 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
 
   // Listen for sync events to reload data when remote changes arrive
   // Events are pre-filtered by haex-vault to only include tables this extension has access to
-  nuxtApp.$haexVault?.client.on(HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED, async (event: unknown) => {
-    const syncEvent = event as { data?: { tables?: string[] } }
-    const tables = syncEvent?.data?.tables || []
-    console.log('[PasswordGroupStore] Received sync:tables-updated event:', tables)
-
-    console.log('[PasswordGroupStore] Reloading data after sync...')
-    await syncGroupItemsAsync()
-    await loadCurrentGroupItemsAsync()
-
-    // Also reload current item if one is being viewed
-    const { currentItemId, currentItem } = usePasswordItemStore()
-    if (currentItemId.value) {
-      console.log('[PasswordGroupStore] Reloading current item:', currentItemId.value)
-      const { readAsync } = usePasswordItemStore()
-      const reloadedItem = await readAsync(currentItemId.value)
-      if (reloadedItem) {
-        currentItem.value = reloadedItem
-      }
+  // IMPORTANT: We wait for SDK to be ready before registering the listener
+  const registerSyncEventListener = async () => {
+    if (!nuxtApp.$haexVault) {
+      console.warn('[PasswordGroupStore] SDK not available, cannot register sync event listener')
+      return
     }
 
-    console.log('[PasswordGroupStore] Data reloaded after sync')
-  })
+    // Wait for SDK client to be ready
+    await nuxtApp.$haexVault.client.ready()
+    console.log('[PasswordGroupStore] SDK ready, registering sync event listener for:', HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED)
+
+    nuxtApp.$haexVault.client.on(HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED, async (event: unknown) => {
+      const syncEvent = event as { data?: { tables?: string[] } }
+      const tables = syncEvent?.data?.tables || []
+      console.log('[PasswordGroupStore] Received sync:tables-updated event:', tables)
+
+      console.log('[PasswordGroupStore] Reloading data after sync...')
+      await syncGroupItemsAsync()
+      await loadCurrentGroupItemsAsync()
+
+      // Also reload current item if one is being viewed
+      const passwordItemStore = usePasswordItemStore()
+      if (passwordItemStore.currentItemId) {
+        console.log('[PasswordGroupStore] Reloading current item:', passwordItemStore.currentItemId)
+        const reloadedItem = await passwordItemStore.readAsync(passwordItemStore.currentItemId)
+        if (reloadedItem && passwordItemStore.currentItem) {
+          passwordItemStore.currentItem.details = reloadedItem.details
+          passwordItemStore.currentItem.keyValues = reloadedItem.keyValues
+          passwordItemStore.currentItem.snapshots = reloadedItem.snapshots
+          passwordItemStore.currentItem.attachments = reloadedItem.attachments
+        }
+      }
+
+      console.log('[PasswordGroupStore] Data reloaded after sync')
+    })
+    console.log('[PasswordGroupStore] Sync event listener registered successfully')
+  }
+
+  // Register the listener asynchronously
+  registerSyncEventListener()
 
   watch(
     [
