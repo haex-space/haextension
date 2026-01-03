@@ -172,21 +172,28 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
   console.log('[PasswordGroupStore] Initial orm:', !!haexVaultStore.orm)
 
   // Listen for sync events to reload data when remote changes arrive
+  // Events are pre-filtered by haex-vault to only include tables this extension has access to
   nuxtApp.$haexVault?.client.on(HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED, async (event: unknown) => {
     const syncEvent = event as { data?: { tables?: string[] } }
     const tables = syncEvent?.data?.tables || []
     console.log('[PasswordGroupStore] Received sync:tables-updated event:', tables)
 
-    // Check if any of our tables were updated
-    const ourTablePrefix = haexVaultStore.getTableName('')
-    const hasOurTables = tables.some((table: string) => table.startsWith(ourTablePrefix))
+    console.log('[PasswordGroupStore] Reloading data after sync...')
+    await syncGroupItemsAsync()
+    await loadCurrentGroupItemsAsync()
 
-    if (hasOurTables) {
-      console.log('[PasswordGroupStore] Our tables were updated, reloading data...')
-      await syncGroupItemsAsync()
-      await loadCurrentGroupItemsAsync()
-      console.log('[PasswordGroupStore] Data reloaded after sync')
+    // Also reload current item if one is being viewed
+    const { currentItemId, currentItem } = usePasswordItemStore()
+    if (currentItemId.value) {
+      console.log('[PasswordGroupStore] Reloading current item:', currentItemId.value)
+      const { readAsync } = usePasswordItemStore()
+      const reloadedItem = await readAsync(currentItemId.value)
+      if (reloadedItem) {
+        currentItem.value = reloadedItem
+      }
     }
+
+    console.log('[PasswordGroupStore] Data reloaded after sync')
   })
 
   watch(
