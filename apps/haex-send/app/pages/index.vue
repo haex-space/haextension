@@ -58,20 +58,22 @@ const tabs = computed(() => [
 
 // Initialize LocalSend when component mounts
 onMounted(async () => {
-  await localSendStore.initializeAsync();
+  try {
+    // Initialize only if not already initialized
+    if (!localSendStore.isInitialized) {
+      await localSendStore.initializeAsync();
+    }
 
-  // Auto-start server and discovery
-  if (!localSendStore.isServerRunning) {
-    await localSendStore.startServerAsync();
+    // Auto-start server if not running
+    if (!localSendStore.isServerRunning) {
+      await localSendStore.startServerAsync();
+    }
+
+    // Start discovery on desktop (silently fail if already running)
+    await localSendStore.startDiscoveryAsync();
+  } catch (error) {
+    console.error("[haex-send] Initialization error:", error);
   }
-
-  // Start discovery on desktop
-  await localSendStore.startDiscoveryAsync();
-});
-
-// Cleanup on unmount
-onUnmounted(async () => {
-  await localSendStore.stopDiscoveryAsync();
 });
 </script>
 

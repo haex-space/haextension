@@ -1,13 +1,24 @@
 // stores/localsend.ts
-import type {
-  Device,
-  DeviceInfo,
-  ServerStatus,
-  LocalSendSettings,
-  PendingTransfer,
-  TransferProgress,
-  LocalSendFileInfo,
+import {
+  LOCALSEND_EVENTS,
+  type Device,
+  type DeviceInfo,
+  type ServerStatus,
+  type LocalSendSettings,
+  type PendingTransfer,
+  type TransferProgress,
+  type LocalSendFileInfo,
 } from "@haex-space/vault-sdk";
+
+// Completed transfer record
+export interface CompletedTransfer {
+  sessionId: string;
+  direction: "incoming" | "outgoing";
+  deviceAlias: string;
+  files: Array<{ fileName: string; size: number }>;
+  saveDir?: string;
+  completedAt: number;
+}
 
 export const useLocalSendStore = defineStore("localsend", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -24,6 +35,12 @@ export const useLocalSendStore = defineStore("localsend", () => {
 
   // Active transfers tracking
   const activeTransfers = ref<Map<string, TransferProgress>>(new Map());
+
+  // Completed transfers (persist in memory for this session)
+  const completedTransfers = ref<CompletedTransfer[]>([]);
+
+  // Track pending transfer info for completion
+  const pendingTransferInfo = ref<Map<string, { transfer: PendingTransfer; saveDir: string }>>(new Map());
 
   // Computed
   const isServerRunning = computed(() => serverStatus.value?.running ?? false);
@@ -56,7 +73,7 @@ export const useLocalSendStore = defineStore("localsend", () => {
     const client = haexVaultStore.client;
 
     // Device discovered
-    client.on("localsend:device-discovered", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.deviceDiscovered, (event: unknown) => {
       const device = event as Device;
       console.log("[LocalSend] Device discovered:", device.alias);
       const index = devices.value.findIndex((d) => d.fingerprint === device.fingerprint);
@@ -68,29 +85,44 @@ export const useLocalSendStore = defineStore("localsend", () => {
     });
 
     // Device lost
-    client.on("localsend:device-lost", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.deviceLost, (event: unknown) => {
       const fingerprint = event as string;
       console.log("[LocalSend] Device lost:", fingerprint);
       devices.value = devices.value.filter((d) => d.fingerprint !== fingerprint);
     });
 
     // Transfer request
-    client.on("localsend:transfer-request", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.transferRequest, (event: unknown) => {
       const transfer = event as PendingTransfer;
       console.log("[LocalSend] Transfer request:", transfer.sessionId);
       pendingTransfers.value.push(transfer);
     });
 
     // Transfer progress
-    client.on("localsend:transfer-progress", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.transferProgress, (event: unknown) => {
       const progress = event as TransferProgress;
       activeTransfers.value.set(progress.sessionId, progress);
     });
 
     // Transfer complete
-    client.on("localsend:transfer-complete", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.transferComplete, (event: unknown) => {
       const sessionId = event as string;
       console.log("[LocalSend] Transfer complete:", sessionId);
+
+      // Move to completed transfers
+      const info = pendingTransferInfo.value.get(sessionId);
+      if (info) {
+        completedTransfers.value.unshift({
+          sessionId,
+          direction: "incoming",
+          deviceAlias: info.transfer.sender.alias,
+          files: info.transfer.files.map((f) => ({ fileName: f.fileName, size: Number(f.size) })),
+          saveDir: info.saveDir,
+          completedAt: Date.now(),
+        });
+        pendingTransferInfo.value.delete(sessionId);
+      }
+
       activeTransfers.value.delete(sessionId);
       pendingTransfers.value = pendingTransfers.value.filter(
         (t) => t.sessionId !== sessionId
@@ -98,15 +130,22 @@ export const useLocalSendStore = defineStore("localsend", () => {
     });
 
     // Transfer failed
-    client.on("localsend:transfer-failed", (event: unknown) => {
+    client.on(LOCALSEND_EVENTS.transferFailed, (event: unknown) => {
       const data = event as { sessionId: string; error: string };
       console.error("[LocalSend] Transfer failed:", data.sessionId, data.error);
       activeTransfers.value.delete(data.sessionId);
+      pendingTransferInfo.value.delete(data.sessionId);
     });
   };
 
   // Server management
   const startServerAsync = async (port?: number) => {
+    // Skip if already running
+    if (isServerRunning.value) {
+      console.log("[LocalSend] Server already running, skipping start");
+      return;
+    }
+
     isServerStarting.value = true;
     try {
       const info = await haexVaultStore.client.localsend.startServer(port);
@@ -178,6 +217,12 @@ export const useLocalSendStore = defineStore("localsend", () => {
   };
 
   const acceptTransferAsync = async (sessionId: string, saveDir: string) => {
+    // Store transfer info for completion tracking
+    const transfer = pendingTransfers.value.find((t) => t.sessionId === sessionId);
+    if (transfer) {
+      pendingTransferInfo.value.set(sessionId, { transfer, saveDir });
+    }
+
     await haexVaultStore.client.localsend.acceptTransfer(sessionId, saveDir);
     pendingTransfers.value = pendingTransfers.value.filter(
       (t) => t.sessionId !== sessionId
@@ -223,6 +268,18 @@ export const useLocalSendStore = defineStore("localsend", () => {
     }
   };
 
+  // Clear completed transfer from list
+  const clearCompletedTransfer = (sessionId: string) => {
+    completedTransfers.value = completedTransfers.value.filter(
+      (t) => t.sessionId !== sessionId
+    );
+  };
+
+  // Clear all completed transfers
+  const clearAllCompletedTransfers = () => {
+    completedTransfers.value = [];
+  };
+
   return {
     // State
     isInitialized,
@@ -232,6 +289,7 @@ export const useLocalSendStore = defineStore("localsend", () => {
     devices,
     pendingTransfers,
     activeTransfers,
+    completedTransfers,
     isScanning,
     isServerStarting,
 
@@ -257,5 +315,7 @@ export const useLocalSendStore = defineStore("localsend", () => {
     cancelSendAsync,
     updateSettingsAsync,
     setAliasAsync,
+    clearCompletedTransfer,
+    clearAllCompletedTransfers,
   };
 });

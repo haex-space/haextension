@@ -113,6 +113,61 @@
         </ShadcnCardContent>
       </ShadcnCard>
     </div>
+
+    <!-- Completed Transfers -->
+    <div v-if="completedTransfers.length > 0" class="space-y-2">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-medium">{{ t("completedTransfers") }}</h3>
+        <ShadcnButton
+          v-if="completedTransfers.length > 1"
+          size="sm"
+          variant="ghost"
+          @click="onClearAll"
+        >
+          {{ t("clearAll") }}
+        </ShadcnButton>
+      </div>
+
+      <ShadcnCard v-for="transfer in completedTransfers" :key="transfer.sessionId">
+        <ShadcnCardContent class="p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <CheckCircle class="w-4 h-4 text-green-500 shrink-0" />
+                <span class="font-medium truncate">{{ transfer.deviceAlias }}</span>
+              </div>
+              <p class="text-sm text-muted-foreground mt-1">
+                {{ t("filesCount", { count: transfer.files.length }) }}
+              </p>
+              <div class="mt-2 space-y-1 max-h-20 overflow-y-auto">
+                <p
+                  v-for="file in transfer.files.slice(0, 3)"
+                  :key="file.fileName"
+                  class="text-xs text-muted-foreground truncate"
+                >
+                  {{ file.fileName }}
+                </p>
+                <p v-if="transfer.files.length > 3" class="text-xs text-muted-foreground">
+                  {{ t("andMore", { count: transfer.files.length - 3 }) }}
+                </p>
+              </div>
+              <p v-if="transfer.saveDir" class="text-xs text-muted-foreground mt-2 truncate">
+                📁 {{ transfer.saveDir }}
+              </p>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <ShadcnButton
+                size="sm"
+                variant="ghost"
+                @click="onClearCompleted(transfer.sessionId)"
+              >
+                <X class="w-4 h-4" />
+              </ShadcnButton>
+            </div>
+          </div>
+        </ShadcnCardContent>
+      </ShadcnCard>
+    </div>
   </div>
 </template>
 
@@ -121,6 +176,7 @@ import {
   Power,
   Download,
   Check,
+  CheckCircle,
   X,
   Smartphone,
   Monitor,
@@ -140,6 +196,7 @@ const {
   isServerStarting,
   pendingTransfers,
   activeTransfers,
+  completedTransfers,
 } = storeToRefs(localSendStore);
 
 const activeTransfersList = computed(() =>
@@ -189,6 +246,14 @@ const onAccept = async (transfer: PendingTransfer) => {
 const onReject = async (sessionId: string) => {
   await localSendStore.rejectTransferAsync(sessionId);
 };
+
+const onClearCompleted = (sessionId: string) => {
+  localSendStore.clearCompletedTransfer(sessionId);
+};
+
+const onClearAll = () => {
+  localSendStore.clearAllCompletedTransfers();
+};
 </script>
 
 <i18n lang="yaml">
@@ -199,10 +264,12 @@ de:
   startServer: Server starten
   pendingTransfers: Eingehende Übertragungen
   activeTransfers: Aktive Übertragungen
+  completedTransfers: Abgeschlossene Übertragungen
   noPendingTransfers: Keine eingehenden Übertragungen
   filesCount: "{count} Datei(en)"
   andMore: "und {count} weitere..."
   selectSaveFolder: Speicherort auswählen
+  clearAll: Alle löschen
 en:
   serverStatus: Server Status
   listeningOn: "Port {port}"
@@ -210,8 +277,10 @@ en:
   startServer: Start Server
   pendingTransfers: Incoming Transfers
   activeTransfers: Active Transfers
+  completedTransfers: Completed Transfers
   noPendingTransfers: No incoming transfers
   filesCount: "{count} file(s)"
   andMore: "and {count} more..."
   selectSaveFolder: Select Save Folder
+  clearAll: Clear all
 </i18n>
