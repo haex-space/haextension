@@ -14,6 +14,9 @@
     "build:patch": "node scripts/bump-version.js patch && pnpm build:release",
     "build:minor": "node scripts/bump-version.js minor && pnpm build:release",
     "build:major": "node scripts/bump-version.js major && pnpm build:release",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
     "ext:dev": "haex dev",
     "ext:build": "nuxt build --preset static && haex sign .output/public"
   },
