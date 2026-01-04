@@ -76,7 +76,6 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           BUNDLE_PATH="${{ steps.bundle.outputs.path }}"
           MANIFEST_PATH="apps/haex-send/haextension/manifest.json"
-          ICON_PATH="apps/haex-send/haextension/haex-send-logo.png"
 
           echo "Uploading version $VERSION to marketplace..."
 
@@ -85,7 +84,6 @@ jobs:
             -F "bundle=@${BUNDLE_PATH}" \
             -F "version=${VERSION}" \
             -F "manifest=<${MANIFEST_PATH}" \
-            -F "icon=@${ICON_PATH}" \
             --fail-with-body
 
           echo "Successfully uploaded to marketplace"
