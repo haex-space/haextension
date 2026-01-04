@@ -14,11 +14,20 @@
     "build:patch": "node scripts/bump-version.js patch && pnpm build:release",
     "build:minor": "node scripts/bump-version.js minor && pnpm build:release",
     "build:major": "node scripts/bump-version.js major && pnpm build:release",
+    "release": "node scripts/release.js patch",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
+    "upload": "node scripts/bump-version.js patch --upload",
+    "upload:patch": "node scripts/bump-version.js patch --upload",
+    "upload:minor": "node scripts/bump-version.js minor --upload",
+    "upload:major": "node scripts/bump-version.js major --upload",
     "ext:dev": "haex dev",
-    "ext:build": "nuxt build --preset static && haex sign .output/public"
+    "ext:build": "nuxt build --preset static && haex sign .output/public",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.88",
+    "@haex-space/vault-sdk": "^2.5.93",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
@@ -27,6 +36,7 @@
     "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.1",
     "lucide-vue-next": "^0.562.0",
     "nuxt": "^4.2.2",
     "reka-ui": "^2.6.1",
@@ -40,6 +50,7 @@
   },
   "devDependencies": {
     "@nuxtjs/color-mode": "^4.0.0",
+    "drizzle-kit": "^0.31.8",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
     "eslint": "^9.39.2",
