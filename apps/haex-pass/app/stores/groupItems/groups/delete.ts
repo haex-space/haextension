@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { IPasswordMenuItem } from '~/types/password'
 import type { SelectHaexPasswordsGroups } from '~/database'
 import { haexPasswordsGroups, haexPasswordsGroupItems } from '~/database'
@@ -25,13 +25,55 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
   const processingCurrent = ref(0)
 
   /**
-   * Create trash group if it doesn't exist
+   * Create trash group if it doesn't exist.
+   *
+   * IMPORTANT: This also handles the case where the trash group was previously
+   * deleted (tombstoned). Since the trash group uses a fixed ID ('trash') as
+   * primary key, we can't simply insert a new row if a tombstoned one exists.
+   * Instead, we revive the tombstoned row by clearing the haex_tombstone flag
+   * and resetting to default values.
+   *
+   * This is safe for the trash group because:
+   * - It has no user-defined data (just a container)
+   * - It always has the same default values (name, icon)
+   * - Users expect standard trash behavior when recreated
    */
   const createTrashIfNotExistsAsync = async () => {
+    const haexVaultStore = useHaexVaultStore()
+    if (!haexVaultStore.orm) throw new Error('Database not initialized')
+
     const { readGroupAsync, addGroupAsync } = usePasswordGroupStore()
+
+    // First, check if a non-tombstoned trash group exists
     const exists = await readGroupAsync(trashId)
     if (exists) return true
 
+    // Check if a tombstoned trash group exists (bypassing CRDT filter)
+    // We need raw SQL because Drizzle queries automatically filter out tombstoned rows
+    const tableName = haexPasswordsGroups._.name
+    const tombstonedResult = await haexVaultStore.orm.all<{ id: string; haex_tombstone: string | null }>(
+      sql`SELECT id, haex_tombstone FROM ${sql.identifier(tableName)} WHERE id = ${trashId}`
+    )
+
+    if (tombstonedResult.length > 0 && tombstonedResult[0]?.haex_tombstone) {
+      // Tombstoned trash group exists - revive it by clearing the tombstone flag
+      // and resetting to default values
+      console.log('[Trash] Reviving tombstoned trash group')
+      await haexVaultStore.orm.run(
+        sql`UPDATE ${sql.identifier(tableName)}
+            SET haex_tombstone = NULL,
+                name = 'Trash',
+                icon = 'mdi:trash-outline',
+                parent_id = NULL,
+                description = NULL,
+                color = NULL,
+                sort_order = NULL
+            WHERE id = ${trashId}`
+      )
+      return true
+    }
+
+    // No trash group exists at all - create a new one
     return addGroupAsync({
       name: 'Trash',
       id: trashId,
