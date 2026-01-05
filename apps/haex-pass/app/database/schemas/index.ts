@@ -1,6 +1,5 @@
 import {
   integer,
-  primaryKey,
   sqliteTable,
   text,
   type AnySQLiteColumn,
@@ -92,16 +91,18 @@ export type SelectHaexPasswordsGroups = typeof haexPasswordsGroups.$inferSelect;
 export const haexPasswordsGroupItems = sqliteTable(
   tableName("haex_passwords_group_items"),
   {
+    // itemId is the sole primary key - an item can only be in one group
+    // This allows groupId changes to be tracked by CRDT (composite PKs are not tracked)
+    itemId: text("item_id")
+      .primaryKey()
+      .references((): AnySQLiteColumn => haexPasswordsItemDetails.id, {
+        onDelete: "cascade",
+      }),
     groupId: text("group_id").references(
       (): AnySQLiteColumn => haexPasswordsGroups.id,
       { onDelete: "cascade" }
     ),
-    itemId: text("item_id").references(
-      (): AnySQLiteColumn => haexPasswordsItemDetails.id,
-      { onDelete: "cascade" }
-    ),
-  },
-  (table) => [primaryKey({ columns: [table.itemId, table.groupId] })]
+  }
 );
 export type InsertHaexPasswordsGroupItems =
   typeof haexPasswordsGroupItems.$inferInsert;
