@@ -1,15 +1,19 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { IPasswordMenuItem } from '~/types/password'
 import type { SelectHaexPasswordsGroups } from '~/database'
 import { haexPasswordsGroups, haexPasswordsGroupItems } from '~/database'
 import { cleanupOrphanedBinariesAsync } from '~/utils/cleanup'
 import { trashId } from './index'
+import de from '../de.json'
+import en from '../en.json'
 
 /**
  * Store for deleting groups and items (with trash support)
  */
 export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () => {
   const { $i18n } = useNuxtApp()
+  $i18n.mergeLocaleMessage('de', de)
+  $i18n.mergeLocaleMessage('en', en)
 
   // Dialog state
   const showDialog = ref(false)
@@ -44,42 +48,46 @@ export const useGroupItemsDeleteStore = defineStore('groupItemsDeleteStore', () 
 
     const { readGroupAsync, addGroupAsync } = usePasswordGroupStore()
 
+    // Get localized trash name
+    const trashName = $i18n.t('trash')
+
     // First, check if a non-tombstoned trash group exists
     const exists = await readGroupAsync(trashId)
     if (exists) return true
 
-    // Check if a tombstoned trash group exists (bypassing CRDT filter)
-    // We need raw SQL because Drizzle queries automatically filter out tombstoned rows
-    const tableName = haexPasswordsGroups._.name
-    const tombstonedResult = await haexVaultStore.orm.all<{ id: string; haex_tombstone: string | null }>(
-      sql`SELECT id, haex_tombstone FROM ${sql.identifier(tableName)} WHERE id = ${trashId}`
-    )
-
-    if (tombstonedResult.length > 0 && tombstonedResult[0]?.haex_tombstone) {
-      // Tombstoned trash group exists - revive it by clearing the tombstone flag
-      // and resetting to default values
-      console.log('[Trash] Reviving tombstoned trash group')
-      await haexVaultStore.orm.run(
-        sql`UPDATE ${sql.identifier(tableName)}
-            SET haex_tombstone = NULL,
-                name = 'Trash',
-                icon = 'mdi:trash-outline',
-                parent_id = NULL,
-                description = NULL,
-                color = NULL,
-                sort_order = NULL
-            WHERE id = ${trashId}`
-      )
+    // Try to create a new trash group
+    // If it fails with a constraint error, a tombstoned trash group exists
+    // In that case, revive it by updating to clear the tombstone
+    try {
+      await addGroupAsync({
+        name: trashName,
+        id: trashId,
+        icon: 'mdi:trash-outline',
+        parentId: null,
+      })
       return true
+    } catch (error) {
+      // Check if this is a UNIQUE/PRIMARY KEY constraint error
+      const errorMessage = String(error)
+      if (errorMessage.includes('UNIQUE constraint') || errorMessage.includes('PRIMARY KEY constraint')) {
+        // A tombstoned trash group exists - revive it by updating
+        console.log('[Trash] Reviving tombstoned trash group')
+        await haexVaultStore.orm
+          .update(haexPasswordsGroups)
+          .set({
+            name: trashName,
+            icon: 'mdi:trash-outline',
+            parentId: null,
+            description: null,
+            color: null,
+            order: null,
+          })
+          .where(eq(haexPasswordsGroups.id, trashId))
+        return true
+      }
+      // Re-throw other errors
+      throw error
     }
-
-    // No trash group exists at all - create a new one
-    return addGroupAsync({
-      name: 'Trash',
-      id: trashId,
-      icon: 'mdi:trash-outline',
-      parentId: null,
-    })
   }
 
   /**

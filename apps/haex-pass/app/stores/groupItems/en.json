@@ -2,5 +2,6 @@
   "noItems": "No items available",
   "itemCount": "{count} items",
   "edit": "Edit",
-  "delete": "Delete"
+  "delete": "Delete",
+  "trash": "Trash"
 }
