@@ -7,15 +7,13 @@ on:
     paths:
       - 'apps/haex-pass/**'
       - 'packages/**'
-      - 'pnpm-lock.yaml'
-    # Don't run build when a release tag is pushed (release workflow handles that)
+    # Don't run build when any release tag is pushed
     tags-ignore:
-      - 'haex-pass-v*'
+      - '*'
   pull_request:
     paths:
       - 'apps/haex-pass/**'
       - 'packages/**'
-      - 'pnpm-lock.yaml'
 
 jobs:
   build:
