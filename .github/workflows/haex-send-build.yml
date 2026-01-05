@@ -8,6 +8,9 @@ on:
       - 'apps/haex-send/**'
       - 'packages/**'
       - 'pnpm-lock.yaml'
+    # Don't run build when a release tag is pushed (release workflow handles that)
+    tags-ignore:
+      - 'haex-send-v*'
   pull_request:
     paths:
       - 'apps/haex-send/**'

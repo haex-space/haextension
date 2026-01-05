@@ -7,6 +7,9 @@ on:
       - 'apps/haex-pass-browser/**'
       - 'packages/**'
       - 'pnpm-lock.yaml'
+    # Don't run build when a release tag is pushed (release workflow handles that)
+    tags-ignore:
+      - 'haex-pass-browser-v*'
   pull_request:
     branches: [main]
     paths:
