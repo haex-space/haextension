@@ -71,11 +71,22 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
 
   const prepareDeleteItems = (selectedIds: string[]) => {
     const { isGroupInTrash } = useGroupTreeStore();
+    const { trashId } = usePasswordGroupStore();
 
-    // Check which items are in trash by checking their group
+    // Check which items are in trash
+    // An item is in trash if:
+    // 1. Its groupId is the trash ID directly, OR
+    // 2. Its group is a child of the trash group
     const itemsInTrash = selectedIds.filter((itemId) => {
       const item = items.value.find((i) => i?.haex_passwords_item_details?.id === itemId);
       const groupId = item?.haex_passwords_group_items?.groupId;
+
+      // Item is directly in trash folder
+      if (groupId === trashId) {
+        return true;
+      }
+
+      // Item is in a group that is inside trash (nested)
       return groupId ? isGroupInTrash(groupId) : false;
     });
 
