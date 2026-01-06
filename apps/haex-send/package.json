@@ -50,11 +50,10 @@
   },
   "devDependencies": {
     "@nuxtjs/color-mode": "^4.0.0",
-    "drizzle-kit": "^0.31.8",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
-    "tailwindcss": "^4.1.18",
-    "typescript": "^5.9.3"
+    "tailwindcss": "^4.1.18"
   }
 }

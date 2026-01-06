@@ -9,5 +9,9 @@
     "overrides": {
       "drizzle-orm": "0.45.1"
     }
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.2.2"
   }
 }
