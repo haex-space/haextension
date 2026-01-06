@@ -46,6 +46,7 @@
 import { Send, Download, Settings } from "lucide-vue-next";
 
 const { t } = useI18n();
+const haexVaultStore = useHaexVaultStore();
 const localSendStore = useLocalSendStore();
 
 const activeTab = ref<"send" | "receive" | "settings">("send");
@@ -59,6 +60,9 @@ const tabs = computed(() => [
 // Initialize LocalSend when component mounts
 onMounted(async () => {
   try {
+    // Wait for haexVault to be fully initialized first (database ready)
+    await haexVaultStore.waitForSetupAsync();
+
     // Initialize only if not already initialized
     if (!localSendStore.isInitialized) {
       await localSendStore.initializeAsync();

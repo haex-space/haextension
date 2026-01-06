@@ -1,9 +1,19 @@
 // stores/haexvault.ts
+import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import * as schema from "~/database/schemas";
+
+// Import all migration SQL files
+const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
 
 export const useHaexVaultStore = defineStore("haexvault", () => {
   const nuxtApp = useNuxtApp();
 
   const isInitialized = ref(false);
+  const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
 
   // Get composables at the top of the store setup
   const { currentThemeName, context } = storeToRefs(useUiStore());
@@ -18,6 +28,36 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     return haexVault;
   };
 
+  // Register migrations with HaexVault (it handles validation, tracking, and execution)
+  const runMigrationsAsync = async () => {
+    const haexVault = getHaexVault();
+
+    // Convert migration files to array format expected by SDK
+    const migrations = Object.entries(migrationFiles)
+      .map(([path, content]) => {
+        const fileName = path.split("/").pop()?.replace(".sql", "") || "";
+        return {
+          name: fileName,
+          sql: content as string,
+        };
+      });
+
+    console.log(`[haex-send] Registering ${migrations.length} migration(s) with HaexVault`);
+
+    const result = await haexVault.client.registerMigrationsAsync(
+      haexVault.client.extensionInfo!.version,
+      migrations
+    );
+
+    console.log(
+      `[haex-send] Migrations complete: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`
+    );
+
+    if (result.appliedMigrations.length > 0) {
+      console.log(`[haex-send] Applied migrations: ${result.appliedMigrations.join(", ")}`);
+    }
+  };
+
   // Initialize and setup hook (runs once)
   const initializeAsync = async () => {
     if (isInitialized.value) return;
@@ -26,12 +66,16 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
 
     console.log("[haex-send] Initializing HaexVault SDK");
 
-    // Register setup hook (no database migrations needed for haex-send)
+    // Register setup hook for database migrations
     haexVault.client.onSetup(async () => {
-      console.log("[haex-send] Setup hook running");
+      await runMigrationsAsync();
     });
 
-    // Trigger setup
+    // Initialize database schema
+    orm.value = haexVault.client.initializeDatabase(schema);
+    console.log("[haex-send] Database initialized:", !!orm.value);
+
+    // Trigger setup to run the registered hook (migrations)
     await haexVault.client.setupComplete();
     console.log("[haex-send] Setup complete");
 
@@ -74,6 +118,8 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     get state() {
       return getHaexVault().state;
     },
+    orm,
+    getTableName: (tableName: string) => getHaexVault().client.getTableName(tableName),
     initializeAsync,
     waitForSetupAsync,
   };

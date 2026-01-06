@@ -36,63 +36,7 @@
       </ShadcnCardContent>
     </ShadcnCard>
 
-    <!-- Pending Transfers -->
-    <div class="space-y-2">
-      <h3 class="text-sm font-medium">{{ t("pendingTransfers") }}</h3>
-
-      <div v-if="pendingTransfers.length > 0" class="space-y-2">
-        <ShadcnCard v-for="transfer in pendingTransfers" :key="transfer.sessionId">
-          <ShadcnCardContent class="p-4">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <component
-                    :is="getDeviceIcon(transfer.sender.deviceType)"
-                    class="w-4 h-4 shrink-0"
-                  />
-                  <span class="font-medium truncate">{{ transfer.sender.alias }}</span>
-                </div>
-                <p class="text-sm text-muted-foreground mt-1">
-                  {{ t("filesCount", { count: transfer.files.length }) }} -
-                  {{ formatFileSize(transfer.totalSize) }}
-                </p>
-                <div class="mt-2 space-y-1 max-h-20 overflow-y-auto">
-                  <p
-                    v-for="file in transfer.files.slice(0, 3)"
-                    :key="file.id"
-                    class="text-xs text-muted-foreground truncate"
-                  >
-                    {{ file.fileName }}
-                  </p>
-                  <p v-if="transfer.files.length > 3" class="text-xs text-muted-foreground">
-                    {{ t("andMore", { count: transfer.files.length - 3 }) }}
-                  </p>
-                </div>
-              </div>
-              <div class="flex gap-2 shrink-0">
-                <ShadcnButton
-                  size="sm"
-                  variant="outline"
-                  @click="onReject(transfer.sessionId)"
-                >
-                  <X class="w-4 h-4" />
-                </ShadcnButton>
-                <ShadcnButton size="sm" @click="onAccept(transfer)">
-                  <Check class="w-4 h-4" />
-                </ShadcnButton>
-              </div>
-            </div>
-          </ShadcnCardContent>
-        </ShadcnCard>
-      </div>
-
-      <div v-else class="text-center py-8 text-muted-foreground">
-        <Download class="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p>{{ t("noPendingTransfers") }}</p>
-      </div>
-    </div>
-
-    <!-- Active Transfers -->
+    <!-- Active Transfers (show first when there are active transfers) -->
     <div v-if="activeTransfersList.length > 0" class="space-y-2">
       <h3 class="text-sm font-medium">{{ t("activeTransfers") }}</h3>
 
@@ -112,6 +56,61 @@
           </p>
         </ShadcnCardContent>
       </ShadcnCard>
+    </div>
+
+    <!-- Pending Transfers (requests waiting for accept/reject) -->
+    <div v-if="pendingTransfers.length > 0" class="space-y-2">
+      <h3 class="text-sm font-medium">{{ t("pendingTransfers") }}</h3>
+
+      <ShadcnCard v-for="transfer in pendingTransfers" :key="transfer.sessionId">
+        <ShadcnCardContent class="p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <component
+                  :is="getDeviceIcon(transfer.sender.deviceType)"
+                  class="w-4 h-4 shrink-0"
+                />
+                <span class="font-medium truncate">{{ transfer.sender.alias }}</span>
+              </div>
+              <p class="text-sm text-muted-foreground mt-1">
+                {{ t("filesCount", { count: transfer.files.length }) }} -
+                {{ formatFileSize(transfer.totalSize) }}
+              </p>
+              <div class="mt-2 space-y-1 max-h-20 overflow-y-auto">
+                <p
+                  v-for="file in transfer.files.slice(0, 3)"
+                  :key="file.id"
+                  class="text-xs text-muted-foreground truncate"
+                >
+                  {{ file.fileName }}
+                </p>
+                <p v-if="transfer.files.length > 3" class="text-xs text-muted-foreground">
+                  {{ t("andMore", { count: transfer.files.length - 3 }) }}
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <ShadcnButton
+                size="sm"
+                variant="outline"
+                @click="onReject(transfer.sessionId)"
+              >
+                <X class="w-4 h-4" />
+              </ShadcnButton>
+              <ShadcnButton size="sm" @click="onAccept(transfer)">
+                <Check class="w-4 h-4" />
+              </ShadcnButton>
+            </div>
+          </div>
+        </ShadcnCardContent>
+      </ShadcnCard>
+    </div>
+
+    <!-- Empty state: only show when NO active and NO pending transfers -->
+    <div v-if="pendingTransfers.length === 0 && activeTransfersList.length === 0" class="text-center py-8 text-muted-foreground">
+      <Download class="w-12 h-12 mx-auto mb-4 opacity-50" />
+      <p>{{ t("noPendingTransfers") }}</p>
     </div>
 
     <!-- Completed Transfers -->

@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div v-if="settings" class="space-y-6">
     <!-- Device Info -->
     <ShadcnCard>
       <ShadcnCardHeader class="pb-2">
@@ -13,15 +13,9 @@
               id="alias"
               v-model="aliasInput"
               :placeholder="t('deviceNamePlaceholder')"
+              @blur="onSaveAlias"
+              @keyup.enter="onSaveAlias"
             />
-            <ShadcnButton
-              size="icon"
-              variant="outline"
-              :disabled="aliasInput === deviceInfo?.alias || !aliasInput"
-              @click="onSaveAlias"
-            >
-              <Check class="w-4 h-4" />
-            </ShadcnButton>
           </div>
         </div>
 
@@ -46,10 +40,11 @@
           <ShadcnLabel for="port">{{ t("port") }}</ShadcnLabel>
           <ShadcnInput
             id="port"
-            v-model.number="localSettings.port"
+            :model-value="settings.port"
             type="number"
             :min="1024"
             :max="65535"
+            @blur="(e: FocusEvent) => onUpdateSetting('port', Number((e.target as HTMLInputElement).value))"
           />
           <p class="text-xs text-muted-foreground">{{ t("portHint") }}</p>
         </div>
@@ -59,7 +54,7 @@
           <ShadcnLabel>{{ t("saveDirectory") }}</ShadcnLabel>
           <div class="flex gap-2">
             <ShadcnInput
-              :model-value="localSettings.saveDirectory ?? t('notSet')"
+              :model-value="settings.saveDirectory ?? t('notSet')"
               readonly
               class="flex-1"
             />
@@ -75,7 +70,9 @@
             <ShadcnLabel>{{ t("autoAccept") }}</ShadcnLabel>
             <p class="text-xs text-muted-foreground">{{ t("autoAcceptHint") }}</p>
           </div>
-          <ShadcnSwitch v-model:checked="localSettings.autoAccept" />
+          <ShadcnSwitch
+            v-model="autoAccept"
+          />
         </div>
 
         <!-- Notifications -->
@@ -84,7 +81,9 @@
             <ShadcnLabel>{{ t("notifications") }}</ShadcnLabel>
             <p class="text-xs text-muted-foreground">{{ t("notificationsHint") }}</p>
           </div>
-          <ShadcnSwitch v-model:checked="localSettings.showNotifications" />
+          <ShadcnSwitch
+            v-model="showNotifications"
+          />
         </div>
       </ShadcnCardContent>
     </ShadcnCard>
@@ -100,38 +99,33 @@
             <ShadcnLabel>{{ t("requirePin") }}</ShadcnLabel>
             <p class="text-xs text-muted-foreground">{{ t("requirePinHint") }}</p>
           </div>
-          <ShadcnSwitch v-model:checked="localSettings.requirePin" />
+          <ShadcnSwitch
+            v-model="requirePin"
+          />
         </div>
 
-        <div v-if="localSettings.requirePin" class="space-y-2">
+        <div v-if="requirePin" class="space-y-2">
           <ShadcnLabel for="pin">{{ t("pin") }}</ShadcnLabel>
           <ShadcnInput
             id="pin"
-            :model-value="localSettings.pin ?? ''"
+            :model-value="settings.pin ?? ''"
             type="text"
             inputmode="numeric"
             maxlength="6"
             :placeholder="t('pinPlaceholder')"
-            @update:model-value="localSettings.pin = ($event as string) || null"
+            @blur="(e: FocusEvent) => onUpdateSetting('pin', (e.target as HTMLInputElement).value || null)"
           />
         </div>
       </ShadcnCardContent>
     </ShadcnCard>
-
-    <!-- Save Button -->
-    <ShadcnButton
-      class="w-full"
-      :disabled="!hasChanges"
-      @click="onSaveSettings"
-    >
-      <Save class="w-4 h-4 mr-2" />
-      {{ t("saveSettings") }}
-    </ShadcnButton>
+  </div>
+  <div v-else class="flex items-center justify-center h-32">
+    <p class="text-muted-foreground">{{ t("loading") }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Check, FolderOpen, Save } from "lucide-vue-next";
+import { FolderOpen } from "lucide-vue-next";
 import type { LocalSendSettings } from "@haex-space/vault-sdk";
 
 const { t } = useI18n();
@@ -141,33 +135,24 @@ const haexVaultStore = useHaexVaultStore();
 const { deviceInfo, settings } = storeToRefs(localSendStore);
 
 const aliasInput = ref("");
+const autoAccept = ref(false);
+const showNotifications = ref(true);
+const requirePin = ref(false);
 
-const localSettings = ref<LocalSendSettings>({
-  alias: "",
-  port: 53317,
-  autoAccept: false,
-  saveDirectory: null,
-  requirePin: false,
-  pin: null,
-  showNotifications: true,
-});
-
-const hasChanges = computed(() => {
-  if (!settings.value) return false;
-  return JSON.stringify(localSettings.value) !== JSON.stringify(settings.value);
-});
-
-// Initialize from store settings
+// Initialize from settings
 watch(
   settings,
-  (newSettings) => {
-    if (newSettings) {
-      localSettings.value = { ...newSettings };
+  (s) => {
+    if (s) {
+      autoAccept.value = s.autoAccept;
+      showNotifications.value = s.showNotifications;
+      requirePin.value = s.requirePin;
     }
   },
   { immediate: true }
 );
 
+// Initialize alias from device info
 watch(
   deviceInfo,
   (info) => {
@@ -177,6 +162,11 @@ watch(
   },
   { immediate: true }
 );
+
+// Save settings when local values change
+watch(autoAccept, (v) => onUpdateSetting("autoAccept", v));
+watch(showNotifications, (v) => onUpdateSetting("showNotifications", v));
+watch(requirePin, (v) => onUpdateSetting("requirePin", v));
 
 const onSaveAlias = async () => {
   if (aliasInput.value && aliasInput.value !== deviceInfo.value?.alias) {
@@ -190,17 +180,28 @@ const onSelectSaveDir = async () => {
   });
 
   if (dir) {
-    localSettings.value.saveDirectory = dir;
+    await onUpdateSetting("saveDirectory", dir);
   }
 };
 
-const onSaveSettings = async () => {
-  await localSendStore.updateSettingsAsync(localSettings.value);
+// Update a single setting and save immediately
+const onUpdateSetting = async <K extends keyof LocalSendSettings>(
+  key: K,
+  value: LocalSendSettings[K]
+) => {
+  if (!settings.value) return;
+
+  // Skip if value hasn't changed
+  if (settings.value[key] === value) return;
+
+  const newSettings = { ...settings.value, [key]: value };
+  await localSendStore.updateSettingsAsync(newSettings);
 };
 </script>
 
 <i18n lang="yaml">
 de:
+  loading: Lade Einstellungen...
   deviceInfo: Geräte-Info
   deviceName: Gerätename
   deviceNamePlaceholder: Mein Gerät
@@ -222,8 +223,8 @@ de:
   requirePinHint: Eingehende Übertragungen erfordern PIN
   pin: PIN
   pinPlaceholder: 4-6 Ziffern
-  saveSettings: Einstellungen speichern
 en:
+  loading: Loading settings...
   deviceInfo: Device Info
   deviceName: Device Name
   deviceNamePlaceholder: My Device
@@ -245,5 +246,4 @@ en:
   requirePinHint: Incoming transfers require a PIN
   pin: PIN
   pinPlaceholder: 4-6 digits
-  saveSettings: Save Settings
 </i18n>
