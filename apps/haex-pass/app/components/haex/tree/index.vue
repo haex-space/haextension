@@ -2,6 +2,16 @@
   <div ref="scrollContainerRef" class="h-full bg-background border-r border-border">
     <ShadcnScrollArea class="h-full">
       <div class="p-2 space-y-1">
+        <!-- Root navigation item -->
+        <button
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-accent"
+          :class="{ 'bg-accent': !currentGroupId }"
+          @click="onSelectRoot"
+        >
+          <Icon name="mdi:safe" size="16" class="text-muted-foreground" />
+          <span>{{ t('root') }}</span>
+        </button>
+
         <HaexTreeItem
           v-for="group in rootGroups"
           :key="group.id"
@@ -19,6 +29,7 @@
 <script setup lang="ts">
 import type { SelectHaexPasswordsGroups } from "~/database";
 
+const { t } = useI18n();
 const { groups, currentGroupId } = storeToRefs(usePasswordGroupStore());
 const localePath = useLocalePath();
 const { treeScrollPosition } = useTreeExpanded();
@@ -67,6 +78,14 @@ watch(currentGroupId, () => {
   });
 });
 
+const onSelectRoot = async () => {
+  await navigateTo(
+    localePath({
+      name: "passwordGroupItems",
+    })
+  );
+};
+
 const onSelectGroup = async (groupId: string) => {
   await navigateTo(
     localePath({
@@ -84,3 +103,11 @@ const emit = defineEmits<{
   delete: [group: SelectHaexPasswordsGroups];
 }>();
 </script>
+
+<i18n lang="yaml">
+de:
+  root: Alle Passwörter
+
+en:
+  root: All Passwords
+</i18n>
