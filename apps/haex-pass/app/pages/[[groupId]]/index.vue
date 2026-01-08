@@ -65,7 +65,7 @@
             </ShadcnItem>
           </ShadcnContextMenuTrigger>
 
-          <ShadcnContextMenuContent>
+          <ShadcnContextMenuContent v-if="isMediumScreen">
             <template v-if="item.type === 'item'">
               <ShadcnContextMenuItem
                 :disabled="selectionStore.selectedCount > 1"
