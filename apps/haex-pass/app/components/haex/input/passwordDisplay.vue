@@ -4,15 +4,12 @@
     :class="{ 'cursor-text': !readonly }"
     @click="$emit('click')"
   >
-    <span
-      v-for="(char, index) in characters"
-      :key="index"
-      :class="char.class"
-      >{{ char.value }}</span
-    >
-    <span v-if="!modelValue" class="text-muted-foreground">{{
-      placeholder
-    }}</span>
+    <span v-for="(char, index) in characters" :key="index" :class="char.class">
+      {{ char.value }}
+    </span>
+    <span v-if="!modelValue" class="text-muted-foreground">
+      {{ placeholder }}
+    </span>
   </div>
 </template>
 
