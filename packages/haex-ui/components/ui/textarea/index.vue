@@ -7,7 +7,7 @@
   >
     <ShadcnTextarea
       ref="textareaRef"
-      v-model="modelValue"
+      v-model="textareaValue"
       v-bind="$attrs"
       class="border-none shadow-none focus-visible:ring-0 focus-visible:border-transparent pr-12"
     />
@@ -41,6 +41,12 @@ const props = defineProps<{
 }>();
 
 const modelValue = defineModel<string | number | null | undefined>();
+
+// Convert null to undefined for ShadcnTextarea compatibility
+const textareaValue = computed({
+  get: () => modelValue.value ?? undefined,
+  set: (val) => { modelValue.value = val; },
+});
 
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
