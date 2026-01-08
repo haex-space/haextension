@@ -27,12 +27,21 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
             <ShadcnLabel>{{ t("icon") }}</ShadcnLabel>
-            <HaexSelectIcon
-              v-model="group.icon"
-              :color="group.color"
-              default-icon="folder"
-              :read-only="readOnly"
-            />
+            <div class="flex gap-2">
+              <HaexSelectIcon
+                v-model="group.icon"
+                :color="group.color"
+                default-icon="folder"
+                :read-only="readOnly"
+              />
+              <UiButton
+                v-if="group.icon && showApplyIconButton"
+                :icon="ImageIcon"
+                variant="outline"
+                :tooltip="t('applyIconToItems')"
+                @click="$emit('applyIcon')"
+              />
+            </div>
           </div>
 
           <div class="space-y-2">
@@ -47,16 +56,19 @@
 
 <script setup lang="ts">
 import { onStartTyping } from "@vueuse/core";
+import { Image as ImageIcon } from "lucide-vue-next";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const group = defineModel<SelectHaexPasswordsGroups>({ required: true });
 
-const { readOnly = false } = defineProps<{
+const { readOnly = false, showApplyIconButton = false } = defineProps<{
   readOnly?: boolean;
+  showApplyIconButton?: boolean;
 }>();
 
 defineEmits<{
   submit: [];
+  applyIcon: [];
 }>();
 
 const { t } = useI18n();
@@ -103,6 +115,7 @@ de:
   descriptionPlaceholder: Beschreibung eingeben (optional)
   icon: Icon
   color: Farbe
+  applyIconToItems: Icon auf Einträge übertragen
 
 en:
   name: Name
@@ -111,4 +124,5 @@ en:
   descriptionPlaceholder: Enter description (optional)
   icon: Icon
   color: Color
+  applyIconToItems: Apply icon to entries
 </i18n>

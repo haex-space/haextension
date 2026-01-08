@@ -49,7 +49,9 @@
       <HaexGroup
         v-model="group"
         :read-only="mode === 'edit' && readOnly"
+        :show-apply-icon-button="mode === 'edit'"
         @submit="onSaveAsync"
+        @apply-icon="onApplyIconToItemsAsync"
       />
     </div>
 
@@ -118,6 +120,7 @@
 <script setup lang="ts">
 import { useMagicKeys } from "@vueuse/core";
 import { Trash2, Pencil, Save, X } from "lucide-vue-next";
+import { toast } from "vue-sonner";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{
@@ -299,6 +302,27 @@ const onConfirmDiscardChanges = () => {
   router.back();
 };
 
+const onApplyIconToItemsAsync = async () => {
+  if (!group.value?.icon || !group.value?.id) return;
+
+  const { applyIconToGroupItemsAsync, syncItemsAsync } = usePasswordItemStore();
+  const { loadCurrentGroupItemsAsync } = usePasswordGroupStore();
+
+  try {
+    const count = await applyIconToGroupItemsAsync(group.value.id, group.value.icon);
+    if (count > 0) {
+      toast.success(t("applyIconSuccess", { count }));
+      await syncItemsAsync();
+      await loadCurrentGroupItemsAsync();
+    } else {
+      toast.info(t("applyIconNoItems"));
+    }
+  } catch (error) {
+    console.error("Error applying icon to items:", error);
+    toast.error(t("applyIconError"));
+  }
+};
+
 // Navigation guard for back button (especially on Android)
 useUnsavedChangesGuard({
   hasChanges,
@@ -324,6 +348,9 @@ de:
   edit: Bearbeiten
   save: Speichern
   delete: Löschen
+  applyIconSuccess: "Icon auf {count} Einträge übertragen"
+  applyIconNoItems: Keine Einträge in diesem Ordner
+  applyIconError: Fehler beim Übertragen des Icons
   deleteDialog:
     title: Gruppe löschen?
     description: Die Gruppe wird in den Papierkorb verschoben.
@@ -347,6 +374,9 @@ en:
   edit: Edit
   save: Save
   delete: Delete
+  applyIconSuccess: "Icon applied to {count} entries"
+  applyIconNoItems: No entries in this folder
+  applyIconError: Error applying icon
   deleteDialog:
     title: Delete group?
     description: The group will be moved to the recycle bin.
