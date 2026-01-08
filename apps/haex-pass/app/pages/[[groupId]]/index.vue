@@ -105,6 +105,31 @@
                 <ImageDown class="w-4 h-4 mr-2" />
                 {{ t("downloadFavicon") }}
               </ShadcnContextMenuItem>
+              <ShadcnContextMenuSub v-if="tags.length > 0">
+                <ShadcnContextMenuSubTrigger>
+                  <Tag class="w-4 h-4 mr-2" />
+                  {{ t("tags") }}
+                </ShadcnContextMenuSubTrigger>
+                <ShadcnContextMenuSubContent class="max-h-64 overflow-y-auto">
+                  <ShadcnContextMenuItem
+                    v-for="tag in tags"
+                    :key="tag.id"
+                    @click="onToggleTag(item, tag.id)"
+                  >
+                    <span
+                      v-if="tag.color"
+                      class="w-3 h-3 rounded-full mr-2 shrink-0"
+                      :style="{ backgroundColor: tag.color }"
+                    />
+                    <span v-else class="w-3 h-3 mr-2 shrink-0" />
+                    <span class="flex-1">{{ tag.name }}</span>
+                    <Check
+                      v-if="itemTagsMap.get(item.id)?.has(tag.id)"
+                      class="w-4 h-4 ml-2"
+                    />
+                  </ShadcnContextMenuItem>
+                </ShadcnContextMenuSubContent>
+              </ShadcnContextMenuSub>
               <ShadcnContextMenuSeparator />
             </template>
             <ShadcnContextMenuItem
@@ -166,6 +191,8 @@ import {
   ImageDown,
   RotateCcw,
   AlertTriangle,
+  Tag,
+  Check,
 } from "lucide-vue-next";
 import type { IPasswordMenuItem } from "~/types/password";
 import { onLongPress, useClipboard, useEventListener } from "@vueuse/core";
@@ -185,6 +212,52 @@ const { isMediumScreen } = storeToRefs(useUiStore());
 const { currentGroupItems, currentGroup } = storeToRefs(usePasswordGroupStore());
 const { inTrashGroup: isInTrash } = storeToRefs(useGroupTreeStore());
 const { copy } = useClipboard();
+
+// Tags
+const tagStore = useTagStore();
+const { tags } = storeToRefs(tagStore);
+
+// Track which tags each item has (for showing checkmarks)
+const itemTagsMap = ref<Map<string, Set<string>>>(new Map());
+
+// Load tags for visible items
+const loadItemTagsAsync = async () => {
+  const newMap = new Map<string, Set<string>>();
+  for (const item of groupItems.value) {
+    if (item.type === "item") {
+      const itemTags = await tagStore.getItemTagsAsync(item.id);
+      newMap.set(item.id, new Set(itemTags.map((t) => t.id)));
+    }
+  }
+  itemTagsMap.value = newMap;
+};
+
+// Reload tags when group items change
+watch(groupItems, () => loadItemTagsAsync(), { immediate: true });
+
+// Initialize tag store
+onMounted(async () => {
+  await tagStore.syncTagsAsync();
+});
+
+const onToggleTag = async (item: IPasswordMenuItem, tagId: string) => {
+  const added = await tagStore.toggleTagOnItemAsync(item.id, tagId);
+
+  // Update local map
+  const itemTags = itemTagsMap.value.get(item.id) || new Set();
+  if (added) {
+    itemTags.add(tagId);
+  } else {
+    itemTags.delete(tagId);
+  }
+  itemTagsMap.value.set(item.id, itemTags);
+
+  // Show feedback
+  const tag = tags.value.find((t) => t.id === tagId);
+  if (tag) {
+    toast.success(added ? t("tagAdded", { tag: tag.name }) : t("tagRemoved", { tag: tag.name }));
+  }
+};
 
 // Helper to check if an item's password is expired
 const isItemExpired = (item: IPasswordMenuItem) => {
@@ -527,6 +600,9 @@ de:
   faviconSuccess: "{count} Favicon(s) heruntergeladen"
   faviconPartial: "{success} heruntergeladen, {fail} fehlgeschlagen"
   faviconFailed: Favicon konnte nicht heruntergeladen werden
+  tags: Tags
+  tagAdded: "Tag \"{tag}\" hinzugefügt"
+  tagRemoved: "Tag \"{tag}\" entfernt"
 
 en:
   noItems: No items available
@@ -550,4 +626,7 @@ en:
   faviconSuccess: "{count} favicon(s) downloaded"
   faviconPartial: "{success} downloaded, {fail} failed"
   faviconFailed: Could not download favicon
+  tags: Tags
+  tagAdded: "Tag \"{tag}\" added"
+  tagRemoved: "Tag \"{tag}\" removed"
 </i18n>

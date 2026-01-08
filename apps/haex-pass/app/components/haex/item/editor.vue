@@ -84,6 +84,7 @@
           <div class="h-full overflow-y-auto">
             <HaexItemDetails
               v-model="editableDetails"
+              v-model:tags="itemTags"
               :read-only="mode === 'edit' && readOnly"
               @submit="onSaveAsync"
             />
@@ -190,6 +191,13 @@ const { addAsync, updateAsync, deleteAsync, readAsync } =
 const { syncGroupItemsAsync } = usePasswordGroupStore();
 const { inTrashGroup } = storeToRefs(useGroupTreeStore());
 const passkeyStore = usePasskeyStore();
+const tagStore = useTagStore();
+
+// Helper to load tags for an item
+const loadItemTagsAsync = async (itemId: string): Promise<string[]> => {
+  const tagObjects = await tagStore.getItemTagsAsync(itemId);
+  return tagObjects.map((t) => t.name);
+};
 
 // Tabs configuration
 const tabs = computed(() => {
@@ -246,6 +254,10 @@ const attachmentsToDelete = ref<AttachmentWithSize[]>([]);
 const passkeysToAdd = ref<SelectHaexPasswordsPasskeys[]>([]);
 const passkeysToDelete = ref<SelectHaexPasswordsPasskeys[]>([]);
 
+// Tags tracking (stored in separate table via tagStore)
+const itemTags = ref<string[]>([]);
+const originalTags = ref<string[]>([]);
+
 // Empty item template
 const createEmptyDetails = (): SelectHaexPasswordsItemDetails => ({
   id: "",
@@ -254,7 +266,6 @@ const createEmptyDetails = (): SelectHaexPasswordsItemDetails => ({
   color: null,
   note: null,
   password: null,
-  tags: null,
   title: null,
   updateAt: null,
   url: null,
@@ -280,13 +291,15 @@ const initializeItem = () => {
     attachmentsToDelete.value = [];
     passkeysToAdd.value = [];
     passkeysToDelete.value = [];
+    itemTags.value = [];
+    originalTags.value = [];
   }
 };
 
 // Watch for currentItem changes in edit mode
 watch(
   () => currentItem.value,
-  (item) => {
+  async (item) => {
     if (props.mode === "edit" && item?.details) {
       editableDetails.value = { ...item.details };
       originalDetails.value = { ...item.details };
@@ -305,6 +318,11 @@ watch(
       // Reset passkeys tracking
       passkeysToAdd.value = [];
       passkeysToDelete.value = [];
+
+      // Load tags from tag store
+      const loadedTags = await loadItemTagsAsync(item.details.id);
+      itemTags.value = loadedTags;
+      originalTags.value = [...loadedTags];
     }
   },
   { immediate: true }
@@ -333,7 +351,11 @@ const hasChanges = computed(() => {
 
   const hasPasskeyChanges = passkeysToAdd.value.length > 0 || passkeysToDelete.value.length > 0;
 
-  return detailsChanged || hasKeyValueChanges || hasAttachmentChanges || hasPasskeyChanges;
+  const hasTagChanges =
+    JSON.stringify([...itemTags.value].sort()) !==
+    JSON.stringify([...originalTags.value].sort());
+
+  return detailsChanged || hasKeyValueChanges || hasAttachmentChanges || hasPasskeyChanges || hasTagChanges;
 });
 
 // Actions
@@ -355,6 +377,11 @@ const onSaveAsync = async () => {
             ...passkey,
             itemId: newId,
           });
+        }
+
+        // Save tags
+        if (itemTags.value.length > 0) {
+          await tagStore.setItemTagsAsync(newId, itemTags.value);
         }
 
         ignoreChanges.value = true;
@@ -387,6 +414,9 @@ const onSaveAsync = async () => {
         });
       }
 
+      // Save tags (replace all tags)
+      await tagStore.setItemTagsAsync(editableDetails.value.id, itemTags.value);
+
       await syncGroupItemsAsync();
 
       // Reload current item to get updated attachments with data
@@ -397,6 +427,7 @@ const onSaveAsync = async () => {
 
       // Update original details after successful save
       originalDetails.value = { ...editableDetails.value };
+      originalTags.value = [...itemTags.value];
       ignoreChanges.value = true;
       readOnly.value = true;
 

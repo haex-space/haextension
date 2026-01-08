@@ -24,13 +24,13 @@ export const useSearchStore = defineStore('searchStore', () => {
   const itemDetailsTableName = getTableName(haexPasswordsItemDetails)
 
   // Create Fuse instance reactively
+  // Note: Tags are now stored in a separate table and not included in search yet
   const searchableFuse = computed(() => {
     return new Fuse(items.value, {
       keys: [
         `${itemDetailsTableName}.title`,
         `${itemDetailsTableName}.username`,
         `${itemDetailsTableName}.url`,
-        `${itemDetailsTableName}.tags`,
         `${itemDetailsTableName}.note`,
       ],
       threshold: 0.2, // Stricter matching (0.0 = exact, 1.0 = match everything)

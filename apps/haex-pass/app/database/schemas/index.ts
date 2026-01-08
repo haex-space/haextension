@@ -23,7 +23,6 @@ export const haexPasswordsItemDetails = sqliteTable(
     note: text(),
     icon: text(),
     color: text(),
-    tags: text(),
     url: text(),
     otpSecret: text("otp_secret"),
     otpDigits: integer("otp_digits").default(6),
@@ -222,6 +221,41 @@ export type InsertHaexPasswordsGeneratorPresets =
   typeof haexPasswordsGeneratorPresets.$inferInsert;
 export type SelectHaexPasswordsGeneratorPresets =
   typeof haexPasswordsGeneratorPresets.$inferSelect;
+
+// Tags (normalized tag storage)
+export const haexPasswordsTags = sqliteTable(
+  tableName("haex_passwords_tags"),
+  {
+    id: text().primaryKey(),
+    name: text().notNull().unique(),
+    color: text(),
+    createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+  }
+);
+export type InsertHaexPasswordsTags = typeof haexPasswordsTags.$inferInsert;
+export type SelectHaexPasswordsTags = typeof haexPasswordsTags.$inferSelect;
+
+// Item-Tag Mapping (many-to-many relationship)
+export const haexPasswordsItemTags = sqliteTable(
+  tableName("haex_passwords_item_tags"),
+  {
+    id: text().primaryKey(),
+    itemId: text("item_id")
+      .references((): AnySQLiteColumn => haexPasswordsItemDetails.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+    tagId: text("tag_id")
+      .references((): AnySQLiteColumn => haexPasswordsTags.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+  }
+);
+export type InsertHaexPasswordsItemTags =
+  typeof haexPasswordsItemTags.$inferInsert;
+export type SelectHaexPasswordsItemTags =
+  typeof haexPasswordsItemTags.$inferSelect;
 
 // Passkeys (WebAuthn credentials)
 export const haexPasswordsPasskeys = sqliteTable(

@@ -1,0 +1,1 @@
+ALTER TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-pass__haex_passwords_item_details` DROP COLUMN `tags`;

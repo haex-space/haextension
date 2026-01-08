@@ -169,7 +169,6 @@ const addAsync = async (
     color: details.color || group?.color || null,
     note: details.note,
     password: details.password,
-    tags: details.tags,
     title: details.title,
     url: details.url,
     username: details.username,
@@ -204,13 +203,13 @@ const addAsync = async (
     }
 
     // Create initial snapshot (no attachments on creation)
+    // Note: Tags are stored in a separate table and will be loaded separately for history
     const snapshotData = {
       title: newDetails.title,
       username: newDetails.username,
       password: newDetails.password,
       url: newDetails.url,
       note: newDetails.note,
-      tags: newDetails.tags,
       otpSecret: newDetails.otpSecret,
       keyValues: newKeyValues.map(kv => ({ key: kv.key, value: kv.value })),
       attachments: [],
@@ -447,7 +446,6 @@ const updateAsync = async ({
     color: details.color,
     note: details.note,
     password: details.password,
-    tags: details.tags,
     title: details.title,
     url: details.url,
     username: details.username,
@@ -596,13 +594,13 @@ const updateAsync = async ({
       .where(eq(haexPasswordsItemBinaries.itemId, details.id));
 
     const allKeyValues = [...newKeyValues, ...newKeyValuesAdd];
+    // Note: Tags are stored in a separate table and will be loaded separately for history
     const snapshotData = {
       title: details.title,
       username: details.username,
       password: details.password,
       url: details.url,
       note: details.note,
-      tags: details.tags,
       otpSecret: details.otpSecret,
       keyValues: allKeyValues.map(kv => ({ key: kv.key, value: kv.value })),
       attachments: currentAttachments.map(att => ({

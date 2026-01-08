@@ -154,20 +154,8 @@ const itemDetails = defineModel<SelectHaexPasswordsItemDetails>({
   required: true,
 });
 
-// Convert tags from JSON string to array and back
-const tags = computed<string[]>({
-  get: () => {
-    if (!itemDetails.value.tags) return [];
-    try {
-      return JSON.parse(itemDetails.value.tags);
-    } catch {
-      return [];
-    }
-  },
-  set: (value: string[]) => {
-    itemDetails.value.tags = JSON.stringify(value);
-  },
-});
+// Tags using normalized tag store (tag names as strings)
+const tags = defineModel<string[]>("tags", { default: () => [] });
 
 const titleRef = useTemplateRef<{ focus: () => void }>("titleRef");
 

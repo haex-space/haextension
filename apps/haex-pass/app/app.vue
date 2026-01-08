@@ -18,12 +18,16 @@
 
 <script setup lang="ts">
 const haexVaultStore = useHaexVaultStore();
+const tagStore = useTagStore();
 const { registerHandlers } = useExternalRequestHandlers();
 
 // Initialize HaexHub and wait for setup completion
 onMounted(async () => {
   await haexVaultStore.initializeAsync();
   await haexVaultStore.waitForSetupAsync();
+
+  // Sync tags from database
+  await tagStore.syncTagsAsync();
 
   // Register external request handlers (for browser extension communication)
   registerHandlers();

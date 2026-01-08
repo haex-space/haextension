@@ -43,6 +43,20 @@
       "when": 1767631366999,
       "tag": "0005_great_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1767904935514,
+      "tag": "0006_aspiring_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1767905423753,
+      "tag": "0007_faithful_umar",
+      "breakpoints": true
     }
   ]
 }
