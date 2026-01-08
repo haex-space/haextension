@@ -102,7 +102,6 @@
 
 <script setup lang="ts">
 import { ChevronRight, Edit, Trash, RotateCcw, Image } from "lucide-vue-next";
-import { toast } from "vue-sonner";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{
@@ -257,23 +256,8 @@ const { t } = useI18n();
 const onApplyIconToItemsAsync = async () => {
   if (!props.group.icon) return;
 
-  const { applyIconToGroupItemsAsync, syncItemsAsync } = usePasswordItemStore();
-  const { loadCurrentGroupItemsAsync } = usePasswordGroupStore();
-
-  try {
-    const count = await applyIconToGroupItemsAsync(props.group.id, props.group.icon);
-    if (count > 0) {
-      toast.success(t("applyIconSuccess", { count }));
-      // Reload items to reflect the change
-      await syncItemsAsync();
-      await loadCurrentGroupItemsAsync();
-    } else {
-      toast.info(t("applyIconNoItems"));
-    }
-  } catch (error) {
-    console.error("Error applying icon to items:", error);
-    toast.error(t("applyIconError"));
-  }
+  const { applyIconAsync } = usePasswordItemStore();
+  await applyIconAsync(props.group.id, props.group.icon);
 };
 
 // Drag & Drop state
@@ -356,16 +340,10 @@ de:
   delete: Löschen
   restore: Wiederherstellen
   applyIconToItems: Icon auf Einträge übertragen
-  applyIconSuccess: "Icon auf {count} Einträge übertragen"
-  applyIconNoItems: Keine Einträge in diesem Ordner
-  applyIconError: Fehler beim Übertragen des Icons
 
 en:
   edit: Edit
   delete: Delete
   restore: Restore
   applyIconToItems: Apply icon to entries
-  applyIconSuccess: "Icon applied to {count} entries"
-  applyIconNoItems: No entries in this folder
-  applyIconError: Error applying icon
 </i18n>

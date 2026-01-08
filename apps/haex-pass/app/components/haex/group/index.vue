@@ -27,20 +27,23 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
             <ShadcnLabel>{{ t("icon") }}</ShadcnLabel>
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2">
               <HaexSelectIcon
                 v-model="group.icon"
                 :color="group.color"
                 default-icon="folder"
                 :read-only="readOnly"
+                class="flex-1"
               />
               <UiButton
                 v-if="group.icon && showApplyIconButton"
                 :icon="ImageIcon"
                 variant="outline"
-                :tooltip="t('applyIconToItems')"
+                class="flex-1"
                 @click="$emit('applyIcon')"
-              />
+              >
+                {{ t("applyIconToItems") }}
+              </UiButton>
             </div>
           </div>
 

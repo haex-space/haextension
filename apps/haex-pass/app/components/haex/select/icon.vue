@@ -9,7 +9,7 @@
           role="combobox"
           :aria-expanded="isOpen"
           :disabled="readOnly"
-          class="w-full justify-center"
+          :class="['justify-center gap-1', props.class]"
           :style="
             props.color
               ? { backgroundColor: props.color, borderColor: props.color }
@@ -19,6 +19,12 @@
           <HaexIcon
             :icon="iconName || defaultIcon || 'mdi:key'"
             class="h-4 w-4"
+            :style="
+              props.color ? { color: getTextColor(props.color) } : undefined
+            "
+          />
+          <ChevronDown
+            class="h-3 w-3 opacity-50"
             :style="
               props.color ? { color: getTextColor(props.color) } : undefined
             "
@@ -107,13 +113,15 @@
 </template>
 
 <script setup lang="ts">
-import { Trash } from "lucide-vue-next";
+import { ChevronDown, Trash } from "lucide-vue-next";
+import type { HTMLAttributes } from "vue";
 
 const props = defineProps<{
   label?: string;
   defaultIcon?: string;
   color?: string | null;
   readOnly?: boolean;
+  class?: HTMLAttributes["class"];
 }>();
 
 const iconName = defineModel<string | null>();

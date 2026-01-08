@@ -139,6 +139,7 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
     addAsync,
     addKeyValueAsync,
     addKeyValuesAsync,
+    applyIconAsync,
     applyIconToGroupItemsAsync,
     deleteAsync,
     deleteKeyValueAsync,
@@ -709,4 +710,32 @@ const applyIconToGroupItemsAsync = async (groupId: string, icon: string | null):
   }
 
   return groupItems.length;
+};
+
+/**
+ * Apply a group's icon to all items with toast notifications and sync
+ * @param groupId The group ID to get items from
+ * @param icon The icon to apply to all items
+ */
+const applyIconAsync = async (
+  groupId: string,
+  icon: string | null,
+): Promise<void> => {
+  const { toast } = await import("vue-sonner");
+  const { syncItemsAsync } = usePasswordItemStore();
+  const { loadCurrentGroupItemsAsync } = usePasswordGroupStore();
+
+  try {
+    const count = await applyIconToGroupItemsAsync(groupId, icon);
+    if (count > 0) {
+      toast.success(`Icon auf ${count} Einträge übertragen`);
+      await syncItemsAsync();
+      await loadCurrentGroupItemsAsync();
+    } else {
+      toast.info("Keine Einträge in diesem Ordner");
+    }
+  } catch (error) {
+    console.error("Error applying icon to items:", error);
+    toast.error("Fehler beim Übertragen des Icons");
+  }
 };
