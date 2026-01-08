@@ -155,19 +155,21 @@ const onEditAsync = async () => {
   const itemType = getItemType(selectedId);
 
   if (itemType === 'group') {
-    await router.push(
-      localePath({
+    await router.push({
+      path: localePath({
         name: "passwordGroupEdit",
         params: { groupId: selectedId },
-      })
-    );
+      }),
+      query: { edit: "true" },
+    });
   } else {
-    await router.push(
-      localePath({
+    await router.push({
+      path: localePath({
         name: "passwordItemEdit",
         params: { ...router.currentRoute.value.params, itemId: selectedId },
-      })
-    );
+      }),
+      query: { edit: "true" },
+    });
   }
   selectionStore.clearSelection();
 };
