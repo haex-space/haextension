@@ -346,6 +346,7 @@ async function importBitwardenJsonAsync(
   const { addGroupAsync } = usePasswordGroupStore();
   const haexVaultStore = useHaexVaultStore();
   const { orm } = storeToRefs(haexVaultStore);
+  const tagStore = useTagStore();
 
   if (!orm.value) {
     throw new Error("Database not initialized");
@@ -396,7 +397,6 @@ async function importBitwardenJsonAsync(
         otpAlgorithm: otpData?.algorithm || null,
         icon: item.favorite ? "star" : null,
         color: null,
-        tags: null,
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
@@ -444,10 +444,12 @@ async function importBitwardenJsonAsync(
         otpAlgorithm: null,
         icon: item.favorite ? "star" : "file-text",
         color: null,
-        tags: "secure-note",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add secure-note tag
+      await tagStore.addTagToItemAsync(newEntryId, "secure-note");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,
@@ -480,10 +482,12 @@ async function importBitwardenJsonAsync(
         otpAlgorithm: null,
         icon: item.favorite ? "star" : "credit-card",
         color: null,
-        tags: "credit-card",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add credit-card tag
+      await tagStore.addTagToItemAsync(newEntryId, "credit-card");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,
@@ -543,10 +547,12 @@ async function importBitwardenJsonAsync(
         otpAlgorithm: null,
         icon: item.favorite ? "star" : "user",
         color: null,
-        tags: "identity",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add identity tag
+      await tagStore.addTagToItemAsync(newEntryId, "identity");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,
@@ -625,6 +631,7 @@ async function importBitwardenCsvAsync(
   const { addGroupAsync } = usePasswordGroupStore();
   const haexVaultStore = useHaexVaultStore();
   const { orm } = storeToRefs(haexVaultStore);
+  const tagStore = useTagStore();
 
   if (!orm.value) {
     throw new Error("Database not initialized");
@@ -679,7 +686,6 @@ async function importBitwardenCsvAsync(
         otpAlgorithm: otpData?.algorithm || null,
         icon: row.favorite === "1" ? "star" : null,
         color: null,
-        tags: null,
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
@@ -718,10 +724,12 @@ async function importBitwardenCsvAsync(
         otpAlgorithm: null,
         icon: row.favorite === "1" ? "star" : "file-text",
         color: null,
-        tags: "secure-note",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add secure-note tag
+      await tagStore.addTagToItemAsync(newEntryId, "secure-note");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,
@@ -757,10 +765,12 @@ async function importBitwardenCsvAsync(
         otpAlgorithm: null,
         icon: row.favorite === "1" ? "star" : "credit-card",
         color: null,
-        tags: "credit-card",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add credit-card tag
+      await tagStore.addTagToItemAsync(newEntryId, "credit-card");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,
@@ -796,10 +806,12 @@ async function importBitwardenCsvAsync(
         otpAlgorithm: null,
         icon: row.favorite === "1" ? "star" : "user",
         color: null,
-        tags: "identity",
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
+
+      // Add identity tag
+      await tagStore.addTagToItemAsync(newEntryId, "identity");
 
       await orm.value.insert(haexPasswordsGroupItems).values({
         itemId: newEntryId,

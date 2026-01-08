@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-2">
+  <div :class="['space-y-2', props.class]">
     <ShadcnLabel v-if="label">{{ label }}</ShadcnLabel>
 
     <ShadcnPopover v-model:open="isOpen">
@@ -9,7 +9,7 @@
           role="combobox"
           :aria-expanded="isOpen"
           :disabled="readOnly"
-          :class="['justify-center gap-1', props.class]"
+          class="w-full justify-center gap-1"
           :style="
             props.color
               ? { backgroundColor: props.color, borderColor: props.color }

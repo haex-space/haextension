@@ -333,7 +333,6 @@ async function importLastPassCsvAsync(
         otpAlgorithm: null,
         icon: "file-text",
         color: null,
-        tags: null,
         createdAt: new Date().toISOString(),
         updateAt: new Date(),
       });
@@ -369,7 +368,6 @@ async function importLastPassCsvAsync(
       otpAlgorithm: otpData?.algorithm || null,
       icon: row.fav === "1" ? "star" : null,
       color: null,
-      tags: null,
       createdAt: new Date().toISOString(),
       updateAt: new Date(),
     });

@@ -355,7 +355,6 @@ export function useExternalRequestHandlers() {
         otpAlgorithm: null,
         icon: null,
         color: null,
-        tags: null,
       });
 
       // Create group item relation

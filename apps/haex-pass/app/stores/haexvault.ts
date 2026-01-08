@@ -50,17 +50,23 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     // 3. Querying pending migrations sorted by name
     // 4. Applying pending migrations with CRDT trigger setup
     // 5. Marking successful migrations with applied_at timestamp
-    const result = await haexVault.client.registerMigrationsAsync(
-      haexVault.client.extensionInfo!.version,
-      migrations
-    );
+    try {
+      const result = await haexVault.client.registerMigrationsAsync(
+        haexVault.client.extensionInfo!.version,
+        migrations
+      );
 
-    console.log(
-      `[haex-pass] Migrations complete: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`
-    );
+      console.log(
+        `[haex-pass] Migrations complete: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`
+      );
 
-    if (result.appliedMigrations.length > 0) {
-      console.log(`[haex-pass] Applied migrations: ${result.appliedMigrations.join(", ")}`);
+      if (result.appliedMigrations.length > 0) {
+        console.log(`[haex-pass] Applied migrations: ${result.appliedMigrations.join(", ")}`);
+      }
+    } catch (error) {
+      console.error("[haex-pass] Migration error:", error);
+      console.error("[haex-pass] Migration error details:", JSON.stringify(error, null, 2));
+      throw error;
     }
   };
 

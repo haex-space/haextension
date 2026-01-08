@@ -92,9 +92,6 @@ export const useGroupItemsCloneStore = defineStore('groupItemsCloneStore', () =>
         case 'OTP_SECRET':
           fieldValue = referencedItem.details.otpSecret
           break
-        case 'TAGS':
-          fieldValue = referencedItem.details.tags
-          break
         default:
           return value // Unknown field, return original value
       }

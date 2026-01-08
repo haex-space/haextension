@@ -717,7 +717,8 @@ async function importKdbxAsync(
     const notes = migrateKeePassReferences(
       getFieldValue(entry.fields.get("Notes"))
     );
-    const tags = entry.tags?.join(", ") || null;
+    // Tags are stored separately in the tag store
+    const entryTags = entry.tags || [];
 
     // Extract OTP data (secret, digits, period, algorithm)
     const otpData = extractOtpFromEntry(entry, notes);
@@ -804,7 +805,6 @@ async function importKdbxAsync(
       otpAlgorithm,
       icon,
       color: null,
-      tags,
       expiresAt,
       createdAt: entry.times.creationTime
         ? new Date(entry.times.creationTime).toISOString()
@@ -828,6 +828,14 @@ async function importKdbxAsync(
           value: kv.value,
         }))
       );
+    }
+
+    // Import tags using tag store
+    const tagStore = useTagStore();
+    for (const tagName of entryTags) {
+      if (tagName && tagName.trim()) {
+        await tagStore.addTagToItemAsync(newEntryId, tagName.trim());
+      }
     }
 
     console.log("[KeePass Import] Created entry with ID:", newEntryId);
