@@ -35,19 +35,24 @@
               <ShadcnItemContent>
                 <ShadcnItemTitle>{{ item.name }}</ShadcnItemTitle>
                 <!-- Show username and URL on medium screens and up -->
-                <ShadcnItemDescription v-if="item.type === 'item'" class="hidden md:grid grid-cols-2 gap-4 text-xs">
+                <ShadcnItemDescription
+                  v-if="item.type === 'item'"
+                  class="hidden md:grid grid-cols-2 gap-4 text-xs"
+                >
                   <span class="flex items-center gap-1 truncate">
                     <User class="w-3 h-3 shrink-0" />
-                    <span class="truncate">{{ item.username || '-' }}</span>
+                    <span class="truncate">{{ item.username || "-" }}</span>
                   </span>
                   <span class="flex items-center gap-1 truncate">
                     <Globe class="w-3 h-3 shrink-0" />
-                    <span class="truncate">{{ item.url || '-' }}</span>
+                    <span class="truncate">{{ item.url || "-" }}</span>
                   </span>
                 </ShadcnItemDescription>
               </ShadcnItemContent>
               <ShadcnItemActions>
-                <ShadcnTooltip v-if="item.type === 'item' && isItemExpired(item)">
+                <ShadcnTooltip
+                  v-if="item.type === 'item' && isItemExpired(item)"
+                >
                   <ShadcnTooltipTrigger>
                     <AlertTriangle class="w-4 h-4 text-destructive" />
                   </ShadcnTooltipTrigger>
@@ -55,42 +60,72 @@
                     {{ t("expired") }}
                   </ShadcnTooltipContent>
                 </ShadcnTooltip>
-                <ChevronRight
-                  v-if="item.type === 'group'"
-                  class="w-4 h-4"
-                />
+                <ChevronRight v-if="item.type === 'group'" class="w-4 h-4" />
               </ShadcnItemActions>
             </ShadcnItem>
           </ShadcnContextMenuTrigger>
 
           <ShadcnContextMenuContent>
             <template v-if="item.type === 'item'">
-              <ShadcnContextMenuItem @click="onCopyPassword(item)">
+              <ShadcnContextMenuItem
+                :disabled="selectionStore.selectedCount > 1"
+                @click="onCopyPassword(item)"
+              >
                 <Copy class="w-4 h-4 mr-2" />
                 {{ t("copyPassword") }}
                 <ShadcnContextMenuShortcut>Ctrl+C</ShadcnContextMenuShortcut>
               </ShadcnContextMenuItem>
-              <ShadcnContextMenuItem @click="onCopyUsername(item)">
+              <ShadcnContextMenuItem
+                :disabled="selectionStore.selectedCount > 1"
+                @click="onCopyUsername(item)"
+              >
                 <User class="w-4 h-4 mr-2" />
                 {{ t("copyUsername") }}
                 <ShadcnContextMenuShortcut>Ctrl+B</ShadcnContextMenuShortcut>
               </ShadcnContextMenuItem>
-              <ShadcnContextMenuItem @click="onOpenUrl(item)">
+              <ShadcnContextMenuItem
+                :disabled="selectionStore.selectedCount > 1"
+                @click="onCopyUrl(item)"
+              >
+                <Link class="w-4 h-4 mr-2" />
+                {{ t("copyUrl") }}
+                <ShadcnContextMenuShortcut>Ctrl+U</ShadcnContextMenuShortcut>
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem
+                :disabled="selectionStore.selectedCount > 1"
+                @click="onOpenUrl(item)"
+              >
                 <ExternalLink class="w-4 h-4 mr-2" />
                 {{ t("openUrl") }}
-                <ShadcnContextMenuShortcut>Ctrl+U</ShadcnContextMenuShortcut>
+                <ShadcnContextMenuShortcut
+                  >Ctrl+Shift+U</ShadcnContextMenuShortcut
+                >
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @click="onDownloadFavicon(item)">
+                <ImageDown class="w-4 h-4 mr-2" />
+                {{ t("downloadFavicon") }}
               </ShadcnContextMenuItem>
               <ShadcnContextMenuSeparator />
             </template>
             <ShadcnContextMenuItem
-              v-if="selectionStore.selectedCount <= 1"
+              :disabled="selectionStore.selectedCount > 1"
               @click="onEditItem(item)"
             >
               <Edit class="w-4 h-4 mr-2" />
               {{ t("edit") }}
             </ShadcnContextMenuItem>
             <ShadcnContextMenuItem
-              v-if="isInTrash && selectionStore.selectedCount <= 1"
+              v-if="!isInTrash"
+              :disabled="selectionStore.selectedCount > 1"
+              @click="onCloneItem(item)"
+            >
+              <CopyPlus class="w-4 h-4 mr-2" />
+              {{ t("clone") }}
+              <ShadcnContextMenuShortcut>Ctrl+K</ShadcnContextMenuShortcut>
+            </ShadcnContextMenuItem>
+            <ShadcnContextMenuItem
+              v-if="isInTrash"
+              :disabled="selectionStore.selectedCount > 1"
               @click="onRestoreItem(item)"
             >
               <RotateCcw class="w-4 h-4 mr-2" />
@@ -102,6 +137,9 @@
             >
               <Trash class="w-4 h-4 mr-2" />
               {{ t("delete") }}
+              <ShadcnContextMenuShortcut>{{
+                t("deleteShortcut")
+              }}</ShadcnContextMenuShortcut>
             </ShadcnContextMenuItem>
           </ShadcnContextMenuContent>
         </ShadcnContextMenu>
@@ -110,6 +148,7 @@
         <p class="text-muted-foreground">{{ t("noItems") }}</p>
       </div>
     </div>
+
   </NuxtLayout>
 </template>
 
@@ -119,14 +158,18 @@ import {
   Edit,
   Trash,
   Copy,
+  CopyPlus,
   User,
   ExternalLink,
   Globe,
+  Link,
+  ImageDown,
   RotateCcw,
   AlertTriangle,
 } from "lucide-vue-next";
 import type { IPasswordMenuItem } from "~/types/password";
-import { onLongPress, onKeyStroke, useClipboard } from "@vueuse/core";
+import { onLongPress, useClipboard, useEventListener } from "@vueuse/core";
+import { toast } from "vue-sonner";
 
 definePageMeta({
   name: "passwordGroupItems",
@@ -139,7 +182,7 @@ const { getTextColor } = useIconComponents();
 const selectionStore = useSelectionStore();
 const { groupItems } = storeToRefs(useGroupItemsMenuStore());
 const { isMediumScreen } = storeToRefs(useUiStore());
-const { currentGroupItems, currentGroupId } = storeToRefs(usePasswordGroupStore());
+const { currentGroupItems, currentGroup } = storeToRefs(usePasswordGroupStore());
 const { inTrashGroup: isInTrash } = storeToRefs(useGroupTreeStore());
 const { copy } = useClipboard();
 
@@ -273,19 +316,21 @@ const onDoubleClickItemAsync = async (item: IPasswordMenuItem) => {
 
 const onEditItem = async (item: IPasswordMenuItem) => {
   if (item.type === "group") {
-    await navigateTo(
-      localePath({
+    await navigateTo({
+      path: localePath({
         name: "passwordGroupEdit",
         params: { groupId: item.id },
-      })
-    );
+      }),
+      query: { edit: "true" },
+    });
   } else {
-    await navigateTo(
-      localePath({
+    await navigateTo({
+      path: localePath({
         name: "passwordItemEdit",
         params: { ...useRouter().currentRoute.value.params, itemId: item.id },
-      })
-    );
+      }),
+      query: { edit: "true" },
+    });
   }
 
   selectionStore.clearSelection();
@@ -311,6 +356,13 @@ const onRestoreItem = async (item: IPasswordMenuItem) => {
   selectionStore.clearSelection();
 };
 
+// Clone via store
+const cloneStore = useGroupItemsCloneStore();
+
+const onCloneItem = (item: IPasswordMenuItem) => {
+  cloneStore.openCloneDialog([item.id], currentGroup.value?.id ?? null, t("cloneSuffix"), item.name);
+};
+
 // Item action handlers - use cached data for synchronous clipboard access
 const onCopyPassword = (item: IPasswordMenuItem) => {
   const cachedItem = currentGroupItems.value.get(item.id);
@@ -326,38 +378,129 @@ const onCopyUsername = (item: IPasswordMenuItem) => {
   }
 };
 
-const onOpenUrl = (item: IPasswordMenuItem) => {
-  const haexVaultStore = useHaexVaultStore();
+const onCopyUrl = (item: IPasswordMenuItem) => {
   const cachedItem = currentGroupItems.value.get(item.id);
-  if (cachedItem?.details.url && haexVaultStore.client?.web?.openAsync) {
-    haexVaultStore.client.web.openAsync(cachedItem.details.url);
+  if (cachedItem?.details.url) {
+    copy(cachedItem.details.url);
   }
 };
 
-// Helper for keyboard shortcuts on selected item
-const withSelectedItem = (
-  event: KeyboardEvent,
-  action: (item: IPasswordMenuItem) => void
-) => {
-  if ((event.ctrlKey || event.metaKey) && selectionStore.selectedCount === 1) {
-    const selectedId = Array.from(selectionStore.selectedItems)[0];
-    const selectedItem = groupItems.value.find((i) => i.id === selectedId);
-    if (selectedItem?.type === "item") {
-      event.preventDefault();
-      action(selectedItem);
+const onDownloadFavicon = async (item: IPasswordMenuItem) => {
+  const { downloadAndSetFaviconAsync } = useFavicon();
+  const { syncGroupItemsAsync } = usePasswordGroupStore();
+
+  // Get all selected items (or just the clicked item if none selected)
+  const itemIds =
+    selectionStore.selectedCount > 0
+      ? Array.from(selectionStore.selectedItems)
+      : [item.id];
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const itemId of itemIds) {
+    const cachedItem = currentGroupItems.value.get(itemId);
+    if (!cachedItem?.details.url) {
+      failCount++;
+      continue;
+    }
+
+    const success = await downloadAndSetFaviconAsync(
+      itemId,
+      cachedItem.details.url
+    );
+    if (success) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+  }
+
+  // Sync to update UI
+  await syncGroupItemsAsync();
+
+  if (successCount > 0 && failCount === 0) {
+    toast.success(t("faviconSuccess", { count: successCount }));
+  } else if (successCount > 0 && failCount > 0) {
+    toast.warning(
+      t("faviconPartial", { success: successCount, fail: failCount })
+    );
+  } else {
+    toast.error(t("faviconFailed"));
+  }
+};
+
+const onOpenUrl = async (item: IPasswordMenuItem) => {
+  const haexVaultStore = useHaexVaultStore();
+  const cachedItem = currentGroupItems.value.get(item.id);
+  if (cachedItem?.details.url && haexVaultStore.client?.web?.openAsync) {
+    try {
+      await haexVaultStore.client.web.openAsync(cachedItem.details.url);
+    } catch (error) {
+      const err = error as { code?: number; message?: string };
+      if (err.code === 1004) {
+        // Permission prompt required - not an error, just info
+        toast.info(t("urlPermissionRequired"));
+      } else if (err.code === 2005) {
+        // Invalid URL scheme
+        toast.error(t("urlInvalid"), { description: err.message });
+      } else {
+        toast.error(t("urlOpenFailed"), { description: err.message });
+      }
     }
   }
 };
 
-// Keyboard shortcuts for selected item (only on keydown to avoid double triggering)
-onKeyStroke("c", (e) => withSelectedItem(e, onCopyPassword), {
-  eventName: "keydown",
-});
-onKeyStroke("b", (e) => withSelectedItem(e, onCopyUsername), {
-  eventName: "keydown",
-});
-onKeyStroke("u", (e) => withSelectedItem(e, onOpenUrl), {
-  eventName: "keydown",
+// Helper to get the selected item for shortcuts
+const getSelectedItem = () => {
+  if (selectionStore.selectedCount !== 1) return null;
+  const selectedId = Array.from(selectionStore.selectedItems)[0];
+  const selectedItem = groupItems.value.find((i) => i.id === selectedId);
+  return selectedItem?.type === "item" ? selectedItem : null;
+};
+
+// Helper to check if we're in an input field
+const isInInputField = () => {
+  const el = document.activeElement;
+  if (!el) return false;
+  return (
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    (el as HTMLElement).isContentEditable
+  );
+};
+
+// Keyboard shortcuts for selected items
+useEventListener(document, "keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || isInInputField()) return;
+
+  const item = getSelectedItem();
+  if (!item) return;
+
+  switch (e.key.toLowerCase()) {
+    case "c":
+      e.preventDefault();
+      onCopyPassword(item);
+      break;
+    case "b":
+      e.preventDefault();
+      onCopyUsername(item);
+      break;
+    case "u":
+      e.preventDefault();
+      if (e.shiftKey) {
+        onOpenUrl(item);
+      } else {
+        onCopyUrl(item);
+      }
+      break;
+    case "k":
+      if (!isInTrash.value) {
+        e.preventDefault();
+        onCloneItem(item);
+      }
+      break;
+  }
 });
 </script>
 
@@ -366,19 +509,45 @@ de:
   noItems: Keine Einträge vorhanden
   edit: Bearbeiten
   delete: Löschen
+  deleteShortcut: Entf
   restore: Wiederherstellen
   copyPassword: Passwort kopieren
   copyUsername: Benutzername kopieren
+  copyUrl: URL kopieren
   openUrl: URL öffnen
+  downloadFavicon: Favicon herunterladen
   expired: Passwort abgelaufen
+  urlPermissionRequired: Berechtigung erforderlich - bitte in der App bestätigen
+  urlInvalid: Ungültige URL
+  urlOpenFailed: URL konnte nicht geöffnet werden
+  clone: Duplizieren
+  cloneSuffix: "- Kopie"
+  cloneSuccess: Eintrag dupliziert
+  cloneFailed: Eintrag konnte nicht dupliziert werden
+  faviconSuccess: "{count} Favicon(s) heruntergeladen"
+  faviconPartial: "{success} heruntergeladen, {fail} fehlgeschlagen"
+  faviconFailed: Favicon konnte nicht heruntergeladen werden
 
 en:
   noItems: No items available
   edit: Edit
   delete: Delete
+  deleteShortcut: Del
   restore: Restore
   copyPassword: Copy password
   copyUsername: Copy username
+  copyUrl: Copy URL
   openUrl: Open URL
+  downloadFavicon: Download favicon
   expired: Password expired
+  urlPermissionRequired: Permission required - please confirm in the app
+  urlInvalid: Invalid URL
+  urlOpenFailed: Could not open URL
+  clone: Duplicate
+  cloneSuffix: "- Copy"
+  cloneSuccess: Entry duplicated
+  cloneFailed: Could not duplicate entry
+  faviconSuccess: "{count} favicon(s) downloaded"
+  faviconPartial: "{success} downloaded, {fail} failed"
+  faviconFailed: Could not download favicon
 </i18n>

@@ -54,18 +54,24 @@
       <ShadcnContextMenuContent>
         <ShadcnContextMenuItem @click="onEditAsync">
           <Edit class="w-4 h-4 mr-2" />
-          {{ $t("edit") }}
+          {{ t("edit") }}
         </ShadcnContextMenuItem>
         <ShadcnContextMenuItem v-if="isInTrash" @click="onRestoreAsync">
           <RotateCcw class="w-4 h-4 mr-2" />
-          {{ $t("restore") }}
+          {{ t("restore") }}
         </ShadcnContextMenuItem>
+        <ShadcnContextMenuSeparator v-if="group.icon" />
+        <ShadcnContextMenuItem v-if="group.icon" @click="onApplyIconToItemsAsync">
+          <Image class="w-4 h-4 mr-2" />
+          {{ t("applyIconToItems") }}
+        </ShadcnContextMenuItem>
+        <ShadcnContextMenuSeparator />
         <ShadcnContextMenuItem
           class="text-destructive focus:text-destructive"
           @click="onDeleteAsync"
         >
           <Trash class="w-4 h-4 mr-2" />
-          {{ $t("delete") }}
+          {{ t("delete") }}
         </ShadcnContextMenuItem>
       </ShadcnContextMenuContent>
     </ShadcnContextMenu>
@@ -95,7 +101,8 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Edit, Trash, RotateCcw } from "lucide-vue-next";
+import { ChevronRight, Edit, Trash, RotateCcw, Image } from "lucide-vue-next";
+import { toast } from "vue-sonner";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{
@@ -214,22 +221,24 @@ const onEditAsync = async () => {
   // If single selection, edit that item
   if (selectionStore.selectedCount === 1) {
     const selectedId = Array.from(selectionStore.selectedItems)[0];
-    await router.push(
-      localePath({
+    await router.push({
+      path: localePath({
         name: "passwordGroupEdit",
         params: { groupId: selectedId },
-      })
-    );
-    selectionStore.clearSelection();
+      }),
+      query: { edit: "true" },
+    });
   } else {
     // Edit current group
-    await router.push(
-      localePath({
+    await router.push({
+      path: localePath({
         name: "passwordGroupEdit",
         params: { groupId: props.group.id },
-      })
-    );
+      }),
+      query: { edit: "true" },
+    });
   }
+  selectionStore.clearSelection();
 };
 
 const onDeleteAsync = () => {
@@ -241,6 +250,30 @@ const onRestoreAsync = async () => {
   await restoreGroupAsync(props.group.id);
   await syncGroupItemsAsync();
   selectionStore.clearSelection();
+};
+
+const { t } = useI18n();
+
+const onApplyIconToItemsAsync = async () => {
+  if (!props.group.icon) return;
+
+  const { applyIconToGroupItemsAsync, syncItemsAsync } = usePasswordItemStore();
+  const { loadCurrentGroupItemsAsync } = usePasswordGroupStore();
+
+  try {
+    const count = await applyIconToGroupItemsAsync(props.group.id, props.group.icon);
+    if (count > 0) {
+      toast.success(t("applyIconSuccess", { count }));
+      // Reload items to reflect the change
+      await syncItemsAsync();
+      await loadCurrentGroupItemsAsync();
+    } else {
+      toast.info(t("applyIconNoItems"));
+    }
+  } catch (error) {
+    console.error("Error applying icon to items:", error);
+    toast.error(t("applyIconError"));
+  }
 };
 
 // Drag & Drop state
@@ -322,9 +355,17 @@ de:
   edit: Bearbeiten
   delete: Löschen
   restore: Wiederherstellen
+  applyIconToItems: Icon auf Einträge übertragen
+  applyIconSuccess: "Icon auf {count} Einträge übertragen"
+  applyIconNoItems: Keine Einträge in diesem Ordner
+  applyIconError: Fehler beim Übertragen des Icons
 
 en:
   edit: Edit
   delete: Delete
   restore: Restore
+  applyIconToItems: Apply icon to entries
+  applyIconSuccess: "Icon applied to {count} entries"
+  applyIconNoItems: No entries in this folder
+  applyIconError: Error applying icon
 </i18n>

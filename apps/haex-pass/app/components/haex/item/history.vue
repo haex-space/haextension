@@ -61,7 +61,7 @@
     <div class="flex-1 overflow-y-auto px-4 py-4 border-l border-border">
       <div
         v-if="selectedSnapshot && parsedSnapshotData"
-        class="flex flex-col gap-4 max-w-2xl"
+        class="flex flex-col gap-4 max-w-2xl mx-auto"
       >
         <div>
           <p class="text-sm text-muted-foreground">
@@ -99,10 +99,11 @@
         <!-- Note -->
         <div v-if="parsedSnapshotData.note">
           <ShadcnLabel>{{ t("note") }}</ShadcnLabel>
-          <ShadcnTextarea
+          <UiTextarea
             :model-value="parsedSnapshotData.note"
-            disabled
+            readonly
             class="min-h-[100px]"
+            with-copy
           />
         </div>
 

@@ -1,9 +1,44 @@
 import { haexPasswordsItemBinaries } from '~/database'
 
+export interface CloneOptions {
+  includeHistory: boolean
+  referenceCredentials: boolean
+  withCloneAppendix: boolean
+}
+
 /**
  * Store for cloning groups and items with reference resolution
  */
 export const useGroupItemsCloneStore = defineStore('groupItemsCloneStore', () => {
+  // Dialog state
+  const showDialog = ref(false)
+  const itemsToClone = ref<string[]>([])
+  const targetGroupId = ref<string | null>(null)
+  const cloneAppendixText = ref<string>('')
+  const itemName = ref<string>('')
+
+  /**
+   * Open clone dialog for given items
+   */
+  const openCloneDialog = (itemIds: string[], groupId?: string | null, appendixText?: string | null, name?: string | null) => {
+    itemsToClone.value = itemIds
+    targetGroupId.value = groupId ?? null
+    cloneAppendixText.value = appendixText ?? ''
+    itemName.value = name ?? ''
+    showDialog.value = true
+  }
+
+  /**
+   * Close clone dialog
+   */
+  const closeCloneDialog = () => {
+    showDialog.value = false
+    itemsToClone.value = []
+    targetGroupId.value = null
+    cloneAppendixText.value = ''
+    itemName.value = ''
+  }
+
   /**
    * Helper function to resolve references for items, groups, and custom fields
    * Reference patterns:
@@ -208,8 +243,37 @@ export const useGroupItemsCloneStore = defineStore('groupItemsCloneStore', () =>
     await syncGroupItemsAsync()
   }
 
+  /**
+   * Confirm clone with options
+   */
+  const confirmCloneAsync = async (options: CloneOptions) => {
+    if (itemsToClone.value.length === 0) return
+
+    await cloneGroupItemsAsync(itemsToClone.value, targetGroupId.value, {
+      includeHistory: options.includeHistory,
+      referenceCredentials: options.referenceCredentials,
+      cloneAppendix: options.withCloneAppendix ? cloneAppendixText.value : undefined,
+    })
+
+    closeCloneDialog()
+  }
+
   return {
+    // Dialog state
+    showDialog,
+    itemsToClone,
+    targetGroupId,
+    cloneAppendixText,
+    itemName,
+    // Dialog methods
+    openCloneDialog,
+    closeCloneDialog,
+    confirmCloneAsync,
+    // Clone functions
     cloneGroupItemsAsync,
     resolveReferenceAsync,
   }
 })
+
+// Alias for convenience
+export const useCloneDialogStore = useGroupItemsCloneStore

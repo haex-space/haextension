@@ -53,7 +53,6 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
 
     try {
       const { readByGroupIdAsync } = usePasswordItemStore()
-      const { resolveReferenceAsync } = useGroupItemsCloneStore()
 
       // Get all item details in this group (null = root)
       const itemDetails = await readByGroupIdAsync(currentGroupId.value)
@@ -64,6 +63,8 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       }
 
       // Resolve references for all items in parallel
+      // Note: We get resolveReferenceAsync here to avoid circular dependency during store initialization
+      const { resolveReferenceAsync } = useGroupItemsCloneStore()
       const resolvedItems = await Promise.all(
         itemDetails.map(async (details) => {
           const resolvedPassword = details.password
@@ -96,21 +97,6 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       isLoadingGroupItems.value = false
     }
   }
-
-  // Watch currentGroupId and update currentGroup
-  watch(
-    currentGroupId,
-    async (newId) => {
-      if (newId) {
-        currentGroup.value = await readGroupAsync(newId)
-      } else {
-        currentGroup.value = null
-      }
-      // Load all item details for this group (including root)
-      await loadCurrentGroupItemsAsync()
-    },
-    { immediate: true }
-  )
 
   // === Sync and Initialization ===
 
@@ -161,80 +147,6 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       )
     }
   }
-
-  // Watch for haexhub setup completion AND orm initialization, then sync
-  // Note: We access $haexVault.state directly because the store getter doesn't preserve reactivity
-  const haexVaultStore = useHaexVaultStore()
-  const nuxtApp = useNuxtApp()
-
-  console.log('[PasswordGroupStore] Initializing, $haexVault:', !!nuxtApp.$haexVault)
-  console.log('[PasswordGroupStore] Initial state:', nuxtApp.$haexVault?.state.value)
-  console.log('[PasswordGroupStore] Initial orm:', !!haexVaultStore.orm)
-
-  // Listen for sync events to reload data when remote changes arrive
-  // Events are pre-filtered by haex-vault to only include tables this extension has access to
-  // IMPORTANT: We wait for SDK to be ready before registering the listener
-  const registerSyncEventListener = async () => {
-    if (!nuxtApp.$haexVault) {
-      console.warn('[PasswordGroupStore] SDK not available, cannot register sync event listener')
-      return
-    }
-
-    // Wait for SDK client to be ready
-    await nuxtApp.$haexVault.client.ready()
-    console.log('[PasswordGroupStore] SDK ready, registering sync event listener for:', HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED)
-
-    nuxtApp.$haexVault.client.on(HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED, async (event: unknown) => {
-      const syncEvent = event as { data?: { tables?: string[] } }
-      const tables = syncEvent?.data?.tables || []
-      console.log('[PasswordGroupStore] Received sync:tables-updated event:', tables)
-
-      console.log('[PasswordGroupStore] Reloading data after sync...')
-      await syncGroupItemsAsync()
-      await loadCurrentGroupItemsAsync()
-
-      // Also reload current item if one is being viewed
-      const passwordItemStore = usePasswordItemStore()
-      if (passwordItemStore.currentItemId) {
-        console.log('[PasswordGroupStore] Reloading current item:', passwordItemStore.currentItemId)
-        const reloadedItem = await passwordItemStore.readAsync(passwordItemStore.currentItemId)
-        if (reloadedItem && passwordItemStore.currentItem) {
-          passwordItemStore.currentItem.details = reloadedItem.details
-          passwordItemStore.currentItem.keyValues = reloadedItem.keyValues
-          passwordItemStore.currentItem.snapshots = reloadedItem.snapshots
-          passwordItemStore.currentItem.attachments = reloadedItem.attachments
-        }
-      }
-
-      console.log('[PasswordGroupStore] Data reloaded after sync')
-    })
-    console.log('[PasswordGroupStore] Sync event listener registered successfully')
-  }
-
-  // Register the listener asynchronously
-  registerSyncEventListener()
-
-  watch(
-    [
-      () => nuxtApp.$haexVault?.state.value?.isSetupComplete,
-      () => haexVaultStore.orm,
-    ],
-    async ([isSetupComplete, orm]) => {
-      console.log('[PasswordGroupStore] Watch triggered:', { isSetupComplete, hasOrm: !!orm })
-      if (isSetupComplete && orm) {
-        console.log('[PasswordGroupStore] Syncing groups...')
-        await syncGroupItemsAsync()
-        console.log('[PasswordGroupStore] Groups synced:', groups.value.length)
-        // Load items for current group (may be root)
-        console.log('[PasswordGroupStore] Loading current group items...')
-        await loadCurrentGroupItemsAsync()
-        console.log('[PasswordGroupStore] Current group items loaded:', currentGroupItems.value.size)
-        // After initial sync, check if we should auto-navigate
-        await autoNavigateToSingleFolderAsync()
-      }
-    },
-    { immediate: true }
-  )
 
   // === CRUD Operations ===
 
@@ -485,6 +397,104 @@ export const usePasswordGroupStore = defineStore('passwordGroupStore', () => {
       .set({ parentId: finalParentId })
       .where(eq(haexPasswordsGroups.id, groupId))
   }
+
+  // === Watchers and Event Listeners ===
+  // NOTE: These must be placed AFTER all function definitions to avoid
+  // "Cannot access uninitialized variable" errors due to lack of hoisting for const arrow functions
+
+  // Watch currentGroupId and update currentGroup
+  // NOTE: No immediate: true here - initial load is handled by the setup completion watch below
+  // This avoids circular dependency issues during store initialization
+  watch(
+    currentGroupId,
+    async (newId) => {
+      if (newId) {
+        currentGroup.value = await readGroupAsync(newId)
+      } else {
+        currentGroup.value = null
+      }
+      // Load all item details for this group (including root)
+      await loadCurrentGroupItemsAsync()
+    }
+  )
+
+  // Watch for haexhub setup completion AND orm initialization, then sync
+  // Note: We access $haexVault.state directly because the store getter doesn't preserve reactivity
+  const haexVaultStore = useHaexVaultStore()
+  const nuxtApp = useNuxtApp()
+
+  console.log('[PasswordGroupStore] Initializing, $haexVault:', !!nuxtApp.$haexVault)
+  console.log('[PasswordGroupStore] Initial state:', nuxtApp.$haexVault?.state.value)
+  console.log('[PasswordGroupStore] Initial orm:', !!haexVaultStore.orm)
+
+  // Listen for sync events to reload data when remote changes arrive
+  // Events are pre-filtered by haex-vault to only include tables this extension has access to
+  // IMPORTANT: We wait for SDK to be ready before registering the listener
+  const registerSyncEventListener = async () => {
+    if (!nuxtApp.$haexVault) {
+      console.warn('[PasswordGroupStore] SDK not available, cannot register sync event listener')
+      return
+    }
+
+    // Wait for SDK client to be ready
+    await nuxtApp.$haexVault.client.ready()
+    console.log('[PasswordGroupStore] SDK ready, registering sync event listener for:', HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED)
+
+    nuxtApp.$haexVault.client.on(HAEXTENSION_EVENTS.SYNC_TABLES_UPDATED, async (event: unknown) => {
+      const syncEvent = event as { data?: { tables?: string[] } }
+      const tables = syncEvent?.data?.tables || []
+      console.log('[PasswordGroupStore] Received sync:tables-updated event:', tables)
+
+      console.log('[PasswordGroupStore] Reloading data after sync...')
+      await syncGroupItemsAsync()
+      await loadCurrentGroupItemsAsync()
+
+      // Also reload current item if one is being viewed
+      const passwordItemStore = usePasswordItemStore()
+      if (passwordItemStore.currentItemId) {
+        console.log('[PasswordGroupStore] Reloading current item:', passwordItemStore.currentItemId)
+        const reloadedItem = await passwordItemStore.readAsync(passwordItemStore.currentItemId)
+        if (reloadedItem && passwordItemStore.currentItem) {
+          passwordItemStore.currentItem.details = reloadedItem.details
+          passwordItemStore.currentItem.keyValues = reloadedItem.keyValues
+          passwordItemStore.currentItem.snapshots = reloadedItem.snapshots
+          passwordItemStore.currentItem.attachments = reloadedItem.attachments
+        }
+      }
+
+      console.log('[PasswordGroupStore] Data reloaded after sync')
+    })
+    console.log('[PasswordGroupStore] Sync event listener registered successfully')
+  }
+
+  // Register the listener asynchronously
+  registerSyncEventListener()
+
+  watch(
+    [
+      () => nuxtApp.$haexVault?.state.value?.isSetupComplete,
+      () => haexVaultStore.orm,
+    ],
+    async ([isSetupComplete, orm]) => {
+      console.log('[PasswordGroupStore] Watch triggered:', { isSetupComplete, hasOrm: !!orm })
+      if (isSetupComplete && orm) {
+        console.log('[PasswordGroupStore] Syncing groups...')
+        await syncGroupItemsAsync()
+        console.log('[PasswordGroupStore] Groups synced:', groups.value.length)
+        // Load current group info
+        if (currentGroupId.value) {
+          currentGroup.value = await readGroupAsync(currentGroupId.value)
+        }
+        // Load items for current group (may be root)
+        console.log('[PasswordGroupStore] Loading current group items...')
+        await loadCurrentGroupItemsAsync()
+        console.log('[PasswordGroupStore] Current group items loaded:', currentGroupItems.value.size)
+        // After initial sync, check if we should auto-navigate
+        await autoNavigateToSingleFolderAsync()
+      }
+    },
+    { immediate: true }
+  )
 
   return {
     // State

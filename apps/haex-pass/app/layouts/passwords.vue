@@ -70,10 +70,7 @@
       @abort="showDeleteDialog = false"
     />
     <!-- Clone Options Dialog -->
-    <HaexDialogCloneOptions
-      v-model:open="showCloneDialog"
-      @confirm="onConfirmCloneAsync"
-    />
+    <HaexDialogCloneOptions />
   </div>
 </template>
 
@@ -91,8 +88,7 @@ const {
 } = storeToRefs(deleteDialogStore);
 const router = useRouter();
 const localePath = useLocalePath();
-
-const showCloneDialog = ref(false);
+const cloneStore = useGroupItemsCloneStore();
 
 // Keyboard shortcuts
 // Ctrl/Cmd + A: Select all items
@@ -205,8 +201,10 @@ const onPasteAsync = async () => {
     await syncGroupItemsAsync();
     selectionStore.clearClipboard();
   } else if (selectionStore.clipboardMode === "copy") {
-    // Show clone options dialog
-    showCloneDialog.value = true;
+    // Show clone options dialog via store
+    const itemIds = selectionStore.clipboardItems.map((item) => item.id);
+    const itemName = t("itemCount", { count: selectionStore.clipboardItems.length });
+    cloneStore.openCloneDialog(itemIds, currentGroupId, t("cloneAppendix"), itemName);
   }
 };
 
@@ -305,31 +303,6 @@ const onRestoreAsync = async () => {
 
 const { t } = useI18n();
 
-const onConfirmCloneAsync = async (options: {
-  includeHistory: boolean;
-  referenceCredentials: boolean;
-  withCloneAppendix: boolean;
-}) => {
-  const { currentGroupId } = usePasswordGroupStore();
-  const { cloneGroupItemsAsync } = useGroupItemsCloneStore();
-
-  if (!selectionStore.clipboardItems.length) return;
-
-  const itemIds = selectionStore.clipboardItems.map((item) => item.id);
-  const cloneAppendix = options.withCloneAppendix
-    ? t("cloneAppendix")
-    : undefined;
-
-  await cloneGroupItemsAsync(itemIds, currentGroupId, {
-    includeHistory: options.includeHistory,
-    referenceCredentials: options.referenceCredentials,
-    cloneAppendix,
-  });
-
-  selectionStore.clearClipboard();
-  showCloneDialog.value = false;
-};
-
 // Handle delete from tree context menu
 const onDeleteFromTree = (group: SelectHaexPasswordsGroups) => {
   deleteDialogStore.deleteFromTree(group);
@@ -338,7 +311,9 @@ const onDeleteFromTree = (group: SelectHaexPasswordsGroups) => {
 
 <i18n lang="yaml">
 de:
-  cloneAppendix: Klone
+  cloneAppendix: "- Kopie"
+  itemCount: "{count} Einträge"
 en:
-  cloneAppendix: Clone
+  cloneAppendix: "- Copy"
+  itemCount: "{count} items"
 </i18n>

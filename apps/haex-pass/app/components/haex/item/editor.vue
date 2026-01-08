@@ -222,7 +222,8 @@ const scrollToSlide = (index: number) => {
 };
 
 // State
-const readOnly = ref(props.mode === "edit");
+const route = useRoute();
+const readOnly = ref(props.mode === "edit" && route.query.edit !== "true");
 const showDeleteDialog = ref(false);
 const showUnsavedChangesDialog = ref(false);
 const ignoreChanges = ref(false);

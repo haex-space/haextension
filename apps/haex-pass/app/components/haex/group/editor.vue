@@ -144,7 +144,8 @@ const { deleteGroupAsync } = useGroupItemsDeleteStore();
 const group = ref<SelectHaexPasswordsGroups | null>(null);
 const originalGroup = ref<string>("");
 const ignoreChanges = ref(false);
-const readOnly = ref(props.mode === "edit");
+const route = useRoute();
+const readOnly = ref(props.mode === "edit" && route.query.edit !== "true");
 const showDeleteDialog = ref(false);
 const showUnsavedChangesDialog = ref(false);
 
@@ -191,7 +192,8 @@ const loadGroupAsync = async () => {
   if (!id) return;
 
   ignoreChanges.value = false;
-  readOnly.value = true;
+  // Respect the edit query parameter
+  readOnly.value = route.query.edit !== "true";
 
   try {
     const foundGroup = await readGroupAsync(id);

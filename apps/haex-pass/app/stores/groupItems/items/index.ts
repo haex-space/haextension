@@ -139,6 +139,7 @@ export const usePasswordItemStore = defineStore("passwordItemStore", () => {
     addAsync,
     addKeyValueAsync,
     addKeyValuesAsync,
+    applyIconToGroupItemsAsync,
     deleteAsync,
     deleteKeyValueAsync,
     items,
@@ -677,4 +678,35 @@ const deleteKeyValueAsync = async (id: string) => {
   return await haexVaultStore.orm
     .delete(haexPasswordsItemKeyValues)
     .where(eq(haexPasswordsItemKeyValues.id, id));
+};
+
+/**
+ * Apply a group's icon to all items in that group
+ * @param groupId The group ID to get items from
+ * @param icon The icon to apply to all items
+ * @returns Number of items updated
+ */
+const applyIconToGroupItemsAsync = async (groupId: string, icon: string | null): Promise<number> => {
+  const haexVaultStore = useHaexVaultStore();
+  if (!haexVaultStore.orm) throw new Error("Database not initialized");
+
+  // Get all item IDs in this group
+  const groupItems = await haexVaultStore.orm
+    .select({ itemId: haexPasswordsGroupItems.itemId })
+    .from(haexPasswordsGroupItems)
+    .where(eq(haexPasswordsGroupItems.groupId, groupId));
+
+  if (groupItems.length === 0) return 0;
+
+  // Update icon for all items in this group
+  for (const item of groupItems) {
+    if (item.itemId) {
+      await haexVaultStore.orm
+        .update(haexPasswordsItemDetails)
+        .set({ icon })
+        .where(eq(haexPasswordsItemDetails.id, item.itemId));
+    }
+  }
+
+  return groupItems.length;
 };

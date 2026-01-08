@@ -40,7 +40,6 @@
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
 import { Copy, Check, ExternalLink, Image, Loader2 } from "lucide-vue-next";
-import { arrayBufferToBase64, addBinaryAsync } from "~/utils/cleanup";
 import { toast } from "vue-sonner";
 
 const model = defineModel<string | null>();
@@ -55,7 +54,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const { copy, copied } = useClipboard();
-const { loadCustomIconsAsync } = useCustomIcons();
+const { downloadFaviconAsync } = useFavicon();
 const isLoadingFavicon = ref(false);
 
 const handleCopy = async () => {
@@ -105,21 +104,10 @@ const openUrl = async () => {
 const fetchFaviconAsync = async () => {
   if (!model.value) return;
 
-  const haexVaultStore = useHaexVaultStore();
-  if (!haexVaultStore.client || !haexVaultStore.orm) {
-    console.error("[FaviconFetch] HaexHub client or ORM not available");
-    toast.error(t("favicon.error"));
-    return;
-  }
-
-  // Extract domain from URL first (before setting loading state)
-  let domain: string;
+  // Validate URL format first
   try {
-    const url = new URL(model.value);
-    domain = url.hostname;
-  } catch (urlError) {
-    // Invalid URL format - show error and return early
-    console.error("[FaviconFetch] Invalid URL format:", urlError);
+    new URL(model.value);
+  } catch {
     toast.error(t("favicon.invalidUrl"), {
       duration: 5000,
       description: t("favicon.invalidUrlDescription"),
@@ -127,53 +115,24 @@ const fetchFaviconAsync = async () => {
     return;
   }
 
-  // Use DuckDuckGo's icon service - it's reliable and doesn't require per-domain permissions
-  const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-
   isLoadingFavicon.value = true;
 
   try {
-    const response = await haexVaultStore.client.web.fetchAsync(faviconUrl);
+    const iconName = await downloadFaviconAsync(model.value);
 
-    // Check if response is successful (status 200-299) and has content
-    if (response.status >= 200 && response.status < 300 && response.body) {
-      // Convert ArrayBuffer to base64 using utility function
-      const base64 = arrayBufferToBase64(response.body);
-
-      // Save to database as icon
-      const hash = await addBinaryAsync(
-        haexVaultStore.orm,
-        base64,
-        response.body.byteLength,
-        "icon"
-      );
-
-      // Emit the binary hash as icon name
-      emit("faviconFetched", `binary:${hash}`);
-      console.log(
-        "[FaviconFetch] Successfully saved favicon with hash:",
-        hash
-      );
-
-      // Reload custom icons list so it appears immediately
-      await loadCustomIconsAsync();
-
-      // Show success toast
+    if (iconName) {
+      emit("faviconFetched", iconName);
       toast.success(t("favicon.downloaded"));
     } else {
-      // Response was not successful
       toast.error(t("favicon.fetchError"));
     }
   } catch (error: unknown) {
     console.error("[FaviconFetch] Failed to fetch favicon:", error);
-
-    // Show error toast with appropriate message
     const errorCode = (error as { code?: number })?.code;
     const errorMessage =
       errorCode === 1002
         ? t("favicon.permissionError")
         : t("favicon.fetchError");
-
     toast.error(errorMessage);
   } finally {
     isLoadingFavicon.value = false;

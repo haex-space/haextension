@@ -1,5 +1,5 @@
 <template>
-  <UiInput v-model="model" ref="inputRef">
+  <UiInput ref="inputRef" v-model="model">
     <template #append>
       <slot name="append" />
       <UiButton

@@ -62,8 +62,13 @@ defineExpose({ focus });
   background-color: transparent !important;
 }
 
-/* Hover muss explizit im Dark Mode definiert sein, um sichtbar zu sein */
+/* Hover-Effekt für Light und Dark Mode */
 :deep([data-slot="button"]:hover) {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+:deep(.dark [data-slot="button"]:hover),
+:deep([data-slot="button"]:hover:is(.dark *)) {
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 </style>

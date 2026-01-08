@@ -1,14 +1,7 @@
 <template>
-  <ShadcnAlertDialog v-model:open="isOpen">
-    <ShadcnAlertDialogContent>
-      <ShadcnAlertDialogHeader>
-        <ShadcnAlertDialogTitle>{{ t("title") }}</ShadcnAlertDialogTitle>
-        <ShadcnAlertDialogDescription>
-          {{ t("description") }}
-        </ShadcnAlertDialogDescription>
-      </ShadcnAlertDialogHeader>
-
-      <div class="space-y-4 my-4">
+  <UiDrawerModal v-model:open="isOpen" :title="dialogTitle" :description="t('description')">
+    <template #content>
+      <div class="space-y-4">
         <div class="flex items-center space-x-2">
           <ShadcnCheckbox id="includeHistory" v-model="options.includeHistory" />
           <label
@@ -41,37 +34,35 @@
             for="withCloneAppendix"
             class="text-sm font-medium leading-none cursor-pointer"
           >
-            {{ t("withCloneAppendix") }}
+            {{ t("withCloneAppendix", { suffix: cloneAppendixText }) }}
           </label>
         </div>
       </div>
+    </template>
 
-      <ShadcnAlertDialogFooter>
-        <ShadcnAlertDialogCancel @click="onCancel">
-          {{ t("cancel") }}
-        </ShadcnAlertDialogCancel>
-        <ShadcnAlertDialogAction @click="onConfirm">
-          {{ t("clone") }}
-        </ShadcnAlertDialogAction>
-      </ShadcnAlertDialogFooter>
-    </ShadcnAlertDialogContent>
-  </ShadcnAlertDialog>
+    <template #footer>
+      <UiButton variant="outline" @click="onCancel">
+        {{ t("cancel") }}
+      </UiButton>
+      <UiButton @click="onConfirm">
+        {{ t("clone") }}
+      </UiButton>
+    </template>
+  </UiDrawerModal>
 </template>
 
 <script setup lang="ts">
-const isOpen = defineModel<boolean>("open");
-
-const emit = defineEmits<{
-  confirm: [
-    options: {
-      includeHistory: boolean;
-      referenceCredentials: boolean;
-      withCloneAppendix: boolean;
-    }
-  ];
-}>();
+const cloneStore = useGroupItemsCloneStore();
+const { showDialog: isOpen, itemName, cloneAppendixText } = storeToRefs(cloneStore);
 
 const { t } = useI18n();
+
+const dialogTitle = computed(() => {
+  if (itemName.value) {
+    return t("titleWithName", { name: itemName.value });
+  }
+  return t("title");
+});
 
 const options = reactive({
   includeHistory: false,
@@ -86,33 +77,41 @@ const resetOptions = () => {
 };
 
 const onCancel = () => {
-  isOpen.value = false;
+  cloneStore.closeCloneDialog();
   resetOptions();
 };
 
-const onConfirm = () => {
-  emit("confirm", { ...options });
-  isOpen.value = false;
+const onConfirm = async () => {
+  await cloneStore.confirmCloneAsync({ ...options });
   resetOptions();
 };
+
+// Reset options when dialog opens
+watch(isOpen, (open) => {
+  if (open) {
+    resetOptions();
+  }
+});
 </script>
 
 <i18n lang="yaml">
 de:
-  title: Klon-Optionen
-  description: Wählen Sie die Optionen für das Klonen der ausgewählten Elemente.
+  title: Duplizieren
+  titleWithName: "Duplizieren: {name}"
+  description: Wählen Sie die Optionen für das Duplizieren.
   includeHistory: History mit kopieren
   referenceCredentials: Benutzername und Passwort als Referenz
-  withCloneAppendix: "(Klon) an Namen anhängen"
+  withCloneAppendix: "\"{suffix}\" an Namen anhängen"
   cancel: Abbrechen
-  clone: Klonen
+  clone: Duplizieren
 
 en:
-  title: Clone Options
-  description: Choose the options for cloning the selected items.
+  title: Duplicate
+  titleWithName: "Duplicate: {name}"
+  description: Choose the options for duplicating.
   includeHistory: Include history
   referenceCredentials: Reference username and password
-  withCloneAppendix: "Append (Clone) to name"
+  withCloneAppendix: "Append \"{suffix}\" to name"
   cancel: Cancel
-  clone: Clone
+  clone: Duplicate
 </i18n>

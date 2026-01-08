@@ -77,25 +77,25 @@
           <!-- Value Textarea -->
           <div v-if="allItems.length" class="flex-1 min-w-0 lg:min-w-52">
             <div class="space-y-2">
-              <div class="relative">
-                <ShadcnTextarea
-                  v-model="currentValue"
-                  :readonly="readOnly || !currentSelected"
-                  :placeholder="t('valuePlaceholder')"
-                  rows="8"
-                  class="pr-12"
-                />
-                <UiButton
-                  :icon="
-                    copied && copiedItem === currentSelected ? Check : Copy
-                  "
-                  variant="ghost"
-                  size="icon-sm"
-                  class="absolute top-2 right-2"
-                  :disabled="!currentSelected"
-                  @click.prevent="copyValue(currentSelected)"
-                />
-              </div>
+              <UiTextarea
+                v-model="currentValue"
+                :readonly="readOnly || !currentSelected"
+                :placeholder="t('valuePlaceholder')"
+                rows="8"
+              >
+                <template #actions>
+                  <UiButton
+                    :icon="
+                      copied && copiedItem === currentSelected ? Check : Copy
+                    "
+                    variant="ghost"
+                    size="icon-sm"
+                    data-slot="button"
+                    :disabled="!currentSelected"
+                    @click.prevent="copyValue(currentSelected)"
+                  />
+                </template>
+              </UiTextarea>
             </div>
           </div>
 
