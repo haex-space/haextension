@@ -9,7 +9,7 @@ import {
   MSG_DISCONNECT,
   MSG_GET_CONNECTION_STATE,
 } from '~/logic/messages'
-import { getDevMode, getWebSocketPort, setDevMode, setWebSocketPort } from '~/logic/settings'
+import { getWebSocketPort, setWebSocketPort } from '~/logic/settings'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
@@ -19,8 +19,6 @@ const currentPort = ref<number>(19455)
 const portInput = ref<string>('19455')
 const portError = ref<string | null>(null)
 const portSaved = ref(false)
-const devMode = ref(false)
-const devModeSaved = ref(false)
 const connectionState = ref<ExternalConnectionState>(ExternalConnectionState.DISCONNECTED)
 const isConnecting = ref(false)
 
@@ -136,21 +134,10 @@ function handlePortInput(event: Event) {
   portSaved.value = false
 }
 
-async function handleDevModeChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  devMode.value = target.checked
-  await setDevMode(target.checked)
-  devModeSaved.value = true
-  setTimeout(() => {
-    devModeSaved.value = false
-  }, 2000)
-}
-
 onMounted(async () => {
   currentLocale.value = await getLocaleSetting()
   currentPort.value = await getWebSocketPort()
   portInput.value = currentPort.value.toString()
-  devMode.value = await getDevMode()
   await fetchConnectionState()
 })
 </script>
@@ -203,30 +190,6 @@ onMounted(async () => {
           </p>
 
           <div class="space-y-3">
-            <!-- Dev Mode Toggle -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label for="dev-mode" class="block text-sm font-medium">
-                  {{ t('settings.devMode.label') }}
-                </label>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.devMode.description') }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <input
-                  id="dev-mode"
-                  type="checkbox"
-                  :checked="devMode"
-                  class="rounded"
-                  @change="handleDevModeChange"
-                />
-                <span v-if="devModeSaved" class="text-xs text-green-500">
-                  {{ t('settings.saved') }}
-                </span>
-              </div>
-            </div>
-
             <div>
               <label for="port-input" class="block text-sm font-medium mb-1">
                 {{ t('settings.port.label') }}

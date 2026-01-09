@@ -89,10 +89,6 @@ export default {
       placeholder: 'Port (1-65535)',
       invalid: 'Port muss zwischen 1 und 65535 liegen',
     },
-    devMode: {
-      label: 'Entwicklermodus',
-      description: 'Aktivieren, wenn HaexPass im Dev-Modus in HaexVault läuft.',
-    },
     save: 'Speichern',
     saved: 'Gespeichert!',
     restartRequired: 'Neuverbindung erforderlich, damit Änderungen wirksam werden.',

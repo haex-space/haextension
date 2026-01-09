@@ -295,7 +295,7 @@ class VaultConnectionManager {
     if (!this.ws || !this.clientId || !this.publicKeyBase64)
       return
 
-    // Get extension identifiers (with dev_ prefix if dev mode is enabled)
+    // Get extension identifiers
     const extensionIds = await getExtensionIdentifiers()
     console.log('[haex-pass] Sending handshake with extension identifiers:', extensionIds)
 
