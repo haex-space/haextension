@@ -307,7 +307,7 @@ export function useExternalRequestHandlers() {
    * Saves new credentials from browser extension
    */
   const handleSetItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { url, title, username, password, groupId } = request.payload as SetItemPayload;
+    const { url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm } = request.payload as SetItemPayload;
 
     // At minimum, we need a URL or title to create an entry
     if (!url && !title) {
@@ -349,10 +349,10 @@ export function useExternalRequestHandlers() {
         password: password || null,
         url: url || null,
         note: null,
-        otpSecret: null,
-        otpDigits: null,
-        otpPeriod: null,
-        otpAlgorithm: null,
+        otpSecret: otpSecret || null,
+        otpDigits: otpDigits || null,
+        otpPeriod: otpPeriod || null,
+        otpAlgorithm: otpAlgorithm || null,
         icon: null,
         color: null,
       });
@@ -371,7 +371,10 @@ export function useExternalRequestHandlers() {
         url: url || null,
         note: null,
         tags: null,
-        otpSecret: null,
+        otpSecret: otpSecret || null,
+        otpDigits: otpDigits || null,
+        otpPeriod: otpPeriod || null,
+        otpAlgorithm: otpAlgorithm || null,
         keyValues: [],
         attachments: [],
       };

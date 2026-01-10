@@ -134,6 +134,14 @@ export interface SetItemPayload {
   password?: string;
   /** Optionale Gruppen-ID zum Speichern (null = Root/Ungrouped) */
   groupId?: string | null;
+  /** TOTP Secret (Base32-encoded) */
+  otpSecret?: string | null;
+  /** TOTP Digits (default: 6) */
+  otpDigits?: number | null;
+  /** TOTP Period in seconds (default: 30) */
+  otpPeriod?: number | null;
+  /** TOTP Algorithm (default: "SHA1", also "SHA256", "SHA512") */
+  otpAlgorithm?: string | null;
 }
 
 /**
