@@ -8,6 +8,7 @@
 import { like, eq, or, and } from "drizzle-orm";
 import { TOTP } from "otpauth";
 import * as schema from "~/database/schemas";
+import { addBinaryAsync } from "~/utils/cleanup";
 import type { ExternalRequest, ExternalResponse } from "@haex-space/vault-sdk";
 import {
   generatePasskeyPairAsync,
@@ -307,7 +308,7 @@ export function useExternalRequestHandlers() {
    * Saves new credentials from browser extension
    */
   const handleSetItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm } = request.payload as SetItemPayload;
+    const { url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as SetItemPayload;
 
     // At minimum, we need a URL or title to create an entry
     if (!url && !title) {
@@ -342,6 +343,22 @@ export function useExternalRequestHandlers() {
       // Create new entry
       const newEntryId = crypto.randomUUID();
 
+      // Process icon if provided (Base64 -> binary storage with hash reference)
+      let iconRef: string | null = null;
+      if (iconBase64) {
+        try {
+          // Decode base64 to get size
+          const binaryString = atob(iconBase64);
+          const size = binaryString.length;
+          // Store binary and get hash reference
+          const hash = await addBinaryAsync(orm, iconBase64, size, "icon");
+          iconRef = `binary:${hash}`;
+        } catch (error) {
+          console.error("[haex-pass] Failed to process icon:", error);
+          // Continue without icon if processing fails
+        }
+      }
+
       await orm.insert(schema.haexPasswordsItemDetails).values({
         id: newEntryId,
         title: entryTitle || null,
@@ -353,7 +370,7 @@ export function useExternalRequestHandlers() {
         otpDigits: otpDigits || null,
         otpPeriod: otpPeriod || null,
         otpAlgorithm: otpAlgorithm || null,
-        icon: null,
+        icon: iconRef,
         color: null,
       });
 
@@ -375,6 +392,7 @@ export function useExternalRequestHandlers() {
         otpDigits: otpDigits || null,
         otpPeriod: otpPeriod || null,
         otpAlgorithm: otpAlgorithm || null,
+        icon: iconRef,
         keyValues: [],
         attachments: [],
       };

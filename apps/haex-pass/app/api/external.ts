@@ -142,6 +142,8 @@ export interface SetItemPayload {
   otpPeriod?: number | null;
   /** TOTP Algorithm (default: "SHA1", also "SHA256", "SHA512") */
   otpAlgorithm?: string | null;
+  /** Icon as Base64-encoded image data (e.g., favicon). Will be stored with hash reference. */
+  iconBase64?: string | null;
 }
 
 /**
