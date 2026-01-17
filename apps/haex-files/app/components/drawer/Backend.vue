@@ -104,6 +104,27 @@
             </p>
           </div>
 
+          <!-- Session Token (optional) -->
+          <div class="space-y-2">
+            <ShadcnLabel for="sessionToken">{{ t("s3.sessionToken") }}</ShadcnLabel>
+            <ShadcnInputGroup>
+              <ShadcnInputGroupInput
+                id="sessionToken"
+                v-model="form.s3.sessionToken"
+                :type="showSessionToken ? 'text' : 'password'"
+                :placeholder="isEditMode ? t('s3.sessionTokenPlaceholderEdit') : t('s3.sessionTokenPlaceholder')"
+              />
+              <ShadcnInputGroupButton
+                :icon="showSessionToken ? EyeOff : Eye"
+                variant="ghost"
+                @click="showSessionToken = !showSessionToken"
+              />
+            </ShadcnInputGroup>
+            <p class="text-xs text-muted-foreground">
+              {{ t("s3.sessionTokenHint") }}
+            </p>
+          </div>
+
         <!-- Error -->
         <div
           v-if="error"
@@ -165,10 +186,12 @@ const form = reactive({
     region: "auto",
     accessKeyId: "",
     secretAccessKey: "",
+    sessionToken: "",
   },
 })
 
 const showSecretKey = ref(false)
+const showSessionToken = ref(false)
 const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 
@@ -210,6 +233,9 @@ const submitAsync = async () => {
       if (form.s3.secretAccessKey.trim()) {
         config.secretAccessKey = form.s3.secretAccessKey.trim()
       }
+      if (form.s3.sessionToken.trim()) {
+        config.sessionToken = form.s3.sessionToken.trim()
+      }
 
       await backendsStore.updateBackendAsync(
         props.editBackend.id,
@@ -224,6 +250,7 @@ const submitAsync = async () => {
         region: form.s3.region.trim() || "auto",
         accessKeyId: form.s3.accessKeyId.trim(),
         secretAccessKey: form.s3.secretAccessKey.trim(),
+        sessionToken: form.s3.sessionToken?.trim() || undefined,
       }
       await backendsStore.addBackendAsync(form.name.trim(), "s3", config)
     }
@@ -248,8 +275,10 @@ const resetForm = () => {
     region: "auto",
     accessKeyId: "",
     secretAccessKey: "",
+    sessionToken: "",
   }
   showSecretKey.value = false
+  showSessionToken.value = false
   error.value = null
 }
 
@@ -271,6 +300,7 @@ watch(
         region: editBackend.config?.region || "auto",
         accessKeyId: "",
         secretAccessKey: "",
+        sessionToken: "",
       }
     } else {
       // Add mode: reset form
@@ -308,6 +338,10 @@ de:
     secretKey: Secret Access Key
     secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     secretKeyPlaceholderEdit: Neuen Secret Key eingeben
+    sessionToken: Session Token (optional)
+    sessionTokenPlaceholder: JWT für RLS-basierte Zugriffskontrolle
+    sessionTokenPlaceholderEdit: Neuen Session Token eingeben
+    sessionTokenHint: Für Supabase S3 mit RLS. Der Token läuft ab und muss bei erneuter Anmeldung aktualisiert werden.
     credentialHint: Leer lassen, um bestehende Zugangsdaten zu behalten.
 
 en:
@@ -336,5 +370,9 @@ en:
     secretKey: Secret Access Key
     secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     secretKeyPlaceholderEdit: Enter new secret key
+    sessionToken: Session Token (optional)
+    sessionTokenPlaceholder: JWT for RLS-based access control
+    sessionTokenPlaceholderEdit: Enter new session token
+    sessionTokenHint: Required for Supabase S3 with RLS. Token expires and needs to be updated on re-login.
     credentialHint: Leave empty to keep existing credentials.
 </i18n>
