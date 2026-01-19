@@ -21,8 +21,8 @@ importers:
   apps/haex-files:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.100
-        version: 2.5.100(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.105
+        version: 2.5.105(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -1311,8 +1311,8 @@ packages:
     resolution: {integrity: sha512-PyUXQWB42s4jBli435TDiYuVsadwRHnMc27YaLouINktvTWsL3FcKrRMGawTayFk46X+n5bE23RjUTWQwrukWw==}
     engines: {node: '>= 0.10.0'}
 
-  '@haex-space/vault-sdk@2.5.100':
-    resolution: {integrity: sha512-HUwecJFuDJ14WNTboIBG7WSMbgpqXU87W1bRJCiBCnkqE1GVZkL3KExQjTa/AAMiq0wfiuHettYWPVQJfb4zqQ==}
+  '@haex-space/vault-sdk@2.5.105':
+    resolution: {integrity: sha512-huQvjnEHHEesm7HhlyPQyvJ8kXY/RXPi/IJZJ7VA976DByBF3TVWSHXPV4N2f794hKtwHFjzYq8wekVJlIdliA==}
     hasBin: true
     peerDependencies:
       '@nuxt/kit': ^3.0.0 || ^4.0.0
@@ -8342,7 +8342,7 @@ snapshots:
 
   '@fregante/relaxed-json@2.0.0': {}
 
-  '@haex-space/vault-sdk@2.5.100(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
+  '@haex-space/vault-sdk@2.5.105(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
     dependencies:
       archiver: 7.0.1
       commander: 14.0.2
