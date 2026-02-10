@@ -11,8 +11,6 @@
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue';
-import { eq } from 'drizzle-orm';
-import { haexPasswordsBinaries } from '~/database/schemas';
 
 const props = defineProps<{
   icon?: string | null;
@@ -21,6 +19,7 @@ const props = defineProps<{
 }>();
 
 const iconClass = computed(() => props.class || 'w-5 h-5');
+const iconCacheStore = useIconCacheStore();
 
 // Determine icon type and display value
 const isCustomIcon = computed(() => {
@@ -40,34 +39,22 @@ const displayIcon = computed(() => {
   return props.icon;
 });
 
-// Load custom icon from database
-const customIconSrc = ref<string | null>(null);
-const { orm } = storeToRefs(useHaexVaultStore());
-
-watchEffect(async () => {
-  if (!isCustomIcon.value || !props.icon || !orm.value) {
-    customIconSrc.value = null;
-    return;
-  }
-
-  try {
-    // Extract hash from "binary:hash" format
-    const hash = props.icon.replace('binary:', '');
-
-    // Load binary from database
-    const result = await orm.value
-      .select()
-      .from(haexPasswordsBinaries)
-      .where(eq(haexPasswordsBinaries.hash, hash))
-      .limit(1);
-
-    if (result.length > 0 && result[0]?.data) {
-      // Create data URL from base64
-      customIconSrc.value = `data:image/png;base64,${result[0].data}`;
-    }
-  } catch (error) {
-    console.error('[HaexIcon] Failed to load custom icon:', error);
-    customIconSrc.value = null;
-  }
+// Extract hash from icon prop
+const iconHash = computed(() => {
+  if (!props.icon || !isCustomIcon.value) return null;
+  return props.icon.replace('binary:', '');
 });
+
+// Get icon from cache
+const customIconSrc = computed(() => {
+  if (!iconHash.value) return null;
+  return iconCacheStore.getIconDataUrl(iconHash.value);
+});
+
+// Request icon loading when hash changes
+watch(iconHash, (hash) => {
+  if (hash && !iconCacheStore.isCached(hash)) {
+    iconCacheStore.requestIcon(hash);
+  }
+}, { immediate: true });
 </script>

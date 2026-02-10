@@ -48,7 +48,6 @@ import {
   Globe,
 } from 'lucide-vue-next';
 import { Icon } from '@iconify/vue';
-import { getBinaryDataAsync } from '~/utils/cleanup';
 
 export const useIconComponents = () => {
   const iconComponents: Record<string, any> = {
@@ -112,7 +111,7 @@ export const useIconComponents = () => {
     if (iconName.startsWith('binary:')) {
       const hash = iconName.replace('binary:', '');
 
-      // Return a proper Vue component that renders an img tag
+      // Return a proper Vue component that uses the icon cache
       return defineComponent({
         name: 'BinaryIcon',
         props: {
@@ -120,17 +119,15 @@ export const useIconComponents = () => {
           style: [String, Object],
         },
         setup(props) {
-          const src = ref<string | null>(null);
-          const haexVaultStore = useHaexVaultStore();
+          const iconCacheStore = useIconCacheStore();
 
-          onMounted(async () => {
-            if (haexVaultStore.orm) {
-              const base64Data = await getBinaryDataAsync(haexVaultStore.orm, hash);
-              if (base64Data) {
-                src.value = `data:image/png;base64,${base64Data}`;
-              }
-            }
-          });
+          // Request icon loading if not cached
+          if (!iconCacheStore.isCached(hash)) {
+            iconCacheStore.requestIcon(hash);
+          }
+
+          // Get icon from cache (reactive)
+          const src = computed(() => iconCacheStore.getIconDataUrl(hash));
 
           return () => h('img', {
             src: src.value || '',
