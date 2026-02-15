@@ -1,6 +1,6 @@
 {
   "name": "haex-pass",
-  "version": "1.4.34",
+  "version": "1.4.35",
   "type": "module",
   "private": true,
   "scripts": {
