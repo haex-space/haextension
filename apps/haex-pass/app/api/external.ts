@@ -26,8 +26,10 @@ export const HAEX_PASS_METHODS = {
   GET_ITEMS: "get-items",
   /** TOTP-Code für einen Eintrag abrufen */
   GET_TOTP: "get-totp",
-  /** Neues Item speichern */
-  SET_ITEM: "set-item",
+  /** Neues Item erstellen */
+  CREATE_ITEM: "create-item",
+  /** Bestehendes Item aktualisieren */
+  UPDATE_ITEM: "update-item",
   /** Passwort-Generator-Konfiguration abrufen */
   GET_PASSWORD_CONFIG: "get-password-config",
   /** Alle Passwort-Generator-Presets abrufen */
@@ -117,15 +119,13 @@ export interface GetTotpResponseData {
 }
 
 // =============================================================================
-// set-item
+// create-item
 // =============================================================================
 
 /**
- * Payload für set-item Request
+ * Payload für create-item Request
  */
-export interface SetItemPayload {
-  /** Existing item ID for updating (if not provided, creates a new entry) */
-  id?: string;
+export interface CreateItemPayload {
   /** URL für das Item (für Matching und Auto-Fill) */
   url?: string;
   /** Titel für den Eintrag (wenn nicht angegeben, wird Domain aus URL extrahiert) */
@@ -149,13 +149,51 @@ export interface SetItemPayload {
 }
 
 /**
- * Response-Daten von set-item
+ * Response-Daten von create-item
  */
-export interface SetItemResponseData {
+export interface CreateItemResponseData {
   /** ID des neu erstellten Eintrags */
   entryId: string;
   /** Titel des erstellten Eintrags */
   title: string;
+}
+
+// =============================================================================
+// update-item
+// =============================================================================
+
+/**
+ * Payload für update-item Request
+ */
+export interface UpdateItemPayload {
+  /** ID des zu aktualisierenden Eintrags (erforderlich) */
+  id: string;
+  /** URL für das Item (für Matching und Auto-Fill) */
+  url?: string;
+  /** Titel für den Eintrag */
+  title?: string;
+  /** Benutzername/E-Mail für das Login */
+  username?: string;
+  /** Passwort für das Login */
+  password?: string;
+  /** TOTP Secret (Base32-encoded) */
+  otpSecret?: string | null;
+  /** TOTP Digits (default: 6) */
+  otpDigits?: number | null;
+  /** TOTP Period in seconds (default: 30) */
+  otpPeriod?: number | null;
+  /** TOTP Algorithm (default: "SHA1", also "SHA256", "SHA512") */
+  otpAlgorithm?: string | null;
+  /** Icon as Base64-encoded image data (e.g., favicon). Will be stored with hash reference. */
+  iconBase64?: string | null;
+}
+
+/**
+ * Response-Daten von update-item
+ */
+export interface UpdateItemResponseData {
+  /** ID des aktualisierten Eintrags */
+  entryId: string;
 }
 
 // =============================================================================
@@ -237,7 +275,8 @@ export interface GetPasswordPresetsResponseData {
 export interface HaexPassPayloads {
   [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsPayload;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpPayload;
-  [HAEX_PASS_METHODS.SET_ITEM]: SetItemPayload;
+  [HAEX_PASS_METHODS.CREATE_ITEM]: CreateItemPayload;
+  [HAEX_PASS_METHODS.UPDATE_ITEM]: UpdateItemPayload;
   [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigPayload;
   [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: Record<string, never>;
   [HAEX_PASS_METHODS.PASSKEY_CREATE]: PasskeyCreatePayload;
@@ -251,7 +290,8 @@ export interface HaexPassPayloads {
 export interface HaexPassResponses {
   [HAEX_PASS_METHODS.GET_ITEMS]: GetItemsResponseData;
   [HAEX_PASS_METHODS.GET_TOTP]: GetTotpResponseData;
-  [HAEX_PASS_METHODS.SET_ITEM]: SetItemResponseData;
+  [HAEX_PASS_METHODS.CREATE_ITEM]: CreateItemResponseData;
+  [HAEX_PASS_METHODS.UPDATE_ITEM]: UpdateItemResponseData;
   [HAEX_PASS_METHODS.GET_PASSWORD_CONFIG]: GetPasswordConfigResponseData;
   [HAEX_PASS_METHODS.GET_PASSWORD_PRESETS]: GetPasswordPresetsResponseData;
   [HAEX_PASS_METHODS.PASSKEY_CREATE]: PasskeyCreateResponseData;

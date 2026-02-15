@@ -1,6 +1,6 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { vaultConnection } from './connection'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_SET_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -46,12 +46,12 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
     return Promise.resolve({ success: true })
   }
 
-  if (message.type === MSG_SET_ITEM) {
+  if (message.type === MSG_CREATE_ITEM) {
     const data = (msg as { data?: object }).data
     if (!data) {
       return Promise.resolve({ success: false, error: 'Missing data' })
     }
-    return vaultConnection.setItem(data)
+    return vaultConnection.createItem(data)
       .then((result) => {
         // Result from haex-pass is { requestId, success, data, error? }
         const haexResponse = result as { success: boolean, data?: unknown, error?: string }

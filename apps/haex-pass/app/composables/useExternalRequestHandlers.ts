@@ -23,11 +23,13 @@ import {
   HAEX_PASS_METHODS,
   type GetItemsPayload,
   type GetTotpPayload,
-  type SetItemPayload,
+  type CreateItemPayload,
+  type UpdateItemPayload,
   type ItemEntry,
   type GetItemsResponseData,
   type GetTotpResponseData,
-  type SetItemResponseData,
+  type CreateItemResponseData,
+  type UpdateItemResponseData,
   type GetPasswordConfigResponseData,
   type GetPasswordPresetsResponseData,
   type PasswordPreset,
@@ -62,10 +64,16 @@ export function useExternalRequestHandlers() {
       return handleGetTotp(request);
     });
 
-    // Handler: set-item
-    // Saves new credentials from browser extension
-    client.onExternalRequest(HAEX_PASS_METHODS.SET_ITEM, async (request) => {
-      return handleSetItem(request);
+    // Handler: create-item
+    // Creates new credentials from browser extension
+    client.onExternalRequest(HAEX_PASS_METHODS.CREATE_ITEM, async (request) => {
+      return handleCreateItem(request);
+    });
+
+    // Handler: update-item
+    // Updates existing credentials from browser extension
+    client.onExternalRequest(HAEX_PASS_METHODS.UPDATE_ITEM, async (request) => {
+      return handleUpdateItem(request);
     });
 
     // Handler: get-password-config
@@ -304,11 +312,11 @@ export function useExternalRequestHandlers() {
   };
 
   /**
-   * Handle set-item request
-   * Saves new credentials from browser extension
+   * Handle create-item request
+   * Creates new credentials from browser extension (insert only)
    */
-  const handleSetItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { id, url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as SetItemPayload;
+  const handleCreateItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
+    const { url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as CreateItemPayload;
 
     // At minimum, we need a URL or title to create an entry
     if (!url && !title) {
@@ -356,51 +364,31 @@ export function useExternalRequestHandlers() {
         }
       }
 
-      const isUpdate = !!id;
-      const itemId = id || crypto.randomUUID();
+      const itemId = crypto.randomUUID();
 
-      if (isUpdate) {
-        // Update existing entry
-        const updateFields: Record<string, unknown> = {};
-        if (entryTitle !== undefined) updateFields.title = entryTitle || null;
-        if (username !== undefined) updateFields.username = username || null;
-        if (password !== undefined) updateFields.password = password || null;
-        if (url !== undefined) updateFields.url = url || null;
-        if (otpSecret !== undefined) updateFields.otpSecret = otpSecret || null;
-        if (otpDigits !== undefined) updateFields.otpDigits = otpDigits || null;
-        if (otpPeriod !== undefined) updateFields.otpPeriod = otpPeriod || null;
-        if (otpAlgorithm !== undefined) updateFields.otpAlgorithm = otpAlgorithm || null;
-        if (iconRef !== null) updateFields.icon = iconRef;
+      // Create new entry
+      await orm.insert(schema.haexPasswordsItemDetails).values({
+        id: itemId,
+        title: entryTitle || null,
+        username: username || null,
+        password: password || null,
+        url: url || null,
+        note: null,
+        otpSecret: otpSecret || null,
+        otpDigits: otpDigits || null,
+        otpPeriod: otpPeriod || null,
+        otpAlgorithm: otpAlgorithm || null,
+        icon: iconRef,
+        color: null,
+      });
 
-        await orm
-          .update(schema.haexPasswordsItemDetails)
-          .set(updateFields)
-          .where(eq(schema.haexPasswordsItemDetails.id, itemId));
-      } else {
-        // Create new entry
-        await orm.insert(schema.haexPasswordsItemDetails).values({
-          id: itemId,
-          title: entryTitle || null,
-          username: username || null,
-          password: password || null,
-          url: url || null,
-          note: null,
-          otpSecret: otpSecret || null,
-          otpDigits: otpDigits || null,
-          otpPeriod: otpPeriod || null,
-          otpAlgorithm: otpAlgorithm || null,
-          icon: iconRef,
-          color: null,
-        });
+      // Create group item relation
+      await orm.insert(schema.haexPasswordsGroupItems).values({
+        itemId,
+        groupId: groupId || null,
+      });
 
-        // Create group item relation
-        await orm.insert(schema.haexPasswordsGroupItems).values({
-          itemId,
-          groupId: groupId || null,
-        });
-      }
-
-      // Create snapshot (for both create and update)
+      // Create snapshot
       const snapshotData = {
         title: entryTitle,
         username: username || null,
@@ -429,7 +417,7 @@ export function useExternalRequestHandlers() {
       const { syncGroupItemsAsync } = usePasswordGroupStore();
       await syncGroupItemsAsync();
 
-      const responseData: SetItemResponseData = {
+      const responseData: CreateItemResponseData = {
         entryId: itemId,
         title: entryTitle || "",
       };
@@ -440,7 +428,127 @@ export function useExternalRequestHandlers() {
         data: responseData,
       };
     } catch (error) {
-      console.error("[haex-pass] set-item error:", error);
+      console.error("[haex-pass] create-item error:", error);
+      return {
+        requestId: request.requestId,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  };
+
+  /**
+   * Handle update-item request
+   * Updates an existing entry with provided fields
+   */
+  const handleUpdateItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
+    const { id, url, title, username, password, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as unknown as UpdateItemPayload;
+
+    if (!id) {
+      return {
+        requestId: request.requestId,
+        success: false,
+        error: "Missing required field: id",
+      };
+    }
+
+    try {
+      const orm = haexVaultStore.orm;
+      if (!orm) {
+        return {
+          requestId: request.requestId,
+          success: false,
+          error: "Database not initialized",
+        };
+      }
+
+      // Look up existing entry
+      const [existing] = await orm
+        .select()
+        .from(schema.haexPasswordsItemDetails)
+        .where(eq(schema.haexPasswordsItemDetails.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return {
+          requestId: request.requestId,
+          success: false,
+          error: "Entry not found",
+        };
+      }
+
+      // Build update object with only provided fields
+      const updateFields: Record<string, unknown> = {};
+      if (title !== undefined) updateFields.title = title || null;
+      if (username !== undefined) updateFields.username = username || null;
+      if (password !== undefined) updateFields.password = password || null;
+      if (url !== undefined) updateFields.url = url || null;
+      if (otpSecret !== undefined) updateFields.otpSecret = otpSecret || null;
+      if (otpDigits !== undefined) updateFields.otpDigits = otpDigits || null;
+      if (otpPeriod !== undefined) updateFields.otpPeriod = otpPeriod || null;
+      if (otpAlgorithm !== undefined) updateFields.otpAlgorithm = otpAlgorithm || null;
+
+      // Process icon if provided
+      if (iconBase64 !== undefined) {
+        if (iconBase64) {
+          try {
+            const binaryString = atob(iconBase64);
+            const size = binaryString.length;
+            const hash = await addBinaryAsync(orm, iconBase64, size, "icon");
+            updateFields.icon = `binary:${hash}`;
+          } catch (error) {
+            console.error("[haex-pass] Failed to process icon:", error);
+          }
+        } else {
+          updateFields.icon = null;
+        }
+      }
+
+      await orm
+        .update(schema.haexPasswordsItemDetails)
+        .set(updateFields)
+        .where(eq(schema.haexPasswordsItemDetails.id, id));
+
+      // Create snapshot
+      const snapshotData = {
+        title: title ?? existing.title,
+        username: username ?? existing.username,
+        password: password ?? existing.password,
+        url: url ?? existing.url,
+        note: existing.note,
+        tags: null,
+        otpSecret: otpSecret ?? existing.otpSecret,
+        otpDigits: otpDigits ?? existing.otpDigits,
+        otpPeriod: otpPeriod ?? existing.otpPeriod,
+        otpAlgorithm: otpAlgorithm ?? existing.otpAlgorithm,
+        icon: updateFields.icon !== undefined ? updateFields.icon : existing.icon,
+        keyValues: [],
+        attachments: [],
+      };
+
+      await orm.insert(schema.haexPasswordsItemSnapshots).values({
+        id: crypto.randomUUID(),
+        itemId: id,
+        snapshotData: JSON.stringify(snapshotData),
+        createdAt: new Date().toISOString(),
+        modifiedAt: new Date().toISOString(),
+      });
+
+      // Sync items to update UI
+      const { syncGroupItemsAsync } = usePasswordGroupStore();
+      await syncGroupItemsAsync();
+
+      const responseData: UpdateItemResponseData = {
+        entryId: id,
+      };
+
+      return {
+        requestId: request.requestId,
+        success: true,
+        data: responseData,
+      };
+    } catch (error) {
+      console.error("[haex-pass] update-item error:", error);
       return {
         requestId: request.requestId,
         success: false,

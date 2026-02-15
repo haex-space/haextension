@@ -497,8 +497,8 @@ class VaultConnectionManager {
     return this.sendRequest(HAEX_PASS_METHODS.GET_ITEMS, { url, fields })
   }
 
-  async setItem(entry: object): Promise<unknown> {
-    return this.sendRequest(HAEX_PASS_METHODS.SET_ITEM, entry)
+  async createItem(entry: object): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.CREATE_ITEM, entry)
   }
 
   async getTotp(entryId: string): Promise<unknown> {

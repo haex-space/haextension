@@ -2,7 +2,7 @@
 import type { GetPasswordConfigResponseData } from '~/logic/messages'
 import { Check, Eye, EyeOff, Key, Loader2, X } from 'lucide-vue-next'
 import { useI18n } from '~/locales'
-import { MSG_SET_ITEM, MSG_GET_PASSWORD_CONFIG } from '~/logic/messages'
+import { MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG } from '~/logic/messages'
 import { generatePassword, defaultPasswordConfig } from '~/logic/passwordGenerator'
 import PasswordGenerator from './PasswordGenerator.vue'
 
@@ -97,7 +97,7 @@ async function submitForm() {
 
   try {
     const response = await browser.runtime.sendMessage({
-      type: MSG_SET_ITEM,
+      type: MSG_CREATE_ITEM,
       data: {
         title: createForm.value.title || undefined,
         url: createForm.value.url || undefined,
