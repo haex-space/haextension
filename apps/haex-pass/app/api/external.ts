@@ -124,6 +124,8 @@ export interface GetTotpResponseData {
  * Payload für set-item Request
  */
 export interface SetItemPayload {
+  /** Existing item ID for updating (if not provided, creates a new entry) */
+  id?: string;
   /** URL für das Item (für Matching und Auto-Fill) */
   url?: string;
   /** Titel für den Eintrag (wenn nicht angegeben, wird Domain aus URL extrahiert) */

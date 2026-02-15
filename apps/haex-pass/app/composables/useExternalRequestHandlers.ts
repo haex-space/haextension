@@ -308,7 +308,7 @@ export function useExternalRequestHandlers() {
    * Saves new credentials from browser extension
    */
   const handleSetItem = async (request: ExternalRequest): Promise<ExternalResponse> => {
-    const { url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as SetItemPayload;
+    const { id, url, title, username, password, groupId, otpSecret, otpDigits, otpPeriod, otpAlgorithm, iconBase64 } = request.payload as SetItemPayload;
 
     // At minimum, we need a URL or title to create an entry
     if (!url && !title) {
@@ -340,9 +340,6 @@ export function useExternalRequestHandlers() {
         }
       }
 
-      // Create new entry
-      const newEntryId = crypto.randomUUID();
-
       // Process icon if provided (Base64 -> binary storage with hash reference)
       let iconRef: string | null = null;
       if (iconBase64) {
@@ -359,28 +356,51 @@ export function useExternalRequestHandlers() {
         }
       }
 
-      await orm.insert(schema.haexPasswordsItemDetails).values({
-        id: newEntryId,
-        title: entryTitle || null,
-        username: username || null,
-        password: password || null,
-        url: url || null,
-        note: null,
-        otpSecret: otpSecret || null,
-        otpDigits: otpDigits || null,
-        otpPeriod: otpPeriod || null,
-        otpAlgorithm: otpAlgorithm || null,
-        icon: iconRef,
-        color: null,
-      });
+      const isUpdate = !!id;
+      const itemId = id || crypto.randomUUID();
 
-      // Create group item relation
-      await orm.insert(schema.haexPasswordsGroupItems).values({
-        itemId: newEntryId,
-        groupId: groupId || null,
-      });
+      if (isUpdate) {
+        // Update existing entry
+        const updateFields: Record<string, unknown> = {};
+        if (entryTitle !== undefined) updateFields.title = entryTitle || null;
+        if (username !== undefined) updateFields.username = username || null;
+        if (password !== undefined) updateFields.password = password || null;
+        if (url !== undefined) updateFields.url = url || null;
+        if (otpSecret !== undefined) updateFields.otpSecret = otpSecret || null;
+        if (otpDigits !== undefined) updateFields.otpDigits = otpDigits || null;
+        if (otpPeriod !== undefined) updateFields.otpPeriod = otpPeriod || null;
+        if (otpAlgorithm !== undefined) updateFields.otpAlgorithm = otpAlgorithm || null;
+        if (iconRef !== null) updateFields.icon = iconRef;
 
-      // Create initial snapshot
+        await orm
+          .update(schema.haexPasswordsItemDetails)
+          .set(updateFields)
+          .where(eq(schema.haexPasswordsItemDetails.id, itemId));
+      } else {
+        // Create new entry
+        await orm.insert(schema.haexPasswordsItemDetails).values({
+          id: itemId,
+          title: entryTitle || null,
+          username: username || null,
+          password: password || null,
+          url: url || null,
+          note: null,
+          otpSecret: otpSecret || null,
+          otpDigits: otpDigits || null,
+          otpPeriod: otpPeriod || null,
+          otpAlgorithm: otpAlgorithm || null,
+          icon: iconRef,
+          color: null,
+        });
+
+        // Create group item relation
+        await orm.insert(schema.haexPasswordsGroupItems).values({
+          itemId,
+          groupId: groupId || null,
+        });
+      }
+
+      // Create snapshot (for both create and update)
       const snapshotData = {
         title: entryTitle,
         username: username || null,
@@ -399,7 +419,7 @@ export function useExternalRequestHandlers() {
 
       await orm.insert(schema.haexPasswordsItemSnapshots).values({
         id: crypto.randomUUID(),
-        itemId: newEntryId,
+        itemId,
         snapshotData: JSON.stringify(snapshotData),
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
@@ -410,7 +430,7 @@ export function useExternalRequestHandlers() {
       await syncGroupItemsAsync();
 
       const responseData: SetItemResponseData = {
-        entryId: newEntryId,
+        entryId: itemId,
         title: entryTitle || "",
       };
 
