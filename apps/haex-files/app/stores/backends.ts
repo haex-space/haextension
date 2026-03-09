@@ -2,6 +2,7 @@
 // Storage backends are managed centrally by haex-vault Core.
 // This store wraps the remoteStorage API for convenient access.
 
+import { isPermissionPromptError } from "./haexvault";
 import type {
   RemoteStorageBackendInfo,
   RemoteS3Config,
@@ -32,8 +33,15 @@ export const useBackendsStore = defineStore("backends", () => {
     isLoading.value = true;
     try {
       backends.value = await haexVaultStore.client.remoteStorage.backends.list();
+      // Clear any pending permission prompt on success
+      haexVaultStore.clearPermissionPrompt();
     } catch (error) {
       console.warn("[haex-files] Failed to load backends:", error);
+
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, loadBackendsAsync);
+      }
+
       backends.value = [];
     } finally {
       isLoading.value = false;

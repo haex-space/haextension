@@ -2,6 +2,7 @@
 import { eq } from "drizzle-orm";
 import { spaces as spacesTable, type SelectSpace } from "~/database/schemas";
 import { generateVaultKey, arrayBufferToBase64 } from "@haex-space/vault-sdk";
+import { isPermissionPromptError } from "./haexvault";
 
 // Export local Space type
 export type Space = SelectSpace;
@@ -26,8 +27,14 @@ export const useSpacesStore = defineStore("spaces", () => {
 
       const result = await orm.select().from(spacesTable);
       spaces.value = result;
+      haexVaultStore.clearPermissionPrompt();
     } catch (error) {
       console.warn("[haex-files] Failed to load spaces:", error);
+
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, loadSpacesAsync);
+      }
+
       spaces.value = [];
     } finally {
       isLoading.value = false;

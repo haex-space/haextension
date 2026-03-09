@@ -20,10 +20,18 @@ function toMinutesSinceMidnight(dtstring: string): number {
 }
 
 /**
- * Get the date string (YYYY-MM-DD) from a datetime string.
+ * Get the local date string (YYYY-MM-DD) from a datetime string.
+ * Always uses local timezone to avoid UTC date shift issues.
  */
 export function toDateKey(dtstring: string): string {
-  return dtstring.split("T")[0] ?? dtstring.slice(0, 10);
+  // Date-only strings (e.g. "2026-03-10") — return as-is
+  if (!dtstring.includes("T")) return dtstring.slice(0, 10);
+  // Full datetime strings — parse and extract local date
+  const d = new Date(dtstring);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**
@@ -87,16 +95,48 @@ export function positionEventsInDay(dayEvents: SelectEvent[]): PositionedEvent[]
 }
 
 /**
+ * Check whether a given dateKey falls within an event's span.
+ * For allDay events, dtend is exclusive (CalDAV convention).
+ * For timed events, checks if the date is between start and end dates inclusive.
+ */
+export function eventSpansDate(event: SelectEvent, dateKey: string): boolean {
+  const startKey = toDateKey(event.dtstart);
+  const endKey = toDateKey(event.dtend);
+  if (event.allDay) {
+    // allDay dtend is exclusive, so dateKey must be < endKey
+    return dateKey >= startKey && dateKey < endKey;
+  }
+  return dateKey >= startKey && dateKey <= endKey;
+}
+
+/**
  * Group events by date key for the week/day grid.
+ * Multi-day timed events appear on each day they span.
  */
 export function groupEventsByDay(eventList: SelectEvent[]): Map<string, SelectEvent[]> {
   const map = new Map<string, SelectEvent[]>();
   for (const event of eventList) {
     if (event.allDay) continue; // All-day events handled separately
-    const key = toDateKey(event.dtstart);
-    const existing = map.get(key) ?? [];
-    existing.push(event);
-    map.set(key, existing);
+    const startKey = toDateKey(event.dtstart);
+    const endKey = toDateKey(event.dtend);
+
+    if (startKey === endKey) {
+      // Single-day event: index by start date only
+      const existing = map.get(startKey) ?? [];
+      existing.push(event);
+      map.set(startKey, existing);
+    } else {
+      // Multi-day timed event: add to each day it spans
+      const current = new Date(startKey + "T00:00:00");
+      const endDate = new Date(endKey + "T00:00:00");
+      while (current <= endDate) {
+        const key = toDateKey(current.toISOString());
+        const existing = map.get(key) ?? [];
+        existing.push(event);
+        map.set(key, existing);
+        current.setDate(current.getDate() + 1);
+      }
+    }
   }
   return map;
 }
@@ -116,6 +156,7 @@ export function useTimeGrid() {
     positionEventsInDay,
     groupEventsByDay,
     getAllDayEvents,
+    eventSpansDate,
     toDateKey,
     toMinutesSinceMidnight,
   };

@@ -22,6 +22,12 @@
       <!-- Sync Errors Drawer -->
       <DrawerSyncErrors v-model:open="showErrorsDrawer" />
 
+      <!-- Backend Drawer -->
+      <DrawerBackend v-model:open="showBackendDrawer" />
+
+      <!-- Permission Drawer -->
+      <DrawerPermission />
+
       <header
         class="flex-none border-b border-border px-4 py-3 flex items-center justify-between"
       >
@@ -34,7 +40,7 @@
           >
             <Menu class="size-5" />
           </ShadcnButton>
-          <FolderSync class="size-6 text-primary" />
+          <img :src="haexFilesLogo" alt="haex-files" class="size-6" />
           <h1 class="text-lg font-semibold">{{ t("title") }}</h1>
         </div>
         <div class="flex items-center gap-2">
@@ -145,17 +151,24 @@
           class="h-full flex items-center justify-center"
         >
           <div class="text-center">
-            <FolderSync class="size-12 text-muted-foreground mx-auto mb-4" />
+            <img :src="haexFilesLogo" alt="haex-files" class="size-16 mx-auto mb-4" />
             <h2 class="text-xl font-semibold mb-2">{{ t("welcome.title") }}</h2>
             <p class="text-muted-foreground mb-4">
               {{ t("welcome.description") }}
             </p>
-            <button
-              class="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+            <UiButton
+              v-if="backends.length === 0"
+              :prepend-icon="Plus"
+              @click="openAddBackendDrawer"
+            >
+              {{ t("welcome.addBackend") }}
+            </UiButton>
+            <UiButton
+              v-else
               @click="setupSync"
             >
               {{ t("welcome.setup") }}
-            </button>
+            </UiButton>
           </div>
         </div>
 
@@ -294,6 +307,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-vue-next";
+import haexFilesLogo from "~/assets/haex-files-logo.png";
 import type { SyncRule } from "~/stores/syncRules";
 import { QUEUE_STATUS, isPathIgnored, type LocalFileInfo } from "~/stores/files";
 import { onLongPress } from "@vueuse/core";
@@ -308,6 +322,7 @@ const selectionStore = useFileSelectionStore();
 
 const { syncRules } = storeToRefs(syncRulesStore);
 const { sortedFiles: files, pathSegments } = storeToRefs(filesStore);
+const { backends } = storeToRefs(backendsStore);
 
 // State
 const isInitialized = ref(false);
@@ -317,6 +332,7 @@ const showErrorsDrawer = ref(false);
 const editingSyncRule = ref<SyncRule | null>(null);
 const isMobileSidebarOpen = ref(false);
 const uploadingFileId = ref<string | null>(null);
+const showBackendDrawer = ref(false);
 
 // Long press functionality
 const longPressedHook = ref(false);
@@ -536,6 +552,10 @@ const openEditSyncRule = (ruleId: string) => {
 
 const setupSync = () => {
   openAddSyncRule();
+};
+
+const openAddBackendDrawer = () => {
+  showBackendDrawer.value = true;
 };
 
 const onSyncRuleCreated = async (ruleId: string) => {
@@ -766,6 +786,7 @@ de:
     title: Willkommen bei haex-files
     description: Synchronisiere deine Dateien sicher und verschlüsselt zwischen deinen Geräten.
     setup: Sync einrichten
+    addBackend: Backend hinzufügen
   status:
     synced: Synchronisiert
     syncing: Synchronisiere...
@@ -797,6 +818,7 @@ en:
     title: Welcome to haex-files
     description: Sync your files securely and encrypted between your devices.
     setup: Setup Sync
+    addBackend: Add Backend
   status:
     synced: Synced
     syncing: Syncing...

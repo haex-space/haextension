@@ -96,13 +96,8 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
     switch (viewMode.value) {
       case "month":
         return formatter.format(d);
-      case "week": {
-        const weekStart = startOfWeek(d);
-        const weekEnd = endOfWeek(d);
-        const startStr = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short" }).format(weekStart);
-        const endStr = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short", year: "numeric" }).format(weekEnd);
-        return `${startStr} – ${endStr}`;
-      }
+      case "week":
+        return formatter.format(d);
       case "day":
         return new Intl.DateTimeFormat("de-DE", {
           weekday: "long",

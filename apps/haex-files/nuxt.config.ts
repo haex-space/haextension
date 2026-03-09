@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
+  devServer: { port: 4000 },
   devtools: { enabled: false }, // Disabled because DevTools don't work in sandboxed iframes
 
   // Extend from haex-ui layer for shared components (Shadcn*, Ui*, Haex*)

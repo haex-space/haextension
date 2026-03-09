@@ -2,7 +2,15 @@
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import { eq } from "drizzle-orm";
 import * as schema from "~/database/schemas";
-import { generateVaultKey, arrayBufferToBase64, base64ToArrayBuffer } from "@haex-space/vault-sdk";
+import {
+  generateVaultKey,
+  arrayBufferToBase64,
+  base64ToArrayBuffer,
+  isPermissionPromptError,
+  isPermissionDeniedError,
+  type PermissionPromptError,
+  type PermissionDeniedError,
+} from "@haex-space/vault-sdk";
 
 // Import all migration SQL files
 const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
@@ -19,6 +27,9 @@ export type MasterKeyError = {
   message: string;
 };
 
+// Re-export for convenience
+export { isPermissionPromptError, isPermissionDeniedError, type PermissionPromptError, type PermissionDeniedError };
+
 export const useHaexVaultStore = defineStore("haexvault", () => {
   const nuxtApp = useNuxtApp();
 
@@ -26,6 +37,13 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
   const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
   const masterKey = shallowRef<Uint8Array | null>(null);
   const masterKeyError = ref<MasterKeyError | null>(null);
+
+  // Permission prompt state (code 1004 - waiting for user approval)
+  const pendingPermission = ref<PermissionPromptError | null>(null);
+  const pendingRetryFn = shallowRef<(() => Promise<void>) | null>(null);
+
+  // Permission denied state (code 1002 - user explicitly denied)
+  const deniedPermission = ref<PermissionDeniedError | null>(null);
 
   // Get composables at the top of the store setup
   const { currentThemeName, context } = storeToRefs(useUiStore());
@@ -232,6 +250,52 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     return isInitialized.value && masterKey.value !== null && masterKeyError.value === null;
   });
 
+  /**
+   * Set a pending permission prompt error and retry callback
+   * Called by stores when they encounter a PermissionPromptRequired error (code 1004)
+   */
+  const setPermissionPrompt = (error: PermissionPromptError, retryFn: () => Promise<void>) => {
+    pendingPermission.value = error;
+    pendingRetryFn.value = retryFn;
+  };
+
+  /**
+   * Clear the pending permission prompt
+   * Called after successful retry or when user dismisses
+   */
+  const clearPermissionPrompt = () => {
+    pendingPermission.value = null;
+    pendingRetryFn.value = null;
+  };
+
+  /**
+   * Retry the operation that triggered the permission prompt
+   */
+  const retryAfterPermissionAsync = async () => {
+    const retryFn = pendingRetryFn.value;
+    if (retryFn) {
+      clearPermissionPrompt();
+      await retryFn();
+    }
+  };
+
+  /**
+   * Set a denied permission error
+   * Called by stores when they encounter a PermissionDenied error (code 1002)
+   * This indicates the user has explicitly denied the permission - no prompt will be shown
+   */
+  const setPermissionDenied = (error: PermissionDeniedError) => {
+    deniedPermission.value = error;
+  };
+
+  /**
+   * Clear the denied permission error
+   * Called when user dismisses the error or navigates away
+   */
+  const clearPermissionDenied = () => {
+    deniedPermission.value = null;
+  };
+
   return {
     get client() {
       return getHaexVault().client;
@@ -248,5 +312,14 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     getTableName: (tableName: string) => getHaexVault().client.getTableName(tableName),
     initializeAsync,
     waitForSetupAsync,
+    // Permission prompt handling (code 1004 - waiting for approval)
+    pendingPermission: computed(() => pendingPermission.value),
+    setPermissionPrompt,
+    clearPermissionPrompt,
+    retryAfterPermissionAsync,
+    // Permission denied handling (code 1002 - explicitly denied)
+    deniedPermission: computed(() => deniedPermission.value),
+    setPermissionDenied,
+    clearPermissionDenied,
   };
 });

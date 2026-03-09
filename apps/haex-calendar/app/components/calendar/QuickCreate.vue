@@ -1,60 +1,85 @@
 <template>
-  <div
-    ref="popoverRef"
-    class="fixed z-50 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border p-3 w-72"
-    :style="{ top: `${position.y}px`, left: `${position.x}px` }"
-  >
-    <input
-      ref="titleInput"
-      v-model="title"
-      class="w-full bg-transparent text-sm font-medium outline-none border-b border-border pb-1 mb-2 placeholder:text-muted-foreground"
-      :placeholder="t('titlePlaceholder')"
-      @keydown.enter="handleCreate"
-      @keydown.escape="emit('close')"
-    />
+  <UiDrawerModal v-model:open="isOpen" :title="t('title')" :description="formattedDate">
+    <template #content>
+      <div class="space-y-4 p-4">
+        <input
+          ref="titleInput"
+          v-model="title"
+          class="w-full bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary placeholder:text-muted-foreground"
+          :placeholder="t('titlePlaceholder')"
+          @keydown.enter="handleCreate"
+        >
 
-    <div class="text-xs text-muted-foreground mb-3">
-      {{ formattedDateTime }}
-    </div>
+        <!-- All day toggle -->
+        <label class="flex items-center gap-2 cursor-pointer">
+          <ShadcnCheckbox v-model="allDay" />
+          <span>{{ t('allDay') }}</span>
+        </label>
 
-    <!-- Calendar selector -->
-    <select
-      v-model="selectedCalendarId"
-      class="w-full text-xs bg-muted rounded px-2 py-1 mb-3 outline-none"
-    >
-      <option
-        v-for="cal in calendarsStore.calendars"
-        :key="cal.id"
-        :value="cal.id"
-      >
-        {{ cal.name }}
-      </option>
-    </select>
+        <!-- Time pickers (only when not all day) -->
+        <div v-if="!allDay" class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('startTime') }}</label>
+            <UiTimePicker v-model="startTimeStr" />
+          </div>
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('endTime') }}</label>
+            <UiTimePicker v-model="endTimeStr" />
+          </div>
+        </div>
 
-    <div class="flex gap-2">
-      <button
-        class="flex-1 text-xs bg-primary text-primary-foreground rounded px-3 py-1.5 hover:opacity-90 transition-opacity"
-        @click="handleCreate"
-      >
-        {{ t('create') }}
-      </button>
-      <button
-        class="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 transition-colors"
-        @click="handleMoreDetails"
-      >
-        {{ t('moreDetails') }}
-      </button>
-    </div>
-  </div>
+        <!-- Calendar selector -->
+        <ShadcnSelect v-model="selectedCalendarId">
+          <ShadcnSelectTrigger>
+            <ShadcnSelectValue />
+          </ShadcnSelectTrigger>
+          <ShadcnSelectContent>
+            <ShadcnSelectItem
+              v-for="cal in calendarsStore.calendars"
+              :key="cal.id"
+              :value="cal.id"
+            >
+              <span class="flex items-center gap-2">
+                <span
+                  class="w-2.5 h-2.5 rounded-full shrink-0"
+                  :style="{ backgroundColor: cal.color }"
+                />
+                {{ cal.name }}
+              </span>
+            </ShadcnSelectItem>
+          </ShadcnSelectContent>
+        </ShadcnSelect>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="w-full">
+        <div class="-mx-6 border-t border-border" />
+        <div class="flex justify-end gap-2 pt-4">
+          <button
+            class="text-muted-foreground hover:text-foreground px-3 py-2 transition-colors"
+            @click="handleMoreDetails"
+          >
+            {{ t('moreDetails') }}
+          </button>
+          <button
+            class="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+            @click="handleCreate"
+          >
+            {{ t('create') }}
+          </button>
+        </div>
+      </div>
+    </template>
+  </UiDrawerModal>
 </template>
 
 <script setup lang="ts">
-import { onClickOutside } from "@vueuse/core";
-
 const props = defineProps<{
   date: Date;
+  endDate?: Date | null;
   time?: string | null;
-  position: { x: number; y: number };
+  endTime?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -65,91 +90,136 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
-const openEventDrawer = inject<(id: string) => void>("openEventDrawer")!;
+const eventDrawer = useEventDrawerStore();
 
-const popoverRef = ref<HTMLElement | null>(null);
+const isOpen = ref(true);
+
+watch(isOpen, (open) => {
+  if (!open) emit("close");
+});
+
 const titleInput = ref<HTMLInputElement | null>(null);
 const title = ref("");
 const selectedCalendarId = ref(calendarsStore.calendars[0]?.id ?? "");
+const isMultiDay = !!props.endDate && props.endDate.getTime() !== props.date.getTime();
+const allDay = ref(isMultiDay);
 
-onClickOutside(popoverRef, () => emit("close"));
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const dateStr = toDateStr(props.date);
+const startTimeStr = ref("09:00");
+const endTimeStr = ref("10:00");
+
+if (props.time) {
+  const [h, m] = props.time.split(":");
+  startTimeStr.value = `${pad(Number(h))}:${pad(Number(m))}`;
+
+  if (props.endTime) {
+    const [eh, em] = props.endTime.split(":");
+    endTimeStr.value = `${pad(Number(eh))}:${pad(Number(em))}`;
+  } else {
+    const endH = (Number(h) + 1) % 24;
+    endTimeStr.value = `${pad(endH)}:${pad(Number(m))}`;
+  }
+}
 
 onMounted(() => {
   nextTick(() => titleInput.value?.focus());
 });
 
-const formattedDateTime = computed(() => {
-  const d = props.date;
-  const dateStr = new Intl.DateTimeFormat("de-DE", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  }).format(d);
-
-  if (props.time) {
-    const [h, m] = props.time.split(":");
-    const endH = String(Number(h) + 1).padStart(2, "0");
-    return `${dateStr}, ${h}:${m} – ${endH}:${m}`;
-  }
-  return dateStr;
+const dateFormatter = new Intl.DateTimeFormat("de-DE", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
 });
+
+const formattedDate = computed(() => {
+  if (isMultiDay && props.endDate) {
+    return `${dateFormatter.format(props.date)} – ${dateFormatter.format(props.endDate)}`;
+  }
+  return dateFormatter.format(props.date);
+});
+
+function buildEventData() {
+  if (allDay.value) {
+    const endDay = props.endDate ?? props.date;
+    const dayAfterEnd = new Date(endDay);
+    dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
+    return {
+      dtstart: dateStr,
+      dtend: toDateStr(dayAfterEnd),
+      allDay: true,
+    };
+  }
+  const dtstart = new Date(`${dateStr}T${startTimeStr.value}`).toISOString();
+  const dtend = new Date(`${dateStr}T${endTimeStr.value}`).toISOString();
+  return { dtstart, dtend, allDay: false };
+}
 
 async function handleCreate() {
   if (!title.value.trim()) return;
   if (!selectedCalendarId.value) return;
 
-  const d = props.date;
-  let dtstart: string;
-  let dtend: string;
-  let allDay = false;
+  const { dtstart, dtend, allDay: isAllDay } = buildEventData();
 
-  if (props.time) {
-    const [h, m] = props.time.split(":");
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(h), Number(m));
-    const end = new Date(start);
-    end.setHours(end.getHours() + 1);
-    dtstart = start.toISOString();
-    dtend = end.toISOString();
-  } else {
-    // All-day event
-    dtstart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
-    dtend = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString();
-    allDay = true;
-  }
-
-  await eventsStore.createEventAsync({
+  const id = await eventsStore.createEventAsync({
     calendarId: selectedCalendarId.value,
     summary: title.value.trim(),
     dtstart,
     dtend,
-    allDay,
+    allDay: isAllDay,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     status: "CONFIRMED",
     sequence: 0,
   });
 
   emit("created");
+  return id;
 }
 
 async function handleMoreDetails() {
-  // Create the event first, then open detail drawer
-  if (!title.value.trim() || !selectedCalendarId.value) {
-    emit("close");
-    return;
+  if (!selectedCalendarId.value) return;
+
+  const { dtstart, dtend, allDay: isAllDay } = buildEventData();
+
+  const id = await eventsStore.createEventAsync({
+    calendarId: selectedCalendarId.value,
+    summary: title.value.trim() || t("titlePlaceholder"),
+    dtstart,
+    dtend,
+    allDay: isAllDay,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    status: "CONFIRMED",
+    sequence: 0,
+  });
+
+  emit("created");
+  if (id) {
+    eventDrawer.open(id);
   }
-  const id = await handleCreate();
-  // TODO: openEventDrawer after creation
-  emit("close");
 }
 </script>
 
 <i18n lang="yaml">
 de:
+  title: Neues Event
   titlePlaceholder: Titel eingeben
+  startTime: Von
+  endTime: Bis
+  allDay: Ganztägig
   create: Erstellen
   moreDetails: Mehr Details →
 en:
+  title: New Event
   titlePlaceholder: Add title
+  startTime: From
+  endTime: To
+  allDay: All day
   create: Create
   moreDetails: More details →
 </i18n>

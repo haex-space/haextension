@@ -7,7 +7,7 @@
           <input
             ref="nameInput"
             v-model="name"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
+            class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
             :placeholder="t('namePlaceholder')"
             @keydown.enter="handleCreate"
           />
@@ -34,13 +34,13 @@
     <template #footer>
       <div class="flex justify-end gap-2 p-4 border-t border-border">
         <button
-          class="text-sm text-muted-foreground px-3 py-2"
+          class="text-muted-foreground px-3 py-2"
           @click="isOpen = false"
         >
           {{ t('cancel') }}
         </button>
         <button
-          class="text-sm bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+          class="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
           :disabled="!name.trim()"
           @click="handleCreate"
         >

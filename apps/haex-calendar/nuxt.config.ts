@@ -2,6 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
+  devServer: { port: 4003 },
   devtools: { enabled: false },
 
   extends: ["../../packages/haex-ui"],

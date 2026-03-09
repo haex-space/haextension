@@ -1,7 +1,7 @@
 <template>
   <div class="h-full flex flex-col">
     <!-- Day headers -->
-    <div class="grid grid-cols-7 border-b border-border">
+    <div class="grid border-b border-border" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
       <div
         v-for="day in weekDayNames"
         :key="day"
@@ -11,56 +11,105 @@
       </div>
     </div>
 
-    <!-- Grid -->
-    <div class="flex-1 grid grid-cols-7 auto-rows-fr">
+    <!-- Week rows -->
+    <div class="flex-1 flex flex-col select-none">
       <div
-        v-for="(cell, index) in gridCells"
-        :key="index"
-        :class="[
-          'border-b border-r border-border p-1 min-h-0 overflow-hidden cursor-pointer',
-          'hover:bg-muted/50 transition-colors',
-          !cell.isCurrentMonth && 'opacity-40',
-          cell.isToday && 'bg-primary/5',
-        ]"
-        @click="onCellClick(cell, $event)"
+        v-for="(week, weekIndex) in weeks"
+        :key="weekIndex"
+        class="flex-1 min-h-0 flex flex-col border-b border-border"
       >
-        <!-- Day number -->
-        <button
-          :class="[
-            'text-xs font-medium w-6 h-6 rounded-full flex items-center justify-center mb-0.5',
-            cell.isToday ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-          ]"
-          @click.stop="calendarView.goToDay(cell.date)"
-        >
-          {{ cell.dayNumber }}
-        </button>
-
-        <!-- Event chips -->
-        <div class="space-y-0.5">
+        <!-- Day numbers + multi-day bars -->
+        <div class="grid" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
           <div
-            v-for="event in cell.events.slice(0, 3)"
-            :key="event.id"
+            v-for="(cell, colIndex) in week.cells"
+            :key="colIndex"
             :class="[
-              'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer',
-              'hover:opacity-80 transition-opacity',
+              'border-r border-border px-1 pt-0.5 cursor-pointer transition-colors',
+              !cell.isCurrentMonth && 'opacity-40',
+              cell.isToday && 'bg-primary/5',
+              isCellInSelection(weekIndex * colCount + colIndex) ? 'bg-primary/15' : 'hover:bg-muted/50',
             ]"
-            :style="{
-              backgroundColor: getEventColor(event) + '20',
-              color: getEventColor(event),
-              borderLeft: `3px solid ${getEventColor(event)}`,
-            }"
-            @click.stop="openEventDrawer(event.id)"
+            @mousedown="onCellMouseDown(weekIndex * colCount + colIndex, $event)"
+            @mouseenter="onCellMouseEnter(weekIndex * colCount + colIndex)"
+            @mouseup="onCellMouseUp"
           >
-            <span v-if="!event.allDay" class="font-medium">
-              {{ formatTime(event.dtstart) }}
-            </span>
-            {{ event.summary }}
+            <button
+              :class="[
+                'text-xs font-medium w-6 h-6 rounded-full flex items-center justify-center',
+                cell.isToday ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+              ]"
+              @click.stop="calendarView.goToDay(cell.date)"
+            >
+              {{ cell.dayNumber }}
+            </button>
           </div>
+        </div>
+
+        <!-- Multi-day event bars -->
+        <div
+          v-if="week.multiDayBars.length > 0"
+          class="grid gap-y-0.5 px-0.5"
+          :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)`, minHeight: `${week.multiDayBars.length > 0 ? week.barRows * 18 + 2 : 0}px` }"
+        >
+          <template v-for="bar in week.multiDayBars" :key="`${bar.event.id}-${weekIndex}`">
+            <div
+              data-event
+              class="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[16px] leading-[16px]"
+              :style="{
+                gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                gridRow: bar.row + 1,
+                backgroundColor: getEventColor(bar.event),
+                color: 'white',
+              }"
+              @click.stop="eventPreview.open(bar.event.id)"
+            >
+              {{ bar.showTitle ? bar.event.summary : '' }}
+            </div>
+          </template>
+        </div>
+
+        <!-- Single-day events per cell -->
+        <div class="flex-1 grid min-h-0" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
           <div
-            v-if="cell.events.length > 3"
-            class="text-xs text-muted-foreground px-1.5"
+            v-for="(cell, colIndex) in week.cells"
+            :key="colIndex"
+            :class="[
+              'border-r border-border px-1 pb-0.5 overflow-hidden cursor-pointer transition-colors',
+              !cell.isCurrentMonth && 'opacity-40',
+              isCellInSelection(weekIndex * colCount + colIndex) ? 'bg-primary/15' : 'hover:bg-muted/50',
+            ]"
+            @mousedown="onCellMouseDown(weekIndex * colCount + colIndex, $event)"
+            @mouseenter="onCellMouseEnter(weekIndex * colCount + colIndex)"
+            @mouseup="onCellMouseUp"
           >
-            +{{ cell.events.length - 3 }}
+            <div class="space-y-0.5">
+              <div
+                v-for="event in cell.singleDayEvents.slice(0, 3)"
+                :key="event.id"
+                data-event
+                :class="[
+                  'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer',
+                  'hover:opacity-80 transition-opacity',
+                ]"
+                :style="{
+                  backgroundColor: getEventColor(event) + '20',
+                  color: getEventColor(event),
+                  borderLeft: `3px solid ${getEventColor(event)}`,
+                }"
+                @click.stop="eventPreview.open(event.id)"
+              >
+                <span class="font-medium">
+                  {{ formatTime(event.dtstart) }}
+                </span>
+                {{ event.summary }}
+              </div>
+              <div
+                v-if="cell.totalOverflow > 0"
+                class="text-xs text-muted-foreground px-1.5"
+              >
+                +{{ cell.totalOverflow }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -70,7 +119,7 @@
     <CalendarQuickCreate
       v-if="quickCreateDate"
       :date="quickCreateDate"
-      :position="quickCreatePosition"
+      :end-date="quickCreateEndDate"
       @close="quickCreateDate = null"
       @created="quickCreateDate = null"
     />
@@ -84,20 +133,22 @@ import { toDateKey } from "~/composables/useTimeGrid";
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
+const settingsStore = useSettingsStore();
 
-const openEventDrawer = inject<(id: string) => void>("openEventDrawer")!;
+const eventDrawer = useEventDrawerStore();
+const eventPreview = useEventPreviewStore();
+
+const colCount = computed(() => settingsStore.showWeekends ? 7 : 5);
 
 const quickCreateDate = ref<Date | null>(null);
-const quickCreatePosition = ref({ x: 0, y: 0 });
-
-const { t } = useI18n();
+const quickCreateEndDate = ref<Date | null>(null);
 
 const weekDayNames = computed(() => {
   const formatter = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
   const days = [];
-  // Start from Monday
   const baseDate = new Date(2024, 0, 1); // Monday
-  for (let i = 0; i < 7; i++) {
+  const count = settingsStore.showWeekends ? 7 : 5;
+  for (let i = 0; i < count; i++) {
     const d = new Date(baseDate);
     d.setDate(d.getDate() + i);
     days.push(formatter.format(d));
@@ -110,50 +161,162 @@ interface GridCell {
   dayNumber: number;
   isCurrentMonth: boolean;
   isToday: boolean;
-  events: SelectEvent[];
+  singleDayEvents: SelectEvent[];
+  totalOverflow: number;
 }
 
-const gridCells = computed((): GridCell[] => {
+interface MultiDayBar {
+  event: SelectEvent;
+  startCol: number;
+  span: number;
+  row: number;
+  showTitle: boolean;
+}
+
+interface WeekRow {
+  cells: GridCell[];
+  multiDayBars: MultiDayBar[];
+  barRows: number;
+}
+
+function isMultiDayEvent(event: SelectEvent): boolean {
+  if (event.allDay) return true;
+  const start = toDateKey(event.dtstart);
+  const end = toDateKey(event.dtend);
+  return start !== end;
+}
+
+function daysBetween(dateA: Date, dateB: Date): number {
+  const msPerDay = 86400000;
+  const a = new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
+  const b = new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
+  return Math.round((b.getTime() - a.getTime()) / msPerDay);
+}
+
+const weeks = computed((): WeekRow[] => {
   const current = calendarView.currentDate;
   const year = current.getFullYear();
   const month = current.getMonth();
 
-  // First day of the month
   const firstDay = new Date(year, month, 1);
-  // Start from Monday of the first week
-  const startDay = firstDay.getDay(); // 0=Sun
-  const offset = startDay === 0 ? -6 : 1 - startDay; // Adjust to Monday start
+  const startDay = firstDay.getDay();
+  const offset = startDay === 0 ? -6 : 1 - startDay;
   const gridStart = new Date(year, month, 1 + offset);
 
   const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayKey = toDateKey(today.toISOString());
 
-  // Build event map by date
-  const eventsByDate = new Map<string, SelectEvent[]>();
-  for (const event of eventsStore.events) {
-    const key = toDateKey(event.dtstart);
-    const list = eventsByDate.get(key) ?? [];
-    list.push(event);
-    eventsByDate.set(key, list);
-  }
-
-  // Generate 42 cells (6 weeks)
-  const cells: GridCell[] = [];
+  // Generate all 42 dates
+  const allDates: Date[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart);
     d.setDate(d.getDate() + i);
-    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    allDates.push(d);
+  }
 
-    cells.push({
-      date: new Date(d),
-      dayNumber: d.getDate(),
-      isCurrentMonth: d.getMonth() === month,
-      isToday: dateKey === todayKey,
-      events: eventsByDate.get(dateKey) ?? [],
+  // Separate multi-day and single-day events
+  const multiDayEvents: SelectEvent[] = [];
+  const singleDayByDate = new Map<string, SelectEvent[]>();
+
+  for (const event of eventsStore.events) {
+    if (isMultiDayEvent(event)) {
+      multiDayEvents.push(event);
+    } else {
+      const key = toDateKey(event.dtstart);
+      const list = singleDayByDate.get(key) ?? [];
+      list.push(event);
+      singleDayByDate.set(key, list);
+    }
+  }
+
+  // Build 6 week rows
+  const weekRows: WeekRow[] = [];
+  const visibleCols = settingsStore.showWeekends ? 7 : 5;
+
+  for (let weekIdx = 0; weekIdx < 6; weekIdx++) {
+    const weekStart = allDates[weekIdx * 7]!;
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7); // exclusive end
+
+    // Find multi-day events that overlap this week
+    const bars: MultiDayBar[] = [];
+    const rowSlots: string[][] = []; // Track which event IDs occupy each row
+
+    for (const event of multiDayEvents) {
+      const eventStart = new Date(event.dtstart);
+      const eventEnd = new Date(event.dtend);
+
+      // Check overlap: event starts before week ends AND event ends after week starts
+      if (eventStart >= weekEnd || eventEnd <= weekStart) continue;
+
+      // Calculate column positions within this week
+      const barStartDate = eventStart < weekStart ? weekStart : eventStart;
+      const barEndDate = eventEnd > weekEnd ? weekEnd : eventEnd;
+
+      let startCol = daysBetween(weekStart, barStartDate);
+      let endCol = daysBetween(weekStart, barEndDate);
+      // Clamp to visible columns when weekends are hidden
+      if (!settingsStore.showWeekends) {
+        if (startCol >= visibleCols) continue; // Entirely in weekend
+        endCol = Math.min(endCol, visibleCols);
+        startCol = Math.min(startCol, visibleCols - 1);
+      }
+      const span = Math.max(1, endCol - startCol);
+
+      // Is this the first week segment for this event?
+      const showTitle = eventStart >= weekStart || daysBetween(eventStart, weekStart) % 7 === 0;
+
+      // Find first available row (no overlap)
+      let assignedRow = 0;
+      while (assignedRow < rowSlots.length) {
+        const rowOccupied = rowSlots[assignedRow]!;
+        const hasConflict = rowOccupied.some((id) => {
+          const existing = bars.find((b) => b.event.id === id);
+          if (!existing) return false;
+          const existingEnd = existing.startCol + existing.span;
+          return startCol < existingEnd && (startCol + span) > existing.startCol;
+        });
+        if (!hasConflict) break;
+        assignedRow++;
+      }
+
+      if (!rowSlots[assignedRow]) rowSlots[assignedRow] = [];
+      rowSlots[assignedRow]!.push(event.id);
+
+      bars.push({
+        event,
+        startCol,
+        span,
+        row: assignedRow,
+        showTitle,
+      });
+    }
+
+    // Build cells for this week (skip weekends when hidden)
+    const cells: GridCell[] = [];
+    for (let col = 0; col < visibleCols; col++) {
+      const date = allDates[weekIdx * 7 + col]!;
+      const dateKey = toDateKey(date.toISOString());
+      const singleEvents = singleDayByDate.get(dateKey) ?? [];
+
+      cells.push({
+        date,
+        dayNumber: date.getDate(),
+        isCurrentMonth: date.getMonth() === month,
+        isToday: dateKey === todayKey,
+        singleDayEvents: singleEvents,
+        totalOverflow: Math.max(0, singleEvents.length - 3),
+      });
+    }
+
+    weekRows.push({
+      cells,
+      multiDayBars: bars,
+      barRows: rowSlots.length,
     });
   }
 
-  return cells;
+  return weekRows;
 });
 
 function getEventColor(event: SelectEvent): string {
@@ -167,8 +330,60 @@ function formatTime(dtstart: string): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function onCellClick(cell: GridCell, mouseEvent: MouseEvent) {
-  quickCreateDate.value = cell.date;
-  quickCreatePosition.value = { x: mouseEvent.clientX, y: mouseEvent.clientY };
+// --- Drag-to-select ---
+const drag = reactive({
+  isDragging: false,
+  startIndex: -1,
+  endIndex: -1,
+});
+
+function isCellInSelection(cellIndex: number): boolean {
+  if (!drag.isDragging) return false;
+  const minIndex = Math.min(drag.startIndex, drag.endIndex);
+  const maxIndex = Math.max(drag.startIndex, drag.endIndex);
+  return cellIndex >= minIndex && cellIndex <= maxIndex;
 }
+
+function onCellMouseDown(cellIndex: number, event: MouseEvent) {
+  if (event.button !== 0) return;
+  if ((event.target as HTMLElement).closest("[data-event]")) return;
+
+  drag.isDragging = true;
+  drag.startIndex = cellIndex;
+  drag.endIndex = cellIndex;
+}
+
+function onCellMouseEnter(cellIndex: number) {
+  if (!drag.isDragging) return;
+  drag.endIndex = cellIndex;
+}
+
+function onCellMouseUp() {
+  if (!drag.isDragging) return;
+
+  const startIndex = Math.min(drag.startIndex, drag.endIndex);
+  const endIndex = Math.max(drag.startIndex, drag.endIndex);
+  const wasDragged = startIndex !== endIndex;
+
+  drag.isDragging = false;
+
+  const allCells = weeks.value.flatMap((week) => week.cells);
+  const startCell = allCells[startIndex];
+  const endCell = allCells[endIndex];
+  if (!startCell) return;
+
+  quickCreateDate.value = startCell.date;
+  quickCreateEndDate.value = wasDragged && endCell ? endCell.date : null;
+}
+
+// Handle mouseup outside the grid
+onMounted(() => {
+  const onGlobalMouseUp = () => {
+    if (drag.isDragging) {
+      onCellMouseUp();
+    }
+  };
+  window.addEventListener("mouseup", onGlobalMouseUp);
+  onUnmounted(() => window.removeEventListener("mouseup", onGlobalMouseUp));
+});
 </script>

@@ -73,3 +73,38 @@ export const events = sqliteTable(
 );
 export type InsertEvent = typeof events.$inferInsert;
 export type SelectEvent = typeof events.$inferSelect;
+
+/**
+ * Settings — single-row table for user preferences (synced across devices).
+ * Uses a fixed id="default" for the single settings row.
+ */
+export const settings = sqliteTable(
+  tableName("settings"),
+  {
+    id: text().primaryKey().default("default"),
+
+    // Display
+    defaultView: text("default_view").notNull().default("month"),
+    weekStart: text("week_start").notNull().default("monday"),
+    defaultEventDuration: integer("default_event_duration").notNull().default(60),
+
+    // Regional
+    locale: text().notNull().default("de"),
+    timeFormat: text("time_format").notNull().default("24h"),
+    dateFormat: text("date_format").notNull().default("dd.MM.yyyy"),
+    timezone: text().notNull().default("Europe/Berlin"),
+
+    // View options
+    showWeekends: integer("show_weekends", { mode: "boolean" }).notNull().default(true),
+    showDeclinedEvents: integer("show_declined_events", { mode: "boolean" }).notNull().default(true),
+    showCompletedTasks: integer("show_completed_tasks", { mode: "boolean" }).notNull().default(true),
+    showWeekNumbers: integer("show_week_numbers", { mode: "boolean" }).notNull().default(false),
+    shorterEvents: integer("shorter_events", { mode: "boolean" }).notNull().default(false),
+    dimPastEvents: integer("dim_past_events", { mode: "boolean" }).notNull().default(false),
+    sideBySideDayView: integer("side_by_side_day_view", { mode: "boolean" }).notNull().default(true),
+
+    ...timestamps,
+  }
+);
+export type InsertSettings = typeof settings.$inferInsert;
+export type SelectSettings = typeof settings.$inferSelect;

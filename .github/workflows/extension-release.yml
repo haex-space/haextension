@@ -21,7 +21,7 @@ on:
         type: string
 
 jobs:
-  build-and-upload:
+  build:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.parse.outputs.version }}
@@ -100,35 +100,6 @@ jobs:
           echo "path=$BUNDLE_PATH" >> $GITHUB_OUTPUT
           echo "Found bundle: $BUNDLE_PATH"
 
-      - name: Upload to marketplace
-        env:
-          MARKETPLACE_API_KEY: ${{ secrets.MARKETPLACE_API_KEY }}
-          MARKETPLACE_API: https://marketplace.haex.space
-          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
-          VERSION: ${{ steps.parse.outputs.version }}
-          BUNDLE_PATH: ${{ steps.bundle.outputs.path }}
-        run: |
-          MANIFEST_PATH="apps/${EXT_NAME}/haextension/manifest.json"
-
-          echo "Uploading ${EXT_NAME} v${VERSION} to marketplace..."
-
-          HTTP_CODE=$(curl -s -o /tmp/marketplace-response.txt -w "%{http_code}" \
-            -X POST "${MARKETPLACE_API}/publish/extensions/${EXT_NAME}/bundle" \
-            -H "Authorization: Bearer ${MARKETPLACE_API_KEY}" \
-            -F "bundle=@${BUNDLE_PATH}" \
-            -F "version=${VERSION}" \
-            -F "manifest=<${MANIFEST_PATH}")
-
-          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
-            echo "Successfully uploaded to marketplace"
-          elif [ "$HTTP_CODE" = "409" ]; then
-            echo "Version already exists on marketplace (409) — skipping"
-          else
-            echo "Marketplace upload failed with HTTP $HTTP_CODE:"
-            cat /tmp/marketplace-response.txt
-            exit 1
-          fi
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -136,8 +107,51 @@ jobs:
           path: ${{ steps.bundle.outputs.path }}
           retention-days: 90
 
+  upload-to-marketplace:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/${{ needs.build.outputs.ext_name }}/haextension/manifest.json
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.ext_name }}-${{ needs.build.outputs.version }}
+          path: bundle
+
+      - name: Upload to marketplace
+        env:
+          MARKETPLACE_API_KEY: ${{ secrets.MARKETPLACE_API_KEY }}
+          MARKETPLACE_API: https://marketplace.haex.space
+          EXT_NAME: ${{ needs.build.outputs.ext_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          MANIFEST_PATH="apps/${EXT_NAME}/haextension/manifest.json"
+          BUNDLE_FILE=$(find bundle -name "*.xt" -type f | head -1)
+
+          echo "Uploading ${EXT_NAME} v${VERSION} to marketplace..."
+
+          HTTP_CODE=$(curl -s -o /tmp/marketplace-response.txt -w "%{http_code}" \
+            -X POST "${MARKETPLACE_API}/publish/extensions/${EXT_NAME}/bundle" \
+            -H "Authorization: Bearer ${MARKETPLACE_API_KEY}" \
+            -F "bundle=@${BUNDLE_FILE}" \
+            -F "version=${VERSION}" \
+            -F "manifest=<${MANIFEST_PATH}")
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "Successfully uploaded to marketplace"
+          else
+            echo "Marketplace upload failed with HTTP $HTTP_CODE:"
+            cat /tmp/marketplace-response.txt
+            exit 1
+          fi
+
   push-to-release-branch:
-    needs: build-and-upload
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -150,13 +164,13 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.build-and-upload.outputs.ext_name }}-${{ needs.build-and-upload.outputs.version }}
+          name: ${{ needs.build.outputs.ext_name }}-${{ needs.build.outputs.version }}
           path: bundle
 
       - name: Push to release branch
         env:
-          EXT_NAME: ${{ needs.build-and-upload.outputs.ext_name }}
-          VERSION: ${{ needs.build-and-upload.outputs.version }}
+          EXT_NAME: ${{ needs.build.outputs.ext_name }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           BRANCH="release/${EXT_NAME}"
 
@@ -189,7 +203,7 @@ jobs:
           git push origin "$BRANCH"
 
   github-release:
-    needs: build-and-upload
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -201,13 +215,13 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.build-and-upload.outputs.ext_name }}-${{ needs.build-and-upload.outputs.version }}
+          name: ${{ needs.build.outputs.ext_name }}-${{ needs.build.outputs.version }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.build-and-upload.outputs.ext_name }}-v${{ needs.build-and-upload.outputs.version }}
-          name: ${{ needs.build-and-upload.outputs.ext_name }} v${{ needs.build-and-upload.outputs.version }}
+          tag_name: ${{ needs.build.outputs.ext_name }}-v${{ needs.build.outputs.version }}
+          name: ${{ needs.build.outputs.ext_name }} v${{ needs.build.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true

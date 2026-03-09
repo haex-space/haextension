@@ -1,9 +1,9 @@
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col" :style="{ '--week-grid': gridCols }">
     <!-- Day headers with all-day events -->
-    <div class="border-b border-border shrink-0">
+    <div class="border-b border-border shrink-0 overflow-y-hidden pr-[var(--scrollbar-width,0px)]">
       <!-- Day names -->
-      <div class="grid grid-cols-[3.5rem_repeat(7,1fr)]">
+      <div class="grid grid-cols-(--week-grid)">
         <div /> <!-- Time gutter spacer -->
         <div
           v-for="day in weekDays"
@@ -26,36 +26,37 @@
         </div>
       </div>
 
-      <!-- All-day events row -->
+      <!-- All-day / multi-day event bars -->
       <div
-        v-if="allDayEvents.length > 0"
-        class="grid grid-cols-[3.5rem_repeat(7,1fr)] border-t border-border"
+        v-if="allDayBars.bars.length > 0"
+        class="grid grid-cols-(--week-grid) border-t border-border"
       >
         <div class="text-xs text-muted-foreground p-1 text-right">{{ t('allDay') }}</div>
         <div
-          v-for="day in weekDays"
-          :key="day.key"
-          class="border-l border-border p-0.5 space-y-0.5"
+          :class="`col-span-${dayCount} gap-y-0.5 px-0.5 py-0.5 grid`"
+          :style="{ gridTemplateColumns: `repeat(${dayCount}, 1fr)`, minHeight: `${allDayBars.rowCount * 20 + 4}px` }"
         >
           <div
-            v-for="event in getAllDayForDate(day.key)"
-            :key="event.id"
-            :class="['text-xs px-1.5 py-0.5 rounded truncate cursor-pointer']"
+            v-for="bar in allDayBars.bars"
+            :key="bar.event.id"
+            class="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[18px] leading-[18px]"
             :style="{
-              backgroundColor: getEventColor(event),
+              gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+              gridRow: bar.row + 1,
+              backgroundColor: getEventColor(bar.event),
               color: 'white',
             }"
-            @click="openEventDrawer(event.id)"
+            @click.stop="eventPreview.open(bar.event.id)"
           >
-            {{ event.summary }}
+            {{ bar.showTitle ? bar.event.summary : '' }}
           </div>
         </div>
       </div>
     </div>
 
     <!-- Scrollable time grid -->
-    <div ref="scrollContainer" class="flex-1 overflow-y-auto">
-      <div class="grid grid-cols-[3.5rem_repeat(7,1fr)] relative" :style="{ height: `${HOUR_HEIGHT * 24}px` }">
+    <ShadcnScrollArea ref="scrollAreaRef" class="flex-1">
+      <div class="grid grid-cols-(--week-grid) relative pt-2" :style="{ height: `${HOUR_HEIGHT * 24 + 8}px` }">
         <!-- Time labels -->
         <div class="relative">
           <div
@@ -70,10 +71,12 @@
 
         <!-- Day columns -->
         <div
-          v-for="day in weekDays"
+          v-for="(day, dayIndex) in weekDays"
           :key="day.key"
-          class="relative border-l border-border"
-          @click="onColumnClick(day.date, $event)"
+          class="relative border-l border-border select-none"
+          @mousedown="onDayMouseDown(dayIndex, $event)"
+          @mousemove="onDayMouseMove(dayIndex, $event)"
+          @mouseup="onDayMouseUp(dayIndex)"
         >
           <!-- Hour lines -->
           <div
@@ -81,6 +84,16 @@
             :key="hour"
             class="absolute w-full border-t border-border/50"
             :style="{ top: `${hour * HOUR_HEIGHT}px` }"
+          />
+
+          <!-- Drag selection highlight -->
+          <div
+            v-if="drag.isDragging && drag.dayIndex === dayIndex"
+            class="absolute left-0 right-0 bg-primary/20 rounded border border-primary/40 pointer-events-none z-10"
+            :style="{
+              top: `${dragSelectionTop}px`,
+              height: `${dragSelectionHeight}px`,
+            }"
           />
 
           <!-- Current time indicator -->
@@ -99,6 +112,7 @@
           <div
             v-for="pe in getPositionedEvents(day.key)"
             :key="pe.event.id"
+            data-event
             class="absolute rounded-md px-1.5 py-0.5 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-xs border"
             :style="{
               top: `${(pe.top / 100) * HOUR_HEIGHT * 24}px`,
@@ -109,7 +123,7 @@
               borderColor: getEventColor(pe.event),
               color: getEventColor(pe.event),
             }"
-            @click.stop="openEventDrawer(pe.event.id)"
+            @click.stop="eventPreview.open(pe.event.id)"
           >
             <div class="font-medium truncate">{{ pe.event.summary }}</div>
             <div class="truncate">
@@ -118,13 +132,13 @@
           </div>
         </div>
       </div>
-    </div>
+    </ShadcnScrollArea>
 
     <CalendarQuickCreate
       v-if="quickCreateDate"
       :date="quickCreateDate"
       :time="quickCreateTime"
-      :position="quickCreatePosition"
+      :end-time="quickCreateEndTime"
       @close="quickCreateDate = null"
       @created="quickCreateDate = null"
     />
@@ -137,6 +151,7 @@ import {
   positionEventsInDay,
   groupEventsByDay,
   getAllDayEvents,
+  eventSpansDate,
   toDateKey,
 } from "~/composables/useTimeGrid";
 
@@ -144,20 +159,34 @@ const { t } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
-const openEventDrawer = inject<(id: string) => void>("openEventDrawer")!;
+const eventDrawer = useEventDrawerStore();
+const eventPreview = useEventPreviewStore();
+const settingsStore = useSettingsStore();
 
+const dayCount = computed(() => settingsStore.showWeekends ? 7 : 5);
+const gridCols = computed(() => `3.5rem repeat(${dayCount.value}, 1fr)`);
+
+const scrollAreaRef = ref<InstanceType<typeof ShadcnScrollArea> | null>(null);
 const scrollContainer = ref<HTMLElement | null>(null);
 const quickCreateDate = ref<Date | null>(null);
 const quickCreateTime = ref<string | null>(null);
-const quickCreatePosition = ref({ x: 0, y: 0 });
+const quickCreateEndTime = ref<string | null>(null);
 
 const HOUR_HEIGHT = 60; // px per hour
+const SLOT_MINUTES = 15;
+const SLOT_HEIGHT = HOUR_HEIGHT / (60 / SLOT_MINUTES); // 15px per 15-min slot
 
-// Scroll to 7am on mount
+// Find the reka-ui viewport element (actual scrollable container) and scroll to 7am
 onMounted(() => {
-  if (scrollContainer.value) {
-    scrollContainer.value.scrollTop = 7 * HOUR_HEIGHT;
-  }
+  nextTick(() => {
+    const el = scrollAreaRef.value?.$el;
+    if (!el) return;
+    const viewport = el.querySelector("[data-reka-scroll-area-viewport]") as HTMLElement | null;
+    if (viewport) {
+      scrollContainer.value = viewport;
+      viewport.scrollTop = 7 * HOUR_HEIGHT;
+    }
+  });
 });
 
 const weekDays = computed(() => {
@@ -171,6 +200,8 @@ const weekDays = computed(() => {
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
+    const dow = d.getDay();
+    if (!settingsStore.showWeekends && (dow === 0 || dow === 6)) continue;
     const key = toDateKey(d.toISOString());
     days.push({
       date: new Date(d),
@@ -190,15 +221,79 @@ const currentTimePosition = computed(() => {
 });
 
 const eventsByDay = computed(() => groupEventsByDay(eventsStore.events));
-const allDayEvents = computed(() => getAllDayEvents(eventsStore.events));
+
+interface AllDayBar {
+  event: SelectEvent;
+  startCol: number;
+  span: number;
+  row: number;
+  showTitle: boolean;
+}
+
+const allDayBars = computed(() => {
+  const days = weekDays.value;
+  if (days.length === 0) return { bars: [] as AllDayBar[], rowCount: 0 };
+
+  const allDayEventsList = getAllDayEvents(eventsStore.events);
+  const weekStartKey = days[0]!.key;
+  const weekEndDate = new Date(days[days.length - 1]!.date);
+  weekEndDate.setDate(weekEndDate.getDate() + 1);
+  const weekEndKey = toDateKey(weekEndDate.toISOString());
+
+  const bars: AllDayBar[] = [];
+  const rowSlots: string[][] = [];
+
+  for (const event of allDayEventsList) {
+    const eventStartKey = toDateKey(event.dtstart);
+    const eventEndKey = toDateKey(event.dtend);
+
+    // Check overlap with this week
+    if (eventStartKey >= weekEndKey || eventEndKey <= weekStartKey) continue;
+
+    // Calculate column positions
+    const clampedStartKey = eventStartKey < weekStartKey ? weekStartKey : eventStartKey;
+    const clampedEndKey = eventEndKey > weekEndKey ? weekEndKey : eventEndKey;
+
+    const startCol = days.findIndex((day) => day.key === clampedStartKey);
+    const endCol = days.findIndex((day) => day.key >= clampedEndKey);
+    const effectiveEndCol = endCol === -1 ? days.length : endCol;
+    const span = Math.max(1, effectiveEndCol - Math.max(0, startCol));
+
+    // Always show title — WeekView only renders one week at a time
+    const showTitle = true;
+
+    // Find first available row
+    let assignedRow = 0;
+    while (assignedRow < rowSlots.length) {
+      const rowOccupied = rowSlots[assignedRow]!;
+      const hasConflict = rowOccupied.some((id) => {
+        const existing = bars.find((bar) => bar.event.id === id);
+        if (!existing) return false;
+        const existingEnd = existing.startCol + existing.span;
+        return Math.max(0, startCol) < existingEnd && (Math.max(0, startCol) + span) > existing.startCol;
+      });
+      if (!hasConflict) break;
+      assignedRow++;
+    }
+
+    if (!rowSlots[assignedRow]) rowSlots[assignedRow] = [];
+    rowSlots[assignedRow]!.push(event.id);
+
+    bars.push({
+      event,
+      startCol: Math.max(0, startCol),
+      span,
+      row: assignedRow,
+      showTitle,
+    });
+  }
+
+  return { bars, rowCount: rowSlots.length };
+});
 
 function getPositionedEvents(dateKey: string) {
   const dayEvents = eventsByDay.value.get(dateKey) ?? [];
   return positionEventsInDay(dayEvents);
-}
-
-function getAllDayForDate(dateKey: string) {
-  return allDayEvents.value.filter((e) => toDateKey(e.dtstart) === dateKey);
 }
 
 function getEventColor(event: SelectEvent): string {
@@ -212,15 +307,72 @@ function formatTime(dt: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function onColumnClick(date: Date, event: MouseEvent) {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  const relativeY = event.clientY - rect.top + (scrollContainer.value?.scrollTop ?? 0);
-  const hour = Math.floor(relativeY / HOUR_HEIGHT);
-  const minutes = Math.round(((relativeY % HOUR_HEIGHT) / HOUR_HEIGHT) * 60 / 15) * 15; // Snap to 15min
+// --- Drag-to-select ---
+const drag = reactive({
+  isDragging: false,
+  dayIndex: -1,
+  startSlot: 0,
+  endSlot: 0,
+});
 
-  quickCreateDate.value = date;
-  quickCreateTime.value = `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-  quickCreatePosition.value = { x: event.clientX, y: event.clientY };
+function getTimeSlot(dayIndex: number, event: MouseEvent): number {
+  if (!scrollContainer.value) return 0;
+  const scrollRect = scrollContainer.value.getBoundingClientRect();
+  const relativeY = event.clientY - scrollRect.top + scrollContainer.value.scrollTop;
+  return Math.max(0, Math.min(95, Math.floor(relativeY / SLOT_HEIGHT)));
+}
+
+function slotToTime(slot: number): string {
+  const totalMinutes = slot * SLOT_MINUTES;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+const dragSelectionTop = computed(() => {
+  const minSlot = Math.min(drag.startSlot, drag.endSlot);
+  return minSlot * SLOT_HEIGHT;
+});
+
+const dragSelectionHeight = computed(() => {
+  const diff = Math.abs(drag.endSlot - drag.startSlot) + 1;
+  return diff * SLOT_HEIGHT;
+});
+
+function onDayMouseDown(dayIndex: number, event: MouseEvent) {
+  if (event.button !== 0) return;
+  if ((event.target as HTMLElement).closest("[data-event]")) return;
+
+  const slot = getTimeSlot(dayIndex, event);
+  drag.isDragging = true;
+  drag.dayIndex = dayIndex;
+  drag.startSlot = slot;
+  drag.endSlot = slot;
+}
+
+function onDayMouseMove(dayIndex: number, event: MouseEvent) {
+  if (!drag.isDragging || drag.dayIndex !== dayIndex) return;
+  drag.endSlot = getTimeSlot(dayIndex, event);
+}
+
+function onDayMouseUp(dayIndex: number) {
+  if (!drag.isDragging || drag.dayIndex !== dayIndex) {
+    drag.isDragging = false;
+    return;
+  }
+
+  const startSlot = Math.min(drag.startSlot, drag.endSlot);
+  const endSlot = Math.max(drag.startSlot, drag.endSlot);
+  const wasDragged = startSlot !== endSlot;
+
+  drag.isDragging = false;
+
+  const day = weekDays.value[dayIndex];
+  if (!day) return;
+
+  quickCreateDate.value = day.date;
+  quickCreateTime.value = slotToTime(startSlot);
+  quickCreateEndTime.value = wasDragged ? slotToTime(endSlot + 1) : null;
 }
 </script>
 

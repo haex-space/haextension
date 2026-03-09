@@ -1,4 +1,4 @@
-CREATE TABLE `TODO_GENERATE_PUBLIC_KEY__haex-calendar__calendars` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-calendar__calendars` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`color` text DEFAULT '#3b82f6' NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE `TODO_GENERATE_PUBLIC_KEY__haex-calendar__calendars` (
 	`updated_at` integer DEFAULT (unixepoch())
 );
 --> statement-breakpoint
-CREATE TABLE `TODO_GENERATE_PUBLIC_KEY__haex-calendar__events` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-calendar__events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`calendar_id` text NOT NULL,
 	`uid` text NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `TODO_GENERATE_PUBLIC_KEY__haex-calendar__events` (
 	`color` text,
 	`created_at` integer DEFAULT (unixepoch()),
 	`updated_at` integer DEFAULT (unixepoch()),
-	FOREIGN KEY (`calendar_id`) REFERENCES `TODO_GENERATE_PUBLIC_KEY__haex-calendar__calendars`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`calendar_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-calendar__calendars`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `TODO_GENERATE_PUBLIC_KEY__haex-calendar__events_uid_unique` ON `TODO_GENERATE_PUBLIC_KEY__haex-calendar__events` (`uid`);
+CREATE UNIQUE INDEX `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-calendar__events_uid_unique` ON `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-calendar__events` (`uid`);

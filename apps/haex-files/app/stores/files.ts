@@ -8,6 +8,7 @@ import { eq, sql, and, or } from "drizzle-orm";
 import { minimatch } from "minimatch";
 import type { DirEntry, FileChangeEvent } from "@haex-space/vault-sdk";
 import { HAEXTENSION_EVENTS } from "@haex-space/vault-sdk";
+import { isPermissionPromptError, isPermissionDeniedError } from "./haexvault";
 import {
   syncQueue as syncQueueTable,
   syncState as syncStateTable,
@@ -287,8 +288,16 @@ export const useFilesStore = defineStore("files", () => {
       // Read directory using Core filesystem API
       const entries = await haexVaultStore.client.filesystem.readDir(fullPath);
       files.value = entries.map((e) => dirEntryToLocalFileInfo(e, rule.localPath));
+      haexVaultStore.clearPermissionPrompt();
     } catch (error) {
       console.warn("[haex-files] Failed to load local files:", error);
+
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, () => loadFilesAsync(ruleId, subpath));
+      } else if (isPermissionDeniedError(error)) {
+        haexVaultStore.setPermissionDenied(error);
+      }
+
       files.value = [];
     } finally {
       isLoading.value = false;
@@ -912,6 +921,23 @@ export const useFilesStore = defineStore("files", () => {
       // Mark as completed
       await completeQueueEntryAsync(entry.id);
     } catch (error) {
+      // If permission is required, show the dialog and stop processing
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, () => processQueueAsync());
+        return false; // Stop processing queue
+      }
+
+      // If permission was denied, show the denied dialog and stop processing
+      if (isPermissionDeniedError(error)) {
+        haexVaultStore.setPermissionDenied(error);
+        // Reset entry back to pending so it can be retried after permission is granted
+        await haexVaultStore.orm
+          ?.update(syncQueueTable)
+          .set({ status: QUEUE_STATUS.PENDING, startedAt: null })
+          .where(eq(syncQueueTable.id, entry.id));
+        return false; // Stop processing queue - prevent endless loop
+      }
+
       const errorMsg = extractErrorMessage(error);
       await failQueueEntryAsync(entry.id, errorMsg);
       console.warn(`[haex-files] ${entry.operation} failed: ${entry.relativePath}`, error);
@@ -1209,7 +1235,15 @@ export const useFilesStore = defineStore("files", () => {
       }
     } catch (error) {
       console.error("[haex-files] Sync failed:", error);
-      throw error;
+
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, () => triggerSyncAsync(ruleId));
+      } else if (isPermissionDeniedError(error)) {
+        haexVaultStore.setPermissionDenied(error);
+        // Don't rethrow - user needs to grant permission in haex-vault settings
+      } else {
+        throw error;
+      }
     } finally {
       isSyncing.value = false;
       uploadProgress.value = null;
@@ -1343,6 +1377,12 @@ export const useFilesStore = defineStore("files", () => {
       return;
     }
 
+    // Skip if a permission was denied - prevent endless loop
+    if (haexVaultStore.deniedPermission) {
+      console.log("[haex-files] Permission denied, skipping auto-sync until resolved");
+      return;
+    }
+
     const rule = syncRulesStore.getRule(event.ruleId);
     if (!rule) {
       console.warn(`[haex-files] Unknown rule for file change event: ${event.ruleId}`);
@@ -1411,6 +1451,11 @@ export const useFilesStore = defineStore("files", () => {
   const checkRuleForChangesAsync = async (rule: SyncRule): Promise<void> => {
     // Skip if rule is disabled or direction is download-only
     if (!rule.enabled || rule.direction === "down") {
+      return;
+    }
+
+    // Skip if a permission was denied - prevent endless loop
+    if (haexVaultStore.deniedPermission) {
       return;
     }
 

@@ -1,6 +1,6 @@
 {
   "dev": {
-    "port": 3002,
+    "port": 4003,
     "host": "localhost"
   },
   "build": {

@@ -7,42 +7,46 @@
           <label class="text-sm font-medium">{{ t('fields.summary') }}</label>
           <input
             v-model="form.summary"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
+            class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
           />
-        </div>
-
-        <!-- Date/Time -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-sm font-medium">{{ t('fields.start') }}</label>
-            <input
-              v-model="form.dtstart"
-              :type="form.allDay ? 'date' : 'datetime-local'"
-              class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-            />
-          </div>
-          <div>
-            <label class="text-sm font-medium">{{ t('fields.end') }}</label>
-            <input
-              v-model="form.dtend"
-              :type="form.allDay ? 'date' : 'datetime-local'"
-              class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-            />
-          </div>
         </div>
 
         <!-- All day toggle -->
         <label class="flex items-center gap-2 cursor-pointer">
-          <input v-model="form.allDay" type="checkbox" class="rounded" />
-          <span class="text-sm">{{ t('fields.allDay') }}</span>
+          <ShadcnCheckbox v-model="form.allDay" />
+          <span>{{ t('fields.allDay') }}</span>
         </label>
+
+        <!-- Date pickers -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('fields.start') }}</label>
+            <ShadcnDatePicker v-model="form.startDate" :clearable="false" locale="de-DE" />
+          </div>
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('fields.end') }}</label>
+            <ShadcnDatePicker v-model="form.endDate" :clearable="false" locale="de-DE" />
+          </div>
+        </div>
+
+        <!-- Time pickers (only when not all day) -->
+        <div v-if="!form.allDay" class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('fields.startTime') }}</label>
+            <UiTimePicker v-model="form.startTime" />
+          </div>
+          <div>
+            <label class="text-sm font-medium mb-1 block">{{ t('fields.endTime') }}</label>
+            <UiTimePicker v-model="form.endTime" />
+          </div>
+        </div>
 
         <!-- Location -->
         <div>
           <label class="text-sm font-medium">{{ t('fields.location') }}</label>
           <input
             v-model="form.location"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
+            class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
             :placeholder="t('fields.locationPlaceholder')"
           />
         </div>
@@ -50,14 +54,16 @@
         <!-- Status -->
         <div>
           <label class="text-sm font-medium">{{ t('fields.status') }}</label>
-          <select
-            v-model="form.status"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-          >
-            <option value="CONFIRMED">{{ t('status.confirmed') }}</option>
-            <option value="TENTATIVE">{{ t('status.tentative') }}</option>
-            <option value="CANCELLED">{{ t('status.cancelled') }}</option>
-          </select>
+          <ShadcnSelect v-model="form.status">
+            <ShadcnSelectTrigger class="mt-1">
+              <ShadcnSelectValue />
+            </ShadcnSelectTrigger>
+            <ShadcnSelectContent>
+              <ShadcnSelectItem value="CONFIRMED">{{ t('status.confirmed') }}</ShadcnSelectItem>
+              <ShadcnSelectItem value="TENTATIVE">{{ t('status.tentative') }}</ShadcnSelectItem>
+              <ShadcnSelectItem value="CANCELLED">{{ t('status.cancelled') }}</ShadcnSelectItem>
+            </ShadcnSelectContent>
+          </ShadcnSelect>
         </div>
 
         <!-- Color -->
@@ -68,7 +74,7 @@
               v-for="c in presetColors"
               :key="c"
               :class="[
-                'w-7 h-7 rounded-full border-2 transition-transform',
+                'w-8 h-8 rounded-full border-2 transition-transform',
                 form.color === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105',
               ]"
               :style="{ backgroundColor: c }"
@@ -82,7 +88,7 @@
           <label class="text-sm font-medium">{{ t('fields.categories') }}</label>
           <input
             v-model="form.categories"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
+            class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
             :placeholder="t('fields.categoriesPlaceholder')"
           />
         </div>
@@ -93,7 +99,7 @@
           <input
             v-model="form.url"
             type="url"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
+            class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
             placeholder="https://..."
           />
         </div>
@@ -111,44 +117,55 @@
         <!-- Calendar -->
         <div>
           <label class="text-sm font-medium">{{ t('fields.calendar') }}</label>
-          <select
-            v-model="form.calendarId"
-            class="w-full mt-1 bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-          >
-            <option
-              v-for="cal in calendarsStore.calendars"
-              :key="cal.id"
-              :value="cal.id"
-            >
-              {{ cal.name }}
-            </option>
-          </select>
+          <ShadcnSelect v-model="form.calendarId">
+            <ShadcnSelectTrigger class="mt-1">
+              <ShadcnSelectValue />
+            </ShadcnSelectTrigger>
+            <ShadcnSelectContent>
+              <ShadcnSelectItem
+                v-for="cal in calendarsStore.calendars"
+                :key="cal.id"
+                :value="cal.id"
+              >
+                <span class="flex items-center gap-2">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full shrink-0"
+                    :style="{ backgroundColor: cal.color }"
+                  />
+                  {{ cal.name }}
+                </span>
+              </ShadcnSelectItem>
+            </ShadcnSelectContent>
+          </ShadcnSelect>
         </div>
       </div>
     </template>
 
     <template #footer>
-      <div class="flex gap-2 p-4 border-t border-border">
-        <button
-          v-if="!isNew"
-          class="text-sm text-destructive hover:text-destructive/80 px-3 py-2 transition-colors"
-          @click="handleDelete"
-        >
-          {{ t('delete') }}
-        </button>
-        <div class="flex-1" />
-        <button
-          class="text-sm text-muted-foreground px-3 py-2"
-          @click="isOpen = false"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          class="text-sm bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
-          @click="handleSave"
-        >
-          {{ t('save') }}
-        </button>
+      <div class="w-full">
+        <div class="-mx-6 border-t border-border" />
+        <div class="flex gap-2 pt-4">
+          <button
+            v-if="!isNew"
+            class="text-destructive hover:text-destructive/80 px-3 py-2 transition-colors"
+            @click="handleDelete"
+          >
+            {{ t('delete') }}
+          </button>
+          <div class="flex-1" />
+          <button
+            class="text-muted-foreground px-3 py-2"
+            @click="isOpen = false"
+          >
+            {{ t('cancel') }}
+          </button>
+          <button
+            class="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+            @click="handleSave"
+          >
+            {{ t('save') }}
+          </button>
+        </div>
       </div>
     </template>
   </UiDrawerModal>
@@ -171,8 +188,10 @@ const isNew = computed(() => !props.eventId);
 
 const form = reactive({
   summary: "",
-  dtstart: "",
-  dtend: "",
+  startDate: "",
+  endDate: "",
+  startTime: "09:00",
+  endTime: "10:00",
   allDay: false,
   location: "",
   status: "CONFIRMED",
@@ -188,11 +207,12 @@ watch(
   () => props.eventId,
   (id) => {
     if (!id) {
-      // Reset form for new event
       Object.assign(form, {
         summary: "",
-        dtstart: "",
-        dtend: "",
+        startDate: "",
+        endDate: "",
+        startTime: "09:00",
+        endTime: "10:00",
         allDay: false,
         location: "",
         status: "CONFIRMED",
@@ -208,17 +228,29 @@ watch(
     const event = eventsStore.getEvent(id);
     if (!event) return;
 
-    // Format dates for input fields
-    const formatForInput = (dt: string, allDay: boolean) => {
-      if (allDay) return dt.split("T")[0];
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    const parseDateTime = (dt: string) => {
       const d = new Date(dt);
-      return d.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+      return {
+        date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+        time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      };
     };
+
+    const start = event.allDay
+      ? { date: event.dtstart.split("T")[0], time: "09:00" }
+      : parseDateTime(event.dtstart);
+    const end = event.allDay
+      ? { date: event.dtend.split("T")[0], time: "10:00" }
+      : parseDateTime(event.dtend);
 
     Object.assign(form, {
       summary: event.summary,
-      dtstart: formatForInput(event.dtstart, event.allDay),
-      dtend: formatForInput(event.dtend, event.allDay),
+      startDate: start.date,
+      endDate: end.date,
+      startTime: start.time,
+      endTime: end.time,
       allDay: event.allDay,
       location: event.location ?? "",
       status: event.status,
@@ -235,10 +267,17 @@ watch(
 async function handleSave() {
   if (!form.summary.trim()) return;
 
+  const dtstart = form.allDay
+    ? form.startDate
+    : new Date(`${form.startDate}T${form.startTime}`).toISOString();
+  const dtend = form.allDay
+    ? form.endDate
+    : new Date(`${form.endDate}T${form.endTime}`).toISOString();
+
   const data = {
     summary: form.summary.trim(),
-    dtstart: form.allDay ? form.dtstart : new Date(form.dtstart).toISOString(),
-    dtend: form.allDay ? form.dtend : new Date(form.dtend).toISOString(),
+    dtstart,
+    dtend,
     allDay: form.allDay,
     location: form.location || null,
     status: form.status,
@@ -276,6 +315,8 @@ de:
     summary: Titel
     start: Start
     end: Ende
+    startTime: Startzeit
+    endTime: Endzeit
     allDay: Ganztägig
     location: Ort
     locationPlaceholder: Ort hinzufügen
@@ -301,6 +342,8 @@ en:
     summary: Title
     start: Start
     end: End
+    startTime: Start time
+    endTime: End time
     allDay: All day
     location: Location
     locationPlaceholder: Add location

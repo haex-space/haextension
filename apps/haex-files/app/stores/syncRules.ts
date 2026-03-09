@@ -4,6 +4,7 @@
 
 import { eq } from "drizzle-orm";
 import { syncRules as syncRulesTable, type SelectSyncRule } from "~/database/schemas";
+import { isPermissionPromptError } from "./haexvault";
 
 // Types for sync rules
 export type SyncDirection = "up" | "down" | "both";
@@ -101,8 +102,14 @@ export const useSyncRulesStore = defineStore("syncRules", () => {
     try {
       const rows = await haexVaultStore.orm.select().from(syncRulesTable);
       syncRules.value = rows.map(dbRowToSyncRule);
+      haexVaultStore.clearPermissionPrompt();
     } catch (error) {
       console.warn("[haex-files] Failed to load sync rules:", error);
+
+      if (isPermissionPromptError(error)) {
+        haexVaultStore.setPermissionPrompt(error, loadSyncRulesAsync);
+      }
+
       syncRules.value = [];
     } finally {
       isLoading.value = false;
