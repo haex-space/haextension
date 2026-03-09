@@ -70,7 +70,7 @@ jobs:
       - name: Run tests
         env:
           EXT_NAME: ${{ steps.parse.outputs.ext_name }}
-        run: pnpm --filter "$EXT_NAME" run test --if-present
+        run: pnpm --filter "$EXT_NAME" run --if-present test
 
       - name: Setup signing keys
         env:
