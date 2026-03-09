@@ -1,0 +1,108 @@
+name: Extension Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+    tags-ignore:
+      - '*'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      extensions: ${{ steps.changes.outputs.extensions }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed extensions
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE_SHA"
+          else
+            BASE="$PUSH_BEFORE_SHA"
+          fi
+
+          CHANGED_FILES=$(git diff --name-only "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+
+          EXTENSIONS=()
+          for ext in haex-pass haex-files haex-send haex-calendar; do
+            if echo "$CHANGED_FILES" | grep -q "^apps/${ext}/" || echo "$CHANGED_FILES" | grep -q "^packages/"; then
+              EXTENSIONS+=("\"${ext}\"")
+            fi
+          done
+
+          if [ ${#EXTENSIONS[@]} -eq 0 ]; then
+            echo "extensions=[]" >> $GITHUB_OUTPUT
+          else
+            MATRIX=$(IFS=,; echo "[${EXTENSIONS[*]}]")
+            echo "extensions=$MATRIX" >> $GITHUB_OUTPUT
+          fi
+          echo "Building: ${EXTENSIONS[*]:-none}"
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.extensions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extension: ${{ fromJson(needs.detect-changes.outputs.extensions) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare dependencies
+        env:
+          EXT_NAME: ${{ matrix.extension }}
+        run: |
+          cd packages/haex-ui && npx nuxt prepare && cd ../..
+          pnpm --filter "$EXT_NAME" exec nuxt prepare
+
+      - name: Run tests
+        env:
+          EXT_NAME: ${{ matrix.extension }}
+        run: pnpm --filter "$EXT_NAME" run test --if-present
+
+      - name: Type check
+        env:
+          EXT_NAME: ${{ matrix.extension }}
+        run: pnpm --filter "$EXT_NAME" exec vue-tsc --noEmit
+
+      - name: Build extension
+        env:
+          EXT_NAME: ${{ matrix.extension }}
+        run: pnpm --filter "$EXT_NAME" build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.extension }}-build-${{ github.sha }}
+          path: apps/${{ matrix.extension }}/.output/public
+          retention-days: 7

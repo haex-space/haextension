@@ -1,10 +1,17 @@
 {
   "name": "haextension",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
+  "scripts": {
+    "release:haex-pass": "node scripts/release.js haex-pass",
+    "release:haex-files": "node scripts/release.js haex-files",
+    "release:haex-send": "node scripts/release.js haex-send",
+    "release:haex-calendar": "node scripts/release.js haex-calendar"
+  },
   "pnpm": {
     "overrides": {
       "drizzle-orm": "0.45.1"

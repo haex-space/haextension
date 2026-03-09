@@ -1,0 +1,209 @@
+name: Extension Release
+
+on:
+  push:
+    tags:
+      - 'haex-*-v*'
+  workflow_dispatch:
+    inputs:
+      extension:
+        description: 'Extension name (e.g., haex-pass)'
+        required: true
+        type: choice
+        options:
+          - haex-pass
+          - haex-files
+          - haex-send
+          - haex-calendar
+      version:
+        description: 'Version (without v prefix, e.g., 1.4.13)'
+        required: true
+        type: string
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      ext_name: ${{ steps.parse.outputs.ext_name }}
+    steps:
+      - name: Parse tag
+        id: parse
+        env:
+          INPUT_EXT: ${{ github.event.inputs.extension }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          GIT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "$INPUT_EXT" ]; then
+            echo "ext_name=$INPUT_EXT" >> $GITHUB_OUTPUT
+            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+          else
+            TAG="${GIT_REF#refs/tags/}"
+            EXT_NAME=$(echo "$TAG" | sed 's/-v[0-9]*\.[0-9]*\.[0-9]*$//')
+            VERSION=$(echo "$TAG" | sed 's/.*-v//')
+            echo "ext_name=$EXT_NAME" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare dependencies
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+        run: |
+          cd packages/haex-ui && npx nuxt prepare && cd ../..
+          pnpm --filter "$EXT_NAME" exec nuxt prepare
+
+      - name: Run tests
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+        run: pnpm --filter "$EXT_NAME" run test --if-present
+
+      - name: Setup signing keys
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+          PRIVATE_KEY: ${{ secrets.EXTENSION_PRIVATE_KEY }}
+          PUBLIC_KEY: ${{ secrets.EXTENSION_PUBLIC_KEY }}
+        run: |
+          mkdir -p "apps/${EXT_NAME}/haextension"
+          echo "$PRIVATE_KEY" > "apps/${EXT_NAME}/haextension/private.key"
+          echo "$PUBLIC_KEY" > "apps/${EXT_NAME}/haextension/public.key"
+
+      - name: Build extension
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+        run: pnpm --filter "$EXT_NAME" build:release
+
+      - name: Find bundle file
+        id: bundle
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+        run: |
+          BUNDLE_PATH=$(find "apps/${EXT_NAME}" -name "*.xt" -type f | head -1)
+          if [ -z "$BUNDLE_PATH" ]; then
+            echo "No .xt bundle found!"
+            exit 1
+          fi
+          echo "path=$BUNDLE_PATH" >> $GITHUB_OUTPUT
+          echo "Found bundle: $BUNDLE_PATH"
+
+      - name: Upload to marketplace
+        env:
+          MARKETPLACE_API_KEY: ${{ secrets.MARKETPLACE_API_KEY }}
+          MARKETPLACE_API: https://marketplace.haex.space
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+          VERSION: ${{ steps.parse.outputs.version }}
+          BUNDLE_PATH: ${{ steps.bundle.outputs.path }}
+        run: |
+          MANIFEST_PATH="apps/${EXT_NAME}/haextension/manifest.json"
+
+          echo "Uploading ${EXT_NAME} v${VERSION} to marketplace..."
+
+          curl -X POST "${MARKETPLACE_API}/publish/extensions/${EXT_NAME}/bundle" \
+            -H "Authorization: Bearer ${MARKETPLACE_API_KEY}" \
+            -F "bundle=@${BUNDLE_PATH}" \
+            -F "version=${VERSION}" \
+            -F "manifest=<${MANIFEST_PATH}" \
+            --fail-with-body
+
+          echo "Successfully uploaded to marketplace"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.parse.outputs.ext_name }}-${{ steps.parse.outputs.version }}
+          path: ${{ steps.bundle.outputs.path }}
+          retention-days: 90
+
+  push-to-release-branch:
+    needs: build-and-upload
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-and-upload.outputs.ext_name }}-${{ needs.build-and-upload.outputs.version }}
+          path: bundle
+
+      - name: Push to release branch
+        env:
+          EXT_NAME: ${{ needs.build-and-upload.outputs.ext_name }}
+          VERSION: ${{ needs.build-and-upload.outputs.version }}
+        run: |
+          BRANCH="release/${EXT_NAME}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create orphan branch if it doesn't exist, otherwise checkout
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+          else
+            git checkout --orphan "$BRANCH"
+            git rm -rf .
+            echo "# ${EXT_NAME} Releases" > RELEASES.md
+            echo "" >> RELEASES.md
+            echo "| Version | Date | Bundle |" >> RELEASES.md
+            echo "|---------|------|--------|" >> RELEASES.md
+          fi
+
+          # Copy bundle
+          BUNDLE_FILE=$(find bundle -name "*.xt" -type f | head -1)
+          cp "$BUNDLE_FILE" "./${EXT_NAME}-${VERSION}.xt"
+
+          # Append to RELEASES.md
+          DATE=$(date -u +"%Y-%m-%d")
+          echo "| ${VERSION} | ${DATE} | [${EXT_NAME}-${VERSION}.xt](./${EXT_NAME}-${VERSION}.xt) |" >> RELEASES.md
+
+          git add "${EXT_NAME}-${VERSION}.xt" RELEASES.md
+          git commit -m "release: ${EXT_NAME} v${VERSION}"
+          git push origin "$BRANCH"
+
+  github-release:
+    needs: build-and-upload
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-and-upload.outputs.ext_name }}-${{ needs.build-and-upload.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-and-upload.outputs.ext_name }}-v${{ needs.build-and-upload.outputs.version }}
+          name: ${{ needs.build-and-upload.outputs.ext_name }} v${{ needs.build-and-upload.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            *.xt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
