@@ -16,7 +16,7 @@
     "build:release": "pnpm build && pnpm package"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.107",
+    "@haex-space/vault-sdk": "^2.5.113",
     "@internationalized/date": "^3.10.1",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",

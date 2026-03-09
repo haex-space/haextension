@@ -112,6 +112,7 @@
 
 <script setup lang="ts">
 import type { SelectEvent } from "~/database/schemas";
+import type { ComponentPublicInstance } from "vue";
 import {
   positionEventsInDay,
   getAllDayEvents,
@@ -126,7 +127,7 @@ const calendarsStore = useCalendarsStore();
 const eventDrawer = useEventDrawerStore();
 const eventPreview = useEventPreviewStore();
 
-const scrollAreaRef = ref<InstanceType<typeof ShadcnScrollArea> | null>(null);
+const scrollAreaRef = ref<ComponentPublicInstance | null>(null);
 const scrollContainer = ref<HTMLElement | null>(null);
 const dayColumn = ref<HTMLElement | null>(null);
 const quickCreateDate = ref<Date | null>(null);

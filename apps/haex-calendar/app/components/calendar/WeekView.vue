@@ -147,6 +147,7 @@
 
 <script setup lang="ts">
 import type { SelectEvent } from "~/database/schemas";
+import type { ComponentPublicInstance } from "vue";
 import {
   positionEventsInDay,
   groupEventsByDay,
@@ -166,7 +167,7 @@ const settingsStore = useSettingsStore();
 const dayCount = computed(() => settingsStore.showWeekends ? 7 : 5);
 const gridCols = computed(() => `3.5rem repeat(${dayCount.value}, 1fr)`);
 
-const scrollAreaRef = ref<InstanceType<typeof ShadcnScrollArea> | null>(null);
+const scrollAreaRef = ref<ComponentPublicInstance | null>(null);
 const scrollContainer = ref<HTMLElement | null>(null);
 const quickCreateDate = ref<Date | null>(null);
 const quickCreateTime = ref<string | null>(null);

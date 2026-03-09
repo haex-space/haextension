@@ -61,10 +61,10 @@ export const useEventsStore = defineStore("events", () => {
       );
       if (calendarAssignments.length > 0) {
         await haexVault.client.spaces.assignAsync(
-          calendarAssignments.map((a) => ({
+          calendarAssignments.map((assignment) => ({
             tableName: FULL_EVENTS_TABLE,
             rowPks: JSON.stringify({ id }),
-            spaceId: a.spaceId,
+            spaceId: assignment.spaceId,
           })),
         );
       }
@@ -80,7 +80,7 @@ export const useEventsStore = defineStore("events", () => {
     if (!haexVault.orm) return;
 
     // Increment SEQUENCE on every update (CalDAV standard)
-    const existing = visibleEvents.value.find((e) => e.id === id);
+    const existing = visibleEvents.value.find((event) => event.id === id);
     const newSequence = (existing?.sequence ?? 0) + 1;
 
     await haexVault.orm
@@ -97,7 +97,7 @@ export const useEventsStore = defineStore("events", () => {
   }
 
   function getEvent(id: string) {
-    return visibleEvents.value.find((e) => e.id === id);
+    return visibleEvents.value.find((event) => event.id === id);
   }
 
   return {

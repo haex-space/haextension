@@ -18,7 +18,7 @@ export const useCalendarsStore = defineStore("calendars", () => {
 
   // Only calendars marked as visible
   const visibleCalendarIds = computed(() =>
-    allCalendars.value.filter((c) => c.visible).map((c) => c.id)
+    allCalendars.value.filter((cal) => cal.visible).map((cal) => cal.id)
   );
 
   async function loadCalendarsAsync() {
@@ -58,13 +58,13 @@ export const useCalendarsStore = defineStore("calendars", () => {
   }
 
   async function toggleVisibilityAsync(id: string) {
-    const cal = allCalendars.value.find((c) => c.id === id);
-    if (!cal) return;
-    await updateCalendarAsync(id, { visible: !cal.visible });
+    const calendar = allCalendars.value.find((cal) => cal.id === id);
+    if (!calendar) return;
+    await updateCalendarAsync(id, { visible: !calendar.visible });
   }
 
   function getCalendar(id: string) {
-    return allCalendars.value.find((c) => c.id === id);
+    return allCalendars.value.find((cal) => cal.id === id);
   }
 
   /**
@@ -96,9 +96,9 @@ export const useCalendarsStore = defineStore("calendars", () => {
         rowPks: JSON.stringify({ id: calendarId }),
         spaceId,
       },
-      ...calendarEvents.map((evt) => ({
+      ...calendarEvents.map((calendarEvent) => ({
         tableName: FULL_EVENTS_TABLE,
-        rowPks: JSON.stringify({ id: evt.id }),
+        rowPks: JSON.stringify({ id: calendarEvent.id }),
         spaceId,
       })),
     ];
@@ -132,9 +132,9 @@ export const useCalendarsStore = defineStore("calendars", () => {
         rowPks: JSON.stringify({ id: calendarId }),
         spaceId,
       },
-      ...calendarEvents.map((evt) => ({
+      ...calendarEvents.map((calendarEvent) => ({
         tableName: FULL_EVENTS_TABLE,
-        rowPks: JSON.stringify({ id: evt.id }),
+        rowPks: JSON.stringify({ id: calendarEvent.id }),
         spaceId,
       })),
     ];
@@ -142,8 +142,8 @@ export const useCalendarsStore = defineStore("calendars", () => {
     await haexVault.client.spaces.unassignAsync(assignments);
 
     // Check if any assignments remain
-    const remaining = await getCalendarAssignmentsAsync(calendarId);
-    const newSpaceId = remaining.length > 0 ? remaining[0].spaceId : null;
+    const remainingAssignments = await getCalendarAssignmentsAsync(calendarId);
+    const newSpaceId = remainingAssignments[0]?.spaceId ?? null;
 
     await haexVault.orm
       .update(calendars)
