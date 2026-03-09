@@ -172,6 +172,10 @@
                 </button>
               </ShadcnDropdownMenuTrigger>
               <ShadcnDropdownMenuContent align="end" class="w-48">
+                <ShadcnDropdownMenuItem @click="openShareDialog(cal.id)">
+                  <Share2 class="w-4 h-4 mr-2" />
+                  {{ t('sidebar.share') }}
+                </ShadcnDropdownMenuItem>
                 <ShadcnDropdownMenuItem @click="startRenameCalendar(cal)">
                   <Pencil class="w-4 h-4 mr-2" />
                   {{ t('sidebar.rename') }}
@@ -238,6 +242,13 @@
     <CalendarEventDrawer
       v-model:open="eventDrawer.isOpen"
       :event-id="eventDrawer.eventId"
+    />
+
+    <!-- Share Calendar Dialog -->
+    <CalendarShareDialog
+      v-if="shareCalendarId"
+      v-model:open="showShareDialog"
+      :calendar-id="shareCalendarId"
     />
 
     <!-- Delete calendar confirmation -->
@@ -396,9 +407,22 @@ function handleExport() {
   console.log("[haex-calendar] Export not yet implemented");
 }
 
+// Share dialog
+const shareCalendarId = ref<string | null>(null);
+const showShareDialog = computed({
+  get: () => shareCalendarId.value !== null,
+  set: (v) => { if (!v) shareCalendarId.value = null; },
+});
+
 function handleShare() {
-  // TODO: implement calendar sharing
-  console.log("[haex-calendar] Share not yet implemented");
+  // Open share dialog for the first calendar (toolbar menu)
+  const firstCalendar = calendarsStore.calendars[0];
+  if (!firstCalendar) return;
+  shareCalendarId.value = firstCalendar.id;
+}
+
+function openShareDialog(calendarId: string) {
+  shareCalendarId.value = calendarId;
 }
 
 // Calendar context menu
@@ -494,6 +518,7 @@ de:
     calendars: Kalender
     addCalendar: Kalender erstellen
     shared: Geteilt
+    share: Teilen
     rename: Umbenennen
     color: Farbe
     delete: Löschen
@@ -519,6 +544,7 @@ en:
     calendars: Calendars
     addCalendar: Create calendar
     shared: Shared
+    share: Share
     rename: Rename
     color: Color
     delete: Delete

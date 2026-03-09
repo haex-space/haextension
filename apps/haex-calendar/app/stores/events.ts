@@ -1,5 +1,6 @@
 import { and, gte, lte, inArray, eq } from "drizzle-orm";
 import { events, type InsertEvent, type SelectEvent } from "~/database/schemas";
+import { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE } from "~/stores/calendars";
 
 export type { SelectEvent, InsertEvent };
 
@@ -51,6 +52,26 @@ export const useEventsStore = defineStore("events", () => {
       id,
       uid,
     });
+
+    // Auto-assign to shared spaces if the calendar is shared
+    try {
+      const calendarAssignments = await haexVault.client.spaces.getAssignmentsAsync(
+        FULL_CALENDARS_TABLE,
+        JSON.stringify({ id: data.calendarId }),
+      );
+      if (calendarAssignments.length > 0) {
+        await haexVault.client.spaces.assignAsync(
+          calendarAssignments.map((a) => ({
+            tableName: FULL_EVENTS_TABLE,
+            rowPks: JSON.stringify({ id }),
+            spaceId: a.spaceId,
+          })),
+        );
+      }
+    } catch (err) {
+      console.warn("[haex-calendar] Failed to auto-assign event to space:", err);
+    }
+
     await loadEventsAsync();
     return id;
   }

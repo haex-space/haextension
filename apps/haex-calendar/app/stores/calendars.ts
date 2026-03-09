@@ -1,5 +1,14 @@
 import { eq } from "drizzle-orm";
-import { calendars, type InsertCalendar, type SelectCalendar } from "~/database/schemas";
+import { getTableName, type SpaceAssignment } from "@haex-space/vault-sdk";
+import { calendars, events, type InsertCalendar, type SelectCalendar } from "~/database/schemas";
+import manifest from "../../haextension/manifest.json";
+import packageJson from "../../package.json";
+
+const extensionName = (manifest as { name?: string }).name || packageJson.name;
+const FULL_CALENDARS_TABLE = getTableName(manifest.publicKey, extensionName, "calendars");
+const FULL_EVENTS_TABLE = getTableName(manifest.publicKey, extensionName, "events");
+
+export { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE };
 
 export const useCalendarsStore = defineStore("calendars", () => {
   const haexVault = useHaexVaultStore();
@@ -58,6 +67,91 @@ export const useCalendarsStore = defineStore("calendars", () => {
     return allCalendars.value.find((c) => c.id === id);
   }
 
+  /**
+   * Get current space assignments for a calendar.
+   */
+  async function getCalendarAssignmentsAsync(calendarId: string): Promise<SpaceAssignment[]> {
+    return haexVault.client.spaces.getAssignmentsAsync(
+      FULL_CALENDARS_TABLE,
+      JSON.stringify({ id: calendarId }),
+    );
+  }
+
+  /**
+   * Share a calendar (and all its events) with a shared space.
+   */
+  async function shareCalendarWithSpaceAsync(calendarId: string, spaceId: string) {
+    if (!haexVault.orm) return;
+
+    // Gather all events for this calendar
+    const calendarEvents = await haexVault.orm
+      .select()
+      .from(events)
+      .where(eq(events.calendarId, calendarId));
+
+    // Build assignments: calendar row + all event rows
+    const assignments: SpaceAssignment[] = [
+      {
+        tableName: FULL_CALENDARS_TABLE,
+        rowPks: JSON.stringify({ id: calendarId }),
+        spaceId,
+      },
+      ...calendarEvents.map((evt) => ({
+        tableName: FULL_EVENTS_TABLE,
+        rowPks: JSON.stringify({ id: evt.id }),
+        spaceId,
+      })),
+    ];
+
+    await haexVault.client.spaces.assignAsync(assignments);
+
+    // Update local space_id column
+    await haexVault.orm
+      .update(calendars)
+      .set({ spaceId })
+      .where(eq(calendars.id, calendarId));
+    await loadCalendarsAsync();
+  }
+
+  /**
+   * Unshare a calendar (and all its events) from a shared space.
+   */
+  async function unshareCalendarFromSpaceAsync(calendarId: string, spaceId: string) {
+    if (!haexVault.orm) return;
+
+    // Gather all events for this calendar
+    const calendarEvents = await haexVault.orm
+      .select()
+      .from(events)
+      .where(eq(events.calendarId, calendarId));
+
+    // Build unassignment list
+    const assignments: SpaceAssignment[] = [
+      {
+        tableName: FULL_CALENDARS_TABLE,
+        rowPks: JSON.stringify({ id: calendarId }),
+        spaceId,
+      },
+      ...calendarEvents.map((evt) => ({
+        tableName: FULL_EVENTS_TABLE,
+        rowPks: JSON.stringify({ id: evt.id }),
+        spaceId,
+      })),
+    ];
+
+    await haexVault.client.spaces.unassignAsync(assignments);
+
+    // Check if any assignments remain
+    const remaining = await getCalendarAssignmentsAsync(calendarId);
+    const newSpaceId = remaining.length > 0 ? remaining[0].spaceId : null;
+
+    await haexVault.orm
+      .update(calendars)
+      .set({ spaceId: newSpaceId })
+      .where(eq(calendars.id, calendarId));
+    await loadCalendarsAsync();
+  }
+
   return {
     calendars: allCalendars,
     visibleCalendarIds,
@@ -68,5 +162,8 @@ export const useCalendarsStore = defineStore("calendars", () => {
     deleteCalendarAsync,
     toggleVisibilityAsync,
     getCalendar,
+    getCalendarAssignmentsAsync,
+    shareCalendarWithSpaceAsync,
+    unshareCalendarFromSpaceAsync,
   };
 });
