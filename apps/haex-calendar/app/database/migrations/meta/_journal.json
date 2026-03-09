@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1773014506113,
+      "tag": "0000_handy_agent_brand",
+      "breakpoints": true
+    }
+  ]
+}

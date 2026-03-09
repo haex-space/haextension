@@ -1,0 +1,12 @@
+{
+  "publicKey": "TODO_GENERATE_PUBLIC_KEY",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [],
+    "shell": []
+  },
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "CalDAV-oriented calendar with sharing via Shared Spaces"
+}
