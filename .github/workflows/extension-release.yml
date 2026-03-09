@@ -112,14 +112,22 @@ jobs:
 
           echo "Uploading ${EXT_NAME} v${VERSION} to marketplace..."
 
-          curl -X POST "${MARKETPLACE_API}/publish/extensions/${EXT_NAME}/bundle" \
+          HTTP_CODE=$(curl -s -o /tmp/marketplace-response.txt -w "%{http_code}" \
+            -X POST "${MARKETPLACE_API}/publish/extensions/${EXT_NAME}/bundle" \
             -H "Authorization: Bearer ${MARKETPLACE_API_KEY}" \
             -F "bundle=@${BUNDLE_PATH}" \
             -F "version=${VERSION}" \
-            -F "manifest=<${MANIFEST_PATH}" \
-            --fail-with-body
+            -F "manifest=<${MANIFEST_PATH}")
 
-          echo "Successfully uploaded to marketplace"
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "Successfully uploaded to marketplace"
+          elif [ "$HTTP_CODE" = "409" ]; then
+            echo "Version already exists on marketplace (409) — skipping"
+          else
+            echo "Marketplace upload failed with HTTP $HTTP_CODE:"
+            cat /tmp/marketplace-response.txt
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
