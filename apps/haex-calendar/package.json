@@ -11,10 +11,12 @@
     "postinstall": "nuxt prepare",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "ext:dev": "haex dev"
+    "ext:dev": "haex dev",
+    "package": "haex sign .output/public",
+    "build:release": "pnpm build && pnpm package"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.105",
+    "@haex-space/vault-sdk": "^2.5.107",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
     "@nuxtjs/i18n": "^10.2.1",
