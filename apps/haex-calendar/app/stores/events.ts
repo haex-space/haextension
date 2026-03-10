@@ -72,6 +72,17 @@ export const useEventsStore = defineStore("events", () => {
       console.warn("[haex-calendar] Failed to auto-assign event to space:", err);
     }
 
+    // Push to CalDAV server if this is a remote calendar
+    const calendar = calendarsStore.getCalendar(data.calendarId);
+    if (calendar?.caldavAccountId) {
+      try {
+        const caldavSync = useCaldavSyncStore();
+        await caldavSync.pushEventAsync(id);
+      } catch (err) {
+        console.warn("[haex-calendar] Failed to push new event to CalDAV:", err);
+      }
+    }
+
     await loadEventsAsync();
     return id;
   }
@@ -87,11 +98,40 @@ export const useEventsStore = defineStore("events", () => {
       .update(events)
       .set({ ...data, sequence: newSequence })
       .where(eq(events.id, id));
+
+    // Push to CalDAV server if this is a remote calendar event
+    if (existing) {
+      const calendar = calendarsStore.getCalendar(existing.calendarId);
+      if (calendar?.caldavAccountId) {
+        try {
+          const caldavSync = useCaldavSyncStore();
+          await caldavSync.pushEventAsync(id);
+        } catch (err) {
+          console.warn("[haex-calendar] Failed to push event update to CalDAV:", err);
+        }
+      }
+    }
+
     await loadEventsAsync();
   }
 
   async function deleteEventAsync(id: string) {
     if (!haexVault.orm) return;
+
+    // Delete from CalDAV server first if this is a remote calendar event
+    const existing = visibleEvents.value.find((event) => event.id === id);
+    if (existing) {
+      const calendar = calendarsStore.getCalendar(existing.calendarId);
+      if (calendar?.caldavAccountId) {
+        try {
+          const caldavSync = useCaldavSyncStore();
+          await caldavSync.deleteRemoteEventAsync(id);
+        } catch (err) {
+          console.warn("[haex-calendar] Failed to delete event from CalDAV:", err);
+        }
+      }
+    }
+
     await haexVault.orm.delete(events).where(eq(events.id, id));
     await loadEventsAsync();
   }

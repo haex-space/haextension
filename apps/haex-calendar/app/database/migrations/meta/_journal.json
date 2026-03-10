@@ -15,6 +15,13 @@
       "when": 1773058342325,
       "tag": "0001_faithful_ink",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1741564800000,
+      "tag": "0002_caldav",
+      "breakpoints": true
     }
   ]
 }

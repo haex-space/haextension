@@ -116,13 +116,26 @@
             <span class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               {{ t('sidebar.calendars') }}
             </span>
-            <button
-              class="p-1.5 rounded-md hover:bg-muted transition-colors"
-              :title="t('sidebar.addCalendar')"
-              @click="showCreateCalendar = true"
-            >
-              <Plus class="w-5 h-5" />
-            </button>
+            <ShadcnDropdownMenu>
+              <ShadcnDropdownMenuTrigger as-child>
+                <button
+                  class="p-1.5 rounded-md hover:bg-muted transition-colors"
+                  :title="t('sidebar.addCalendar')"
+                >
+                  <Plus class="w-5 h-5" />
+                </button>
+              </ShadcnDropdownMenuTrigger>
+              <ShadcnDropdownMenuContent align="end" class="w-48">
+                <ShadcnDropdownMenuItem @click="showCreateCalendar = true">
+                  <CalendarPlus class="w-4 h-4 mr-2" />
+                  {{ t('sidebar.addLocal') }}
+                </ShadcnDropdownMenuItem>
+                <ShadcnDropdownMenuItem @click="showCaldavDialog = true">
+                  <Cloud class="w-4 h-4 mr-2" />
+                  {{ t('sidebar.addCaldav') }}
+                </ShadcnDropdownMenuItem>
+              </ShadcnDropdownMenuContent>
+            </ShadcnDropdownMenu>
           </div>
 
           <div
@@ -154,6 +167,13 @@
             />
             <span v-else class="text-base truncate flex-1">{{ cal.name }}</span>
             <span
+              v-if="cal.caldavAccountId"
+              class="text-muted-foreground"
+              :title="t('sidebar.remote')"
+            >
+              <Cloud class="w-4 h-4" />
+            </span>
+            <span
               v-if="cal.spaceId"
               class="text-muted-foreground"
               :title="t('sidebar.shared')"
@@ -172,6 +192,10 @@
                 </button>
               </ShadcnDropdownMenuTrigger>
               <ShadcnDropdownMenuContent align="end" class="w-48">
+                <ShadcnDropdownMenuItem v-if="cal.caldavAccountId" @click="syncCalendar(cal.id)">
+                  <RefreshCw class="w-4 h-4 mr-2" />
+                  {{ t('sidebar.syncNow') }}
+                </ShadcnDropdownMenuItem>
                 <ShadcnDropdownMenuItem @click="openShareDialog(cal.id)">
                   <Share2 class="w-4 h-4 mr-2" />
                   {{ t('sidebar.share') }}
@@ -251,6 +275,11 @@
       :calendar-id="shareCalendarId"
     />
 
+    <!-- CalDAV Account Dialog -->
+    <CalendarCaldavAccountDialog
+      v-model:open="showCaldavDialog"
+    />
+
     <!-- Delete calendar confirmation -->
     <ShadcnAlertDialog v-model:open="showDeleteConfirm">
       <ShadcnAlertDialogContent>
@@ -300,6 +329,9 @@ import {
   Pencil,
   Plus,
   Palette,
+  CalendarPlus,
+  Cloud,
+  RefreshCw,
   Settings,
   Share2,
   Trash2,
@@ -321,7 +353,11 @@ const settingsStore = useSettingsStore();
 const eventDrawer = useEventDrawerStore();
 
 const showCreateCalendar = ref(false);
+const showCaldavDialog = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+const caldavSync = useCaldavSyncStore();
+const caldavAccounts = useCaldavAccountsStore();
 
 const isSmallScreen = useMediaQuery("(max-width: 640px)");
 const sidebarOpen = ref(!isSmallScreen.value);
@@ -371,12 +407,19 @@ onMounted(async () => {
   }
 
   await eventsStore.loadEventsAsync();
+
+  // Load CalDAV accounts and trigger initial sync
+  await caldavAccounts.loadAccountsAsync();
+  caldavSync.syncAllRemoteCalendarsAsync(); // Non-blocking
 });
 
 // Reload events when view range or visible calendars change
 watchDebounced(
   () => [calendarView.visibleRange, calendarsStore.visibleCalendarIds] as const,
-  () => eventsStore.loadEventsAsync(),
+  () => {
+    eventsStore.loadEventsAsync();
+    caldavSync.syncAllRemoteCalendarsAsync();
+  },
   { debounce: 100, deep: true }
 );
 
@@ -423,6 +466,11 @@ function handleShare() {
 
 function openShareDialog(calendarId: string) {
   shareCalendarId.value = calendarId;
+}
+
+async function syncCalendar(calendarId: string) {
+  await caldavSync.syncCalendarAsync(calendarId);
+  await eventsStore.loadEventsAsync();
 }
 
 // Calendar context menu
@@ -517,11 +565,15 @@ de:
   sidebar:
     calendars: Kalender
     addCalendar: Kalender erstellen
+    addLocal: Lokaler Kalender
+    addCaldav: CalDAV-Account
     shared: Geteilt
+    remote: CalDAV
     share: Teilen
     rename: Umbenennen
     color: Farbe
     delete: Löschen
+    syncNow: Jetzt synchronisieren
   deleteConfirm:
     title: Kalender löschen
     description: Dieser Kalender und alle zugehörigen Termine werden unwiderruflich gelöscht.
@@ -543,11 +595,15 @@ en:
   sidebar:
     calendars: Calendars
     addCalendar: Create calendar
+    addLocal: Local calendar
+    addCaldav: CalDAV account
     shared: Shared
+    remote: CalDAV
     share: Share
     rename: Rename
     color: Color
     delete: Delete
+    syncNow: Sync now
   deleteConfirm:
     title: Delete calendar
     description: This calendar and all its events will be permanently deleted.

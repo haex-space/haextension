@@ -31,6 +31,9 @@ export const calendars = sqliteTable(
     color: text().notNull().default("#3b82f6"), // Default blue
     spaceId: text("space_id"), // null = personal, non-null = shared Space
     visible: integer({ mode: "boolean" }).notNull().default(true),
+    caldavAccountId: text("caldav_account_id"),
+    caldavPath: text("caldav_path"),
+    caldavCtag: text("caldav_ctag"),
     ...timestamps,
   }
 );
@@ -67,6 +70,8 @@ export const events = sqliteTable(
     url: text(),                              // URL
     categories: text(),                       // CATEGORIES — comma-separated tags
     color: text(),                            // COLOR — overrides calendar color
+    etag: text(),
+    href: text(),
 
     ...timestamps,
   }
@@ -108,3 +113,23 @@ export const settings = sqliteTable(
 );
 export type InsertSettings = typeof settings.$inferInsert;
 export type SelectSettings = typeof settings.$inferSelect;
+
+/**
+ * CalDAV Accounts — connection info for external CalDAV servers.
+ */
+export const caldavAccounts = sqliteTable(
+  tableName("caldav_accounts"),
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    serverUrl: text("server_url").notNull(),
+    username: text().notNull(),
+    password: text().notNull(),
+    principalUrl: text("principal_url"),
+    calendarHomeUrl: text("calendar_home_url"),
+    lastSyncAt: integer("last_sync_at", { mode: "timestamp" }),
+    ...timestamps,
+  }
+);
+export type InsertCaldavAccount = typeof caldavAccounts.$inferInsert;
+export type SelectCaldavAccount = typeof caldavAccounts.$inferSelect;
