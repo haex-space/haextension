@@ -304,7 +304,7 @@
     </ShadcnAlertDialog>
 
     <!-- Toast notifications -->
-    <ShadcnToaster position="bottom-right" />
+    <ShadcnSonnerToaster position="bottom-right" />
 
     <!-- Hidden file input for import -->
     <input

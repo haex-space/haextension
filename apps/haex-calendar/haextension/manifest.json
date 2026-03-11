@@ -5,7 +5,13 @@
     "database": [],
     "filesystem": [],
     "shell": [],
-    "web": []
+    "web": [],
+    "spaces": [
+      {
+        "target": "*",
+        "operation": "readWrite"
+      }
+    ]
   },
   "singleInstance": true,
   "displayMode": "auto",

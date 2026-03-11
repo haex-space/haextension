@@ -155,7 +155,7 @@ watch(isOpen, async (open) => {
     createForm.name = "";
     await loadDataAsync();
   }
-});
+}, { immediate: true });
 
 watch(showCreateForm, (show) => {
   if (show) {
@@ -169,18 +169,22 @@ function isSpaceAssigned(spaceId: string): boolean {
 
 async function loadDataAsync() {
   isLoadingSpaces.value = true;
+  console.log("[ShareDialog] loadDataAsync called, calendarId:", props.calendarId);
+  console.log("[ShareDialog] client.spaces:", !!haexVault.client?.spaces);
   try {
+    console.log("[ShareDialog] Starting Promise.all for space commands...");
     const [spacesResult, assignmentsResult, backendsResult] = await Promise.all([
       haexVault.client.spaces.listSpacesAsync(),
       calendarsStore.getCalendarAssignmentsAsync(props.calendarId),
       haexVault.client.spaces.listSyncBackendsAsync(),
     ]);
+    console.log("[ShareDialog] Promise.all resolved:", { spaces: spacesResult?.length, assignments: assignmentsResult?.length, backends: backendsResult?.length });
     availableSpaces.value = spacesResult;
     assignments.value = assignmentsResult;
     syncBackends.value = backendsResult;
 
-    // Pre-select default backend
-    const defaultBackend = backendsResult.find((backend) => backend.isDefault);
+    // Pre-select backend: prefer default, fall back to first available
+    const defaultBackend = backendsResult.find((backend) => backend.isDefault) ?? backendsResult[0];
     if (defaultBackend) {
       createForm.serverUrl = defaultBackend.serverUrl;
     }

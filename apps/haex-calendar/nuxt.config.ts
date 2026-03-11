@@ -27,6 +27,12 @@ export default defineNuxtConfig({
 
   css: ["~/assets/css/tailwind.css"],
 
+  runtimeConfig: {
+    public: {
+      debug: true,
+    },
+  },
+
   ssr: false,
 
   imports: {

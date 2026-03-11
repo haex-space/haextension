@@ -27,7 +27,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.5.93",
+    "@haex-space/vault-sdk": "^2.5.118",
     "@iconify/vue": "^5.0.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
