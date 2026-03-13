@@ -1,5 +1,6 @@
 {
   "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "name": "Calendar",
   "signature": "",
   "permissions": {
     "database": [],
@@ -13,7 +14,18 @@
       }
     ]
   },
+  "icon": "haextension/haex-calendar-logo.png",
   "singleInstance": true,
   "displayMode": "auto",
-  "description": "CalDAV-oriented calendar with sharing via Shared Spaces"
+  "description": "CalDAV-oriented calendar with sharing via Shared Spaces",
+  "i18n": {
+    "de": {
+      "name": "Kalender",
+      "description": "CalDAV-Kalender mit Teilen über Shared Spaces"
+    },
+    "en": {
+      "name": "Calendar",
+      "description": "CalDAV-oriented calendar with sharing via Shared Spaces"
+    }
+  }
 }
