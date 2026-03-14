@@ -4,9 +4,8 @@ import { calendars, events, type InsertCalendar, type SelectCalendar } from "~/d
 import manifest from "../../haextension/manifest.json";
 import packageJson from "../../package.json";
 
-const extensionName = (manifest as { name?: string }).name || packageJson.name;
-const FULL_CALENDARS_TABLE = getTableName(manifest.publicKey, extensionName, "calendars");
-const FULL_EVENTS_TABLE = getTableName(manifest.publicKey, extensionName, "events");
+const FULL_CALENDARS_TABLE = getTableName(manifest.publicKey, packageJson.name, "calendars");
+const FULL_EVENTS_TABLE = getTableName(manifest.publicKey, packageJson.name, "events");
 
 export { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE };
 

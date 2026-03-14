@@ -8,10 +8,8 @@ import { getTableName } from "@haex-space/vault-sdk";
 import manifest from "../../../haextension/manifest.json";
 import packageJson from "../../../package.json";
 
-// Helper function to create prefixed table names (with fallback to package.json for name)
-const extensionName = (manifest as { name?: string }).name || packageJson.name;
 const tableName = (name: string) =>
-  getTableName(manifest.publicKey, extensionName, name);
+  getTableName(manifest.publicKey, packageJson.name, name);
 
 export const haexPasswordsItemDetails = sqliteTable(
   tableName("haex_passwords_item_details"),
