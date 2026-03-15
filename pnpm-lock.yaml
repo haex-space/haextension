@@ -6,6 +6,7 @@ settings:
 
 overrides:
   drizzle-orm: 0.45.1
+  '@haex-space/vault-sdk': ^2.5.126
 
 importers:
 
@@ -21,8 +22,8 @@ importers:
   apps/haex-calendar:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.118
-        version: 2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.126
+        version: 2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
@@ -109,8 +110,8 @@ importers:
   apps/haex-files:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.118
-        version: 2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.126
+        version: 2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -194,8 +195,8 @@ importers:
   apps/haex-pass:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.118
-        version: 2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.126
+        version: 2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -297,8 +298,8 @@ importers:
   apps/haex-pass-browser:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.118
-        version: 2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.126
+        version: 2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@haex/ui':
         specifier: workspace:*
         version: link:../../packages/haex-ui
@@ -409,8 +410,8 @@ importers:
   apps/haex-send:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^2.5.118
-        version: 2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^2.5.126
+        version: 2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -1399,8 +1400,8 @@ packages:
     resolution: {integrity: sha512-PyUXQWB42s4jBli435TDiYuVsadwRHnMc27YaLouINktvTWsL3FcKrRMGawTayFk46X+n5bE23RjUTWQwrukWw==}
     engines: {node: '>= 0.10.0'}
 
-  '@haex-space/vault-sdk@2.5.118':
-    resolution: {integrity: sha512-qcVLgwnYHhr41KQMgI2tlM9+erPtZUnUvUbgNheMW4ofi0m88CmX50CVEQGhlkOIn4Znr5PDHh7Eq7xVsSSiCw==}
+  '@haex-space/vault-sdk@2.5.126':
+    resolution: {integrity: sha512-YIOyz3tpkqaooEvugw5sDUIW33cwebqnIakhsfPc3UJwTFh7cfDikvmNSWkrWgZciktmNyUN9q2Z/Qf4A0y9rQ==}
     hasBin: true
     peerDependencies:
       '@nuxt/kit': ^3.0.0 || ^4.0.0
@@ -8454,7 +8455,7 @@ snapshots:
 
   '@fregante/relaxed-json@2.0.0': {}
 
-  '@haex-space/vault-sdk@2.5.118(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
+  '@haex-space/vault-sdk@2.5.126(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
     dependencies:
       archiver: 7.0.1
       commander: 14.0.3

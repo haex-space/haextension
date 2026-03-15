@@ -14,7 +14,8 @@
   },
   "pnpm": {
     "overrides": {
-      "drizzle-orm": "0.45.1"
+      "drizzle-orm": "0.45.1",
+      "@haex-space/vault-sdk": "^2.5.126"
     }
   },
   "packageManager": "pnpm@10.28.2",
