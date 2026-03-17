@@ -40,7 +40,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
 
           EXTENSIONS=()
-          for ext in haex-pass haex-files haex-send haex-calendar; do
+          for ext in haex-pass haex-files haex-calendar haex-code; do
             if echo "$CHANGED_FILES" | grep -q "^apps/${ext}/" || echo "$CHANGED_FILES" | grep -q "^packages/"; then
               EXTENSIONS+=("\"${ext}\"")
             fi

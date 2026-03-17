@@ -1,0 +1,34 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [
+      {
+        "target": "*",
+        "operation": "readWrite"
+      }
+    ],
+    "http": [],
+    "shell": [
+      {
+        "target": "*",
+        "operation": "execute"
+      }
+    ]
+  },
+  "icon": "haextension/haex-code-logo.png",
+  "singleInstance": false,
+  "displayMode": "auto",
+  "description": "Code editor and terminal for HaexSpace",
+  "i18n": {
+    "de": {
+      "name": "Code",
+      "description": "Code-Editor und Terminal für HaexSpace"
+    },
+    "en": {
+      "name": "Code",
+      "description": "Code editor and terminal for HaexSpace"
+    }
+  }
+}

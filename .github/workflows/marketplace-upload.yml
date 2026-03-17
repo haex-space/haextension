@@ -10,8 +10,8 @@ on:
         options:
           - haex-pass
           - haex-files
-          - haex-send
           - haex-calendar
+          - haex-code
       version:
         description: 'Version (without v prefix, e.g., 1.4.13)'
         required: true
