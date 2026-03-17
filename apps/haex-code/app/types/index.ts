@@ -20,4 +20,5 @@ export interface TerminalTab {
   id: string;
   name: string;
   sessionId: string | null;
+  shell?: string;
 }

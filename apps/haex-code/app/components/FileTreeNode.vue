@@ -17,6 +17,8 @@ const emit = defineEmits<{
   toggle: [entry: FileEntry];
 }>();
 
+const settings = useSettingsStore();
+
 const handleClick = () => {
   if (props.entry.isDirectory) {
     emit("toggle", props.entry);
@@ -29,19 +31,18 @@ const handleClick = () => {
 <template>
   <div>
     <button
-      class="flex w-full items-center gap-1 py-0.5 pr-2 text-left text-xs hover:bg-accent"
-      :style="{ paddingLeft: `${entry.depth * 16 + 8}px` }"
+      class="flex w-full items-center gap-1.5 pr-2 text-left hover:bg-accent"
+      :class="[settings.scale.fontSize, settings.scale.rowPadding, settings.scale.lineHeight]"
+      :style="{ paddingLeft: `${entry.depth * settings.scale.indent + 8}px` }"
       @click="handleClick"
     >
       <template v-if="entry.isDirectory">
-        <ChevronDown v-if="entry.isExpanded" class="size-3.5 shrink-0 text-muted-foreground" />
-        <ChevronRight v-else class="size-3.5 shrink-0 text-muted-foreground" />
-        <FolderOpen v-if="entry.isExpanded" class="size-3.5 shrink-0 text-primary" />
-        <Folder v-else class="size-3.5 shrink-0 text-primary" />
+        <ChevronDown v-if="entry.isExpanded" class="shrink-0 text-muted-foreground" :class="settings.scale.iconSize" />
+        <ChevronRight v-else class="shrink-0 text-muted-foreground" :class="settings.scale.iconSize" />
       </template>
       <template v-else>
-        <span class="size-3.5 shrink-0" />
-        <File class="size-3.5 shrink-0 text-muted-foreground" />
+        <span class="shrink-0" :class="settings.scale.iconSize" />
+        <File class="shrink-0 text-muted-foreground" :class="settings.scale.iconSize" />
       </template>
       <span class="truncate">{{ entry.name }}</span>
     </button>

@@ -8,12 +8,13 @@ export const useTerminalStore = defineStore("terminal", () => {
     tabs.value.find((t) => t.id === activeTabId.value) ?? null
   );
 
-  const addTab = (name?: string): TerminalTab => {
+  const addTab = (name?: string, shell?: string): TerminalTab => {
     const id = crypto.randomUUID();
     const tab: TerminalTab = {
       id,
       name: name || `Terminal ${tabs.value.length + 1}`,
       sessionId: null,
+      shell,
     };
     tabs.value.push(tab);
     activeTabId.value = id;
@@ -36,6 +37,11 @@ export const useTerminalStore = defineStore("terminal", () => {
     if (tab) tab.sessionId = sessionId;
   };
 
+  const renameTab = (tabId: string, name: string) => {
+    const tab = tabs.value.find((t) => t.id === tabId);
+    if (tab) tab.name = name;
+  };
+
   return {
     tabs,
     activeTabId,
@@ -43,5 +49,6 @@ export const useTerminalStore = defineStore("terminal", () => {
     addTab,
     closeTab,
     setSessionId,
+    renameTab,
   };
 });

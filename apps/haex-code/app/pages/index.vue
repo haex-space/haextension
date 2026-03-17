@@ -14,16 +14,30 @@ import {
   File,
   Folder,
   FolderOpen as FolderOpenIcon,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-vue-next";
 
+import {
+  ChevronDown as ChevronDownIcon,
+} from "lucide-vue-next";
 import type { FileEntry, EditorTab } from "~/types";
+import type { UiScale } from "~/stores/settings";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const workspace = useWorkspaceStore();
 const editorStore = useEditorStore();
 const terminalStore = useTerminalStore();
+const settings = useSettingsStore();
 const { detectLanguage } = useLanguageDetection();
+const { shells, detectShells } = useAvailableShells();
+
+const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
+const cycleScale = () => {
+  const idx = SCALES.indexOf(settings.uiScale);
+  settings.uiScale = SCALES[(idx + 1) % SCALES.length];
+};
 
 const sidebarVisible = ref(true);
 const terminalVisible = ref(true);
@@ -32,7 +46,10 @@ const terminalSize = ref(30);
 
 onMounted(async () => {
   await haexVault.initializeAsync();
-  terminalStore.addTab();
+  await detectShells();
+  if (terminalStore.tabs.length === 0) {
+    terminalStore.addTab();
+  }
 });
 
 const openFolder = async () => {
@@ -44,8 +61,12 @@ const openFolder = async () => {
       workspace.setRootPath(folder);
       await loadDirectory(folder, workspace.fileTree, 0);
     }
-  } catch (e) {
-    console.error("[haex-code] Failed to open folder:", e);
+  } catch (e: any) {
+    if (isPermissionPromptError(e)) {
+      haexVault.setPermissionPrompt(e, openFolder);
+    } else {
+      console.error("[haex-code] Failed to open folder:", e);
+    }
   }
 };
 
@@ -68,6 +89,12 @@ const loadDirectory = async (path: string, target: FileEntry[], depth: number) =
         children: entry.isDirectory ? [] : undefined,
         depth,
       });
+    }
+  } catch (e: any) {
+    if (isPermissionPromptError(e)) {
+      haexVault.setPermissionPrompt(e, () => loadDirectory(path, target, depth));
+    } else {
+      console.error("[haex-code] Failed to load directory:", e);
     }
   } finally {
     workspace.isLoading = false;
@@ -147,6 +174,19 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 <template>
   <div class="flex h-screen flex-col">
     <Splitpanes class="flex-1">
+      <!-- Sidebar Toggle (when closed) -->
+      <Pane v-if="!sidebarVisible" :size="3" :min-size="3" :max-size="3">
+        <div class="flex h-full flex-col items-center border-r border-border bg-sidebar pt-3">
+          <button
+            class="rounded-md p-2.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            :title="t('toggleSidebar') + ' (Ctrl+B)'"
+            @click="sidebarVisible = true"
+          >
+            <PanelLeftOpen class="size-6" />
+          </button>
+        </div>
+      </Pane>
+
       <!-- Sidebar -->
       <Pane v-if="sidebarVisible" :size="sidebarSize" :min-size="15" :max-size="40">
         <div class="flex h-full flex-col border-r border-border bg-sidebar text-sidebar-foreground">
@@ -174,7 +214,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           </div>
 
           <!-- File Tree -->
-          <div class="flex-1 overflow-y-auto text-sm">
+          <ShadcnScrollArea class="flex-1 text-sm">
             <template v-if="workspace.rootPath">
               <div
                 v-for="entry in workspace.fileTree"
@@ -193,7 +233,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 {{ t("openFolder") }}
               </button>
             </div>
-          </div>
+          </ShadcnScrollArea>
         </div>
       </Pane>
 
@@ -206,10 +246,10 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
               <!-- Tab Bar -->
               <div v-if="editorStore.tabs.length > 0" class="flex items-center border-b border-border bg-background">
                 <div class="flex flex-1 overflow-x-auto">
-                  <button
+                  <div
                     v-for="tab in editorStore.tabs"
                     :key="tab.id"
-                    class="group flex items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs"
+                    class="group flex cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs"
                     :class="tab.id === editorStore.activeTabId
                       ? 'bg-card text-foreground'
                       : 'bg-background text-muted-foreground hover:bg-accent'"
@@ -224,7 +264,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                     >
                       <X class="size-3" />
                     </button>
-                  </button>
+                  </div>
                 </div>
               </div>
 
@@ -254,36 +294,30 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           <!-- Terminal Area -->
           <Pane v-if="terminalVisible" :size="terminalSize" :min-size="10" :max-size="80">
             <div class="flex h-full flex-col border-t border-border">
-              <!-- Terminal Tab Bar -->
-              <div class="flex items-center justify-between border-b border-border bg-background px-2 py-1">
-                <div class="flex items-center gap-1 overflow-x-auto">
-                  <button
-                    v-for="tab in terminalStore.tabs"
-                    :key="tab.id"
-                    class="group flex items-center gap-1 rounded px-2 py-0.5 text-xs"
-                    :class="tab.id === terminalStore.activeTabId
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent/50'"
-                    @click="terminalStore.activeTabId = tab.id"
-                  >
-                    <TerminalIcon class="size-3" />
-                    <span>{{ tab.name }}</span>
-                    <button
-                      class="ml-1 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
-                      @click.stop="terminalStore.closeTab(tab.id)"
-                    >
-                      <X class="size-3" />
-                    </button>
-                  </button>
-                </div>
+              <!-- Terminal Header -->
+              <div class="flex items-center justify-between border-b border-border bg-background px-3 py-1">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {{ t('terminal') }}
+                </span>
                 <div class="flex items-center gap-1">
-                  <button
-                    class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    :title="t('newTerminal')"
-                    @click="terminalStore.addTab()"
-                  >
-                    <Plus class="size-3.5" />
-                  </button>
+                  <ShadcnDropdownMenu>
+                    <ShadcnDropdownMenuTrigger as-child>
+                      <button class="flex items-center gap-0.5 rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                        <Plus class="size-3.5" />
+                        <ChevronDownIcon class="size-3" />
+                      </button>
+                    </ShadcnDropdownMenuTrigger>
+                    <ShadcnDropdownMenuContent align="end" class="min-w-32">
+                      <ShadcnDropdownMenuItem
+                        v-for="shell in shells"
+                        :key="shell.path"
+                        @click="terminalStore.addTab(shell.name, shell.path)"
+                      >
+                        <TerminalIcon class="mr-2 size-3.5" />
+                        {{ shell.name }}
+                      </ShadcnDropdownMenuItem>
+                    </ShadcnDropdownMenuContent>
+                  </ShadcnDropdownMenu>
                   <button
                     class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     @click="terminalVisible = false"
@@ -293,14 +327,39 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </div>
               </div>
 
-              <!-- Terminal Content -->
-              <div class="flex-1 bg-black">
-                <TerminalView
-                  v-for="tab in terminalStore.tabs"
-                  v-show="tab.id === terminalStore.activeTabId"
-                  :key="tab.id"
-                  :tab="tab"
-                />
+              <!-- Terminal Body: Content + Session List -->
+              <div class="flex flex-1">
+                <!-- Terminal Content -->
+                <div class="flex-1 bg-black">
+                  <TerminalView
+                    v-for="tab in terminalStore.tabs"
+                    v-show="tab.id === terminalStore.activeTabId"
+                    :key="tab.id"
+                    :tab="tab"
+                  />
+                </div>
+
+                <!-- Terminal Session List (right sidebar) -->
+                <ShadcnScrollArea v-if="terminalStore.tabs.length > 1" class="w-40 border-l border-border bg-background">
+                  <div
+                    v-for="tab in terminalStore.tabs"
+                    :key="tab.id"
+                    class="group flex cursor-pointer items-center gap-1.5 border-b border-border px-2 py-1.5 text-xs"
+                    :class="tab.id === terminalStore.activeTabId
+                      ? 'bg-accent/50 text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/30'"
+                    @click="terminalStore.activeTabId = tab.id"
+                  >
+                    <TerminalIcon class="size-3.5 shrink-0" />
+                    <span class="flex-1 truncate">{{ tab.name }}</span>
+                    <button
+                      class="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
+                      @click.stop="terminalStore.closeTab(tab.id)"
+                    >
+                      <X class="size-3" />
+                    </button>
+                  </div>
+                </ShadcnScrollArea>
               </div>
             </div>
           </Pane>
@@ -309,25 +368,25 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
     </Splitpanes>
 
     <!-- Statusbar -->
-    <div class="flex h-6 items-center justify-between border-t border-border bg-primary px-3 text-xs text-primary-foreground">
-      <div class="flex items-center gap-3">
-        <button
-          v-if="!sidebarVisible"
-          class="hover:text-primary-foreground/80"
-          @click="sidebarVisible = true"
-        >
-          <PanelLeftOpen class="size-3.5" />
-        </button>
+    <div class="flex h-7 items-center justify-between border-t border-border bg-primary px-2 text-xs text-primary-foreground">
+      <div class="flex items-center gap-1">
         <span v-if="workspace.rootPath" class="opacity-80">{{ workspace.workspaceName }}</span>
       </div>
-      <div class="flex items-center gap-3">
-        <span v-if="editorStore.activeTab" class="opacity-80">
+      <div class="flex items-center gap-1">
+        <button
+          class="rounded px-1.5 py-0.5 opacity-80 hover:bg-primary-foreground/20 hover:opacity-100"
+          :title="`UI: ${settings.uiScale}`"
+          @click="cycleScale"
+        >
+          {{ settings.uiScale }}
+        </button>
+        <span v-if="editorStore.activeTab" class="px-1 opacity-80">
           {{ editorStore.activeTab.language }}
         </span>
         <button
-          v-if="!terminalVisible"
-          class="hover:text-primary-foreground/80"
-          @click="terminalVisible = true"
+          class="rounded px-1.5 py-0.5 hover:bg-primary-foreground/20"
+          :title="terminalVisible ? t('toggleTerminal') : t('toggleTerminal')"
+          @click="terminalVisible = !terminalVisible"
         >
           <TerminalIcon class="size-3.5" />
         </button>
@@ -346,6 +405,7 @@ de:
   toggleSidebar: Sidebar ein-/ausblenden
   toggleTerminal: Terminal ein-/ausblenden
   newTerminal: Neues Terminal
+  terminal: Terminal
 en:
   explorer: Explorer
   openFolder: Open Folder
@@ -355,4 +415,5 @@ en:
   toggleSidebar: Toggle sidebar
   toggleTerminal: Toggle terminal
   newTerminal: New Terminal
+  terminal: Terminal
 </i18n>

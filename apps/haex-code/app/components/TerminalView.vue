@@ -48,13 +48,15 @@ const initTerminal = async () => {
 
   // Connect to vault-sdk shell API
   try {
-    const sessionId = await haexVault.client.shell.create({
+    const { sessionId, shellName } = await haexVault.client.shell.create({
+      shell: props.tab.shell || undefined,
       cwd: workspace.rootPath || undefined,
       cols: term.cols,
       rows: term.rows,
     });
 
     terminalStore.setSessionId(props.tab.id, sessionId);
+    terminalStore.renameTab(props.tab.id, shellName);
 
     // Listen for PTY output → write to xterm
     const onOutput = (event: ShellOutputEvent) => {
