@@ -340,6 +340,7 @@ import {
 } from "lucide-vue-next";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { watchDebounced, useMediaQuery, onClickOutside } from "@vueuse/core";
+import { calendars } from "~/database/schemas";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -398,12 +399,15 @@ onMounted(async () => {
 
   await calendarsStore.loadCalendarsAsync();
 
-  // Auto-create personal calendar on first run
-  if (calendarsStore.calendars.length === 0) {
-    await calendarsStore.createCalendarAsync({
-      name: "Persönlich",
-      color: "#3b82f6",
-    });
+  // Auto-create personal calendar on first run (query DB directly to avoid HMR race conditions)
+  if (haexVault.orm) {
+    const existing = await haexVault.orm.select({ id: calendars.id }).from(calendars).limit(1);
+    if (existing.length === 0) {
+      await calendarsStore.createCalendarAsync({
+        name: t("defaultCalendarName"),
+        color: "#3b82f6",
+      });
+    }
   }
 
   await eventsStore.loadEventsAsync();
@@ -562,6 +566,7 @@ de:
     day: Tag
     hideSidebar: Sidebar ausblenden
     showSidebar: Sidebar einblenden
+  defaultCalendarName: Persönlich
   sidebar:
     calendars: Kalender
     addCalendar: Kalender erstellen
@@ -592,6 +597,7 @@ en:
     day: Day
     hideSidebar: Hide sidebar
     showSidebar: Show sidebar
+  defaultCalendarName: Personal
   sidebar:
     calendars: Calendars
     addCalendar: Create calendar
