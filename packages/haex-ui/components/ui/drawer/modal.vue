@@ -16,9 +16,9 @@
       </ShadcnDrawerHeader>
 
       <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 min-h-0">
+      <ShadcnScrollArea class="flex-1 min-h-0 px-4 pb-4">
         <slot name="content" />
-      </div>
+      </ShadcnScrollArea>
 
       <!-- Footer (optional) -->
       <ShadcnDrawerFooter v-if="$slots.footer" class="shrink-0">
@@ -44,9 +44,9 @@
       </ShadcnDialogHeader>
 
       <!-- Scrollable Dialog Body -->
-      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+      <ShadcnScrollArea class="flex-1 min-h-0">
         <slot name="content" />
-      </div>
+      </ShadcnScrollArea>
 
       <!-- Dialog Footer (optional) -->
       <ShadcnDialogFooter v-if="$slots.footer" class="shrink-0">

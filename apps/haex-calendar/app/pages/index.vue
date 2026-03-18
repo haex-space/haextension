@@ -42,7 +42,7 @@
 
       <!-- View Mode Select -->
       <ShadcnSelect v-model="calendarView.viewMode">
-        <ShadcnSelectTrigger class="w-auto shrink-0">
+        <ShadcnSelectTrigger class="w-auto min-w-24 shrink-0">
           <ShadcnSelectValue />
         </ShadcnSelectTrigger>
         <ShadcnSelectContent>
@@ -63,23 +63,23 @@
             <EllipsisVertical class="w-5 h-5" />
           </button>
         </ShadcnDropdownMenuTrigger>
-        <ShadcnDropdownMenuContent align="end" class="w-48">
-          <ShadcnDropdownMenuItem @click="handleImport">
-            <Upload class="w-4 h-4 mr-2" />
+        <ShadcnDropdownMenuContent align="end" class="w-56">
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleImport">
+            <Upload class="w-5 h-5 mr-2" />
             {{ t('menu.import') }}
           </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem @click="handleExport">
-            <Download class="w-4 h-4 mr-2" />
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleExport">
+            <Download class="w-5 h-5 mr-2" />
             {{ t('menu.export') }}
           </ShadcnDropdownMenuItem>
           <ShadcnDropdownMenuSeparator />
-          <ShadcnDropdownMenuItem @click="handleShare">
-            <Share2 class="w-4 h-4 mr-2" />
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleShare">
+            <Share2 class="w-5 h-5 mr-2" />
             {{ t('menu.share') }}
           </ShadcnDropdownMenuItem>
           <ShadcnDropdownMenuSeparator />
-          <ShadcnDropdownMenuItem @click="router.push('/settings')">
-            <Settings class="w-4 h-4 mr-2" />
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="router.push('/settings')">
+            <Settings class="w-5 h-5 mr-2" />
             {{ t('menu.settings') }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuContent>
