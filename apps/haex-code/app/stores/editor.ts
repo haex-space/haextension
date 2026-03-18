@@ -42,6 +42,12 @@ export const useEditorStore = defineStore("editor", () => {
     if (tab) tab.isDirty = false;
   };
 
+  const moveTab = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const moved = tabs.value.splice(fromIndex, 1)[0];
+    if (moved) tabs.value.splice(toIndex, 0, moved);
+  };
+
   return {
     tabs,
     activeTabId,
@@ -50,5 +56,6 @@ export const useEditorStore = defineStore("editor", () => {
     closeTab,
     updateTabContent,
     markTabClean,
+    moveTab,
   };
 });

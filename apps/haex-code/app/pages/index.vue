@@ -9,17 +9,10 @@ import {
   X,
   Terminal as TerminalIcon,
   FileCode2,
-  ChevronRight,
-  ChevronDown,
-  File,
-  Folder,
-  FolderOpen as FolderOpenIcon,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-vue-next";
-
-import {
   ChevronDown as ChevronDownIcon,
+  Settings,
+  GitBranch,
+  GitCommit,
 } from "lucide-vue-next";
 import type { FileEntry, EditorTab } from "~/types";
 import type { UiScale } from "~/stores/settings";
@@ -30,25 +23,37 @@ const workspace = useWorkspaceStore();
 const editorStore = useEditorStore();
 const terminalStore = useTerminalStore();
 const settings = useSettingsStore();
+const gitStore = useGitStore();
 const { detectLanguage } = useLanguageDetection();
 const { shells, detectShells } = useAvailableShells();
 
 const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 const cycleScale = () => {
-  const idx = SCALES.indexOf(settings.uiScale);
-  settings.uiScale = SCALES[(idx + 1) % SCALES.length];
+  const idx = SCALES.indexOf(settings.uiScale as UiScale);
+  settings.uiScale = SCALES[(idx + 1) % SCALES.length] as UiScale;
 };
 
 const sidebarVisible = ref(true);
 const terminalVisible = ref(true);
+const settingsVisible = ref(false);
+const sidebarTab = ref<"explorer" | "git">("explorer");
+
+watch(sidebarTab, (tab) => {
+  if (tab === "git" && workspace.rootPath) gitStore.refresh(workspace.rootPath);
+});
 const sidebarSize = ref(20);
 const terminalSize = ref(30);
 
+
 onMounted(async () => {
   await haexVault.initializeAsync();
+  await settings.loadFromDb();
   await detectShells();
   if (terminalStore.tabs.length === 0) {
     terminalStore.addTab();
+  }
+  if (workspace.rootPath) {
+    gitStore.refresh(workspace.rootPath);
   }
 });
 
@@ -60,6 +65,7 @@ const openFolder = async () => {
     if (folder) {
       workspace.setRootPath(folder);
       await loadDirectory(folder, workspace.fileTree, 0);
+      gitStore.refresh(folder);
     }
   } catch (e: any) {
     if (isPermissionPromptError(e)) {
@@ -141,15 +147,19 @@ const openFile = async (entry: FileEntry) => {
 
 const saveActiveFile = async () => {
   const tab = editorStore.activeTab;
-  if (!tab || !tab.isDirty) return;
+  if (!tab) return;
 
-  try {
-    const data = new TextEncoder().encode(tab.content);
-    await haexVault.client.filesystem.writeFile(tab.path, data);
-    editorStore.markTabClean(tab.id);
-  } catch (e) {
-    console.error("[haex-code] Failed to save file:", e);
+  if (tab.isDirty) {
+    try {
+      const data = new TextEncoder().encode(tab.content);
+      await haexVault.client.filesystem.writeFile(tab.path, data);
+      editorStore.markTabClean(tab.id);
+    } catch (e) {
+      console.error("[haex-code] Failed to save file:", e);
+    }
   }
+
+  if (workspace.rootPath) gitStore.refresh(workspace.rootPath);
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -165,6 +175,10 @@ const handleKeydown = (e: KeyboardEvent) => {
     e.preventDefault();
     sidebarVisible.value = !sidebarVisible.value;
   }
+  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    e.preventDefault();
+    settingsVisible.value = !settingsVisible.value;
+  }
 };
 
 onMounted(() => window.addEventListener("keydown", handleKeydown));
@@ -173,7 +187,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
 <template>
   <div class="flex h-screen flex-col">
-    <Splitpanes class="flex-1">
+    <Splitpanes class="flex-1 min-h-0">
       <!-- Sidebar Toggle (when closed) -->
       <Pane v-if="!sidebarVisible" :size="3" :min-size="3" :max-size="3">
         <div class="flex h-full flex-col items-center border-r border-border bg-sidebar pt-3">
@@ -213,13 +227,33 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
             </div>
           </div>
 
-          <!-- File Tree -->
-          <ShadcnScrollArea class="flex-1 text-sm">
+          <!-- Sidebar Tabs -->
+          <div class="flex border-b border-border">
+            <button
+              class="flex flex-1 items-center justify-center gap-1 py-1.5 text-xs"
+              :class="sidebarTab === 'explorer' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="sidebarTab = 'explorer'"
+            >
+              <FolderOpen class="size-3.5" />
+              Explorer
+            </button>
+            <button
+              class="flex flex-1 items-center justify-center gap-1 py-1.5 text-xs"
+              :class="sidebarTab === 'git' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="sidebarTab = 'git'"
+            >
+              <GitCommit class="size-3.5" />
+              Source Control
+              <span v-if="gitStore.files.length > 0" class="rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
+                {{ gitStore.files.length }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Explorer -->
+          <ShadcnScrollArea v-if="sidebarTab === 'explorer'" class="flex-1 text-sm">
             <template v-if="workspace.rootPath">
-              <div
-                v-for="entry in workspace.fileTree"
-                :key="entry.path"
-              >
+              <div v-for="entry in workspace.fileTree" :key="entry.path">
                 <FileTreeNode :entry="entry" @select="openFile" @toggle="toggleDirectory" />
               </div>
             </template>
@@ -234,6 +268,9 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
               </button>
             </div>
           </ShadcnScrollArea>
+
+          <!-- Source Control -->
+          <GitPanel v-else-if="sidebarTab === 'git'" />
         </div>
       </Pane>
 
@@ -244,29 +281,14 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           <Pane :min-size="20">
             <div class="flex h-full flex-col">
               <!-- Tab Bar -->
-              <div v-if="editorStore.tabs.length > 0" class="flex items-center border-b border-border bg-background">
-                <div class="flex flex-1 overflow-x-auto">
-                  <div
-                    v-for="tab in editorStore.tabs"
-                    :key="tab.id"
-                    class="group flex cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs"
-                    :class="tab.id === editorStore.activeTabId
-                      ? 'bg-card text-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-accent'"
-                    @click="editorStore.activeTabId = tab.id"
-                  >
-                    <FileCode2 class="size-3.5" />
-                    <span>{{ tab.name }}</span>
-                    <span v-if="tab.isDirty" class="size-2 rounded-full bg-primary" />
-                    <button
-                      class="ml-1 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
-                      @click.stop="editorStore.closeTab(tab.id)"
-                    >
-                      <X class="size-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <DraggableTabBar
+                v-if="editorStore.tabs.length > 0"
+                :tabs="editorStore.tabs"
+                :active-tab-id="editorStore.activeTabId"
+                @select="editorStore.activeTabId = $event"
+                @close="editorStore.closeTab($event)"
+                @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
+              />
 
               <!-- Editor Content -->
               <div class="flex-1">
@@ -330,7 +352,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
               <!-- Terminal Body: Content + Session List -->
               <div class="flex flex-1">
                 <!-- Terminal Content -->
-                <div class="flex-1 bg-black">
+                <div class="relative flex-1 bg-black">
                   <TerminalView
                     v-for="tab in terminalStore.tabs"
                     v-show="tab.id === terminalStore.activeTabId"
@@ -340,23 +362,23 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </div>
 
                 <!-- Terminal Session List (right sidebar) -->
-                <ShadcnScrollArea v-if="terminalStore.tabs.length > 1" class="w-40 border-l border-border bg-background">
+                <ShadcnScrollArea v-if="terminalStore.tabs.length > 1" class="w-44 border-l border-border bg-background">
                   <div
                     v-for="tab in terminalStore.tabs"
                     :key="tab.id"
-                    class="group flex cursor-pointer items-center gap-1.5 border-b border-border px-2 py-1.5 text-xs"
+                    class="group flex cursor-pointer items-center gap-2 border-b border-border px-3 py-2 text-sm"
                     :class="tab.id === terminalStore.activeTabId
-                      ? 'bg-accent/50 text-accent-foreground'
+                      ? 'bg-accent/50 text-foreground'
                       : 'text-muted-foreground hover:bg-accent/30'"
                     @click="terminalStore.activeTabId = tab.id"
                   >
-                    <TerminalIcon class="size-3.5 shrink-0" />
+                    <TerminalIcon class="size-4 shrink-0" />
                     <span class="flex-1 truncate">{{ tab.name }}</span>
                     <button
                       class="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
                       @click.stop="terminalStore.closeTab(tab.id)"
                     >
-                      <X class="size-3" />
+                      <X class="size-3.5" />
                     </button>
                   </div>
                 </ShadcnScrollArea>
@@ -369,8 +391,17 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
     <!-- Statusbar -->
     <div class="flex h-7 items-center justify-between border-t border-border bg-primary px-2 text-xs text-primary-foreground">
-      <div class="flex items-center gap-1">
-        <span v-if="workspace.rootPath" class="opacity-80">{{ workspace.workspaceName }}</span>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="gitStore.isRepo && gitStore.branch"
+          class="flex items-center gap-1 rounded px-1 opacity-80 hover:bg-primary-foreground/20 hover:opacity-100"
+          :title="'Branch: ' + gitStore.branch"
+          @click="sidebarVisible = true; sidebarTab = 'git'"
+        >
+          <GitBranch class="size-3" />
+          {{ gitStore.branch }}
+        </button>
+        <span v-else-if="workspace.rootPath" class="opacity-80">{{ workspace.workspaceName }}</span>
       </div>
       <div class="flex items-center gap-1">
         <button
@@ -385,13 +416,23 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
         </span>
         <button
           class="rounded px-1.5 py-0.5 hover:bg-primary-foreground/20"
-          :title="terminalVisible ? t('toggleTerminal') : t('toggleTerminal')"
+          :title="t('toggleTerminal')"
           @click="terminalVisible = !terminalVisible"
         >
           <TerminalIcon class="size-3.5" />
         </button>
+        <button
+          class="rounded px-1.5 py-0.5 hover:bg-primary-foreground/20"
+          :title="t('settings')"
+          @click="settingsVisible = true"
+        >
+          <Settings class="size-3.5" />
+        </button>
       </div>
     </div>
+
+    <!-- Settings Overlay -->
+    <SettingsPanel v-if="settingsVisible" @close="settingsVisible = false" />
   </div>
 </template>
 
@@ -406,6 +447,7 @@ de:
   toggleTerminal: Terminal ein-/ausblenden
   newTerminal: Neues Terminal
   terminal: Terminal
+  settings: Einstellungen
 en:
   explorer: Explorer
   openFolder: Open Folder
@@ -416,4 +458,5 @@ en:
   toggleTerminal: Toggle terminal
   newTerminal: New Terminal
   terminal: Terminal
+  settings: Settings
 </i18n>

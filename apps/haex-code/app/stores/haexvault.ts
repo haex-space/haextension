@@ -38,6 +38,7 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
 
   const runMigrationsAsync = async () => {
     const haexVault = getHaexVault();
+    console.log("[haex-code] Migration files glob result:", migrationFiles);
     const migrations = Object.entries(migrationFiles).map(([path, content]) => ({
       name: path.split("/").pop()?.replace(".sql", "") || "",
       sql: content as string,

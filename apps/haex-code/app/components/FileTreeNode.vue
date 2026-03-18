@@ -1,16 +1,33 @@
 <script setup lang="ts">
-import {
-  ChevronRight,
-  ChevronDown,
-  File,
-  Folder,
-  FolderOpen,
-} from "lucide-vue-next";
+import { ChevronRight, ChevronDown } from "lucide-vue-next";
 import type { FileEntry } from "~/types";
 
 const props = defineProps<{
   entry: FileEntry;
 }>();
+
+const gitStore = useGitStore();
+const workspace = useWorkspaceStore();
+
+const gitStatus = computed(() => {
+  if (!workspace.rootPath || props.entry.isDirectory) return null;
+  return gitStore.getFileStatus(props.entry.path, workspace.rootPath);
+});
+
+const gitColor: Record<string, string> = {
+  modified: "text-yellow-500",
+  deleted: "text-red-500",
+  untracked: "text-green-500",
+  "staged-added": "text-green-500",
+  "staged-modified": "text-yellow-500",
+  "staged-deleted": "text-red-500",
+  staged: "text-yellow-500",
+};
+
+const gitLabel: Record<string, string> = {
+  modified: "M", deleted: "D", untracked: "U",
+  "staged-added": "A", "staged-modified": "M", "staged-deleted": "D", staged: "M",
+};
 
 const emit = defineEmits<{
   select: [entry: FileEntry];
@@ -18,6 +35,7 @@ const emit = defineEmits<{
 }>();
 
 const settings = useSettingsStore();
+const { getFileIcon } = useFileIcon();
 
 const handleClick = () => {
   if (props.entry.isDirectory) {
@@ -42,9 +60,12 @@ const handleClick = () => {
       </template>
       <template v-else>
         <span class="shrink-0" :class="settings.scale.iconSize" />
-        <File class="shrink-0 text-muted-foreground" :class="settings.scale.iconSize" />
+        <Icon :name="getFileIcon(entry.name)" :class="settings.scale.iconSize" class="shrink-0" />
       </template>
-      <span class="truncate">{{ entry.name }}</span>
+      <span class="flex-1 truncate" :class="gitStatus ? gitColor[gitStatus] : ''">{{ entry.name }}</span>
+      <span v-if="gitStatus" class="shrink-0 font-mono text-xs" :class="gitColor[gitStatus]">
+        {{ gitLabel[gitStatus] }}
+      </span>
     </button>
 
     <template v-if="entry.isDirectory && entry.isExpanded && entry.children">

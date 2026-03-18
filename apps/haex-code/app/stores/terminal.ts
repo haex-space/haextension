@@ -32,7 +32,7 @@ export const useTerminalStore = defineStore("terminal", () => {
     }
   };
 
-  const setSessionId = (tabId: string, sessionId: string) => {
+  const setSessionId = (tabId: string, sessionId: string | null) => {
     const tab = tabs.value.find((t) => t.id === tabId);
     if (tab) tab.sessionId = sessionId;
   };
