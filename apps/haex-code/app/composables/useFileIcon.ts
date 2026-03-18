@@ -1,7 +1,7 @@
 const EXT_ICON_MAP: Record<string, string> = {
   // TypeScript / JavaScript
   ts: "vscode-icons:file-type-typescript",
-  tsx: "vscode-icons:file-type-typescriptreact",
+  tsx: "vscode-icons:file-type-reactts",
   mts: "vscode-icons:file-type-typescript",
   cts: "vscode-icons:file-type-typescript",
   js: "vscode-icons:file-type-js",
@@ -29,17 +29,17 @@ const EXT_ICON_MAP: Record<string, string> = {
   yaml: "vscode-icons:file-type-yaml",
   yml: "vscode-icons:file-type-yaml",
   toml: "vscode-icons:file-type-toml",
-  csv: "vscode-icons:file-type-csv",
+  csv: "vscode-icons:file-type-excel",
   // Docs
   md: "vscode-icons:file-type-markdown",
   mdx: "vscode-icons:file-type-mdx",
   txt: "vscode-icons:file-type-text",
-  pdf: "vscode-icons:file-type-pdf",
+  pdf: "vscode-icons:file-type-pdf2",
   // Config
   env: "vscode-icons:file-type-dotenv",
   ini: "vscode-icons:file-type-ini",
   conf: "vscode-icons:file-type-config",
-  lock: "vscode-icons:file-type-lock",
+  lock: "vscode-icons:default-file",
   // Systems
   rs: "vscode-icons:file-type-rust",
   py: "vscode-icons:file-type-python",
@@ -51,7 +51,7 @@ const EXT_ICON_MAP: Record<string, string> = {
   cs: "vscode-icons:file-type-csharp",
   cpp: "vscode-icons:file-type-cpp",
   c: "vscode-icons:file-type-c",
-  h: "vscode-icons:file-type-h",
+  h: "vscode-icons:file-type-cheader",
   // Shell
   sh: "vscode-icons:file-type-shell",
   bash: "vscode-icons:file-type-shell",
@@ -105,7 +105,7 @@ const NAME_ICON_MAP: Record<string, string> = {
   ".eslintrc": "vscode-icons:file-type-eslint",
   ".eslintrc.json": "vscode-icons:file-type-eslint",
   ".prettierrc": "vscode-icons:file-type-prettier",
-  "readme.md": "vscode-icons:file-type-readme",
+  "readme.md": "vscode-icons:file-type-text",
   "license": "vscode-icons:file-type-license",
   "licence": "vscode-icons:file-type-license",
 };
