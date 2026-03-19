@@ -16,6 +16,7 @@ import {
   Globe,
   GripHorizontal,
   FileUp,
+  Menu,
 } from "lucide-vue-next";
 import type { FileEntry, EditorTab } from "~/types";
 import type { UiScale } from "~/stores/settings";
@@ -331,20 +332,23 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 {{ workspace.workspaceName || t("explorer") }}
               </span>
               <div class="flex items-center gap-1">
-                <button
-                  class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
-                  :title="t('openFile')"
-                  @click="openFileFromDisk"
-                >
-                  <FileUp class="size-5" />
-                </button>
-                <button
-                  class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
-                  :title="t('openFolder')"
-                  @click="openFolder"
-                >
-                  <FolderOpen class="size-5" />
-                </button>
+                <ShadcnDropdownMenu>
+                  <ShadcnDropdownMenuTrigger as-child>
+                    <button class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70">
+                      <Menu class="size-5" />
+                    </button>
+                  </ShadcnDropdownMenuTrigger>
+                  <ShadcnDropdownMenuContent align="end" class="min-w-44">
+                    <ShadcnDropdownMenuItem class="py-3 text-sm" @click="openFileFromDisk">
+                      <FileUp class="mr-2 size-5" />
+                      {{ t('openFile') }}
+                    </ShadcnDropdownMenuItem>
+                    <ShadcnDropdownMenuItem class="py-3 text-sm" @click="openFolder">
+                      <FolderOpen class="mr-2 size-5" />
+                      {{ t('openFolder') }}
+                    </ShadcnDropdownMenuItem>
+                  </ShadcnDropdownMenuContent>
+                </ShadcnDropdownMenu>
                 <button
                   class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
                   @click="sidebarVisible = false"
@@ -509,27 +513,28 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 {{ workspace.workspaceName || t("explorer") }}
               </span>
               <div class="flex items-center gap-1">
-                <button
-                  class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  :title="t('openFile')"
-                  @click="openFileFromDisk"
-                >
-                  <FileUp class="size-4" />
-                </button>
-                <button
-                  class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  :title="t('openFolder')"
-                  @click="openFolder"
-                >
-                  <FolderOpen class="size-4" />
-                </button>
-                <button
-                  class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  :title="t('hideSidebar')"
-                  @click="sidebarVisible = false"
-                >
-                  <PanelLeftClose class="size-4" />
-                </button>
+                <ShadcnDropdownMenu>
+                  <ShadcnDropdownMenuTrigger as-child>
+                    <button class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                      <Menu class="size-4" />
+                    </button>
+                  </ShadcnDropdownMenuTrigger>
+                  <ShadcnDropdownMenuContent align="end" class="min-w-40">
+                    <ShadcnDropdownMenuItem class="py-2" @click="openFileFromDisk">
+                      <FileUp class="mr-2 size-4" />
+                      {{ t('openFile') }}
+                    </ShadcnDropdownMenuItem>
+                    <ShadcnDropdownMenuItem class="py-2" @click="openFolder">
+                      <FolderOpen class="mr-2 size-4" />
+                      {{ t('openFolder') }}
+                    </ShadcnDropdownMenuItem>
+                    <ShadcnDropdownMenuSeparator />
+                    <ShadcnDropdownMenuItem class="py-2" @click="sidebarVisible = false">
+                      <PanelLeftClose class="mr-2 size-4" />
+                      {{ t('hideSidebar') }}
+                    </ShadcnDropdownMenuItem>
+                  </ShadcnDropdownMenuContent>
+                </ShadcnDropdownMenu>
               </div>
             </div>
 
