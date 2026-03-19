@@ -13,7 +13,6 @@ import {
   Settings,
   GitBranch,
   GitCommit,
-  Globe,
   GripHorizontal,
   FileUp,
   Menu,
@@ -32,17 +31,6 @@ const { detectLanguage } = useLanguageDetection();
 const { shells, detectShells } = useAvailableShells();
 const isMobile = useIsMobile();
 
-const showSshDialog = ref(false);
-const isDesktop = computed(() => {
-  const p = haexVault.state.context?.platform;
-  return p !== "android" && p !== "ios";
-});
-
-const connectSsh = (host: string, port: number, username: string) => {
-  const sshCmd = `/usr/bin/ssh`;
-  const args = `-o StrictHostKeyChecking=no -p ${port} ${username}@${host}`;
-  terminalStore.addTab(`${username}@${host}`, `${sshCmd} ${args}`);
-};
 
 const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 const cycleScale = () => {
@@ -474,15 +462,6 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                     <TerminalIcon class="mr-2 size-5" />
                     {{ shell.name }}
                   </ShadcnDropdownMenuItem>
-                  <ShadcnDropdownMenuSeparator v-if="isDesktop" />
-                  <ShadcnDropdownMenuItem
-                    v-if="isDesktop"
-                    class="py-3 text-sm"
-                    @click="showSshDialog = true"
-                  >
-                    <Globe class="mr-2 size-5" />
-                    SSH
-                  </ShadcnDropdownMenuItem>
                 </ShadcnDropdownMenuContent>
               </ShadcnDropdownMenu>
             </div>
@@ -690,15 +669,6 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                           <TerminalIcon class="mr-2 size-4" />
                           {{ shell.name }}
                         </ShadcnDropdownMenuItem>
-                        <ShadcnDropdownMenuSeparator v-if="isDesktop" />
-                        <ShadcnDropdownMenuItem
-                          v-if="isDesktop"
-                          class="py-2"
-                          @click="showSshDialog = true"
-                        >
-                          <Globe class="mr-2 size-4" />
-                          SSH
-                        </ShadcnDropdownMenuItem>
                       </ShadcnDropdownMenuContent>
                     </ShadcnDropdownMenu>
                     <button
@@ -795,13 +765,6 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
     <!-- Settings Overlay -->
     <SettingsPanel v-if="settingsVisible" @close="settingsVisible = false" />
-
-    <!-- SSH Connect Dialog -->
-    <SshConnectDialog
-      v-if="showSshDialog"
-      @close="showSshDialog = false"
-      @connect="(host, port, username) => { showSshDialog = false; connectSsh(host, port, username); }"
-    />
 
     <!-- Unsaved Changes Dialog -->
     <UnsavedChangesDialog
