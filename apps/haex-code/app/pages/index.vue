@@ -60,6 +60,17 @@ const sidebarSize = ref(20);
 const terminalSize = ref(30);
 
 
+const newFile = () => {
+  editorStore.openTab({
+    id: crypto.randomUUID(),
+    path: "",
+    name: "Untitled",
+    content: "",
+    language: "plaintext",
+    isDirty: false,
+  });
+};
+
 onMounted(async () => {
   await haexVault.initializeAsync();
   await settings.loadFromDb();
@@ -68,14 +79,7 @@ onMounted(async () => {
     terminalStore.addTab();
   }
   if (editorStore.tabs.length === 0) {
-    editorStore.openTab({
-      id: crypto.randomUUID(),
-      path: "",
-      name: "Untitled",
-      content: "",
-      language: "plaintext",
-      isDirty: false,
-    });
+    newFile();
   }
   if (workspace.rootPath) {
     gitStore.refresh(workspace.rootPath);
@@ -257,6 +261,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           @select="editorStore.activeTabId = $event"
           @close="editorStore.closeTab($event)"
           @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
+          @new-file="newFile"
         />
 
         <!-- Editor Content -->

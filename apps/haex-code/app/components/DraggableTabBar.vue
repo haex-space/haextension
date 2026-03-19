@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileCode2, X } from "lucide-vue-next";
+import { FileCode2, Plus, X } from "lucide-vue-next";
 import type { EditorTab } from "~/types";
 
 const props = defineProps<{
@@ -11,6 +11,7 @@ const emit = defineEmits<{
   select: [tabId: string];
   close: [tabId: string];
   reorder: [fromIndex: number, toIndex: number];
+  newFile: [];
 }>();
 
 const dragIndex = ref<number | null>(null);
@@ -78,5 +79,12 @@ const onDragEnd = () => {
         </button>
       </div>
     </div>
+    <button
+      class="shrink-0 rounded-md p-2 text-primary hover:bg-primary/10 active:bg-primary/20"
+      title="New File"
+      @click="emit('newFile')"
+    >
+      <Plus class="size-4" />
+    </button>
   </div>
 </template>
