@@ -67,6 +67,16 @@ onMounted(async () => {
   if (terminalStore.tabs.length === 0) {
     terminalStore.addTab();
   }
+  if (editorStore.tabs.length === 0) {
+    editorStore.openTab({
+      id: crypto.randomUUID(),
+      path: "",
+      name: "Untitled",
+      content: "",
+      language: "plaintext",
+      isDirty: false,
+    });
+  }
   if (workspace.rootPath) {
     gitStore.refresh(workspace.rootPath);
   }
