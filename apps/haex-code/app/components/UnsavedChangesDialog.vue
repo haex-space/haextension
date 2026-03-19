@@ -22,7 +22,7 @@ const emit = defineEmits<{
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <button
-            class="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent active:bg-accent/70"
+            class="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted active:bg-muted/70"
             @click="emit('cancel')"
           >
             {{ t('cancel') }}
