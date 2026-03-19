@@ -285,21 +285,29 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
       <!-- Mobile Sidebar (Sheet from left) -->
       <ShadcnSheet :open="sidebarVisible" @update:open="sidebarVisible = $event">
-        <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
+        <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0 [&>button:last-child]:hidden">
           <ShadcnSheetTitle class="sr-only">{{ t("explorer") }}</ShadcnSheetTitle>
           <ShadcnSheetDescription class="sr-only">{{ t("explorer") }}</ShadcnSheetDescription>
           <div class="flex h-full flex-col bg-sidebar text-sidebar-foreground">
             <!-- Sidebar Header -->
-            <div class="flex items-center justify-between border-b border-border px-3 pr-12 py-2.5">
+            <div class="flex items-center justify-between border-b border-border px-3 py-2.5">
               <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {{ workspace.workspaceName || t("explorer") }}
               </span>
-              <button
-                class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
-                @click="openFolder"
-              >
-                <FolderOpen class="size-5" />
-              </button>
+              <div class="flex items-center gap-1">
+                <button
+                  class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
+                  @click="openFolder"
+                >
+                  <FolderOpen class="size-5" />
+                </button>
+                <button
+                  class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
+                  @click="sidebarVisible = false"
+                >
+                  <X class="size-5" />
+                </button>
+              </div>
             </div>
 
             <!-- Sidebar Tabs -->
