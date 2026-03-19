@@ -527,7 +527,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
     <!-- DESKTOP LAYOUT                                                -->
     <!-- ============================================================ -->
     <template v-else>
-      <Splitpanes class="flex-1 min-h-0">
+      <Splitpanes class="flex-1 min-h-0" @resized="(panes: any[]) => { if (sidebarVisible && panes[0]) sidebarSize = panes[0].size }">
         <!-- Sidebar Toggle (when closed) -->
         <Pane v-if="!sidebarVisible" :size="3" :min-size="3" :max-size="3">
           <div class="flex h-full flex-col items-center border-r border-border bg-sidebar pt-3">
