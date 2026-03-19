@@ -19,19 +19,21 @@ const emit = defineEmits<{
       <p class="mb-6 text-sm leading-relaxed text-muted-foreground">
         {{ t('message', { name: fileName }) }}
       </p>
-      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button
-          class="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent active:bg-accent/70"
-          @click="emit('cancel')"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 active:bg-destructive/30"
-          @click="emit('discard')"
-        >
-          {{ t('discard') }}
-        </button>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button
+            class="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent active:bg-accent/70"
+            @click="emit('cancel')"
+          >
+            {{ t('cancel') }}
+          </button>
+          <button
+            class="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80"
+            @click="emit('discard')"
+          >
+            {{ t('discard') }}
+          </button>
+        </div>
         <button
           class="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80"
           @click="emit('save')"
