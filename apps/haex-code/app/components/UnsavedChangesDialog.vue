@@ -13,27 +13,27 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('cancel')">
-    <div class="w-80 rounded-lg border border-border bg-background p-4 shadow-lg">
-      <h3 class="mb-2 text-sm font-semibold">{{ t('title') }}</h3>
-      <p class="mb-4 text-sm text-muted-foreground">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="emit('cancel')">
+    <div class="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl">
+      <h3 class="mb-3 text-base font-semibold">{{ t('title') }}</h3>
+      <p class="mb-6 text-sm leading-relaxed text-muted-foreground">
         {{ t('message', { name: fileName }) }}
       </p>
-      <div class="flex justify-end gap-2">
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
-          class="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
+          class="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent active:bg-accent/70"
           @click="emit('cancel')"
         >
           {{ t('cancel') }}
         </button>
         <button
-          class="rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+          class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 active:bg-destructive/30"
           @click="emit('discard')"
         >
           {{ t('discard') }}
         </button>
         <button
-          class="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+          class="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80"
           @click="emit('save')"
         >
           {{ t('save') }}
