@@ -28,7 +28,7 @@ const emit = defineEmits<{
             {{ t('cancel') }}
           </button>
           <button
-            class="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80"
+            class="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-white hover:bg-destructive/90 active:bg-destructive/80"
             @click="emit('discard')"
           >
             {{ t('discard') }}
