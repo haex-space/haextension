@@ -186,6 +186,13 @@ const initTerminal = async () => {
     console.error("[haex-code] Failed to create shell session:", e);
     term.writeln("\x1b[1;31mFailed to start shell\x1b[0m");
     term.writeln(`\x1b[90m${e}\x1b[0m`);
+
+    const platform = haexVault.state.context?.platform;
+    if (platform === "android") {
+      term.writeln("");
+      term.writeln("\x1b[33mTipp: Installiere Termux (F-Droid) für eine vollwertige Shell.\x1b[0m");
+      term.writeln("\x1b[90mAndroid bietet nur eine eingeschränkte System-Shell.\x1b[0m");
+    }
   }
 
   // Handle container resize → fit terminal
