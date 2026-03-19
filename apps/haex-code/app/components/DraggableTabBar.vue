@@ -72,10 +72,10 @@ const onDragEnd = () => {
         <span class="whitespace-nowrap">{{ tab.name }}</span>
         <span v-if="tab.isDirty" class="size-2 shrink-0 rounded-full bg-primary" />
         <button
-          class="ml-1 shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
+          class="ml-1 shrink-0 rounded-md p-1 opacity-0 hover:bg-destructive/15 hover:text-destructive group-hover:opacity-100"
           @click.stop="emit('close', tab.id)"
         >
-          <X class="size-3.5" />
+          <X class="size-4" />
         </button>
       </div>
     </div>
