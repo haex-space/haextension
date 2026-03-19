@@ -786,3 +786,27 @@ en:
   terminal: Terminal
   settings: Settings
 </i18n>
+
+<style>
+/* Make splitpane splitters grabbable */
+.splitpanes--horizontal > .splitpanes__splitter {
+  height: 4px;
+  min-height: 4px;
+  background: hsl(var(--border));
+  cursor: row-resize;
+  transition: background 0.15s;
+}
+.splitpanes--horizontal > .splitpanes__splitter:hover {
+  background: hsl(var(--primary));
+}
+.splitpanes--vertical > .splitpanes__splitter {
+  width: 4px;
+  min-width: 4px;
+  background: hsl(var(--border));
+  cursor: col-resize;
+  transition: background 0.15s;
+}
+.splitpanes--vertical > .splitpanes__splitter:hover {
+  background: hsl(var(--primary));
+}
+</style>
