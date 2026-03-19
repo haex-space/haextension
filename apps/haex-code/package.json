@@ -16,7 +16,7 @@
     "build:release": "pnpm build && pnpm package"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.6.3",
+    "@haex-space/vault-sdk": "^2.6.5",
     "@iconify-json/vscode-icons": "^1.2.45",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
