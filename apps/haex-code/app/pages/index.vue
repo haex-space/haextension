@@ -387,10 +387,10 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
           <!-- Terminal Tabs (horizontal scroll on mobile) -->
           <div v-if="terminalStore.tabs.length > 1" class="flex gap-1 overflow-x-auto border-b border-border px-2 py-1">
-            <button
+            <div
               v-for="tab in terminalStore.tabs"
               :key="tab.id"
-              class="flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-xs"
+              class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-xs"
               :class="tab.id === terminalStore.activeTabId
                 ? 'bg-accent text-foreground'
                 : 'text-muted-foreground'"
@@ -404,7 +404,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
               >
                 <X class="size-3.5" />
               </button>
-            </button>
+            </div>
           </div>
 
           <!-- Terminal Content -->
