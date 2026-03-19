@@ -15,6 +15,7 @@ import {
   GitCommit,
   Globe,
   GripHorizontal,
+  FileUp,
 } from "lucide-vue-next";
 import type { FileEntry, EditorTab } from "~/types";
 import type { UiScale } from "~/stores/settings";
@@ -101,6 +102,36 @@ const openFolder = async () => {
       haexVault.setPermissionPrompt(e, openFolder);
     } else {
       console.error("[haex-code] Failed to open folder:", e);
+    }
+  }
+};
+
+const openFileFromDisk = async () => {
+  try {
+    const files = await haexVault.client.filesystem.selectFile({
+      title: t("openFile"),
+    });
+    if (files && files.length > 0) {
+      for (const filePath of files) {
+        const data = await haexVault.client.filesystem.readFile(filePath);
+        const content = new TextDecoder().decode(data);
+        const name = filePath.split("/").pop() || filePath;
+        editorStore.openTab({
+          id: crypto.randomUUID(),
+          path: filePath,
+          name,
+          content,
+          language: detectLanguage(filePath),
+          isDirty: false,
+        });
+      }
+      if (isMobile.value) sidebarVisible.value = false;
+    }
+  } catch (e: any) {
+    if (isPermissionPromptError(e)) {
+      haexVault.setPermissionPrompt(e, openFileFromDisk);
+    } else {
+      console.error("[haex-code] Failed to open file:", e);
     }
   }
 };
@@ -302,6 +333,14 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
               <div class="flex items-center gap-1">
                 <button
                   class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
+                  :title="t('openFile')"
+                  @click="openFileFromDisk"
+                >
+                  <FileUp class="size-5" />
+                </button>
+                <button
+                  class="rounded-md p-2.5 text-muted-foreground hover:bg-accent active:bg-accent/70"
+                  :title="t('openFolder')"
                   @click="openFolder"
                 >
                   <FolderOpen class="size-5" />
@@ -470,6 +509,13 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 {{ workspace.workspaceName || t("explorer") }}
               </span>
               <div class="flex items-center gap-1">
+                <button
+                  class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  :title="t('openFile')"
+                  @click="openFileFromDisk"
+                >
+                  <FileUp class="size-4" />
+                </button>
                 <button
                   class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   :title="t('openFolder')"
@@ -717,6 +763,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 <i18n lang="yaml">
 de:
   explorer: Explorer
+  openFile: Datei öffnen
   openFolder: Ordner öffnen
   hideSidebar: Sidebar ausblenden
   noFolder: Kein Ordner geöffnet
@@ -728,6 +775,7 @@ de:
   settings: Einstellungen
 en:
   explorer: Explorer
+  openFile: Open File
   openFolder: Open Folder
   hideSidebar: Hide sidebar
   noFolder: No folder opened
