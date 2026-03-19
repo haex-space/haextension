@@ -21,25 +21,16 @@ const emit = defineEmits<{
       </p>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <button
-            class="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted active:bg-muted/70"
-            @click="emit('cancel')"
-          >
+          <ShadcnButton variant="outline" @click="emit('cancel')">
             {{ t('cancel') }}
-          </button>
-          <button
-            class="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-white hover:bg-destructive/90 active:bg-destructive/80"
-            @click="emit('discard')"
-          >
+          </ShadcnButton>
+          <ShadcnButton variant="destructive" @click="emit('discard')">
             {{ t('discard') }}
-          </button>
+          </ShadcnButton>
         </div>
-        <button
-          class="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:bg-primary/80"
-          @click="emit('save')"
-        >
+        <ShadcnButton @click="emit('save')">
           {{ t('save') }}
-        </button>
+        </ShadcnButton>
       </div>
     </div>
   </div>
