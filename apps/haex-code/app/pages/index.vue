@@ -61,6 +61,43 @@ watch(sidebarTab, (tab) => {
 const sidebarSize = ref(20);
 const terminalSize = ref(30);
 
+// Unsaved changes dialog
+const pendingCloseTabId = ref<string | null>(null);
+const pendingCloseTab = computed(() =>
+  pendingCloseTabId.value ? editorStore.tabs.find(t => t.id === pendingCloseTabId.value) ?? null : null
+);
+
+const requestCloseTab = (tabId: string) => {
+  const tab = editorStore.tabs.find(t => t.id === tabId);
+  if (tab?.isDirty) {
+    pendingCloseTabId.value = tabId;
+  } else {
+    editorStore.closeTab(tabId);
+  }
+};
+
+const onSaveThenClose = async () => {
+  if (!pendingCloseTab.value) return;
+  const tab = pendingCloseTab.value;
+  if (tab.path) {
+    try {
+      const data = new TextEncoder().encode(tab.content);
+      await haexVault.client.filesystem.writeFile(tab.path, data);
+    } catch (e) {
+      console.error("[haex-code] Failed to save file:", e);
+    }
+  }
+  editorStore.closeTab(tab.id);
+  pendingCloseTabId.value = null;
+};
+
+const onDiscardAndClose = () => {
+  if (pendingCloseTab.value) {
+    editorStore.closeTab(pendingCloseTab.value.id);
+  }
+  pendingCloseTabId.value = null;
+};
+
 
 const newFile = () => {
   editorStore.openTab({
@@ -291,7 +328,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           :tabs="editorStore.tabs"
           :active-tab-id="editorStore.activeTabId"
           @select="editorStore.activeTabId = $event"
-          @close="editorStore.closeTab($event)"
+          @close="requestCloseTab($event)"
           @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
           @new-file="newFile"
         />
@@ -528,13 +565,15 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                       <FolderOpen class="mr-2 size-4" />
                       {{ t('openFolder') }}
                     </ShadcnDropdownMenuItem>
-                    <ShadcnDropdownMenuSeparator />
-                    <ShadcnDropdownMenuItem class="py-2" @click="sidebarVisible = false">
-                      <PanelLeftClose class="mr-2 size-4" />
-                      {{ t('hideSidebar') }}
-                    </ShadcnDropdownMenuItem>
                   </ShadcnDropdownMenuContent>
                 </ShadcnDropdownMenu>
+                <button
+                  class="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  :title="t('hideSidebar')"
+                  @click="sidebarVisible = false"
+                >
+                  <PanelLeftClose class="size-4" />
+                </button>
               </div>
             </div>
 
@@ -597,7 +636,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                   :tabs="editorStore.tabs"
                   :active-tab-id="editorStore.activeTabId"
                   @select="editorStore.activeTabId = $event"
-                  @close="editorStore.closeTab($event)"
+                  @close="requestCloseTab($event)"
                   @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
                 />
 
@@ -761,6 +800,15 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
       v-if="showSshDialog"
       @close="showSshDialog = false"
       @connect="(host, port, username) => { showSshDialog = false; connectSsh(host, port, username); }"
+    />
+
+    <!-- Unsaved Changes Dialog -->
+    <UnsavedChangesDialog
+      v-if="pendingCloseTab"
+      :file-name="pendingCloseTab.name"
+      @save="onSaveThenClose"
+      @discard="onDiscardAndClose"
+      @cancel="pendingCloseTabId = null"
     />
   </div>
 </template>
