@@ -638,6 +638,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                   @select="editorStore.activeTabId = $event"
                   @close="requestCloseTab($event)"
                   @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
+                  @new-file="newFile"
                 />
 
                 <!-- Editor Content -->
