@@ -13,6 +13,7 @@ import {
   Settings,
   GitBranch,
   GitCommit,
+  Globe,
 } from "lucide-vue-next";
 import type { FileEntry, EditorTab } from "~/types";
 import type { UiScale } from "~/stores/settings";
@@ -26,6 +27,19 @@ const settings = useSettingsStore();
 const gitStore = useGitStore();
 const { detectLanguage } = useLanguageDetection();
 const { shells, detectShells } = useAvailableShells();
+
+const showSshDialog = ref(false);
+const isDesktop = computed(() => {
+  const p = haexVault.state.context?.platform;
+  return p !== "android" && p !== "ios";
+});
+
+const connectSsh = (host: string, port: number, username: string) => {
+  const sshCmd = `/usr/bin/ssh`;
+  const args = `-o StrictHostKeyChecking=no -p ${port} ${username}@${host}`;
+  // Spawn ssh as a shell command in the PTY — the PTY handles all I/O
+  terminalStore.addTab(`${username}@${host}`, `${sshCmd} ${args}`);
+};
 
 const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 const cycleScale = () => {
@@ -338,6 +352,14 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                         <TerminalIcon class="mr-2 size-3.5" />
                         {{ shell.name }}
                       </ShadcnDropdownMenuItem>
+                      <ShadcnDropdownMenuSeparator v-if="isDesktop" />
+                      <ShadcnDropdownMenuItem
+                        v-if="isDesktop"
+                        @click="showSshDialog = true"
+                      >
+                        <Globe class="mr-2 size-3.5" />
+                        SSH
+                      </ShadcnDropdownMenuItem>
                     </ShadcnDropdownMenuContent>
                   </ShadcnDropdownMenu>
                   <button
@@ -433,6 +455,13 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
     <!-- Settings Overlay -->
     <SettingsPanel v-if="settingsVisible" @close="settingsVisible = false" />
+
+    <!-- SSH Connect Dialog -->
+    <SshConnectDialog
+      v-if="showSshDialog"
+      @close="showSshDialog = false"
+      @connect="(host, port, username) => { showSshDialog = false; connectSsh(host, port, username); }"
+    />
   </div>
 </template>
 
