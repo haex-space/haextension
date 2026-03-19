@@ -280,7 +280,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
           <ShadcnSheetDescription class="sr-only">{{ t("explorer") }}</ShadcnSheetDescription>
           <div class="flex h-full flex-col bg-sidebar text-sidebar-foreground">
             <!-- Sidebar Header -->
-            <div class="flex items-center justify-between border-b border-border px-3 py-2.5">
+            <div class="flex items-center justify-between border-b border-border px-3 pr-12 py-2.5">
               <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {{ workspace.workspaceName || t("explorer") }}
               </span>
