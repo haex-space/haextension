@@ -27,7 +27,6 @@ onMounted(async () => {
   if (id === "new") {
     canvas.newDrawing();
     stencilStore.clear();
-    canvas.isDirty = true; // auto-save will persist it
   } else if (canvas.drawingId === id) {
     // Already loaded (e.g. from store), nothing to do
   } else {

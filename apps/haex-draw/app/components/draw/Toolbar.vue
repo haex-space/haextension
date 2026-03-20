@@ -245,7 +245,7 @@ const brushSizes = [2, 4, 8, 16, 32];
             @click.exact="canvas.activeTool = 'brush'"
           >
             <DrawBrushIcon :brush-id="canvas.activeBrushPreset" :size="24" :color="brushButtonIconColor" />
-            <ChevronRight class="absolute -right-0.5 bottom-0.5 size-2.5 opacity-50" />
+            <ChevronRight class="absolute -right-0.5 top-1/2 -translate-y-1/2 size-2.5 opacity-50" />
           </button>
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent side="right" align="start" :side-offset="8" class="w-56 p-0">
@@ -371,7 +371,7 @@ const brushSizes = [2, 4, 8, 16, 32];
             @click.exact="canvas.lastStencilPreset ? canvas.activeTool = 'stencil' : null"
           >
             <Frame class="size-6" />
-            <ChevronRight class="absolute -right-0.5 bottom-0.5 size-2.5 opacity-50" />
+            <ChevronRight class="absolute -right-0.5 top-1/2 -translate-y-1/2 size-2.5 opacity-50" />
           </button>
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent side="right" align="start" :side-offset="8" class="min-w-44">
