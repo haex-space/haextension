@@ -3,7 +3,12 @@
   "signature": "",
   "permissions": {
     "database": [],
-    "filesystem": [],
+    "filesystem": [
+      {
+        "target": "*",
+        "operation": "read"
+      }
+    ],
     "shell": [],
     "web": []
   },

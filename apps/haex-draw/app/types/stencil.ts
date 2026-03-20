@@ -1,4 +1,4 @@
-export type StencilShapeType = "rectangle" | "circle" | "ellipse" | "star" | "triangle" | "heart" | "hexagon" | "custom";
+export type StencilShapeType = "rectangle" | "circle" | "ellipse" | "star" | "triangle" | "heart" | "hexagon" | "custom" | "image";
 
 export interface StencilPreset {
   id: string;
@@ -26,4 +26,6 @@ export interface Stencil {
   pinned: boolean;
   /** SVG path data for custom shapes */
   svgPath?: string;
+  /** Base64 image data for image stencils */
+  imageData?: string;
 }

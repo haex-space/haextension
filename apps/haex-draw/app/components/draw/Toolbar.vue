@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import {
+  Menu,
+  FilePlus,
+  FolderOpen,
   Hand,
   Undo2,
   Redo2,
@@ -33,10 +36,27 @@ const emit = defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
+const router = useRouter();
+const localePath = useLocalePath();
 const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const { presets, getPreset } = useBrushPresets();
 const { dinPresets, geometricPresets, socialPresets, adsPresets, screenPresets } = useStencilPresets();
+const { listAsync } = useDrawingPersistence();
+
+const recentDrawings = ref<{ id: string; name: string; thumbnail: string | null }[]>([]);
+const loadRecent = async () => {
+  const all = await listAsync();
+  recentDrawings.value = all
+    .reverse()
+    .filter(d => d.id !== canvas.drawingId)
+    .slice(0, 5)
+    .map(d => ({ id: d.id, name: d.name, thumbnail: d.thumbnail }));
+};
+
+const goToOverview = () => router.push(localePath("/"));
+const openDrawing = (id: string) => router.push(localePath(`/draw/${id}`));
+const newDrawing = () => router.push(localePath("/draw/new"));
 
 const stencilShapeIcons: Record<string, any> = {
   rectangle: RectangleHorizontal,
@@ -48,6 +68,52 @@ const stencilShapeIcons: Record<string, any> = {
 };
 
 const { importSvgAsync } = useSvgImport();
+
+const importImage = async () => {
+  try {
+    const haexVault = useHaexVaultStore();
+    const client = haexVault.client;
+    if (!client) return;
+
+    const paths = await client.filesystem.selectFile({
+      title: "Bild importieren",
+      filters: [["Bilder", ["png", "jpg", "jpeg", "webp", "gif", "bmp"]]],
+      multiple: false,
+    });
+
+    console.log("[haex-draw] selectFile result:", paths);
+    if (!paths || paths.length === 0) return;
+    const filePath = paths[0]!;
+    const fileName = filePath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "Bild";
+
+    // Read file as binary
+    const data = await client.filesystem.readFile(filePath);
+
+    // Detect MIME type from extension
+    const ext = filePath.split(".").pop()?.toLowerCase() ?? "png";
+    const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
+    const mime = mimeMap[ext] ?? "image/png";
+
+    // Convert to base64 data URL
+    let binary = "";
+    for (let i = 0; i < data.length; i++) {
+      binary += String.fromCharCode(data[i]!);
+    }
+    const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+
+    // Load into Image to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      const center = getViewportCenter();
+      stencilStore.addImageStencil(dataUrl, img.naturalWidth, img.naturalHeight, fileName, center.x, center.y);
+      stencilPopoverOpen.value = false;
+    };
+    img.src = dataUrl;
+  } catch (e) {
+    console.error("[haex-draw] importImage error:", e);
+  }
+};
+
 const stencilPopoverOpen = ref(false);
 
 const getViewportCenter = () => {
@@ -123,6 +189,49 @@ const brushSizes = [2, 4, 8, 16, 32];
   <!-- Vertical left toolbar -->
   <div class="flex shrink-0">
     <div class="flex flex-col items-center gap-0.5 border-r border-border bg-background px-1 py-2">
+      <!-- Burger Menu -->
+      <ShadcnDropdownMenu @update:open="(open: boolean) => { if (open) loadRecent(); }">
+        <ShadcnDropdownMenuTrigger as-child>
+          <button
+            class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            :title="t('menu')"
+          >
+            <Menu class="size-6" />
+          </button>
+        </ShadcnDropdownMenuTrigger>
+        <ShadcnDropdownMenuContent side="right" align="start" :side-offset="8" class="min-w-52">
+          <ShadcnDropdownMenuItem @click="newDrawing">
+            <FilePlus class="mr-2 size-4" /> {{ t("newDrawing") }}
+          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuSeparator />
+          <template v-if="recentDrawings.length > 0">
+            <ShadcnDropdownMenuItem
+              v-for="d in recentDrawings"
+              :key="d.id"
+              @click="openDrawing(d.id)"
+            >
+              <img
+                v-if="d.thumbnail"
+                :src="d.thumbnail"
+                class="mr-2 size-6 shrink-0 rounded border border-border object-contain bg-white"
+              />
+              <div v-else class="mr-2 flex size-6 shrink-0 items-center justify-center rounded border border-border bg-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-muted-foreground/40">
+                  <path d="M5 19 C7 15, 12 12, 19 5" stroke-linecap="round" />
+                </svg>
+              </div>
+              <span class="truncate">{{ d.name }}</span>
+            </ShadcnDropdownMenuItem>
+            <ShadcnDropdownMenuSeparator />
+          </template>
+          <ShadcnDropdownMenuItem @click="goToOverview">
+            <FolderOpen class="mr-2 size-4" /> {{ t("allDrawings") }}
+          </ShadcnDropdownMenuItem>
+        </ShadcnDropdownMenuContent>
+      </ShadcnDropdownMenu>
+
+      <!-- Separator -->
+      <div class="my-1 h-px w-6 bg-border" />
       <!-- Unified Brush Menu: Preset + Tip + Size + Color -->
       <ShadcnDropdownMenu>
         <ShadcnDropdownMenuTrigger as-child>
@@ -135,7 +244,7 @@ const brushSizes = [2, 4, 8, 16, 32];
             :title="`${activePresetLabel} (B)`"
             @click.exact="canvas.activeTool = 'brush'"
           >
-            <DrawBrushIcon :brush-id="canvas.activeBrushPreset" :size="20" :color="brushButtonIconColor" />
+            <DrawBrushIcon :brush-id="canvas.activeBrushPreset" :size="24" :color="brushButtonIconColor" />
             <ChevronRight class="absolute -right-0.5 bottom-0.5 size-2.5 opacity-50" />
           </button>
         </ShadcnDropdownMenuTrigger>
@@ -244,7 +353,7 @@ const brushSizes = [2, 4, 8, 16, 32];
         :title="`${t(tool.label)} (${tool.shortcut})`"
         @click="canvas.activeTool = tool.id"
       >
-        <component :is="tool.icon" class="size-5" />
+        <component :is="tool.icon" class="size-6" />
       </button>
 
       <!-- Separator -->
@@ -261,7 +370,7 @@ const brushSizes = [2, 4, 8, 16, 32];
             :title="t('stencils')"
             @click.exact="canvas.lastStencilPreset ? canvas.activeTool = 'stencil' : null"
           >
-            <Frame class="size-5" />
+            <Frame class="size-6" />
             <ChevronRight class="absolute -right-0.5 bottom-0.5 size-2.5 opacity-50" />
           </button>
         </ShadcnDropdownMenuTrigger>
@@ -318,6 +427,9 @@ const brushSizes = [2, 4, 8, 16, 32];
             </ShadcnDropdownMenuSubContent>
           </ShadcnDropdownMenuSub>
           <ShadcnDropdownMenuSeparator />
+          <ShadcnDropdownMenuItem @click="importImage">
+            <FileUp class="mr-2 size-4" /> {{ t("importImage") }}
+          </ShadcnDropdownMenuItem>
           <ShadcnDropdownMenuItem @click="importSvgStencil">
             <FileUp class="mr-2 size-4" /> {{ t("importSvg") }}
           </ShadcnDropdownMenuItem>
@@ -334,7 +446,7 @@ const brushSizes = [2, 4, 8, 16, 32];
         :disabled="!canvas.canUndo"
         @click="canvas.undo()"
       >
-        <Undo2 class="size-5" />
+        <Undo2 class="size-6" />
       </button>
       <button
         class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30"
@@ -342,7 +454,7 @@ const brushSizes = [2, 4, 8, 16, 32];
         :disabled="!canvas.canRedo"
         @click="canvas.redo()"
       >
-        <Redo2 class="size-5" />
+        <Redo2 class="size-6" />
       </button>
       <button
         class="rounded-lg p-2 transition-colors"
@@ -352,7 +464,7 @@ const brushSizes = [2, 4, 8, 16, 32];
         :title="t('history')"
         @click="emit('toggleHistory')"
       >
-        <History class="size-5" />
+        <History class="size-6" />
       </button>
 
       <!-- Spacer -->
@@ -364,21 +476,21 @@ const brushSizes = [2, 4, 8, 16, 32];
         :title="t('save')"
         @click="emit('save')"
       >
-        <Save class="size-5" />
+        <Save class="size-6" />
       </button>
       <button
         class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
         :title="t('exportPng')"
         @click="emit('exportPng')"
       >
-        <Download class="size-5" />
+        <Download class="size-6" />
       </button>
       <button
         class="rounded-lg p-2 text-destructive transition-colors hover:bg-destructive/10"
         :title="t('clear')"
         @click="canvas.clear()"
       >
-        <Trash2 class="size-5" />
+        <Trash2 class="size-6" />
       </button>
     </div>
   </div>
@@ -387,6 +499,9 @@ const brushSizes = [2, 4, 8, 16, 32];
 
 <i18n lang="yaml">
 de:
+  menu: Menü
+  newDrawing: Neue Zeichnung
+  allDrawings: Alle Zeichnungen
   brushPreset: Stift
   tip: Spitze
   eraser: Radierer
@@ -398,6 +513,7 @@ de:
   socialMedia: Soziale Medien
   digitalAds: Digitale Werbung
   screens: Bildschirmgrößen
+  importImage: Bild importieren
   importSvg: SVG importieren
   undo: Rückgängig
   redo: Wiederherstellen
@@ -406,6 +522,9 @@ de:
   exportPng: Als PNG exportieren
   clear: Alles löschen
 en:
+  menu: Menu
+  newDrawing: New Drawing
+  allDrawings: All Drawings
   brushPreset: Brush
   tip: Tip
   eraser: Eraser
@@ -417,6 +536,7 @@ en:
   socialMedia: Social Media
   digitalAds: Digital Ads
   screens: Screen Sizes
+  importImage: Import Image
   importSvg: Import SVG
   undo: Undo
   redo: Redo

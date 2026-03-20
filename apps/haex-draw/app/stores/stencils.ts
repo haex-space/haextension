@@ -81,6 +81,29 @@ export const useStencilStore = defineStore("stencils", () => {
     return stencil;
   };
 
+  const addImageStencil = (imageData: string, width: number, height: number, name: string, worldX: number, worldY: number) => {
+    // Scale down if too large (max 600px on longest side for initial placement)
+    const maxSize = 600;
+    const scale = Math.min(maxSize / Math.max(width, height), 1);
+    const stencil: Stencil = {
+      id: crypto.randomUUID(),
+      presetId: "image",
+      shapeType: "image",
+      label: name,
+      x: worldX,
+      y: worldY,
+      width: Math.round(width * scale),
+      height: Math.round(height * scale),
+      rotation: 0,
+      pinned: false,
+      imageData,
+    };
+
+    stencils.value.push(stencil);
+    selectedIds.value = new Set([stencil.id]);
+    return stencil;
+  };
+
   const removeStencil = (id: string) => {
     stencils.value = stencils.value.filter((s) => s.id !== id);
     const next = new Set(selectedIds.value);
@@ -203,6 +226,24 @@ export const useStencilStore = defineStore("stencils", () => {
     clipboard.value = [];
   };
 
+  const loadStencils = (serialized: any[]) => {
+    clear();
+    stencils.value = serialized.map((s) => ({
+      id: s.id,
+      presetId: s.presetId,
+      shapeType: s.shapeType,
+      label: s.label,
+      x: s.x,
+      y: s.y,
+      width: s.width,
+      height: s.height,
+      rotation: s.rotation ?? 0,
+      pinned: s.pinned ?? false,
+      svgPath: s.svgPath,
+      imageData: s.imageData,
+    }));
+  };
+
   return {
     stencils,
     hoveredId,
@@ -215,6 +256,7 @@ export const useStencilStore = defineStore("stencils", () => {
     placingId,
     addStencil,
     addCustomStencil,
+    addImageStencil,
     removeStencil,
     removeSelected,
     moveStencil,
@@ -229,5 +271,6 @@ export const useStencilStore = defineStore("stencils", () => {
     paste,
     hitTest,
     clear,
+    loadStencils,
   };
 });

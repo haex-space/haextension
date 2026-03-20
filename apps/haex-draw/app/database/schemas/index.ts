@@ -95,4 +95,5 @@ export interface SerializedStencil {
   rotation: number;
   pinned: boolean;
   svgPath?: string;
+  imageData?: string;
 }

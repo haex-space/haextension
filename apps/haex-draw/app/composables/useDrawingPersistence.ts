@@ -41,24 +41,45 @@ export function useDrawingPersistence() {
     const db = haexVault.orm;
     if (!db || !canvas.drawingId) return;
 
-    const data = {
-      id: canvas.drawingId,
-      name: canvas.drawingName,
-      strokes: canvas.strokes,
-      stencils: stencilStore.stencils,
-      viewport: canvas.viewport,
-      updatedAt: new Date(),
-    };
+    // Serialize stencils to plain objects (strip runtime state)
+    const serializedStencils = stencilStore.stencils.map(s => ({
+      id: s.id,
+      presetId: s.presetId,
+      shapeType: s.shapeType,
+      label: s.label,
+      x: s.x,
+      y: s.y,
+      width: s.width,
+      height: s.height,
+      rotation: s.rotation,
+      pinned: s.pinned,
+      svgPath: s.svgPath,
+      imageData: s.imageData,
+    }));
 
-    await db
-      .insert(drawings)
-      .values({ ...data, createdAt: new Date() })
-      .onConflictDoUpdate({
-        target: drawings.id,
-        set: data,
+    // Deep-clone reactive data to plain objects for serialization
+    const strokesData = JSON.parse(JSON.stringify(canvas.strokes));
+    const stencilsData = JSON.parse(JSON.stringify(serializedStencils));
+    const viewportData = JSON.parse(JSON.stringify(canvas.viewport));
+
+    const existing = await db.select({ id: drawings.id }).from(drawings).where(eq(drawings.id, canvas.drawingId));
+
+    if (existing.length > 0) {
+      await db.update(drawings).set({
+        name: canvas.drawingName,
+        strokes: strokesData,
+        stencils: stencilsData,
+        viewport: viewportData,
+      }).where(eq(drawings.id, canvas.drawingId));
+    } else {
+      await db.insert(drawings).values({
+        id: canvas.drawingId,
+        name: canvas.drawingName,
+        strokes: strokesData,
+        stencils: stencilsData,
+        viewport: viewportData,
       });
-
-    console.log("[haex-draw] Drawing saved");
+    }
   };
 
   const loadAsync = async (id: string): Promise<SelectDrawing | null> => {
@@ -122,11 +143,58 @@ export function useDrawingPersistence() {
     });
   };
 
+  const generateThumbnailAsync = async () => {
+    const db = haexVault.orm;
+    if (!db || !canvas.drawingId || canvas.strokes.length === 0) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const stroke of canvas.strokes) {
+      for (const [x, y] of stroke.points) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+
+    const padding = 20;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const fullW = Math.ceil(maxX - minX);
+    const fullH = Math.ceil(maxY - minY);
+
+    // Scale down to max 300x200
+    const maxW = 300;
+    const maxH = 200;
+    const scale = Math.min(maxW / fullW, maxH / fullH, 1);
+    const w = Math.ceil(fullW * scale);
+    const h = Math.ceil(fullH * scale);
+
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = w;
+    tmpCanvas.height = h;
+    const ctx = tmpCanvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.scale(scale, scale);
+    ctx.translate(-minX, -minY);
+    renderStrokesToCanvas(ctx, canvas.strokes);
+
+    const thumbnail = tmpCanvas.toDataURL("image/png", 0.7);
+    await db.update(drawings).set({ thumbnail }).where(eq(drawings.id, canvas.drawingId));
+  };
+
   return {
     saveAsync,
     loadAsync,
     listAsync,
     deleteAsync,
     exportPngAsync,
+    generateThumbnailAsync,
   };
 }

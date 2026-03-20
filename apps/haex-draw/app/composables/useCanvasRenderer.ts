@@ -572,6 +572,33 @@ function getAdaptiveGridSize(zoom: number): { major: number; minor: number } {
   return { major, minor };
 }
 
+// Cache for loaded images (stencil id → HTMLImageElement)
+const imageCache = new Map<string, HTMLImageElement>();
+const imageLoading = new Set<string>();
+
+function getOrLoadImage(stencil: Stencil): HTMLImageElement | null {
+  if (!stencil.imageData) return null;
+
+  const cached = imageCache.get(stencil.id);
+  if (cached && cached.complete && cached.naturalWidth > 0) return cached;
+
+  // Already loading
+  if (imageLoading.has(stencil.id)) return null;
+
+  imageLoading.add(stencil.id);
+  const img = new Image();
+  img.onload = () => {
+    imageCache.set(stencil.id, img);
+    imageLoading.delete(stencil.id);
+  };
+  img.onerror = () => {
+    imageLoading.delete(stencil.id);
+  };
+  img.src = stencil.imageData;
+  imageCache.set(stencil.id, img);
+  return img;
+}
+
 function renderStencil(ctx: CanvasRenderingContext2D, stencil: Stencil, isHovered: boolean, isSelected: boolean, zoom: number) {
   const hw = stencil.width / 2;
   const hh = stencil.height / 2;
@@ -579,6 +606,48 @@ function renderStencil(ctx: CanvasRenderingContext2D, stencil: Stencil, isHovere
   ctx.save();
   ctx.translate(stencil.x, stencil.y);
   ctx.rotate(stencil.rotation);
+
+  // Image stencil: draw the image as background
+  if (stencil.shapeType === "image" && stencil.imageData) {
+    const img = getOrLoadImage(stencil);
+    if (img) {
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(img, -hw, -hh, stencil.width, stencil.height);
+      ctx.globalAlpha = 1;
+    }
+
+    // Border
+    ctx.strokeStyle = isSelected ? "rgba(100, 100, 255, 0.7)" : isHovered ? "rgba(100, 100, 255, 0.5)" : "rgba(100, 100, 200, 0.15)";
+    ctx.lineWidth = (isSelected || isHovered ? 2 : 1) / zoom;
+    ctx.setLineDash(isSelected ? [] : [8 / zoom, 4 / zoom]);
+    ctx.strokeRect(-hw, -hh, stencil.width, stencil.height);
+    ctx.setLineDash([]);
+
+    // Label
+    const fontSize = Math.max(12, 14 / zoom);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.fillStyle = isHovered || isSelected ? "rgba(100, 100, 255, 0.7)" : "rgba(100, 100, 200, 0.35)";
+    ctx.textAlign = "center";
+    ctx.fillText(stencil.label.toUpperCase(), 0, -hh - 8 / zoom);
+
+    // Rotation handles
+    if (isSelected && !stencil.pinned) {
+      const handleSize = 6 / zoom;
+      const corners: [number, number][] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+      ctx.fillStyle = "rgba(100, 100, 255, 0.8)";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5 / zoom;
+      for (const [cx, cy] of corners) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, handleSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+    return;
+  }
 
   const clipPath = getStencilClipPath(stencil.shapeType, hw, hh, stencil.svgPath);
 
