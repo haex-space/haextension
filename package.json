@@ -10,7 +10,8 @@
     "release:haex-pass": "node scripts/release.js haex-pass",
     "release:haex-files": "node scripts/release.js haex-files",
     "release:haex-calendar": "node scripts/release.js haex-calendar",
-    "release:haex-code": "node scripts/release.js haex-code"
+    "release:haex-code": "node scripts/release.js haex-code",
+    "release:haex-draw": "node scripts/release.js haex-draw"
   },
   "pnpm": {
     "overrides": {

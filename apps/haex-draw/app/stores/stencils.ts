@@ -1,0 +1,233 @@
+import type { Stencil } from "~/types/stencil";
+import { STENCIL_PRESETS } from "~/utils/stencilPresets";
+
+export const useStencilStore = defineStore("stencils", () => {
+  const stencils = ref<Stencil[]>([]);
+  const hoveredId = ref<string | null>(null);
+  const selectedIds = ref<Set<string>>(new Set());
+  const draggingId = ref<string | null>(null);
+  const placingId = ref<string | null>(null);
+  const clipboard = ref<Stencil[]>([]);
+
+  // Compat: single selected stencil (first in set, for panel)
+  const selectedId = computed({
+    get: () => {
+      const first = selectedIds.value.values().next();
+      return first.done ? null : first.value;
+    },
+    set: (id: string | null) => {
+      selectedIds.value = id ? new Set([id]) : new Set();
+    },
+  });
+
+  const isSelected = (id: string) => selectedIds.value.has(id);
+
+  const selectStencil = (id: string, addToSelection = false) => {
+    if (addToSelection) {
+      const next = new Set(selectedIds.value);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      selectedIds.value = next;
+    } else {
+      selectedIds.value = new Set([id]);
+    }
+  };
+
+  const clearSelection = () => {
+    selectedIds.value = new Set();
+  };
+
+  const addStencil = (presetId: string, worldX: number, worldY: number) => {
+    const preset = STENCIL_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+
+    const stencil: Stencil = {
+      id: crypto.randomUUID(),
+      presetId: preset.id,
+      shapeType: preset.shapeType,
+      label: preset.id,
+      x: worldX,
+      y: worldY,
+      width: preset.defaultWidth,
+      height: preset.defaultHeight,
+      rotation: 0,
+      pinned: false,
+    };
+
+    stencils.value.push(stencil);
+    selectedIds.value = new Set([stencil.id]);
+    placingId.value = stencil.id;
+    return stencil;
+  };
+
+  const addCustomStencil = (svgPath: string, width: number, height: number, name: string, worldX: number, worldY: number) => {
+    const stencil: Stencil = {
+      id: crypto.randomUUID(),
+      presetId: "custom",
+      shapeType: "custom",
+      label: name,
+      x: worldX,
+      y: worldY,
+      width,
+      height,
+      rotation: 0,
+      pinned: false,
+      svgPath,
+    };
+
+    stencils.value.push(stencil);
+    selectedIds.value = new Set([stencil.id]);
+    placingId.value = stencil.id;
+    return stencil;
+  };
+
+  const removeStencil = (id: string) => {
+    stencils.value = stencils.value.filter((s) => s.id !== id);
+    const next = new Set(selectedIds.value);
+    next.delete(id);
+    selectedIds.value = next;
+    if (hoveredId.value === id) hoveredId.value = null;
+  };
+
+  const removeSelected = () => {
+    stencils.value = stencils.value.filter((s) => !selectedIds.value.has(s.id));
+    selectedIds.value = new Set();
+  };
+
+  const moveStencil = (id: string, x: number, y: number) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (stencil) {
+      stencil.x = x;
+      stencil.y = y;
+    }
+  };
+
+  const moveSelected = (dx: number, dy: number) => {
+    for (const s of stencils.value) {
+      if (selectedIds.value.has(s.id) && !s.pinned) {
+        s.x += dx;
+        s.y += dy;
+      }
+    }
+  };
+
+  const rotateStencil = (id: string, radians: number) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (stencil) {
+      stencil.rotation = (stencil.rotation + radians) % (Math.PI * 2);
+    }
+  };
+
+  const setStencilRotation = (id: string, radians: number) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (stencil) {
+      stencil.rotation = radians % (Math.PI * 2);
+    }
+  };
+
+  const togglePin = (id: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (stencil) stencil.pinned = !stencil.pinned;
+  };
+
+  const changeShape = (id: string, presetId: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    const preset = STENCIL_PRESETS.find((p) => p.id === presetId);
+    if (!stencil || !preset) return;
+    stencil.presetId = preset.id;
+    stencil.shapeType = preset.shapeType;
+    stencil.label = preset.id;
+    stencil.width = preset.defaultWidth;
+    stencil.height = preset.defaultHeight;
+  };
+
+  const resizeStencil = (id: string, width: number, height: number) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (stencil) {
+      stencil.width = Math.max(10, width);
+      stencil.height = Math.max(10, height);
+    }
+  };
+
+  const getStencil = (id: string) => stencils.value.find((s) => s.id === id);
+
+  // Copy/Paste
+  const copySelected = () => {
+    clipboard.value = stencils.value
+      .filter((s) => selectedIds.value.has(s.id))
+      .map((s) => ({ ...s }));
+  };
+
+  const paste = (offsetX = 20, offsetY = 20) => {
+    if (clipboard.value.length === 0) return;
+    const newIds = new Set<string>();
+    for (const original of clipboard.value) {
+      const copy: Stencil = {
+        ...original,
+        id: crypto.randomUUID(),
+        x: original.x + offsetX,
+        y: original.y + offsetY,
+        pinned: false,
+      };
+      stencils.value.push(copy);
+      newIds.add(copy.id);
+    }
+    selectedIds.value = newIds;
+  };
+
+  const hitTest = (worldX: number, worldY: number): Stencil | null => {
+    for (let i = stencils.value.length - 1; i >= 0; i--) {
+      const s = stencils.value[i];
+      const dx = worldX - s.x;
+      const dy = worldY - s.y;
+      const cos = Math.cos(-s.rotation);
+      const sin = Math.sin(-s.rotation);
+      const localX = dx * cos - dy * sin;
+      const localY = dx * sin + dy * cos;
+
+      const hw = s.width / 2;
+      const hh = s.height / 2;
+      if (localX >= -hw && localX <= hw && localY >= -hh && localY <= hh) {
+        return s;
+      }
+    }
+    return null;
+  };
+
+  const clear = () => {
+    stencils.value = [];
+    hoveredId.value = null;
+    selectedIds.value = new Set();
+    draggingId.value = null;
+    placingId.value = null;
+    clipboard.value = [];
+  };
+
+  return {
+    stencils,
+    hoveredId,
+    selectedId,
+    selectedIds,
+    isSelected,
+    selectStencil,
+    clearSelection,
+    draggingId,
+    placingId,
+    addStencil,
+    addCustomStencil,
+    removeStencil,
+    removeSelected,
+    moveStencil,
+    moveSelected,
+    rotateStencil,
+    setStencilRotation,
+    togglePin,
+    changeShape,
+    resizeStencil,
+    getStencil,
+    copySelected,
+    paste,
+    hitTest,
+    clear,
+  };
+});
