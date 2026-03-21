@@ -234,30 +234,28 @@ function hitTestTableLines(px: number, py: number): TableHit | null {
     if (px < table.x - LINE_HIT_THRESHOLD || px > table.x + totalW + LINE_HIT_THRESHOLD) continue;
     if (py < table.y - LINE_HIT_THRESHOLD || py > table.y + totalH + LINE_HIT_THRESHOLD) continue;
 
-    // Check column lines
+    // Check column lines (including right edge = last column)
     let cx = table.x;
-    for (let c = 0; c < table.columns - 1; c++) {
+    for (let c = 0; c < table.columns; c++) {
       cx += table.columnWidths[c]!;
-      if (Math.abs(px - cx) < LINE_HIT_THRESHOLD && py >= table.y && py <= table.y + totalH) {
+      if (Math.abs(px - cx) < LINE_HIT_THRESHOLD && py >= table.y - LINE_HIT_THRESHOLD && py <= table.y + totalH + LINE_HIT_THRESHOLD) {
         return { table, type: "col", index: c };
       }
     }
 
-    // Check row lines
+    // Check row lines (including bottom edge = last row)
     let cy = table.y;
-    for (let r = 0; r < table.rows - 1; r++) {
+    for (let r = 0; r < table.rows; r++) {
       cy += table.rowHeights[r]!;
-      if (Math.abs(py - cy) < LINE_HIT_THRESHOLD && px >= table.x && px <= table.x + totalW) {
+      if (Math.abs(py - cy) < LINE_HIT_THRESHOLD && px >= table.x - LINE_HIT_THRESHOLD && px <= table.x + totalW + LINE_HIT_THRESHOLD) {
         return { table, type: "row", index: r };
       }
     }
 
-    // Check outer border for move
-    const onLeft = Math.abs(px - table.x) < LINE_HIT_THRESHOLD;
-    const onRight = Math.abs(px - (table.x + totalW)) < LINE_HIT_THRESHOLD;
-    const onTop = Math.abs(py - table.y) < LINE_HIT_THRESHOLD;
-    const onBottom = Math.abs(py - (table.y + totalH)) < LINE_HIT_THRESHOLD;
-    if ((onLeft || onRight || onTop || onBottom) && px >= table.x - LINE_HIT_THRESHOLD && px <= table.x + totalW + LINE_HIT_THRESHOLD && py >= table.y - LINE_HIT_THRESHOLD && py <= table.y + totalH + LINE_HIT_THRESHOLD) {
+    // Check left edge and top edge for move
+    const onLeft = Math.abs(px - table.x) < LINE_HIT_THRESHOLD && py >= table.y && py <= table.y + totalH;
+    const onTop = Math.abs(py - table.y) < LINE_HIT_THRESHOLD && px >= table.x && px <= table.x + totalW;
+    if (onLeft || onTop) {
       return { table, type: "move", index: 0 };
     }
   }
