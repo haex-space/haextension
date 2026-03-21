@@ -600,13 +600,13 @@ async function exportFile() {
               class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               @input="onResizeHeightChange(Number(($event.target as HTMLInputElement).value))"
             >
-            <button
-              class="flex items-center gap-1.5 text-xs text-muted-foreground"
-              @click="editor.resizeLockAspect = !editor.resizeLockAspect"
-            >
-              <component :is="editor.resizeLockAspect ? Lock : Unlock" class="size-3.5" />
-              {{ t("lockAspect") }}
-            </button>
+            <label class="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-accent/30 px-3 py-2">
+              <span class="text-xs text-foreground">{{ t("lockAspect") }}</span>
+              <ShadcnSwitch
+                :checked="editor.resizeLockAspect"
+                @update:checked="editor.resizeLockAspect = $event"
+              />
+            </label>
             <button
               class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
               @click="confirmResize"
