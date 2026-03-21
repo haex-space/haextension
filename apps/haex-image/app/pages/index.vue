@@ -172,6 +172,18 @@ async function openFile() {
 }
 
 // Crop interaction
+const cropHovering = ref(false);
+const cropCursor = computed(() => cropHovering.value ? 'cursor-move' : 'cursor-crosshair');
+const cropMode = ref<"draw" | "move">("draw");
+const cropMoveOffset = ref({ x: 0, y: 0 });
+
+function isInsideCrop(px: number, py: number): boolean {
+  const r = editor.cropRect;
+  return r.width > 0 && r.height > 0 &&
+    px >= r.x && px <= r.x + r.width &&
+    py >= r.y && py <= r.y + r.height;
+}
+
 function onCanvasPointerDown(e: PointerEvent) {
   if (editor.activeTool !== "crop") return;
   const canvas = canvasRef.value;
@@ -179,44 +191,73 @@ function onCanvasPointerDown(e: PointerEvent) {
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) / renderScale.value;
   const y = (e.clientY - rect.top) / renderScale.value;
-  cropStart.value = { x, y };
+
+  if (isInsideCrop(x, y)) {
+    // Move existing crop rect
+    cropMode.value = "move";
+    cropMoveOffset.value = { x: x - editor.cropRect.x, y: y - editor.cropRect.y };
+  } else {
+    // Draw new crop rect
+    cropMode.value = "draw";
+    cropStart.value = { x, y };
+    editor.cropRect = { x, y, width: 0, height: 0 };
+  }
+
   cropDragging.value = true;
-  editor.cropRect = { x, y, width: 0, height: 0 };
   (e.target as HTMLElement).setPointerCapture(e.pointerId);
 }
 
 function onCanvasPointerMove(e: PointerEvent) {
-  if (!cropDragging.value || !cropStart.value) return;
+  // Update hover cursor when not dragging
+  if (!cropDragging.value && editor.activeTool === "crop") {
+    const canvas = canvasRef.value;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const hx = (e.clientX - rect.left) / renderScale.value;
+      const hy = (e.clientY - rect.top) / renderScale.value;
+      cropHovering.value = isInsideCrop(hx, hy);
+    }
+    return;
+  }
+  if (!cropDragging.value) return;
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   let x = (e.clientX - rect.left) / renderScale.value;
   let y = (e.clientY - rect.top) / renderScale.value;
 
-  // Clamp to image bounds
   x = Math.max(0, Math.min(editor.imageWidth, x));
   y = Math.max(0, Math.min(editor.imageHeight, y));
 
-  const sx = cropStart.value.x;
-  const sy = cropStart.value.y;
-  let cw = Math.abs(x - sx);
-  let ch = Math.abs(y - sy);
+  if (cropMode.value === "move") {
+    // Move crop rect
+    let nx = x - cropMoveOffset.value.x;
+    let ny = y - cropMoveOffset.value.y;
+    // Clamp to image bounds
+    nx = Math.max(0, Math.min(editor.imageWidth - editor.cropRect.width, nx));
+    ny = Math.max(0, Math.min(editor.imageHeight - editor.cropRect.height, ny));
+    editor.cropRect = { ...editor.cropRect, x: Math.round(nx), y: Math.round(ny) };
+  } else {
+    // Draw new crop rect
+    if (!cropStart.value) return;
+    const sx = cropStart.value.x;
+    const sy = cropStart.value.y;
+    let cw = Math.abs(x - sx);
+    let ch = Math.abs(y - sy);
 
-  // Aspect ratio constraint
-  if (editor.cropAspectRatio) {
-    const ratio = editor.cropAspectRatio;
-    if (cw / ch > ratio) {
-      cw = ch * ratio;
-    } else {
-      ch = cw / ratio;
+    if (editor.cropAspectRatio) {
+      const ratio = editor.cropAspectRatio;
+      if (cw / ch > ratio) {
+        cw = ch * ratio;
+      } else {
+        ch = cw / ratio;
+      }
     }
+
+    const cx = x < sx ? sx - cw : sx;
+    const cy = y < sy ? sy - ch : sy;
+    editor.cropRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) };
   }
-
-  // Calculate top-left based on drag direction
-  const cx = x < sx ? sx - cw : sx;
-  const cy = y < sy ? sy - ch : sy;
-
-  editor.cropRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) };
 }
 
 function onCanvasPointerUp() {
@@ -556,7 +597,7 @@ async function exportFile() {
           v-show="editor.hasImage"
           ref="canvasRef"
           class="shadow-2xl ring-1 ring-white/10"
-          :class="editor.activeTool === 'crop' ? 'cursor-crosshair' : ''"
+          :class="editor.activeTool === 'crop' ? (cropCursor) : ''"
           @pointerdown="onCanvasPointerDown"
           @pointermove="onCanvasPointerMove"
           @pointerup="onCanvasPointerUp"
