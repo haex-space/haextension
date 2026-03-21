@@ -197,10 +197,10 @@ function onCanvasPointerMove(e: PointerEvent) {
   x = Math.max(0, Math.min(editor.imageWidth, x));
   y = Math.max(0, Math.min(editor.imageHeight, y));
 
-  let cx = Math.min(cropStart.value.x, x);
-  let cy = Math.min(cropStart.value.y, y);
-  let cw = Math.abs(x - cropStart.value.x);
-  let ch = Math.abs(y - cropStart.value.y);
+  const sx = cropStart.value.x;
+  const sy = cropStart.value.y;
+  let cw = Math.abs(x - sx);
+  let ch = Math.abs(y - sy);
 
   // Aspect ratio constraint
   if (editor.cropAspectRatio) {
@@ -211,6 +211,10 @@ function onCanvasPointerMove(e: PointerEvent) {
       ch = cw / ratio;
     }
   }
+
+  // Calculate top-left based on drag direction
+  const cx = x < sx ? sx - cw : sx;
+  const cy = y < sy ? sy - ch : sy;
 
   editor.cropRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) };
 }
