@@ -7,7 +7,7 @@ const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const paletteStore = usePaletteStore();
-const { listAsync, deleteAsync, saveAsync, loadAsync } = useDrawingPersistence();
+const { listAsync, deleteAsync, loadAsync } = useDrawingPersistence();
 
 const drawings = ref<SelectDrawing[]>([]);
 const isLoaded = ref(false);
@@ -68,7 +68,9 @@ const onDeleteDrawing = async (id: string) => {
 <template>
   <div v-if="isLoaded" class="flex h-full flex-col bg-background">
     <!-- Header -->
-    <header class="flex items-center justify-between border-b border-border px-6 py-4">
+    <header
+      class="flex items-center justify-between border-b border-border px-6 py-4"
+    >
       <div class="flex items-center gap-3">
         <Paintbrush class="size-6 text-primary" />
         <h1 class="text-xl font-semibold text-foreground">haex-draw</h1>
@@ -85,10 +87,32 @@ const onDeleteDrawing = async (id: string) => {
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6">
       <!-- Empty state -->
-      <div v-if="drawings.length === 0" class="flex h-full flex-col items-center justify-center gap-4">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="text-muted-foreground/20">
-          <path d="M5 19 C7 15, 10 12, 12 14 C14 16, 17 9, 19 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-          <rect x="2" y="2" width="20" height="20" rx="3" stroke="currentColor" stroke-width="1" />
+      <div
+        v-if="drawings.length === 0"
+        class="flex h-full flex-col items-center justify-center gap-4"
+      >
+        <svg
+          width="80"
+          height="80"
+          viewBox="0 0 24 24"
+          fill="none"
+          class="text-muted-foreground/20"
+        >
+          <path
+            d="M5 19 C7 15, 10 12, 12 14 C14 16, 17 9, 19 5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+          <rect
+            x="2"
+            y="2"
+            width="20"
+            height="20"
+            rx="3"
+            stroke="currentColor"
+            stroke-width="1"
+          />
         </svg>
         <p class="text-sm text-muted-foreground">{{ t("emptyState") }}</p>
         <button
@@ -101,7 +125,10 @@ const onDeleteDrawing = async (id: string) => {
       </div>
 
       <!-- Drawing Grid -->
-      <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div
+        v-else
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      >
         <DrawDrawingCard
           v-for="drawing in drawings"
           :key="drawing.id"
