@@ -120,6 +120,21 @@ function render() {
         ctx.lineTo(sx + sw, sy + (sh * i) / 3);
         ctx.stroke();
       }
+
+      // Resize handles
+      const hs = 6;
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 1;
+      const handles = [
+        [sx, sy], [sx + sw / 2, sy], [sx + sw, sy],
+        [sx, sy + sh / 2], [sx + sw, sy + sh / 2],
+        [sx, sy + sh], [sx + sw / 2, sy + sh], [sx + sw, sy + sh],
+      ];
+      for (const [hx, hy] of handles) {
+        ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
+        ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs);
+      }
     }
   };
   img.src = editor.imageDataUrl;
@@ -172,16 +187,48 @@ async function openFile() {
 }
 
 // Crop interaction
-const cropHovering = ref(false);
-const cropCursor = computed(() => cropHovering.value ? 'cursor-move' : 'cursor-crosshair');
-const cropMode = ref<"draw" | "move">("draw");
+type CropEdge = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
+const cropMode = ref<"draw" | "move" | "resize">("draw");
+const cropResizeEdge = ref<CropEdge>("br");
 const cropMoveOffset = ref({ x: 0, y: 0 });
+const cropHoverTarget = ref<"inside" | CropEdge | null>(null);
 
-function isInsideCrop(px: number, py: number): boolean {
+const HANDLE_SIZE = 12; // hit area in image pixels (scaled by renderScale)
+
+const cursorMap: Record<string, string> = {
+  tl: "cursor-nwse-resize", tr: "cursor-nesw-resize",
+  bl: "cursor-nesw-resize", br: "cursor-nwse-resize",
+  t: "cursor-ns-resize", b: "cursor-ns-resize",
+  l: "cursor-ew-resize", r: "cursor-ew-resize",
+  inside: "cursor-move",
+};
+const cropCursor = computed(() => {
+  if (cropHoverTarget.value) return cursorMap[cropHoverTarget.value] || "cursor-crosshair";
+  return "cursor-crosshair";
+});
+
+function hitTestCropEdge(px: number, py: number): CropEdge | "inside" | null {
   const r = editor.cropRect;
-  return r.width > 0 && r.height > 0 &&
-    px >= r.x && px <= r.x + r.width &&
-    py >= r.y && py <= r.y + r.height;
+  if (r.width <= 0 || r.height <= 0) return null;
+
+  const hs = HANDLE_SIZE / renderScale.value;
+  const left = r.x, right = r.x + r.width, top = r.y, bottom = r.y + r.height;
+
+  // Corner handles (priority)
+  if (Math.abs(px - left) < hs && Math.abs(py - top) < hs) return "tl";
+  if (Math.abs(px - right) < hs && Math.abs(py - top) < hs) return "tr";
+  if (Math.abs(px - left) < hs && Math.abs(py - bottom) < hs) return "bl";
+  if (Math.abs(px - right) < hs && Math.abs(py - bottom) < hs) return "br";
+
+  // Edge handles
+  if (Math.abs(py - top) < hs && px > left + hs && px < right - hs) return "t";
+  if (Math.abs(py - bottom) < hs && px > left + hs && px < right - hs) return "b";
+  if (Math.abs(px - left) < hs && py > top + hs && py < bottom - hs) return "l";
+  if (Math.abs(px - right) < hs && py > top + hs && py < bottom - hs) return "r";
+
+  // Inside
+  if (px >= left && px <= right && py >= top && py <= bottom) return "inside";
+  return null;
 }
 
 function onCanvasPointerDown(e: PointerEvent) {
@@ -192,12 +239,14 @@ function onCanvasPointerDown(e: PointerEvent) {
   const x = (e.clientX - rect.left) / renderScale.value;
   const y = (e.clientY - rect.top) / renderScale.value;
 
-  if (isInsideCrop(x, y)) {
-    // Move existing crop rect
+  const hit = hitTestCropEdge(x, y);
+  if (hit && hit !== "inside") {
+    cropMode.value = "resize";
+    cropResizeEdge.value = hit;
+  } else if (hit === "inside") {
     cropMode.value = "move";
     cropMoveOffset.value = { x: x - editor.cropRect.x, y: y - editor.cropRect.y };
   } else {
-    // Draw new crop rect
     cropMode.value = "draw";
     cropStart.value = { x, y };
     editor.cropRect = { x, y, width: 0, height: 0 };
@@ -208,37 +257,47 @@ function onCanvasPointerDown(e: PointerEvent) {
 }
 
 function onCanvasPointerMove(e: PointerEvent) {
-  // Update hover cursor when not dragging
-  if (!cropDragging.value && editor.activeTool === "crop") {
-    const canvas = canvasRef.value;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const hx = (e.clientX - rect.left) / renderScale.value;
-      const hy = (e.clientY - rect.top) / renderScale.value;
-      cropHovering.value = isInsideCrop(hx, hy);
-    }
-    return;
-  }
-  if (!cropDragging.value) return;
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   let x = (e.clientX - rect.left) / renderScale.value;
   let y = (e.clientY - rect.top) / renderScale.value;
 
+  // Hover cursor when not dragging
+  if (!cropDragging.value && editor.activeTool === "crop") {
+    cropHoverTarget.value = hitTestCropEdge(x, y);
+    return;
+  }
+  if (!cropDragging.value) return;
+
   x = Math.max(0, Math.min(editor.imageWidth, x));
   y = Math.max(0, Math.min(editor.imageHeight, y));
 
   if (cropMode.value === "move") {
-    // Move crop rect
     let nx = x - cropMoveOffset.value.x;
     let ny = y - cropMoveOffset.value.y;
-    // Clamp to image bounds
     nx = Math.max(0, Math.min(editor.imageWidth - editor.cropRect.width, nx));
     ny = Math.max(0, Math.min(editor.imageHeight - editor.cropRect.height, ny));
     editor.cropRect = { ...editor.cropRect, x: Math.round(nx), y: Math.round(ny) };
+  } else if (cropMode.value === "resize") {
+    const r = { ...editor.cropRect };
+    const edge = cropResizeEdge.value;
+
+    if (edge.includes("l")) { const newX = Math.min(x, r.x + r.width - 1); r.width += r.x - newX; r.x = newX; }
+    if (edge.includes("r")) { r.width = Math.max(1, x - r.x); }
+    if (edge.includes("t")) { const newY = Math.min(y, r.y + r.height - 1); r.height += r.y - newY; r.y = newY; }
+    if (edge.includes("b")) { r.height = Math.max(1, y - r.y); }
+
+    if (editor.cropAspectRatio) {
+      const ratio = editor.cropAspectRatio;
+      if (edge === "t" || edge === "b") { r.width = r.height * ratio; }
+      else if (edge === "l" || edge === "r") { r.height = r.width / ratio; }
+      else if (r.width / r.height > ratio) { r.width = r.height * ratio; }
+      else { r.height = r.width / ratio; }
+    }
+
+    editor.cropRect = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
   } else {
-    // Draw new crop rect
     if (!cropStart.value) return;
     const sx = cropStart.value.x;
     const sy = cropStart.value.y;
@@ -247,11 +306,8 @@ function onCanvasPointerMove(e: PointerEvent) {
 
     if (editor.cropAspectRatio) {
       const ratio = editor.cropAspectRatio;
-      if (cw / ch > ratio) {
-        cw = ch * ratio;
-      } else {
-        ch = cw / ratio;
-      }
+      if (cw / ch > ratio) { cw = ch * ratio; }
+      else { ch = cw / ratio; }
     }
 
     const cx = x < sx ? sx - cw : sx;
