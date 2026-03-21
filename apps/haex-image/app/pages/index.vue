@@ -2,7 +2,7 @@
 import {
   ImagePlus, Undo2, Redo2, Download, Crop, RotateCw, RotateCcw,
   FlipHorizontal2, FlipVertical2, Maximize2, SlidersHorizontal,
-  Sparkles, X, Check, Lock, Unlock, Save,
+  Sparkles, X, Check, Lock, Unlock, Save, Menu,
 } from "lucide-vue-next";
 import type { FilterType, AspectRatioPreset } from "~/types";
 
@@ -18,6 +18,18 @@ const containerRef = useTemplateRef<HTMLDivElement>("containerRef");
 const isCropping = ref(false);
 const cropStart = ref<{ x: number; y: number } | null>(null);
 const cropDragging = ref(false);
+
+const toolButtons = computed(() => [
+  { id: "crop", icon: Crop, label: t("crop") },
+  { id: "rotate", icon: RotateCw, label: t("rotate") },
+  { id: "resize", icon: Maximize2, label: t("resize") },
+  { id: "adjust", icon: SlidersHorizontal, label: t("adjust") },
+  { id: "filter", icon: Sparkles, label: t("filter") },
+]);
+
+function selectTool(id: string) {
+  editor.activeTool = editor.activeTool === id ? null : id as any;
+}
 
 // Free rotation
 const freeRotationDeg = ref(0);
@@ -448,9 +460,8 @@ async function exportFile() {
 
 <template>
   <div class="flex h-screen flex-col bg-background">
-    <!-- Toolbar -->
-    <header class="flex items-center gap-1 border-b border-border px-2 py-1.5">
-      <!-- Open -->
+    <!-- Toolbar (Desktop) -->
+    <header class="hidden items-center gap-1 border-b border-border px-2 py-1.5 sm:flex">
       <button
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         @click="openFile"
@@ -461,7 +472,6 @@ async function exportFile() {
 
       <div class="mx-1 h-5 w-px bg-border" />
 
-      <!-- Undo/Redo -->
       <button
         class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
         :disabled="!editor.canUndo"
@@ -479,22 +489,15 @@ async function exportFile() {
 
       <div class="mx-1 h-5 w-px bg-border" />
 
-      <!-- Tools -->
       <template v-if="editor.hasImage">
         <button
-          v-for="tool in [
-            { id: 'crop', icon: Crop, label: t('crop') },
-            { id: 'rotate', icon: RotateCw, label: t('rotate') },
-            { id: 'resize', icon: Maximize2, label: t('resize') },
-            { id: 'adjust', icon: SlidersHorizontal, label: t('adjust') },
-            { id: 'filter', icon: Sparkles, label: t('filter') },
-          ]"
+          v-for="tool in toolButtons"
           :key="tool.id"
           class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
           :class="editor.activeTool === tool.id
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-          @click="editor.activeTool = editor.activeTool === tool.id ? null : tool.id as any"
+          @click="selectTool(tool.id)"
         >
           <component :is="tool.icon" class="size-4" />
           {{ tool.label }}
@@ -503,14 +506,12 @@ async function exportFile() {
 
       <div class="flex-1" />
 
-      <!-- Info -->
       <span v-if="editor.hasImage" class="text-xs text-muted-foreground">
         {{ editor.imageWidth }} × {{ editor.imageHeight }}px
       </span>
 
       <div class="mx-1 h-5 w-px bg-border" />
 
-      <!-- Export -->
       <button
         v-if="editor.hasImage"
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -519,6 +520,73 @@ async function exportFile() {
         <Save class="size-4" />
         {{ t("save") }}
       </button>
+    </header>
+
+    <!-- Toolbar (Mobile) -->
+    <header class="flex items-center gap-1 border-b border-border px-2 py-1.5 sm:hidden">
+      <ShadcnDropdownMenu>
+        <ShadcnDropdownMenuTrigger as-child>
+          <button class="rounded-md p-1.5 text-muted-foreground hover:bg-accent">
+            <Menu class="size-5" />
+          </button>
+        </ShadcnDropdownMenuTrigger>
+        <ShadcnDropdownMenuContent align="start" class="min-w-44">
+          <ShadcnDropdownMenuItem @click="openFile">
+            <ImagePlus class="mr-2 size-4" /> {{ t("open") }}
+          </ShadcnDropdownMenuItem>
+
+          <ShadcnDropdownMenuSeparator />
+
+          <ShadcnDropdownMenuItem :disabled="!editor.canUndo" @click="editor.undo()">
+            <Undo2 class="mr-2 size-4" /> {{ t("undo") }}
+          </ShadcnDropdownMenuItem>
+          <ShadcnDropdownMenuItem :disabled="!editor.canRedo" @click="editor.redo()">
+            <Redo2 class="mr-2 size-4" /> {{ t("redo") }}
+          </ShadcnDropdownMenuItem>
+
+          <template v-if="editor.hasImage">
+            <ShadcnDropdownMenuSeparator />
+
+            <ShadcnDropdownMenuItem
+              v-for="tool in toolButtons"
+              :key="tool.id"
+              @click="selectTool(tool.id)"
+            >
+              <component :is="tool.icon" class="mr-2 size-4" />
+              {{ tool.label }}
+            </ShadcnDropdownMenuItem>
+
+            <ShadcnDropdownMenuSeparator />
+
+            <ShadcnDropdownMenuItem @click="exportFile">
+              <Save class="mr-2 size-4" /> {{ t("save") }}
+            </ShadcnDropdownMenuItem>
+          </template>
+        </ShadcnDropdownMenuContent>
+      </ShadcnDropdownMenu>
+
+      <span v-if="editor.hasImage" class="ml-1 text-xs text-muted-foreground">
+        {{ editor.imageWidth }} × {{ editor.imageHeight }}px
+      </span>
+
+      <div class="flex-1" />
+
+      <template v-if="editor.hasImage">
+        <button
+          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
+          :disabled="!editor.canUndo"
+          @click="editor.undo()"
+        >
+          <Undo2 class="size-4" />
+        </button>
+        <button
+          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
+          :disabled="!editor.canRedo"
+          @click="editor.redo()"
+        >
+          <Redo2 class="size-4" />
+        </button>
+      </template>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
@@ -760,6 +828,8 @@ async function exportFile() {
 de:
   open: Öffnen
   save: Speichern
+  undo: Rückgängig
+  redo: Wiederholen
   crop: Zuschneiden
   rotate: Drehen
   resize: Größe
@@ -787,6 +857,8 @@ de:
 en:
   open: Open
   save: Save
+  undo: Undo
+  redo: Redo
   crop: Crop
   rotate: Rotate
   resize: Resize
