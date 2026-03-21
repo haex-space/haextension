@@ -1,0 +1,32 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [
+      {
+        "target": "*",
+        "operation": "read"
+      },
+      {
+        "target": "*",
+        "operation": "write"
+      }
+    ],
+    "shell": [],
+    "web": []
+  },
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "Image editor for cropping, rotating, adjusting and filtering images",
+  "i18n": {
+    "de": {
+      "name": "Bildbearbeitung",
+      "description": "Bilder zuschneiden, drehen, anpassen und filtern"
+    },
+    "en": {
+      "name": "Image Editor",
+      "description": "Crop, rotate, adjust and filter images"
+    }
+  }
+}

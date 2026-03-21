@@ -12,7 +12,8 @@
     "release:haex-calendar": "node scripts/release.js haex-calendar",
     "release:haex-code": "node scripts/release.js haex-code",
     "release:haex-draw": "node scripts/release.js haex-draw",
-    "release:haex-notes": "node scripts/release.js haex-notes"
+    "release:haex-notes": "node scripts/release.js haex-notes",
+    "release:haex-image": "node scripts/release.js haex-image"
   },
   "pnpm": {
     "overrides": {

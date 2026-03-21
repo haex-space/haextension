@@ -1,0 +1,608 @@
+<script setup lang="ts">
+import {
+  ImagePlus, Undo2, Redo2, Download, Crop, RotateCw, RotateCcw,
+  FlipHorizontal2, FlipVertical2, Maximize2, SlidersHorizontal,
+  Sparkles, X, Check, Lock, Unlock, Save,
+} from "lucide-vue-next";
+import type { FilterType, AspectRatioPreset } from "~/types";
+
+const { t } = useI18n();
+const haexVault = useHaexVaultStore();
+const editor = useEditorStore();
+const processor = useImageProcessor();
+
+const canvasRef = useTemplateRef<HTMLCanvasElement>("canvasRef");
+const containerRef = useTemplateRef<HTMLDivElement>("containerRef");
+
+// Crop state
+const isCropping = ref(false);
+const cropStart = ref<{ x: number; y: number } | null>(null);
+const cropDragging = ref(false);
+
+// Preview state for adjustments
+const previewAdjustments = ref({ brightness: 0, contrast: 0, saturation: 0 });
+
+const aspectPresets: AspectRatioPreset[] = [
+  { id: "free", label: "Frei", ratio: null },
+  { id: "1:1", label: "1:1", ratio: 1 },
+  { id: "4:3", label: "4:3", ratio: 4 / 3 },
+  { id: "3:4", label: "3:4", ratio: 3 / 4 },
+  { id: "16:9", label: "16:9", ratio: 16 / 9 },
+  { id: "9:16", label: "9:16", ratio: 9 / 16 },
+];
+
+const filterPresets: { id: FilterType; label: string }[] = [
+  { id: "none", label: "Original" },
+  { id: "grayscale", label: "Graustufen" },
+  { id: "sepia", label: "Sepia" },
+  { id: "invert", label: "Invertieren" },
+  { id: "warm", label: "Warm" },
+  { id: "cool", label: "Kühl" },
+  { id: "vintage", label: "Vintage" },
+];
+
+onMounted(async () => {
+  await haexVault.initializeAsync();
+});
+
+// Render image to canvas
+const renderScale = ref(1);
+
+function render() {
+  const canvas = canvasRef.value;
+  const container = containerRef.value;
+  if (!canvas || !container || !editor.imageDataUrl) return;
+
+  const img = new Image();
+  img.onload = () => {
+    // Fit image to container
+    const maxW = container.clientWidth - 32;
+    const maxH = container.clientHeight - 32;
+    const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    renderScale.value = scale;
+
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d")!;
+
+    // Apply preview adjustments
+    if (editor.activeTool === "adjust") {
+      const b = 1 + previewAdjustments.value.brightness / 100;
+      const c = 1 + previewAdjustments.value.contrast / 100;
+      const s = 1 + previewAdjustments.value.saturation / 100;
+      ctx.filter = `brightness(${b}) contrast(${c}) saturate(${s})`;
+    }
+
+    // Apply preview filter
+    if (editor.activeTool === "filter" && editor.activeFilter !== "none") {
+      const filterMap: Record<string, string> = {
+        grayscale: "grayscale(1)",
+        sepia: "sepia(1)",
+        invert: "invert(1)",
+        warm: "sepia(0.3) saturate(1.4) brightness(1.05)",
+        cool: "saturate(0.8) brightness(1.05) hue-rotate(20deg)",
+        vintage: "sepia(0.4) contrast(1.2) brightness(0.9) saturate(0.8)",
+      };
+      ctx.filter = filterMap[editor.activeFilter] || "none";
+    }
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.filter = "none";
+
+    // Draw crop overlay
+    if (editor.activeTool === "crop" && editor.cropRect.width > 0 && editor.cropRect.height > 0) {
+      const r = editor.cropRect;
+      const sx = r.x * scale, sy = r.y * scale;
+      const sw = r.width * scale, sh = r.height * scale;
+
+      // Darken outside crop
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, 0, canvas.width, sy);
+      ctx.fillRect(0, sy, sx, sh);
+      ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
+      ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh);
+
+      // Crop border
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx, sy, sw, sh);
+
+      // Rule of thirds
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(sx + (sw * i) / 3, sy);
+        ctx.lineTo(sx + (sw * i) / 3, sy + sh);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + (sh * i) / 3);
+        ctx.lineTo(sx + sw, sy + (sh * i) / 3);
+        ctx.stroke();
+      }
+    }
+  };
+  img.src = editor.imageDataUrl;
+}
+
+watch(() => editor.imageDataUrl, render);
+watch(() => editor.activeTool, render);
+watch(() => editor.cropRect, render, { deep: true });
+watch(() => editor.activeFilter, render);
+watch(previewAdjustments, render, { deep: true });
+onMounted(() => {
+  if (containerRef.value) {
+    const obs = new ResizeObserver(render);
+    obs.observe(containerRef.value);
+    onUnmounted(() => obs.disconnect());
+  }
+});
+
+// File open
+async function openFile() {
+  const sdk = haexVault.sdk;
+  if (!sdk) return;
+  try {
+    const result = await sdk.selectFile({
+      title: t("openImage"),
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "bmp", "gif"] }],
+    });
+    if (!result) return;
+    const data = await sdk.readBinaryFile(result);
+    const blob = new Blob([data]);
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const name = result.split("/").pop() || "image";
+      editor.loadImage(img, name);
+      URL.revokeObjectURL(url);
+      nextTick(render);
+    };
+    img.src = url;
+  } catch (e) {
+    console.error("[haex-image] openFile error:", e);
+  }
+}
+
+// Crop interaction
+function onCanvasPointerDown(e: PointerEvent) {
+  if (editor.activeTool !== "crop") return;
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / renderScale.value;
+  const y = (e.clientY - rect.top) / renderScale.value;
+  cropStart.value = { x, y };
+  cropDragging.value = true;
+  editor.cropRect = { x, y, width: 0, height: 0 };
+  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+}
+
+function onCanvasPointerMove(e: PointerEvent) {
+  if (!cropDragging.value || !cropStart.value) return;
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  let x = (e.clientX - rect.left) / renderScale.value;
+  let y = (e.clientY - rect.top) / renderScale.value;
+
+  // Clamp to image bounds
+  x = Math.max(0, Math.min(editor.imageWidth, x));
+  y = Math.max(0, Math.min(editor.imageHeight, y));
+
+  let cx = Math.min(cropStart.value.x, x);
+  let cy = Math.min(cropStart.value.y, y);
+  let cw = Math.abs(x - cropStart.value.x);
+  let ch = Math.abs(y - cropStart.value.y);
+
+  // Aspect ratio constraint
+  if (editor.cropAspectRatio) {
+    const ratio = editor.cropAspectRatio;
+    if (cw / ch > ratio) {
+      cw = ch * ratio;
+    } else {
+      ch = cw / ratio;
+    }
+  }
+
+  editor.cropRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(cw), height: Math.round(ch) };
+}
+
+function onCanvasPointerUp() {
+  cropDragging.value = false;
+}
+
+async function confirmCrop() {
+  if (editor.cropRect.width > 0 && editor.cropRect.height > 0) {
+    await processor.applyCrop(editor.cropRect);
+    editor.cropRect = { x: 0, y: 0, width: 0, height: 0 };
+  }
+}
+
+// Resize
+function onResizeWidthChange(w: number) {
+  editor.resizeWidth = w;
+  if (editor.resizeLockAspect) {
+    editor.resizeHeight = Math.round(w / (editor.imageWidth / editor.imageHeight));
+  }
+}
+function onResizeHeightChange(h: number) {
+  editor.resizeHeight = h;
+  if (editor.resizeLockAspect) {
+    editor.resizeWidth = Math.round(h * (editor.imageWidth / editor.imageHeight));
+  }
+}
+
+async function confirmResize() {
+  await processor.applyResize(editor.resizeWidth, editor.resizeHeight);
+}
+
+// Adjustments
+async function confirmAdjustments() {
+  await processor.applyAdjustments({ ...previewAdjustments.value });
+  previewAdjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
+}
+
+function resetAdjustments() {
+  previewAdjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
+  editor.activeTool = null;
+  render();
+}
+
+// Filter
+async function confirmFilter() {
+  await processor.applyFilter(editor.activeFilter);
+}
+
+// Export
+async function exportFile() {
+  const sdk = haexVault.sdk;
+  if (!sdk || !editor.imageDataUrl) return;
+  try {
+    const ext = editor.fileName.split(".").pop()?.toLowerCase();
+    const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
+    const blob = await processor.exportImage(format as "png" | "jpeg");
+    const buffer = await blob.arrayBuffer();
+    const savePath = await sdk.selectSavePath({
+      title: t("saveAs"),
+      defaultName: editor.fileName,
+      filters: [{ name: "Images", extensions: [format === "jpeg" ? "jpg" : "png"] }],
+    });
+    if (savePath) {
+      await sdk.writeBinaryFile(savePath, new Uint8Array(buffer));
+    }
+  } catch (e) {
+    console.error("[haex-image] export error:", e);
+  }
+}
+</script>
+
+<template>
+  <div class="flex h-screen flex-col bg-background">
+    <!-- Toolbar -->
+    <header class="flex items-center gap-1 border-b border-border px-2 py-1.5">
+      <!-- Open -->
+      <button
+        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        @click="openFile"
+      >
+        <ImagePlus class="size-4" />
+        {{ t("open") }}
+      </button>
+
+      <div class="mx-1 h-5 w-px bg-border" />
+
+      <!-- Undo/Redo -->
+      <button
+        class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
+        :disabled="!editor.canUndo"
+        @click="editor.undo()"
+      >
+        <Undo2 class="size-4" />
+      </button>
+      <button
+        class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
+        :disabled="!editor.canRedo"
+        @click="editor.redo()"
+      >
+        <Redo2 class="size-4" />
+      </button>
+
+      <div class="mx-1 h-5 w-px bg-border" />
+
+      <!-- Tools -->
+      <template v-if="editor.hasImage">
+        <button
+          v-for="tool in [
+            { id: 'crop', icon: Crop, label: t('crop') },
+            { id: 'rotate', icon: RotateCw, label: t('rotate') },
+            { id: 'resize', icon: Maximize2, label: t('resize') },
+            { id: 'adjust', icon: SlidersHorizontal, label: t('adjust') },
+            { id: 'filter', icon: Sparkles, label: t('filter') },
+          ]"
+          :key="tool.id"
+          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
+          :class="editor.activeTool === tool.id
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+          @click="editor.activeTool = editor.activeTool === tool.id ? null : tool.id as any"
+        >
+          <component :is="tool.icon" class="size-4" />
+          {{ tool.label }}
+        </button>
+      </template>
+
+      <div class="flex-1" />
+
+      <!-- Info -->
+      <span v-if="editor.hasImage" class="text-xs text-muted-foreground">
+        {{ editor.imageWidth }} × {{ editor.imageHeight }}px
+      </span>
+
+      <div class="mx-1 h-5 w-px bg-border" />
+
+      <!-- Export -->
+      <button
+        v-if="editor.hasImage"
+        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        @click="exportFile"
+      >
+        <Save class="size-4" />
+        {{ t("save") }}
+      </button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Tool Options Sidebar -->
+      <aside
+        v-if="editor.activeTool"
+        class="flex w-56 flex-col gap-3 overflow-y-auto border-r border-border bg-card p-3"
+      >
+        <!-- Crop options -->
+        <template v-if="editor.activeTool === 'crop'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("aspectRatio") }}</p>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="preset in aspectPresets"
+              :key="preset.id"
+              class="rounded-md px-2 py-1 text-xs transition-colors"
+              :class="editor.cropAspectRatio === preset.ratio
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-accent/50 text-foreground hover:bg-accent'"
+              @click="editor.cropAspectRatio = preset.ratio"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+          <p class="text-xs text-muted-foreground">{{ t("cropHint") }}</p>
+          <button
+            v-if="editor.cropRect.width > 0"
+            class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            @click="confirmCrop"
+          >
+            <Check class="size-4" />
+            {{ t("applyCrop") }}
+          </button>
+        </template>
+
+        <!-- Rotate options -->
+        <template v-if="editor.activeTool === 'rotate'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("rotate") }}</p>
+          <div class="flex gap-2">
+            <button
+              class="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent/50 py-2 text-sm hover:bg-accent"
+              @click="processor.applyRotate90('ccw')"
+            >
+              <RotateCcw class="size-4" /> 90°
+            </button>
+            <button
+              class="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent/50 py-2 text-sm hover:bg-accent"
+              @click="processor.applyRotate90('cw')"
+            >
+              <RotateCw class="size-4" /> 90°
+            </button>
+          </div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("flip") }}</p>
+          <div class="flex gap-2">
+            <button
+              class="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent/50 py-2 text-sm hover:bg-accent"
+              @click="processor.applyFlip('horizontal')"
+            >
+              <FlipHorizontal2 class="size-4" /> H
+            </button>
+            <button
+              class="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent/50 py-2 text-sm hover:bg-accent"
+              @click="processor.applyFlip('vertical')"
+            >
+              <FlipVertical2 class="size-4" /> V
+            </button>
+          </div>
+        </template>
+
+        <!-- Resize options -->
+        <template v-if="editor.activeTool === 'resize'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("resize") }}</p>
+          <div class="flex flex-col gap-2">
+            <label class="text-xs text-muted-foreground">{{ t("width") }} (px)</label>
+            <input
+              :value="editor.resizeWidth"
+              type="number"
+              min="1"
+              max="10000"
+              class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              @input="onResizeWidthChange(Number(($event.target as HTMLInputElement).value))"
+            >
+            <label class="text-xs text-muted-foreground">{{ t("height") }} (px)</label>
+            <input
+              :value="editor.resizeHeight"
+              type="number"
+              min="1"
+              max="10000"
+              class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              @input="onResizeHeightChange(Number(($event.target as HTMLInputElement).value))"
+            >
+            <button
+              class="flex items-center gap-1.5 text-xs text-muted-foreground"
+              @click="editor.resizeLockAspect = !editor.resizeLockAspect"
+            >
+              <component :is="editor.resizeLockAspect ? Lock : Unlock" class="size-3.5" />
+              {{ t("lockAspect") }}
+            </button>
+            <button
+              class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              @click="confirmResize"
+            >
+              <Check class="size-4" />
+              {{ t("applyResize") }}
+            </button>
+          </div>
+        </template>
+
+        <!-- Adjust options -->
+        <template v-if="editor.activeTool === 'adjust'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("adjust") }}</p>
+          <div class="flex flex-col gap-3">
+            <div v-for="param in ['brightness', 'contrast', 'saturation'] as const" :key="param">
+              <div class="mb-1 flex justify-between text-xs">
+                <span class="text-muted-foreground">{{ t(param) }}</span>
+                <span class="font-mono text-foreground">{{ previewAdjustments[param] }}</span>
+              </div>
+              <input
+                v-model.number="previewAdjustments[param]"
+                type="range"
+                min="-100"
+                max="100"
+                class="w-full accent-primary"
+              >
+            </div>
+            <div class="flex gap-2">
+              <button
+                class="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent/50 py-2 text-sm hover:bg-accent"
+                @click="resetAdjustments"
+              >
+                <X class="size-4" />
+                {{ t("cancel") }}
+              </button>
+              <button
+                class="flex flex-1 items-center justify-center gap-1 rounded-md bg-primary py-2 text-sm text-primary-foreground"
+                @click="confirmAdjustments"
+              >
+                <Check class="size-4" />
+                {{ t("apply") }}
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Filter options -->
+        <template v-if="editor.activeTool === 'filter'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("filter") }}</p>
+          <div class="flex flex-col gap-1">
+            <button
+              v-for="f in filterPresets"
+              :key="f.id"
+              class="rounded-md px-3 py-2 text-left text-sm transition-colors"
+              :class="editor.activeFilter === f.id
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent/50'"
+              @click="editor.activeFilter = f.id"
+            >
+              {{ f.label }}
+            </button>
+          </div>
+          <button
+            v-if="editor.activeFilter !== 'none'"
+            class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            @click="confirmFilter"
+          >
+            <Check class="size-4" />
+            {{ t("applyFilter") }}
+          </button>
+        </template>
+      </aside>
+
+      <!-- Canvas Area -->
+      <div
+        ref="containerRef"
+        class="flex flex-1 items-center justify-center overflow-hidden bg-neutral-900/50"
+      >
+        <!-- Empty state -->
+        <div v-if="!editor.hasImage" class="flex flex-col items-center gap-4">
+          <ImagePlus class="size-16 text-muted-foreground/30" />
+          <p class="text-sm text-muted-foreground">{{ t("noImage") }}</p>
+          <button
+            class="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+            @click="openFile"
+          >
+            <ImagePlus class="size-4" />
+            {{ t("openImage") }}
+          </button>
+        </div>
+
+        <!-- Image canvas -->
+        <canvas
+          v-show="editor.hasImage"
+          ref="canvasRef"
+          class="shadow-lg"
+          :class="editor.activeTool === 'crop' ? 'cursor-crosshair' : ''"
+          @pointerdown="onCanvasPointerDown"
+          @pointermove="onCanvasPointerMove"
+          @pointerup="onCanvasPointerUp"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<i18n lang="yaml">
+de:
+  open: Öffnen
+  save: Speichern
+  crop: Zuschneiden
+  rotate: Drehen
+  resize: Größe
+  adjust: Anpassen
+  filter: Filter
+  noImage: Kein Bild geladen
+  openImage: Bild öffnen
+  saveAs: Speichern unter
+  aspectRatio: Seitenverhältnis
+  cropHint: Ziehe ein Rechteck auf dem Bild
+  applyCrop: Zuschnitt anwenden
+  flip: Spiegeln
+  width: Breite
+  height: Höhe
+  lockAspect: Seitenverhältnis beibehalten
+  applyResize: Größe anwenden
+  brightness: Helligkeit
+  contrast: Kontrast
+  saturation: Sättigung
+  cancel: Abbrechen
+  apply: Anwenden
+  applyFilter: Filter anwenden
+en:
+  open: Open
+  save: Save
+  crop: Crop
+  rotate: Rotate
+  resize: Resize
+  adjust: Adjust
+  filter: Filter
+  noImage: No image loaded
+  openImage: Open Image
+  saveAs: Save As
+  aspectRatio: Aspect Ratio
+  cropHint: Draw a rectangle on the image
+  applyCrop: Apply Crop
+  flip: Flip
+  width: Width
+  height: Height
+  lockAspect: Lock Aspect Ratio
+  applyResize: Apply Resize
+  brightness: Brightness
+  contrast: Contrast
+  saturation: Saturation
+  cancel: Cancel
+  apply: Apply
+  applyFilter: Apply Filter
+</i18n>
