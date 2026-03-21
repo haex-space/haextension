@@ -14,6 +14,7 @@ export const useEditorStore = defineStore("editor", () => {
   const imageWidth = ref(0);
   const imageHeight = ref(0);
   const fileName = ref("");
+  const filePath = ref("");
 
   // Tool state
   const activeTool = ref<EditorTool | null>(null);
@@ -50,11 +51,12 @@ export const useEditorStore = defineStore("editor", () => {
 
   const hasImage = computed(() => !!imageDataUrl.value);
 
-  function loadImage(img: HTMLImageElement, name: string) {
+  function loadImage(img: HTMLImageElement, name: string, path: string = "") {
     originalImage.value = img;
     imageWidth.value = img.naturalWidth;
     imageHeight.value = img.naturalHeight;
     fileName.value = name;
+    filePath.value = path;
     resizeWidth.value = img.naturalWidth;
     resizeHeight.value = img.naturalHeight;
     rotation.value = 0;
@@ -128,7 +130,7 @@ export const useEditorStore = defineStore("editor", () => {
   }
 
   return {
-    originalImage, imageDataUrl, imageWidth, imageHeight, fileName, hasImage,
+    originalImage, imageDataUrl, imageWidth, imageHeight, fileName, filePath, hasImage,
     activeTool,
     cropRect, cropAspectRatio,
     rotation, flipH, flipV,

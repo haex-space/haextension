@@ -249,7 +249,7 @@ async function openFile() {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
-      editor.loadImage(img, name);
+      editor.loadImage(img, name, filePath);
       URL.revokeObjectURL(url);
       nextTick(render);
     };
@@ -448,7 +448,7 @@ async function saveAs() {
     const buffer = await blob.arrayBuffer();
     await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),
-      defaultPath: editor.fileName,
+      defaultPath: editor.filePath || editor.fileName,
       filters: [{ name: "Bilder", extensions: [format === "jpeg" ? "jpg" : "png"] }],
     });
   } catch (e) {
