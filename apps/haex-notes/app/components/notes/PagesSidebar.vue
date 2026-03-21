@@ -7,6 +7,7 @@ import type { SelectPage } from "~/database/schemas";
 const emit = defineEmits<{
   close: [];
   previewTrashPage: [page: SelectPage];
+  trashRestored: [pageId: string];
 }>();
 
 const { t, locale } = useI18n();
@@ -24,9 +25,15 @@ watch(showTrash, async (v) => {
   if (v) await loadTrash();
 });
 
+// Reload trash when pages change (e.g. a page was deleted)
+watch(() => notebook.currentPages.length, async () => {
+  if (showTrash.value) await loadTrash();
+});
+
 const restorePage = async (pageId: string) => {
   await notebook.restorePageAsync(pageId);
   await loadTrash();
+  emit("trashRestored", pageId);
 };
 
 const emptyTrash = async () => {

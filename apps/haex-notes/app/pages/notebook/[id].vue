@@ -31,8 +31,20 @@ const closeTrashPreview = () => {
 
 const restorePreviewedPage = async () => {
   if (!trashPreviewPage.value) return;
-  await notebook.restorePageAsync(trashPreviewPage.value.id);
+  const restoredId = trashPreviewPage.value.id;
+  await notebook.restorePageAsync(restoredId);
   trashPreviewPage.value = null;
+  // Find and navigate to restored page
+  const idx = notebook.currentPages.findIndex(p => p.id === restoredId);
+  console.log("[haex-notes] restore preview:", { restoredId, idx, totalPages: notebook.currentPages.length, pageIds: notebook.currentPages.map(p => p.id) });
+  if (idx >= 0) {
+    notebook.currentPageIndex = idx;
+    // Force reload strokes for this page
+    const page = notebook.currentPages[idx]!;
+    notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
+    notebook.historyIndex = notebook.history.length - 1;
+    notebook.isDirty = false;
+  }
 };
 
 // Pencil case config
@@ -384,6 +396,20 @@ const cancelSlotEdit = () => {
           v-if="pagesSidebarVisible"
           @close="pagesSidebarVisible = false"
           @preview-trash-page="onPreviewTrashPage"
+          @trash-restored="(pageId: string) => {
+            const wasPreviewingThis = trashPreviewPage?.id === pageId;
+            trashPreviewPage = null;
+            if (wasPreviewingThis) {
+              const idx = notebook.currentPages.findIndex(p => p.id === pageId);
+              if (idx >= 0) {
+                notebook.currentPageIndex = idx;
+                const page = notebook.currentPages[idx]!;
+                notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
+                notebook.historyIndex = notebook.history.length - 1;
+                notebook.isDirty = false;
+              }
+            }
+          }"
         />
       </div>
     </div>
