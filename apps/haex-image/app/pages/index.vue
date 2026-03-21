@@ -436,7 +436,9 @@ async function confirmFilter() {
 }
 
 // Export
-async function exportFile() {
+const showSaveMenu = ref(false);
+
+async function saveAs() {
   const client = haexVault.client;
   if (!client || !editor.imageDataUrl) return;
   try {
@@ -444,16 +446,13 @@ async function exportFile() {
     const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
     const blob = await processor.exportImage(format as "png" | "jpeg");
     const buffer = await blob.arrayBuffer();
-    const savePath = await client.filesystem.selectSavePath({
+    await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),
-      defaultName: editor.fileName,
-      filters: [["Bilder", [format === "jpeg" ? "jpg" : "png"]]],
+      defaultPath: editor.fileName,
+      filters: [{ name: "Bilder", extensions: [format === "jpeg" ? "jpg" : "png"] }],
     });
-    if (savePath) {
-      await client.filesystem.writeFile(savePath, new Uint8Array(buffer));
-    }
   } catch (e) {
-    console.error("[haex-image] export error:", e);
+    console.error("[haex-image] saveAs error:", e);
   }
 }
 </script>
@@ -545,8 +544,8 @@ async function exportFile() {
       <button
         v-if="editor.hasImage"
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        :title="t('save')"
-        @click="exportFile"
+        :title="t('saveAs')"
+        @click="saveAs"
       >
         <Save class="size-4" />
         <span class="hidden md:inline">{{ t("save") }}</span>
