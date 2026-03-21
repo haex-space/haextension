@@ -797,9 +797,9 @@ async function exportFile() {
         style="background-color: #1a1a1a; background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;"
       >
         <!-- Empty state -->
-        <div v-if="!editor.hasImage" class="flex flex-col items-center gap-4">
-          <ImagePlus class="size-16 text-muted-foreground/30" />
-          <p class="text-sm text-muted-foreground">{{ t("noImage") }}</p>
+        <div v-if="!editor.hasImage" class="flex flex-col items-center gap-4 rounded-xl bg-card/90 p-10 shadow-lg backdrop-blur">
+          <ImagePlus class="size-16 text-muted-foreground" />
+          <p class="text-sm text-foreground">{{ t("noImage") }}</p>
           <button
             class="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
             @click="openFile"
