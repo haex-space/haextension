@@ -1,5 +1,3 @@
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
-import * as schema from "~/database/schemas";
 import {
   isPermissionPromptError,
   isPermissionDeniedError,
@@ -7,19 +5,11 @@ import {
   type PermissionDeniedError,
 } from "@haex-space/vault-sdk";
 
-const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
-
 export { isPermissionPromptError, isPermissionDeniedError, type PermissionPromptError, type PermissionDeniedError };
 
 export const useHaexVaultStore = defineStore("haexvault", () => {
   const nuxtApp = useNuxtApp();
-
   const isInitialized = ref(false);
-  const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
 
   const pendingPermission = ref<PermissionPromptError | null>(null);
   const pendingRetryFn = shallowRef<(() => Promise<void>) | null>(null);
@@ -30,53 +20,41 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
 
   const getHaexVault = () => {
     const haexVault = nuxtApp.$haexVault;
-    if (!haexVault) {
-      throw new Error("HaexVault plugin not available.");
-    }
+    if (!haexVault) throw new Error("HaexVault plugin not available.");
     return haexVault;
   };
 
-  const runMigrationsAsync = async () => {
-    const haexVault = getHaexVault();
-    const migrations = Object.entries(migrationFiles).map(([path, content]) => ({
-      name: path.split("/").pop()?.replace(".sql", "") || "",
-      sql: content as string,
-    }));
-
-    console.log(`[haex-draw] Registering ${migrations.length} migration(s)`);
-    const result = await haexVault.client.registerMigrationsAsync(
-      haexVault.client.extensionInfo!.version,
-      migrations
-    );
-    console.log(`[haex-draw] Migrations: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`);
-  };
+  const sdk = computed(() => {
+    try {
+      return getHaexVault().client;
+    } catch {
+      return null;
+    }
+  });
 
   const initializeAsync = async () => {
     if (isInitialized.value) return;
     const haexVault = getHaexVault();
 
-    console.log("[haex-draw] Initializing HaexVault SDK");
-    haexVault.client.onSetup(runMigrationsAsync);
-    orm.value = haexVault.client.initializeDatabase(schema);
+    console.log("[haex-image] Initializing HaexVault SDK");
+    haexVault.client.onSetup(async () => {});
     await haexVault.client.setupComplete();
-    console.log("[haex-draw] Setup complete");
+    console.log("[haex-image] Setup complete");
 
     watch(
       () => haexVault.state.value.context,
       (newContext) => {
         if (!newContext) return;
         context.value = newContext;
-        currentThemeName.value = (newContext.theme === "light" ? "light" : "dark");
+        currentThemeName.value = newContext.theme === "light" ? "light" : "dark";
         const locale = locales.value.find((l) => l.code === newContext.locale)?.code || defaultLocale;
         setLocale(locale);
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     isInitialized.value = true;
   };
-
-  const isReady = computed(() => isInitialized.value && orm.value !== null);
 
   const setPermissionPrompt = (error: PermissionPromptError, retryFn: () => Promise<void>) => {
     pendingPermission.value = error;
@@ -99,8 +77,8 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
   return {
     get client() { return getHaexVault().client; },
     get state() { return getHaexVault().state; },
-    orm,
-    isReady,
+    sdk,
+    isReady: computed(() => isInitialized.value),
     initializeAsync,
     pendingPermission: computed(() => pendingPermission.value),
     setPermissionPrompt,
