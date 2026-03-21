@@ -531,7 +531,8 @@ async function exportFile() {
       <!-- Canvas Area -->
       <div
         ref="containerRef"
-        class="flex flex-1 items-center justify-center overflow-hidden bg-neutral-900/50"
+        class="flex flex-1 items-center justify-center overflow-hidden"
+        style="background-color: #1a1a1a; background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;"
       >
         <!-- Empty state -->
         <div v-if="!editor.hasImage" class="flex flex-col items-center gap-4">
@@ -550,7 +551,7 @@ async function exportFile() {
         <canvas
           v-show="editor.hasImage"
           ref="canvasRef"
-          class="shadow-lg"
+          class="shadow-2xl ring-1 ring-white/10"
           :class="editor.activeTool === 'crop' ? 'cursor-crosshair' : ''"
           @pointerdown="onCanvasPointerDown"
           @pointermove="onCanvasPointerMove"
