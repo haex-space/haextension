@@ -150,7 +150,17 @@ function render() {
 }
 
 watch(() => editor.imageDataUrl, render);
-watch(() => editor.activeTool, render);
+watch(() => editor.activeTool, (newTool, oldTool) => {
+  // Reset filter preview when leaving filter tool without applying
+  if (oldTool === "filter" && newTool !== "filter") {
+    editor.activeFilter = "none";
+  }
+  // Reset adjustment preview when leaving adjust tool without applying
+  if (oldTool === "adjust" && newTool !== "adjust") {
+    previewAdjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
+  }
+  render();
+});
 watch(() => editor.cropRect, render, { deep: true });
 watch(() => editor.activeFilter, render);
 watch(previewAdjustments, render, { deep: true });
