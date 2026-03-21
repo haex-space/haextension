@@ -2,7 +2,7 @@
 import { useEventListener } from "@vueuse/core";
 import getStroke from "perfect-freehand";
 import { renderPageTemplate, PAGE_SIZE, getPageSize } from "~/utils/pageTemplates";
-import type { PageTemplate, StrokeData } from "~/database/schemas";
+import type { PageTemplate, StrokeData, PageTable } from "~/database/schemas";
 
 const canvasEl = useTemplateRef<HTMLCanvasElement>("canvasEl");
 const notebook = useNotebookStore();
@@ -211,6 +211,59 @@ const getPointerPos = (e: PointerEvent) => {
   return { x: e.clientX - rect.left, y: e.clientY - rect.top, pressure: e.pressure || 0.5 };
 };
 
+// --- Table interaction ---
+const LINE_HIT_THRESHOLD = 6; // pixels in page-space
+
+interface TableHit {
+  table: PageTable;
+  type: "col" | "row" | "move";
+  index: number; // which col/row line (0-based, between cells)
+}
+
+const tableDrag = ref<{ hit: TableHit; startVal: number; startX: number; startY: number } | null>(null);
+
+// Context menu state
+const tableContextMenu = ref<{ table: PageTable; pageX: number; pageY: number } | null>(null);
+
+function hitTestTableLines(px: number, py: number): TableHit | null {
+  for (const table of notebook.pageTables) {
+    const totalW = table.columnWidths.reduce((a, b) => a + b, 0);
+    const totalH = table.rowHeights.reduce((a, b) => a + b, 0);
+
+    // Check if inside table bounds (with margin)
+    if (px < table.x - LINE_HIT_THRESHOLD || px > table.x + totalW + LINE_HIT_THRESHOLD) continue;
+    if (py < table.y - LINE_HIT_THRESHOLD || py > table.y + totalH + LINE_HIT_THRESHOLD) continue;
+
+    // Check column lines
+    let cx = table.x;
+    for (let c = 0; c < table.columns - 1; c++) {
+      cx += table.columnWidths[c]!;
+      if (Math.abs(px - cx) < LINE_HIT_THRESHOLD && py >= table.y && py <= table.y + totalH) {
+        return { table, type: "col", index: c };
+      }
+    }
+
+    // Check row lines
+    let cy = table.y;
+    for (let r = 0; r < table.rows - 1; r++) {
+      cy += table.rowHeights[r]!;
+      if (Math.abs(py - cy) < LINE_HIT_THRESHOLD && px >= table.x && px <= table.x + totalW) {
+        return { table, type: "row", index: r };
+      }
+    }
+
+    // Check outer border for move
+    const onLeft = Math.abs(px - table.x) < LINE_HIT_THRESHOLD;
+    const onRight = Math.abs(px - (table.x + totalW)) < LINE_HIT_THRESHOLD;
+    const onTop = Math.abs(py - table.y) < LINE_HIT_THRESHOLD;
+    const onBottom = Math.abs(py - (table.y + totalH)) < LINE_HIT_THRESHOLD;
+    if ((onLeft || onRight || onTop || onBottom) && px >= table.x - LINE_HIT_THRESHOLD && px <= table.x + totalW + LINE_HIT_THRESHOLD && py >= table.y - LINE_HIT_THRESHOLD && py <= table.y + totalH + LINE_HIT_THRESHOLD) {
+      return { table, type: "move", index: 0 };
+    }
+  }
+  return null;
+}
+
 const onPointerDown = (e: PointerEvent) => {
   if (!canvasEl.value) return;
   canvasEl.value.setPointerCapture(e.pointerId);
@@ -227,6 +280,23 @@ const onPointerDown = (e: PointerEvent) => {
   if (e.button !== 0) return;
 
   const page = screenToPage(x, y);
+
+  // Close context menu on any click
+  tableContextMenu.value = null;
+
+  // Check table line hit first
+  const hit = hitTestTableLines(page.x, page.y);
+  if (hit) {
+    if (hit.type === "col") {
+      tableDrag.value = { hit, startVal: hit.table.columnWidths[hit.index]!, startX: page.x, startY: page.y };
+    } else if (hit.type === "row") {
+      tableDrag.value = { hit, startVal: hit.table.rowHeights[hit.index]!, startX: page.x, startY: page.y };
+    } else if (hit.type === "move") {
+      tableDrag.value = { hit, startVal: 0, startX: page.x - hit.table.x, startY: page.y - hit.table.y };
+    }
+    return;
+  }
+
   const slot = pencilCase.activeSlot;
 
   notebook.currentStroke = {
@@ -250,15 +320,50 @@ const onPointerMove = (e: PointerEvent) => {
     return;
   }
 
+  // Table line dragging
+  if (tableDrag.value) {
+    const page = screenToPage(x, y);
+    const { hit, startVal, startX, startY } = tableDrag.value;
+    if (hit.type === "col") {
+      const delta = page.x - startX;
+      hit.table.columnWidths[hit.index] = Math.max(20, startVal + delta);
+      notebook.isDirty = true;
+    } else if (hit.type === "row") {
+      const delta = page.y - startY;
+      hit.table.rowHeights[hit.index] = Math.max(15, startVal + delta);
+      notebook.isDirty = true;
+    } else if (hit.type === "move") {
+      hit.table.x = page.x - startX;
+      hit.table.y = page.y - startY;
+      notebook.isDirty = true;
+    }
+    return;
+  }
+
   if (notebook.isDrawing && notebook.currentStroke) {
     const page = screenToPage(x, y);
     notebook.currentStroke.points.push([page.x, page.y, pressure]);
+  }
+
+  // Update cursor based on table hit
+  if (!notebook.isDrawing && canvasEl.value) {
+    const page = screenToPage(x, y);
+    const hit = hitTestTableLines(page.x, page.y);
+    if (hit?.type === "col") canvasEl.value.style.cursor = "col-resize";
+    else if (hit?.type === "row") canvasEl.value.style.cursor = "row-resize";
+    else if (hit?.type === "move") canvasEl.value.style.cursor = "move";
+    else canvasEl.value.style.cursor = "crosshair";
   }
 };
 
 const onPointerUp = () => {
   if (isPanning.value) {
     isPanning.value = false;
+    return;
+  }
+
+  if (tableDrag.value) {
+    tableDrag.value = null;
     return;
   }
 
@@ -291,20 +396,77 @@ useEventListener(canvasEl, "pointerdown", onPointerDown);
 useEventListener(canvasEl, "pointermove", onPointerMove);
 useEventListener(canvasEl, "pointerup", onPointerUp);
 useEventListener(canvasEl, "pointerleave", onPointerUp);
-useEventListener(canvasEl, "contextmenu", (e: Event) => e.preventDefault());
+useEventListener(canvasEl, "contextmenu", (e: MouseEvent) => {
+  e.preventDefault();
+  // Show table context menu on right-click
+  const rect = canvasEl.value!.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const page = screenToPage(sx, sy);
+  const hit = hitTestTableLines(page.x, page.y);
+  if (hit) {
+    tableContextMenu.value = { table: hit.table, pageX: e.clientX, pageY: e.clientY };
+  } else {
+    tableContextMenu.value = null;
+  }
+});
 useEventListener(canvasEl, "wheel", onWheel, { passive: false });
 
 const resetZoom = () => fitPage();
 
 const zoomPercent = computed(() => Math.round((viewport.zoom / viewport.defaultZoom) * 100));
 
-defineExpose({ viewport, resetZoom, zoomPercent });
+defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
 </script>
 
 <template>
-  <canvas
-    ref="canvasEl"
-    class="h-full w-full touch-none"
-    style="cursor: crosshair"
-  />
+  <div class="relative h-full w-full">
+    <canvas
+      ref="canvasEl"
+      class="h-full w-full touch-none"
+      style="cursor: crosshair"
+    />
+
+    <!-- Table context menu -->
+    <div
+      v-if="tableContextMenu"
+      class="fixed z-50 min-w-40 rounded-lg border border-border bg-popover p-1 shadow-xl"
+      :style="{ left: `${tableContextMenu.pageX}px`, top: `${tableContextMenu.pageY}px` }"
+    >
+      <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        @click="notebook.addTableRow(tableContextMenu!.table.id); tableContextMenu = null"
+      >
+        Zeile hinzufügen
+      </button>
+      <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        @click="notebook.addTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
+      >
+        Spalte hinzufügen
+      </button>
+      <div class="my-1 h-px bg-border" />
+      <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        :class="tableContextMenu!.table.rows <= 1 ? 'opacity-30 pointer-events-none' : ''"
+        @click="notebook.removeTableRow(tableContextMenu!.table.id); tableContextMenu = null"
+      >
+        Zeile entfernen
+      </button>
+      <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        :class="tableContextMenu!.table.columns <= 1 ? 'opacity-30 pointer-events-none' : ''"
+        @click="notebook.removeTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
+      >
+        Spalte entfernen
+      </button>
+      <div class="my-1 h-px bg-border" />
+      <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+        @click="notebook.removeTable(tableContextMenu!.table.id); tableContextMenu = null"
+      >
+        Tabelle löschen
+      </button>
+    </div>
+  </div>
 </template>

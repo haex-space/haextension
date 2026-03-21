@@ -271,6 +271,38 @@ export const useNotebookStore = defineStore("notebook", () => {
     isDirty.value = true;
   };
 
+  const addTableRow = (tableId: string) => {
+    const t = pageTables.value.find(t => t.id === tableId);
+    if (!t) return;
+    t.rows++;
+    t.rowHeights.push(30);
+    isDirty.value = true;
+  };
+
+  const addTableColumn = (tableId: string) => {
+    const t = pageTables.value.find(t => t.id === tableId);
+    if (!t) return;
+    t.columns++;
+    t.columnWidths.push(80);
+    isDirty.value = true;
+  };
+
+  const removeTableRow = (tableId: string) => {
+    const t = pageTables.value.find(t => t.id === tableId);
+    if (!t || t.rows <= 1) return;
+    t.rows--;
+    t.rowHeights.pop();
+    isDirty.value = true;
+  };
+
+  const removeTableColumn = (tableId: string) => {
+    const t = pageTables.value.find(t => t.id === tableId);
+    if (!t || t.columns <= 1) return;
+    t.columns--;
+    t.columnWidths.pop();
+    isDirty.value = true;
+  };
+
   const saveCurrentPageAsync = async () => {
     const db = haexVault.orm;
     const page = currentPage.value;
@@ -368,6 +400,10 @@ export const useNotebookStore = defineStore("notebook", () => {
     pageTables,
     addTable,
     removeTable,
+    addTableRow,
+    addTableColumn,
+    removeTableRow,
+    removeTableColumn,
     saveCurrentPageAsync,
     listTrashAsync,
     restorePageAsync,
