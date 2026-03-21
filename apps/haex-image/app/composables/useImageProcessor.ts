@@ -90,19 +90,41 @@ export function useImageProcessor() {
     editor.activeTool = null;
   }
 
+  function manipulatePixels(ctx: CanvasRenderingContext2D, w: number, h: number, fn: (r: number, g: number, b: number) => [number, number, number]) {
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const [r, g, b] = fn(d[i], d[i + 1], d[i + 2]);
+      d[i] = Math.max(0, Math.min(255, r));
+      d[i + 1] = Math.max(0, Math.min(255, g));
+      d[i + 2] = Math.max(0, Math.min(255, b));
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
   async function applyAdjustments(adjustments: ImageAdjustments) {
     const img = await loadImageFromDataUrl(editor.imageDataUrl!);
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext("2d")!;
-
-    // Build CSS filter string
-    const brightness = 1 + adjustments.brightness / 100;
-    const contrast = 1 + adjustments.contrast / 100;
-    const saturate = 1 + adjustments.saturation / 100;
-    ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
     ctx.drawImage(img, 0, 0);
+
+    const br = adjustments.brightness * 2.55;
+    const co = 1 + adjustments.contrast / 100;
+    const sat = 1 + adjustments.saturation / 100;
+    manipulatePixels(ctx, canvas.width, canvas.height, (r, g, b) => {
+      r += br; g += br; b += br;
+      r = ((r / 255 - 0.5) * co + 0.5) * 255;
+      g = ((g / 255 - 0.5) * co + 0.5) * 255;
+      b = ((b / 255 - 0.5) * co + 0.5) * 255;
+      const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      r = gray + (r - gray) * sat;
+      g = gray + (g - gray) * sat;
+      b = gray + (b - gray) * sat;
+      return [r, g, b];
+    });
+
     const dataUrl = canvas.toDataURL("image/png");
     editor.pushHistory(dataUrl, canvas.width, canvas.height);
     editor.adjustments = { brightness: 0, contrast: 0, saturation: 0 };
@@ -115,34 +137,27 @@ export function useImageProcessor() {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
 
-    switch (filter) {
-      case "grayscale":
-        ctx.filter = "grayscale(1)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      case "sepia":
-        ctx.filter = "sepia(1)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      case "invert":
-        ctx.filter = "invert(1)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      case "warm":
-        ctx.filter = "sepia(0.3) saturate(1.4) brightness(1.05)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      case "cool":
-        ctx.filter = "saturate(0.8) brightness(1.05) hue-rotate(20deg)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      case "vintage":
-        ctx.filter = "sepia(0.4) contrast(1.2) brightness(0.9) saturate(0.8)";
-        ctx.drawImage(img, 0, 0);
-        break;
-      default:
-        ctx.drawImage(img, 0, 0);
+    if (filter !== "none") {
+      manipulatePixels(ctx, canvas.width, canvas.height, (r, g, b) => {
+        if (filter === "grayscale") {
+          const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          return [gray, gray, gray];
+        } else if (filter === "sepia") {
+          return [r * 0.393 + g * 0.769 + b * 0.189, r * 0.349 + g * 0.686 + b * 0.168, r * 0.272 + g * 0.534 + b * 0.131];
+        } else if (filter === "invert") {
+          return [255 - r, 255 - g, 255 - b];
+        } else if (filter === "warm") {
+          return [Math.min(255, r * 1.1 + 10), g, Math.max(0, b * 0.9 - 5)];
+        } else if (filter === "cool") {
+          return [Math.max(0, r * 0.9 - 5), g, Math.min(255, b * 1.1 + 10)];
+        } else if (filter === "vintage") {
+          const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          return [(gray * 0.6 + r * 0.4 + 20) * 0.95, (gray * 0.5 + g * 0.5 + 5) * 0.9, (gray * 0.6 + b * 0.4 - 10) * 0.85];
+        }
+        return [r, g, b];
+      });
     }
 
     const dataUrl = canvas.toDataURL("image/png");
