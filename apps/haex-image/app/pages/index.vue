@@ -460,21 +460,25 @@ async function exportFile() {
 
 <template>
   <div class="flex h-screen flex-col bg-background">
-    <!-- Toolbar (Desktop) -->
-    <header class="hidden items-center gap-1 border-b border-border px-2 py-1.5 sm:flex">
+    <!-- Toolbar -->
+    <header class="flex items-center gap-1 border-b border-border px-2 py-1.5">
+      <!-- Open -->
       <button
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        :title="t('open')"
         @click="openFile"
       >
         <ImagePlus class="size-4" />
-        {{ t("open") }}
+        <span class="hidden md:inline">{{ t("open") }}</span>
       </button>
 
       <div class="mx-1 h-5 w-px bg-border" />
 
+      <!-- Undo/Redo -->
       <button
         class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
         :disabled="!editor.canUndo"
+        :title="t('undo')"
         @click="editor.undo()"
       >
         <Undo2 class="size-4" />
@@ -482,71 +486,42 @@ async function exportFile() {
       <button
         class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
         :disabled="!editor.canRedo"
+        :title="t('redo')"
         @click="editor.redo()"
       >
         <Redo2 class="size-4" />
       </button>
 
-      <div class="mx-1 h-5 w-px bg-border" />
-
       <template v-if="editor.hasImage">
-        <button
-          v-for="tool in toolButtons"
-          :key="tool.id"
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
-          :class="editor.activeTool === tool.id
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-          @click="selectTool(tool.id)"
-        >
-          <component :is="tool.icon" class="size-4" />
-          {{ tool.label }}
-        </button>
-      </template>
+        <div class="mx-1 h-5 w-px bg-border" />
 
-      <div class="flex-1" />
-
-      <span v-if="editor.hasImage" class="text-xs text-muted-foreground">
-        {{ editor.imageWidth }} × {{ editor.imageHeight }}px
-      </span>
-
-      <div class="mx-1 h-5 w-px bg-border" />
-
-      <button
-        v-if="editor.hasImage"
-        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        @click="exportFile"
-      >
-        <Save class="size-4" />
-        {{ t("save") }}
-      </button>
-    </header>
-
-    <!-- Toolbar (Mobile) -->
-    <header class="flex items-center gap-1 border-b border-border px-2 py-1.5 sm:hidden">
-      <ShadcnDropdownMenu>
-        <ShadcnDropdownMenuTrigger as-child>
-          <button class="rounded-md p-1.5 text-muted-foreground hover:bg-accent">
-            <Menu class="size-5" />
+        <!-- Tools (large screens) -->
+        <div class="hidden gap-1 lg:flex">
+          <button
+            v-for="tool in toolButtons"
+            :key="tool.id"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
+            :class="editor.activeTool === tool.id
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+            @click="selectTool(tool.id)"
+          >
+            <component :is="tool.icon" class="size-4" />
+            {{ tool.label }}
           </button>
-        </ShadcnDropdownMenuTrigger>
-        <ShadcnDropdownMenuContent align="start" class="min-w-44">
-          <ShadcnDropdownMenuItem @click="openFile">
-            <ImagePlus class="mr-2 size-4" /> {{ t("open") }}
-          </ShadcnDropdownMenuItem>
+        </div>
 
-          <ShadcnDropdownMenuSeparator />
-
-          <ShadcnDropdownMenuItem :disabled="!editor.canUndo" @click="editor.undo()">
-            <Undo2 class="mr-2 size-4" /> {{ t("undo") }}
-          </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem :disabled="!editor.canRedo" @click="editor.redo()">
-            <Redo2 class="mr-2 size-4" /> {{ t("redo") }}
-          </ShadcnDropdownMenuItem>
-
-          <template v-if="editor.hasImage">
-            <ShadcnDropdownMenuSeparator />
-
+        <!-- Tools burger (small screens) -->
+        <ShadcnDropdownMenu>
+          <ShadcnDropdownMenuTrigger as-child>
+            <button
+              class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
+            >
+              <Menu class="size-4" />
+              <span>{{ t("tools") }}</span>
+            </button>
+          </ShadcnDropdownMenuTrigger>
+          <ShadcnDropdownMenuContent align="start" class="min-w-40">
             <ShadcnDropdownMenuItem
               v-for="tool in toolButtons"
               :key="tool.id"
@@ -555,39 +530,29 @@ async function exportFile() {
               <component :is="tool.icon" class="mr-2 size-4" />
               {{ tool.label }}
             </ShadcnDropdownMenuItem>
-
-            <ShadcnDropdownMenuSeparator />
-
-            <ShadcnDropdownMenuItem @click="exportFile">
-              <Save class="mr-2 size-4" /> {{ t("save") }}
-            </ShadcnDropdownMenuItem>
-          </template>
-        </ShadcnDropdownMenuContent>
-      </ShadcnDropdownMenu>
-
-      <span v-if="editor.hasImage" class="ml-1 text-xs text-muted-foreground">
-        {{ editor.imageWidth }} × {{ editor.imageHeight }}px
-      </span>
+          </ShadcnDropdownMenuContent>
+        </ShadcnDropdownMenu>
+      </template>
 
       <div class="flex-1" />
 
-      <template v-if="editor.hasImage">
-        <button
-          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
-          :disabled="!editor.canUndo"
-          @click="editor.undo()"
-        >
-          <Undo2 class="size-4" />
-        </button>
-        <button
-          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
-          :disabled="!editor.canRedo"
-          @click="editor.redo()"
-        >
-          <Redo2 class="size-4" />
-        </button>
-      </template>
+      <!-- Info -->
+      <span v-if="editor.hasImage" class="hidden text-xs text-muted-foreground md:inline">
+        {{ editor.imageWidth }} × {{ editor.imageHeight }}px
+      </span>
+
+      <!-- Save -->
+      <button
+        v-if="editor.hasImage"
+        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        :title="t('save')"
+        @click="exportFile"
+      >
+        <Save class="size-4" />
+        <span class="hidden md:inline">{{ t("save") }}</span>
+      </button>
     </header>
+
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Tool Options Sidebar -->
@@ -830,6 +795,7 @@ de:
   save: Speichern
   undo: Rückgängig
   redo: Wiederholen
+  tools: Werkzeuge
   crop: Zuschneiden
   rotate: Drehen
   resize: Größe
@@ -859,6 +825,7 @@ en:
   save: Save
   undo: Undo
   redo: Redo
+  tools: Tools
   crop: Crop
   rotate: Rotate
   resize: Resize
