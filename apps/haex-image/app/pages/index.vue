@@ -76,14 +76,18 @@ function render() {
 
   const img = new Image();
   img.onload = () => {
+    // Use preview dimensions for resize tool
+    const previewW = editor.activeTool === "resize" ? editor.resizeWidth : img.naturalWidth;
+    const previewH = editor.activeTool === "resize" ? editor.resizeHeight : img.naturalHeight;
+
     // Fit image to container
     const maxW = container.clientWidth - 32;
     const maxH = container.clientHeight - 32;
-    const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    const scale = Math.min(1, maxW / previewW, maxH / previewH);
     renderScale.value = scale;
 
-    canvas.width = Math.round(img.naturalWidth * scale);
-    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.width = Math.round(previewW * scale);
+    canvas.height = Math.round(previewH * scale);
     const ctx = canvas.getContext("2d")!;
 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -213,11 +217,17 @@ watch(() => editor.activeTool, (newTool, oldTool) => {
   if (oldTool === "adjust" && newTool !== "adjust") {
     previewAdjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
   }
+  // Reset resize preview when leaving without applying
+  if (oldTool === "resize" && newTool !== "resize") {
+    editor.resizeWidth = editor.imageWidth;
+    editor.resizeHeight = editor.imageHeight;
+  }
   render();
 });
 watch(() => editor.cropRect, render, { deep: true });
 watch(() => editor.activeFilter, render);
 watch(previewAdjustments, render, { deep: true });
+watch(() => [editor.resizeWidth, editor.resizeHeight], render);
 onMounted(() => {
   if (containerRef.value) {
     const obs = new ResizeObserver(render);
@@ -658,21 +668,23 @@ async function saveAs() {
           <div class="flex flex-col gap-2">
             <label class="text-xs text-muted-foreground">{{ t("width") }} (px)</label>
             <input
+              :key="'w-' + editor.resizeHeight"
               :value="editor.resizeWidth"
               type="number"
               min="1"
               max="10000"
               class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-              @input="onResizeWidthChange(Number(($event.target as HTMLInputElement).value))"
+              @change="onResizeWidthChange(Number(($event.target as HTMLInputElement).value))"
             >
             <label class="text-xs text-muted-foreground">{{ t("height") }} (px)</label>
             <input
+              :key="'h-' + editor.resizeWidth"
               :value="editor.resizeHeight"
               type="number"
               min="1"
               max="10000"
               class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-              @input="onResizeHeightChange(Number(($event.target as HTMLInputElement).value))"
+              @change="onResizeHeightChange(Number(($event.target as HTMLInputElement).value))"
             >
             <label class="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-accent/30 px-3 py-2">
               <span class="text-xs text-foreground">{{ t("lockAspect") }}</span>
