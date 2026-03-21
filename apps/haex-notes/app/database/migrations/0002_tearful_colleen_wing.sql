@@ -1,0 +1,2 @@
+ALTER TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-notes__notebooks` ADD `default_orientation` text DEFAULT 'portrait' NOT NULL;--> statement-breakpoint
+ALTER TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-notes__pages` ADD `orientation` text DEFAULT 'portrait' NOT NULL;

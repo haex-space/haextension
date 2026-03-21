@@ -25,6 +25,8 @@ export const notebooks = sqliteTable(
     coverColor: text("cover_color").notNull().default("#3b82f6"),
     /** Cover image (base64 data URL) or freehand thumbnail */
     coverImage: text("cover_image"),
+    /** Default page orientation */
+    defaultOrientation: text("default_orientation").notNull().default("portrait"),
     ...timestamps,
   }
 );
@@ -50,6 +52,8 @@ export const pages = sqliteTable(
     backgroundImage: text("background_image"),
     /** Small preview for page navigation */
     thumbnail: text(),
+    /** Page orientation (portrait or landscape) */
+    orientation: text().notNull().default("portrait"),
     /** Soft-delete timestamp (null = active, set = in trash) */
     deletedAt: integer("deleted_at", { mode: "timestamp" }),
     ...timestamps,
@@ -113,6 +117,8 @@ export type PageTemplate =
   | "lineatur3"      // Schreiblern-Lineatur Klasse 3
   | "music"          // Notenlinien
   | "millimeter";    // Millimeterpapier
+
+export type PageOrientation = "portrait" | "landscape";
 
 /** A configured pen in the pencil case */
 export interface PenSlot {

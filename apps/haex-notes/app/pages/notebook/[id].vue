@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw, Table2, RotateCw } from "lucide-vue-next";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { PageTemplate, PenSlot } from "~/database/schemas";
 
@@ -116,6 +116,11 @@ const goBack = async () => {
   router.push(localePath("/"));
 };
 
+const onTableSelect = (rows: number, cols: number) => {
+  // Place table in the upper-left area of the page with some margin
+  notebook.addTable(rows, cols, 80, 80);
+};
+
 const addPage = async () => {
   await notebook.addPageAsync(selectedAddTemplate.value);
 };
@@ -205,8 +210,32 @@ const cancelSlotEdit = () => {
         </ShadcnButtonGroup>
       </div>
 
-      <!-- Right: Undo/Redo -->
+      <!-- Right: Table + Undo/Redo -->
       <div class="flex items-center gap-0.5">
+        <!-- Orientation toggle -->
+        <button
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('toggleOrientation')"
+          @click="notebook.togglePageOrientationAsync()"
+        >
+          <RotateCw class="size-4" :class="(notebook.currentPage as any)?.orientation === 'landscape' ? 'rotate-90' : ''" />
+        </button>
+
+        <!-- Table tool -->
+        <ShadcnPopover>
+          <ShadcnPopoverTrigger as-child>
+            <button
+              class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              :title="t('addTable')"
+            >
+              <Table2 class="size-4" />
+            </button>
+          </ShadcnPopoverTrigger>
+          <ShadcnPopoverContent align="end" class="w-auto p-0">
+            <NotesTableGridPicker @select="onTableSelect" @cancel="" />
+          </ShadcnPopoverContent>
+        </ShadcnPopover>
+
         <button
           class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30"
           :disabled="!notebook.canUndo"
@@ -419,6 +448,8 @@ const cancelSlotEdit = () => {
 <i18n lang="yaml">
 de:
   addPage: Seite hinzufügen
+  addTable: Tabelle einfügen
+  toggleOrientation: Hoch-/Querformat
   resetZoom: Zoom zurücksetzen
   trashPreview: Diese Seite ist im Papierkorb
   restore: Wiederherstellen
@@ -432,6 +463,8 @@ de:
   save: Speichern
 en:
   addPage: Add Page
+  addTable: Insert Table
+  toggleOrientation: Portrait/Landscape
   resetZoom: Reset Zoom
   trashPreview: This page is in the trash
   restore: Restore

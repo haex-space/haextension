@@ -15,6 +15,13 @@
       "when": 1774050817625,
       "tag": "0001_vengeful_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774053270045,
+      "tag": "0002_tearful_colleen_wing",
+      "breakpoints": true
     }
   ]
 }

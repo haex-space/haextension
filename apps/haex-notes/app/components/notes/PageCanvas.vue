@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import getStroke from "perfect-freehand";
-import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
+import { renderPageTemplate, PAGE_SIZE, getPageSize } from "~/utils/pageTemplates";
 import type { PageTemplate, StrokeData } from "~/database/schemas";
 
 const canvasEl = useTemplateRef<HTMLCanvasElement>("canvasEl");
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
+
+const pageSize = computed(() => {
+  const page = notebook.currentPage;
+  const orientation = (page as any)?.orientation ?? "portrait";
+  return getPageSize(orientation);
+});
 
 // Viewport (pan/zoom within the page)
 const viewport = reactive({ x: 0, y: 0, zoom: 1, defaultZoom: 1 });
@@ -91,21 +97,56 @@ const render = () => {
   ctx.shadowBlur = 4;
   ctx.shadowOffsetX = 1;
   ctx.shadowOffsetY = 1;
-  ctx.fillRect(0, 0, PAGE_SIZE.width, PAGE_SIZE.height);
+  ctx.fillRect(0, 0, pageSize.value.width, pageSize.value.height);
   ctx.shadowColor = "transparent";
 
   // Draw page template (lines, grid, etc.)
   const page = notebook.currentPage;
   if (page) {
-    renderPageTemplate(ctx, page.template as PageTemplate, PAGE_SIZE.width, PAGE_SIZE.height);
+    renderPageTemplate(ctx, page.template as PageTemplate, pageSize.value.width, pageSize.value.height);
 
     // Draw background image if present
     if (page.backgroundImage && bgImage.value) {
       ctx.save();
       ctx.globalAlpha = 0.3;
-      ctx.drawImage(bgImage.value, 0, 0, PAGE_SIZE.width, PAGE_SIZE.height);
+      ctx.drawImage(bgImage.value, 0, 0, pageSize.value.width, pageSize.value.height);
       ctx.restore();
     }
+  }
+
+  // Draw tables
+  for (const table of notebook.pageTables) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(100, 120, 150, 0.5)";
+    ctx.lineWidth = 1;
+
+    const totalW = table.columnWidths.reduce((a, b) => a + b, 0);
+    const totalH = table.rowHeights.reduce((a, b) => a + b, 0);
+
+    // Outer border
+    ctx.strokeRect(table.x, table.y, totalW, totalH);
+
+    // Column lines
+    let cx = table.x;
+    for (let c = 0; c < table.columns - 1; c++) {
+      cx += table.columnWidths[c]!;
+      ctx.beginPath();
+      ctx.moveTo(cx, table.y);
+      ctx.lineTo(cx, table.y + totalH);
+      ctx.stroke();
+    }
+
+    // Row lines
+    let cy = table.y;
+    for (let r = 0; r < table.rows - 1; r++) {
+      cy += table.rowHeights[r]!;
+      ctx.beginPath();
+      ctx.moveTo(table.x, cy);
+      ctx.lineTo(table.x + totalW, cy);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   // Draw strokes
@@ -139,20 +180,24 @@ onUnmounted(() => cancelAnimationFrame(animFrameId));
 
 // Center the page on mount
 onMounted(() => {
-  nextTick(() => {
-    const el = canvasEl.value;
-    if (!el) return;
-    const cw = el.clientWidth;
-    const ch = el.clientHeight;
-    // Fit page to screen, no padding
-    const scaleX = cw / PAGE_SIZE.width;
-    const scaleY = ch / PAGE_SIZE.height;
-    viewport.zoom = Math.min(scaleX, scaleY, 1.5);
-    viewport.defaultZoom = viewport.zoom;
-    viewport.x = (cw - PAGE_SIZE.width * viewport.zoom) / 2;
-    viewport.y = (ch - PAGE_SIZE.height * viewport.zoom) / 2;
-  });
+  nextTick(fitPage);
 });
+
+const fitPage = () => {
+  const el = canvasEl.value;
+  if (!el) return;
+  const cw = el.clientWidth;
+  const ch = el.clientHeight;
+  const scaleX = cw / pageSize.value.width;
+  const scaleY = ch / pageSize.value.height;
+  viewport.zoom = Math.min(scaleX, scaleY, 1.5);
+  viewport.defaultZoom = viewport.zoom;
+  viewport.x = (cw - pageSize.value.width * viewport.zoom) / 2;
+  viewport.y = (ch - pageSize.value.height * viewport.zoom) / 2;
+};
+
+// Re-fit when orientation changes
+watch(pageSize, () => nextTick(fitPage));
 
 // --- Input handling ---
 
@@ -249,15 +294,7 @@ useEventListener(canvasEl, "pointerleave", onPointerUp);
 useEventListener(canvasEl, "contextmenu", (e: Event) => e.preventDefault());
 useEventListener(canvasEl, "wheel", onWheel, { passive: false });
 
-const resetZoom = () => {
-  const el = canvasEl.value;
-  if (!el) return;
-  const cw = el.clientWidth;
-  const ch = el.clientHeight;
-  viewport.zoom = viewport.defaultZoom;
-  viewport.x = (cw - PAGE_SIZE.width * viewport.zoom) / 2;
-  viewport.y = (ch - PAGE_SIZE.height * viewport.zoom) / 2;
-};
+const resetZoom = () => fitPage();
 
 const zoomPercent = computed(() => Math.round((viewport.zoom / viewport.defaultZoom) * 100));
 

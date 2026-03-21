@@ -18,6 +18,9 @@ export const useNotebookStore = defineStore("notebook", () => {
   const currentStroke = ref<StrokeData | null>(null);
   const isDrawing = ref(false);
 
+  // Tables on current page
+  const pageTables = ref<PageTable[]>([]);
+
   // History (per page)
   const history = ref<{ stroke: StrokeData; label: string }[]>([]);
   const historyIndex = ref(-1);
@@ -117,6 +120,7 @@ export const useNotebookStore = defineStore("notebook", () => {
       label: s.brushPreset ?? s.tool,
     }));
     historyIndex.value = history.value.length - 1;
+    pageTables.value = page.tables ? JSON.parse(JSON.stringify(page.tables)) : [];
     isDirty.value = false;
   };
 
@@ -225,6 +229,16 @@ export const useNotebookStore = defineStore("notebook", () => {
     loadPageIntoState();
   };
 
+  const togglePageOrientationAsync = async () => {
+    const db = haexVault.orm;
+    const page = currentPage.value;
+    if (!db || !page) return;
+    const newOrientation = (page as any).orientation === "landscape" ? "portrait" : "landscape";
+    await db.update(pages).set({ orientation: newOrientation }).where(eq(pages.id, page.id));
+    (page as any).orientation = newOrientation;
+    isDirty.value = true;
+  };
+
   const changePageTemplateAsync = async (template: PageTemplate) => {
     const db = haexVault.orm;
     const page = currentPage.value;
@@ -235,13 +249,36 @@ export const useNotebookStore = defineStore("notebook", () => {
 
   // --- Save ---
 
+  const addTable = (rows: number, cols: number, x: number, y: number) => {
+    const defaultColWidth = 80;
+    const defaultRowHeight = 30;
+    const table: PageTable = {
+      id: crypto.randomUUID(),
+      x,
+      y,
+      columns: cols,
+      rows,
+      columnWidths: Array(cols).fill(defaultColWidth),
+      rowHeights: Array(rows).fill(defaultRowHeight),
+    };
+    pageTables.value.push(table);
+    isDirty.value = true;
+    return table;
+  };
+
+  const removeTable = (id: string) => {
+    pageTables.value = pageTables.value.filter(t => t.id !== id);
+    isDirty.value = true;
+  };
+
   const saveCurrentPageAsync = async () => {
     const db = haexVault.orm;
     const page = currentPage.value;
     if (!db || !page) return;
 
     const strokesData = JSON.parse(JSON.stringify(activeStrokes.value));
-    await db.update(pages).set({ strokes: strokesData }).where(eq(pages.id, page.id));
+    const tablesData = JSON.parse(JSON.stringify(pageTables.value));
+    await db.update(pages).set({ strokes: strokesData, tables: tablesData }).where(eq(pages.id, page.id));
     isDirty.value = false;
   };
 
@@ -326,7 +363,11 @@ export const useNotebookStore = defineStore("notebook", () => {
     deleteCurrentPageAsync,
     deletePageAsync,
     reorderPagesAsync,
+    togglePageOrientationAsync,
     changePageTemplateAsync,
+    pageTables,
+    addTable,
+    removeTable,
     saveCurrentPageAsync,
     listTrashAsync,
     restorePageAsync,

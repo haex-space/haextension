@@ -11,6 +11,15 @@ export const PAGE_SIZE: PageDimensions = {
   height: 1123, // 297mm
 };
 
+export const PAGE_SIZE_LANDSCAPE: PageDimensions = {
+  width: 1123,
+  height: 794,
+};
+
+export function getPageSize(orientation: string): PageDimensions {
+  return orientation === "landscape" ? PAGE_SIZE_LANDSCAPE : PAGE_SIZE;
+}
+
 const MARGIN = { top: 60, bottom: 40, left: 50, right: 40 };
 
 export const PAGE_TEMPLATES: { id: PageTemplate; i18n: { de: string; en: string } }[] = [
