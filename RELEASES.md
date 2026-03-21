@@ -10,3 +10,4 @@
 | 0.2.5 | 2026-03-19 | [haex-code-0.2.5.xt](./haex-code-0.2.5.xt) |
 | 0.2.6 | 2026-03-19 | [haex-code-0.2.6.xt](./haex-code-0.2.6.xt) |
 | 0.2.7 | 2026-03-21 | [haex-code-0.2.7.xt](./haex-code-0.2.7.xt) |
+| 0.2.8 | 2026-03-21 | [haex-code-0.2.8.xt](./haex-code-0.2.8.xt) |
