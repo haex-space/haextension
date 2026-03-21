@@ -9,7 +9,7 @@ const repoRoot = new URL('..', import.meta.url).pathname;
 const extensionName = process.argv[2];
 const versionType = process.argv[3] || 'patch';
 
-const KNOWN_EXTENSIONS = ['haex-pass', 'haex-files', 'haex-calendar', 'haex-code', 'haex-draw'];
+const KNOWN_EXTENSIONS = ['haex-pass', 'haex-files', 'haex-calendar', 'haex-code', 'haex-draw', 'haex-notes'];
 
 if (!extensionName || !KNOWN_EXTENSIONS.includes(extensionName)) {
   console.error(`Usage: node scripts/release.js <extension> <patch|minor|major>`);

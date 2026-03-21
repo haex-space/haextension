@@ -1,0 +1,29 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [
+      {
+        "target": "*",
+        "operation": "read"
+      }
+    ],
+    "shell": [],
+    "web": []
+  },
+  "icon": "haextension/haex-notes-logo.png",
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "Digital notebook for handwritten notes",
+  "i18n": {
+    "de": {
+      "name": "Notizen",
+      "description": "Digitales Notizbuch für handschriftliche Notizen"
+    },
+    "en": {
+      "name": "Notes",
+      "description": "Digital notebook for handwritten notes"
+    }
+  }
+}
