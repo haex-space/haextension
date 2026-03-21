@@ -9,6 +9,7 @@ import {
   ChevronRight,
 } from "lucide-vue-next";
 
+const { t } = useI18n();
 const gitStore = useGitStore();
 const workspace = useWorkspaceStore();
 const settings = useSettingsStore();
@@ -95,7 +96,7 @@ const handleCommit = async () => {
     <div class="border-b border-border p-2">
       <textarea
         v-model="commitMessage"
-        placeholder="Commit-Nachricht"
+        :placeholder="t('commitMessage')"
         rows="3"
         class="w-full resize-none rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         :class="settings.scale.fontSize"
@@ -111,11 +112,11 @@ const handleCommit = async () => {
           @click="handleCommit"
         >
           <GitCommit class="size-3" />
-          {{ isCommitting ? "Commit..." : "Commit" }}
+          {{ isCommitting ? t('committing') : "Commit" }}
         </button>
         <button
           class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          title="Aktualisieren"
+          :title="t('refresh')"
           @click="refresh"
         >
           <RefreshCw
@@ -182,11 +183,11 @@ const handleCommit = async () => {
         >
           <ChevronDown v-if="changesExpanded" class="size-3" />
           <ChevronRight v-else class="size-3" />
-          Änderungen ({{ gitStore.unstagedFiles.length }})
+          {{ t('changes') }} ({{ gitStore.unstagedFiles.length }})
           <button
             v-if="gitStore.unstagedFiles.length > 0"
             class="ml-auto rounded p-0.5 hover:bg-accent/80 hover:text-green-500"
-            title="Alle stagen"
+            :title="t('stageAll')"
             @click.stop="stageAll"
           >
             <Plus class="size-4" />
@@ -215,7 +216,7 @@ const handleCommit = async () => {
             <button
               v-if="file.status !== 'untracked'"
               class="shrink-0 rounded p-1 opacity-0 hover:bg-accent hover:text-destructive group-hover:opacity-100"
-              title="Änderungen verwerfen"
+              :title="t('discardChanges')"
               @click="discardFile(file.path)"
             >
               <RotateCcw class="size-3.5" />
@@ -242,10 +243,29 @@ const handleCommit = async () => {
             "
             class="px-3 py-4 text-center text-xs text-muted-foreground"
           >
-            Keine Änderungen
+            {{ t('noChanges') }}
           </div>
         </template>
       </div>
     </ShadcnScrollArea>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  commitMessage: Commit-Nachricht
+  committing: Commit...
+  refresh: Aktualisieren
+  changes: Änderungen
+  stageAll: Alle stagen
+  discardChanges: Änderungen verwerfen
+  noChanges: Keine Änderungen
+en:
+  commitMessage: Commit message
+  committing: Committing...
+  refresh: Refresh
+  changes: Changes
+  stageAll: Stage all
+  discardChanges: Discard changes
+  noChanges: No changes
+</i18n>

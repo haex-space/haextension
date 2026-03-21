@@ -6,6 +6,7 @@ const props = defineProps<{
   tab: TerminalTab;
 }>();
 
+const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const terminalStore = useTerminalStore();
 const workspace = useWorkspaceStore();
@@ -190,8 +191,8 @@ const initTerminal = async () => {
     const platform = haexVault.state.context?.platform;
     if (platform === "android") {
       term.writeln("");
-      term.writeln("\x1b[33mTipp: Installiere Termux (F-Droid) für eine vollwertige Shell.\x1b[0m");
-      term.writeln("\x1b[90mAndroid bietet nur eine eingeschränkte System-Shell.\x1b[0m");
+      term.writeln(`\x1b[33m${t('termuxHint')}\x1b[0m`);
+      term.writeln(`\x1b[90m${t('androidLimited')}\x1b[0m`);
     }
   }
 
@@ -261,3 +262,12 @@ onUnmounted(async () => {
   display: none !important;
 }
 </style>
+
+<i18n lang="yaml">
+de:
+  termuxHint: "Tipp: Installiere Termux (F-Droid) für eine vollwertige Shell."
+  androidLimited: Android bietet nur eine eingeschränkte System-Shell.
+en:
+  termuxHint: "Tip: Install Termux (F-Droid) for a full-featured shell."
+  androidLimited: Android only provides a limited system shell.
+</i18n>
