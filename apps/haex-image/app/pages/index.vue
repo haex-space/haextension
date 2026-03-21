@@ -140,20 +140,27 @@ onMounted(() => {
 
 // File open
 async function openFile() {
-  const sdk = haexVault.sdk;
-  if (!sdk) return;
+  const client = haexVault.client;
+  if (!client) return;
   try {
-    const result = await sdk.selectFile({
+    const paths = await client.filesystem.selectFile({
       title: t("openImage"),
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "bmp", "gif"] }],
+      filters: [["Bilder", ["png", "jpg", "jpeg", "webp", "bmp", "gif"]]],
+      multiple: false,
     });
-    if (!result) return;
-    const data = await sdk.readBinaryFile(result);
-    const blob = new Blob([data]);
+    if (!paths || paths.length === 0) return;
+    const filePath = paths[0]!;
+    const name = filePath.split("/").pop() || "image";
+
+    const data = await client.filesystem.readFile(filePath);
+    const ext = filePath.split(".").pop()?.toLowerCase() ?? "png";
+    const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
+    const mime = mimeMap[ext] ?? "image/png";
+
+    const blob = new Blob([data], { type: mime });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
-      const name = result.split("/").pop() || "image";
       editor.loadImage(img, name);
       URL.revokeObjectURL(url);
       nextTick(render);
@@ -256,20 +263,20 @@ async function confirmFilter() {
 
 // Export
 async function exportFile() {
-  const sdk = haexVault.sdk;
-  if (!sdk || !editor.imageDataUrl) return;
+  const client = haexVault.client;
+  if (!client || !editor.imageDataUrl) return;
   try {
     const ext = editor.fileName.split(".").pop()?.toLowerCase();
     const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
     const blob = await processor.exportImage(format as "png" | "jpeg");
     const buffer = await blob.arrayBuffer();
-    const savePath = await sdk.selectSavePath({
+    const savePath = await client.filesystem.selectSavePath({
       title: t("saveAs"),
       defaultName: editor.fileName,
-      filters: [{ name: "Images", extensions: [format === "jpeg" ? "jpg" : "png"] }],
+      filters: [["Bilder", [format === "jpeg" ? "jpg" : "png"]]],
     });
     if (savePath) {
-      await sdk.writeBinaryFile(savePath, new Uint8Array(buffer));
+      await client.filesystem.writeFile(savePath, new Uint8Array(buffer));
     }
   } catch (e) {
     console.error("[haex-image] export error:", e);
