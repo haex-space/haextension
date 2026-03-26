@@ -16,6 +16,8 @@ import {
   ImageIcon,
   ArrowUp,
   ArrowDown,
+  ChevronsUp,
+  ChevronsDown,
 } from "lucide-vue-next";
 import type { Stencil } from "~/types/stencil";
 import getStroke from "perfect-freehand";
@@ -351,12 +353,18 @@ const exportStencilAsync = async (s: Stencil) => {
               <!-- Layer order -->
               <div>
                 <label class="mb-1 block text-xs text-muted-foreground">{{ t("layer") }}</label>
-                <div class="flex items-center gap-1">
-                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.moveLayerDown(stencil!.id); canvas.isDirty = true">
-                    <ArrowDown class="size-4" /> {{ t("layerDown") }}
+                <div class="grid grid-cols-4 gap-1">
+                  <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerBottom')" @click="stencilStore.moveLayerToBottom(stencil!.id); canvas.isDirty = true">
+                    <ChevronsDown class="size-4" />
                   </button>
-                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.moveLayerUp(stencil!.id); canvas.isDirty = true">
-                    <ArrowUp class="size-4" /> {{ t("layerUp") }}
+                  <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerDown')" @click="stencilStore.moveLayerDown(stencil!.id); canvas.isDirty = true">
+                    <ArrowDown class="size-4" />
+                  </button>
+                  <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerUp')" @click="stencilStore.moveLayerUp(stencil!.id); canvas.isDirty = true">
+                    <ArrowUp class="size-4" />
+                  </button>
+                  <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerTop')" @click="stencilStore.moveLayerToTop(stencil!.id); canvas.isDirty = true">
+                    <ChevronsUp class="size-4" />
                   </button>
                 </div>
               </div>
@@ -535,6 +543,8 @@ de:
   layer: Ebene
   layerUp: Höher
   layerDown: Tiefer
+  layerTop: Ganz nach oben
+  layerBottom: Ganz nach unten
   delete: Entfernen
   deleteAll: Alle entfernen
 en:
@@ -562,6 +572,8 @@ en:
   unpinAll: Unpin all
   layerUp: Up
   layerDown: Down
+  layerTop: To top
+  layerBottom: To bottom
   delete: Remove
   deleteAll: Remove all
 </i18n>

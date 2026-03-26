@@ -242,6 +242,21 @@ export const useStencilStore = defineStore("stencils", () => {
     stencil.zIndex = (stencil.zIndex ?? 0) - 1;
   };
 
+  const moveLayerToTop = (id: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (!stencil) return;
+    stencil.zIndex = nextZIndex();
+  };
+
+  const moveLayerToBottom = (id: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (!stencil) return;
+    const canvasStore = useCanvasStore();
+    const minStencilZ = stencils.value.reduce((min, s) => Math.min(min, s.zIndex ?? 0), 0);
+    const minStrokeZ = canvasStore.strokes.reduce((min, s) => Math.min(min, s.zIndex ?? 0), 0);
+    stencil.zIndex = Math.min(minStencilZ, minStrokeZ) - 1;
+  };
+
   /** Stencils sorted by zIndex for rendering */
   const sortedStencils = computed(() =>
     [...stencils.value].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
@@ -330,6 +345,8 @@ export const useStencilStore = defineStore("stencils", () => {
     sortedStencils,
     moveLayerUp,
     moveLayerDown,
+    moveLayerToTop,
+    moveLayerToBottom,
     clear,
     loadStencils,
   };
