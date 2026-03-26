@@ -55,6 +55,12 @@ export function useDrawingPersistence() {
       pinned: s.pinned,
       svgPath: s.svgPath,
       imageData: s.imageData,
+      emoji: s.emoji,
+      zIndex: s.zIndex,
+      opacity: s.opacity,
+      saturation: s.saturation,
+      brightness: s.brightness,
+      contrast: s.contrast,
     }));
 
     // Deep-clone reactive data to plain objects for serialization

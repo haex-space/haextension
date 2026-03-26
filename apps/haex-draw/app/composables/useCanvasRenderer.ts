@@ -870,19 +870,33 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Grid (infinite, adaptive)
     drawGrid(ctx, width, height);
 
-    // Render stencils first (below strokes — images/emojis as background to paint on)
-    for (const stencil of stencilStore.sortedStencils) {
-      const isHovered = stencil.id === stencilStore.hoveredId;
-      const isSelected = stencilStore.isSelected(stencil.id);
-      renderStencil(ctx, stencil, isHovered, isSelected, canvas.viewport.zoom);
-    }
+    // Unified layer rendering: strokes + stencils sorted by zIndex
+    type LayerItem =
+      | { kind: "stroke"; stroke: StrokeData; z: number }
+      | { kind: "stencil"; stencil: Stencil; z: number };
 
-    // Render all strokes (on top of stencils — so you can paint on images)
+    const layers: LayerItem[] = [];
+
     for (const stroke of canvas.strokes) {
-      renderStroke(ctx, stroke);
+      layers.push({ kind: "stroke", stroke, z: stroke.zIndex ?? 0 });
+    }
+    for (const stencil of stencilStore.stencils) {
+      layers.push({ kind: "stencil", stencil, z: stencil.zIndex ?? 0 });
     }
 
-    // Render current stroke (while drawing)
+    layers.sort((a, b) => a.z - b.z);
+
+    for (const item of layers) {
+      if (item.kind === "stroke") {
+        renderStroke(ctx, item.stroke);
+      } else {
+        const isHovered = item.stencil.id === stencilStore.hoveredId;
+        const isSelected = stencilStore.isSelected(item.stencil.id);
+        renderStencil(ctx, item.stencil, isHovered, isSelected, canvas.viewport.zoom);
+      }
+    }
+
+    // Render current stroke (while drawing) — always on top
     if (canvas.currentStroke) {
       renderStroke(ctx, canvas.currentStroke);
     }

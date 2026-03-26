@@ -75,6 +75,8 @@ export interface StrokeData {
   tool: "brush" | "eraser";
   brushPreset?: string; // ID from BRUSH_PRESETS
   brushTip?: "round" | "flat" | "chisel";
+  /** Layer order (higher = rendered later = on top) */
+  zIndex?: number;
 }
 
 export interface ViewportState {
@@ -96,4 +98,10 @@ export interface SerializedStencil {
   pinned: boolean;
   svgPath?: string;
   imageData?: string;
+  emoji?: string;
+  zIndex?: number;
+  opacity?: number;
+  saturation?: number;
+  brightness?: number;
+  contrast?: number;
 }

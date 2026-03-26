@@ -10,8 +10,10 @@ export const useStencilStore = defineStore("stencils", () => {
   const clipboard = ref<Stencil[]>([]);
 
   const nextZIndex = () => {
-    if (stencils.value.length === 0) return 0;
-    return Math.max(...stencils.value.map((s) => s.zIndex ?? 0)) + 1;
+    const canvasStore = useCanvasStore();
+    const maxStencilZ = stencils.value.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
+    const maxStrokeZ = canvasStore.strokes.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
+    return Math.max(maxStencilZ, maxStrokeZ) + 1;
   };
 
   // Compat: single selected stencil (first in set, for panel)
