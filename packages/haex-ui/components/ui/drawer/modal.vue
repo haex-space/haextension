@@ -21,7 +21,7 @@
       </ShadcnScrollArea>
 
       <!-- Footer (optional) -->
-      <ShadcnDrawerFooter v-if="$slots.footer" class="shrink-0">
+      <ShadcnDrawerFooter v-if="$slots.footer" class="shrink-0 border-t border-border">
         <slot name="footer" />
       </ShadcnDrawerFooter>
     </ShadcnDrawerContent>
@@ -49,7 +49,7 @@
       </ShadcnScrollArea>
 
       <!-- Dialog Footer (optional) -->
-      <ShadcnDialogFooter v-if="$slots.footer" class="shrink-0">
+      <ShadcnDialogFooter v-if="$slots.footer" class="shrink-0 border-t border-border">
         <slot name="footer" />
       </ShadcnDialogFooter>
     </ShadcnDialogContent>

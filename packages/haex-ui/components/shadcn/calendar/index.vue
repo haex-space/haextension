@@ -26,10 +26,17 @@ import {
   SelectValue,
 } from "@/components/shadcn/select"
 
-const props = defineProps<CalendarRootProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps<CalendarRootProps & { class?: HTMLAttributes["class"]; showWeekNumbers?: boolean }>()
 const emits = defineEmits<CalendarRootEmits>()
 
-const delegatedProps = reactiveOmit(props, "class", "placeholder")
+const delegatedProps = reactiveOmit(props, "class", "placeholder", "showWeekNumbers")
+
+function getISOWeekNumber(year: number, month: number, day: number): number {
+  const d = new Date(Date.UTC(year, month - 1, day))
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 // Internal placeholder state for navigation
@@ -136,6 +143,7 @@ const handleYearChange = (value: unknown) => {
       <CalendarGrid v-for="month in grid" :key="month.value.toString()">
         <CalendarGridHead>
           <CalendarGridRow>
+            <th v-if="props.showWeekNumbers" class="flex items-center justify-center w-6 text-muted-foreground/60 text-[0.7rem] font-normal">KW</th>
             <CalendarHeadCell v-for="day in weekDays" :key="day">
               {{ day }}
             </CalendarHeadCell>
@@ -143,6 +151,9 @@ const handleYearChange = (value: unknown) => {
         </CalendarGridHead>
         <CalendarGridBody>
           <CalendarGridRow v-for="(weekDates, index) in month.rows" :key="`weekDate-${index}`">
+            <td v-if="props.showWeekNumbers" class="flex items-center justify-center w-6 text-muted-foreground/60 text-[0.7rem] font-mono">
+              {{ getISOWeekNumber(weekDates[0]!.year, weekDates[0]!.month, weekDates[0]!.day) }}
+            </td>
             <CalendarCell v-for="weekDate in weekDates" :key="weekDate.toString()" :date="weekDate">
               <CalendarCellTrigger :day="weekDate" :month="month.value" />
             </CalendarCell>
