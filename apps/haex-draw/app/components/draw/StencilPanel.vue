@@ -11,6 +11,11 @@ import {
   Minus,
   Plus,
   Copy,
+  SlidersHorizontal,
+  Move,
+  ImageIcon,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-vue-next";
 import type { Stencil } from "~/types/stencil";
 import getStroke from "perfect-freehand";
@@ -32,6 +37,17 @@ const stencil = computed<Stencil | null>(() => {
 const selectedStencils = computed(() =>
   stencilStore.stencils.filter((s) => stencilStore.isSelected(s.id))
 );
+
+const isImageStencil = computed(() => stencil.value?.shapeType === "image");
+
+const activeTab = ref("transform");
+
+// Reset tab when selection changes away from image
+watch(isImageStencil, (isImage) => {
+  if (!isImage && activeTab.value === "image") {
+    activeTab.value = "transform";
+  }
+});
 
 // --- Single stencil computed ---
 
@@ -66,7 +82,54 @@ const sizeValue = computed({
   },
 });
 
-// --- Multi stencil actions ---
+// --- Image adjustment helpers ---
+
+const imageOpacity = computed({
+  get: () => Math.round((stencil.value?.opacity ?? 1) * 100),
+  set: (v: number) => {
+    if (!stencil.value) return;
+    stencil.value.opacity = Math.max(0, Math.min(100, v)) / 100;
+    canvas.isDirty = true;
+  },
+});
+
+const imageSaturation = computed({
+  get: () => Math.round((stencil.value?.saturation ?? 1) * 100),
+  set: (v: number) => {
+    if (!stencil.value) return;
+    stencil.value.saturation = Math.max(0, Math.min(200, v)) / 100;
+    canvas.isDirty = true;
+  },
+});
+
+const imageBrightness = computed({
+  get: () => Math.round((stencil.value?.brightness ?? 1) * 100),
+  set: (v: number) => {
+    if (!stencil.value) return;
+    stencil.value.brightness = Math.max(0, Math.min(200, v)) / 100;
+    canvas.isDirty = true;
+  },
+});
+
+const imageContrast = computed({
+  get: () => Math.round((stencil.value?.contrast ?? 1) * 100),
+  set: (v: number) => {
+    if (!stencil.value) return;
+    stencil.value.contrast = Math.max(0, Math.min(200, v)) / 100;
+    canvas.isDirty = true;
+  },
+});
+
+const resetImageAdjustments = () => {
+  if (!stencil.value) return;
+  stencil.value.opacity = 1;
+  stencil.value.saturation = 1;
+  stencil.value.brightness = 1;
+  stencil.value.contrast = 1;
+  canvas.isDirty = true;
+};
+
+// --- Multi stencil ---
 
 const allResizable = computed(() =>
   selectedStencils.value.every((s) => {
@@ -99,8 +162,7 @@ const multiRotationDeg = computed({
   get: () => {
     if (selectedStencils.value.length === 0) return 0;
     const degs = selectedStencils.value.map((s) => Math.round((s.rotation * 180) / Math.PI));
-    const allSame = degs.every((d) => d === degs[0]);
-    return allSame ? degs[0] : degs[0];
+    return degs[0];
   },
   set: (deg: number) => {
     const rad = (deg * Math.PI) / 180;
@@ -119,8 +181,8 @@ const rotateAll = (radians: number) => {
 const pinAll = () => {
   const shouldPin = selectedStencils.value.some((s) => !s.pinned);
   for (const s of selectedStencils.value) {
-    const stencil = stencilStore.getStencil(s.id);
-    if (stencil) stencil.pinned = shouldPin;
+    const st = stencilStore.getStencil(s.id);
+    if (st) st.pinned = shouldPin;
   }
 };
 
@@ -213,216 +275,234 @@ const exportStencilAsync = async (s: Stencil) => {
       </button>
     </div>
 
-    <ShadcnScrollArea class="flex-1">
+    <!-- ======================== -->
+    <!-- SINGLE STENCIL VIEW      -->
+    <!-- ======================== -->
+    <template v-if="!isMulti && stencil">
+      <ShadcnTabs v-model="activeTab" class="flex flex-1 flex-col overflow-hidden">
+        <ShadcnTabsList class="mx-auto mt-2 inline-grid w-auto shrink-0" :class="isImageStencil ? 'grid-cols-3' : 'grid-cols-2'">
+          <ShadcnTabsTrigger value="transform" :title="t('transform')" class="flex items-center justify-center">
+            <Move class="size-4" />
+          </ShadcnTabsTrigger>
+          <ShadcnTabsTrigger v-if="isImageStencil" value="image" :title="t('image')" class="flex items-center justify-center">
+            <ImageIcon class="size-4" />
+          </ShadcnTabsTrigger>
+          <ShadcnTabsTrigger value="actions" :title="t('actions')" class="flex items-center justify-center">
+            <SlidersHorizontal class="size-4" />
+          </ShadcnTabsTrigger>
+        </ShadcnTabsList>
+
+        <!-- Transform Tab -->
+        <ShadcnTabsContent value="transform" class="flex-1 overflow-hidden">
+          <ShadcnScrollArea class="h-full">
+            <div class="flex flex-col gap-3 p-3">
+              <!-- Rotation -->
+              <div>
+                <label class="mb-1 block text-xs text-muted-foreground">{{ t("rotation") }}</label>
+                <div class="flex items-center gap-1">
+                  <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="rotationDeg -= 1">
+                    <Minus class="size-4" />
+                  </button>
+                  <div class="relative flex-1">
+                    <input :value="rotationDeg" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="rotationDeg = Number(($event.target as HTMLInputElement).value) || 0" />
+                    <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">°</span>
+                  </div>
+                  <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="rotationDeg += 1">
+                    <Plus class="size-4" />
+                  </button>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.rotateStencil(stencil!.id, -Math.PI / 2)">
+                    <RotateCcw class="size-4" /> -90°
+                  </button>
+                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.rotateStencil(stencil!.id, Math.PI / 2)">
+                    <RotateCw class="size-4" /> +90°
+                  </button>
+                </div>
+                <input :value="rotationDeg" type="range" :min="-180" :max="180" step="1" class="mt-1.5 w-full" @input="rotationDeg = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <!-- Size -->
+              <div v-if="isResizable">
+                <label class="mb-1 block text-xs text-muted-foreground">{{ t("diameter") }}</label>
+                <div class="flex items-center gap-1">
+                  <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="sizeValue -= 10">
+                    <Minus class="size-4" />
+                  </button>
+                  <div class="relative flex-1">
+                    <input :value="sizeValue" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="sizeValue = Number(($event.target as HTMLInputElement).value) || 50" />
+                    <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">px</span>
+                  </div>
+                  <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="sizeValue += 10">
+                    <Plus class="size-4" />
+                  </button>
+                </div>
+                <input :value="sizeValue" type="range" :min="10" :max="5000" step="10" class="mt-1.5 w-full" @input="sizeValue = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <!-- Info (DIN) -->
+              <div v-if="!isResizable" class="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                <div class="flex justify-between">
+                  <span>{{ t("size") }}</span>
+                  <span>{{ stencil.width }} × {{ stencil.height }}px</span>
+                </div>
+              </div>
+
+              <!-- Layer order -->
+              <div>
+                <label class="mb-1 block text-xs text-muted-foreground">{{ t("layer") }}</label>
+                <div class="flex items-center gap-1">
+                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.moveLayerDown(stencil!.id); canvas.isDirty = true">
+                    <ArrowDown class="size-4" /> {{ t("layerDown") }}
+                  </button>
+                  <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.moveLayerUp(stencil!.id); canvas.isDirty = true">
+                    <ArrowUp class="size-4" /> {{ t("layerUp") }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ShadcnScrollArea>
+        </ShadcnTabsContent>
+
+        <!-- Image Tab (only for image stencils) -->
+        <ShadcnTabsContent v-if="isImageStencil" value="image" class="flex-1 overflow-hidden">
+          <ShadcnScrollArea class="h-full">
+            <div class="flex flex-col gap-4 p-3">
+              <!-- Opacity -->
+              <div>
+                <div class="mb-1 flex items-center justify-between">
+                  <label class="text-xs text-muted-foreground">{{ t("opacity") }}</label>
+                  <span class="text-xs tabular-nums text-muted-foreground">{{ imageOpacity }}%</span>
+                </div>
+                <input :value="imageOpacity" type="range" :min="0" :max="100" step="1" class="w-full" @input="imageOpacity = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <!-- Saturation -->
+              <div>
+                <div class="mb-1 flex items-center justify-between">
+                  <label class="text-xs text-muted-foreground">{{ t("saturation") }}</label>
+                  <span class="text-xs tabular-nums text-muted-foreground">{{ imageSaturation }}%</span>
+                </div>
+                <input :value="imageSaturation" type="range" :min="0" :max="200" step="1" class="w-full" @input="imageSaturation = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <!-- Brightness -->
+              <div>
+                <div class="mb-1 flex items-center justify-between">
+                  <label class="text-xs text-muted-foreground">{{ t("brightness") }}</label>
+                  <span class="text-xs tabular-nums text-muted-foreground">{{ imageBrightness }}%</span>
+                </div>
+                <input :value="imageBrightness" type="range" :min="0" :max="200" step="1" class="w-full" @input="imageBrightness = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <!-- Contrast -->
+              <div>
+                <div class="mb-1 flex items-center justify-between">
+                  <label class="text-xs text-muted-foreground">{{ t("contrast") }}</label>
+                  <span class="text-xs tabular-nums text-muted-foreground">{{ imageContrast }}%</span>
+                </div>
+                <input :value="imageContrast" type="range" :min="0" :max="200" step="1" class="w-full" @input="imageContrast = Number(($event.target as HTMLInputElement).value)" />
+              </div>
+
+              <div class="h-px bg-border" />
+
+              <!-- Reset -->
+              <button
+                class="flex w-full items-center justify-center gap-2 rounded-lg border border-input px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                @click="resetImageAdjustments"
+              >
+                {{ t("resetAdjustments") }}
+              </button>
+            </div>
+          </ShadcnScrollArea>
+        </ShadcnTabsContent>
+
+        <!-- Actions Tab -->
+        <ShadcnTabsContent value="actions" class="flex-1 overflow-hidden">
+          <ShadcnScrollArea class="h-full">
+            <div class="flex flex-col gap-1 p-3">
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil)">
+                <Download class="size-4" /> {{ t("export") }}
+              </button>
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
+                <Copy class="size-4" /> {{ t("copy") }}
+              </button>
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.togglePin(stencil!.id)">
+                <component :is="stencil.pinned ? PinOff : Pin" class="size-4" />
+                {{ stencil.pinned ? t("unpin") : t("pin") }}
+              </button>
+              <div class="my-1 h-px bg-border" />
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10" @click="stencilStore.removeStencil(stencil!.id); close()">
+                <Trash2 class="size-4" /> {{ t("delete") }}
+              </button>
+            </div>
+          </ShadcnScrollArea>
+        </ShadcnTabsContent>
+      </ShadcnTabs>
+    </template>
+
+    <!-- ======================== -->
+    <!-- MULTI STENCIL VIEW       -->
+    <!-- ======================== -->
+    <ShadcnScrollArea v-else-if="isMulti" class="flex-1">
       <div class="flex flex-col gap-3 p-3">
-
-        <!-- ======================== -->
-        <!-- SINGLE STENCIL VIEW      -->
-        <!-- ======================== -->
-        <template v-if="!isMulti && stencil">
-          <!-- Shape select -->
-          <div>
-            <label class="mb-1 block text-xs text-muted-foreground">{{ t("shape") }}</label>
-            <ShadcnSelect
-              :model-value="stencil.presetId"
-              @update:model-value="(v: string) => stencilStore.changeShape(stencil!.id, v)"
-            >
-              <ShadcnSelectTrigger class="h-8 text-xs">
-                <ShadcnSelectValue />
-              </ShadcnSelectTrigger>
-              <ShadcnSelectContent>
-                <ShadcnSelectGroup>
-                  <ShadcnSelectLabel class="text-[10px]">DIN</ShadcnSelectLabel>
-                  <ShadcnSelectItem
-                    v-for="p in STENCIL_PRESETS.filter(p => p.category === 'din')"
-                    :key="p.id"
-                    :value="p.id"
-                    class="text-xs"
-                  >
-                    {{ locale === 'de' ? p.i18n.de : p.i18n.en }}
-                  </ShadcnSelectItem>
-                </ShadcnSelectGroup>
-                <ShadcnSelectGroup>
-                  <ShadcnSelectLabel class="text-[10px]">{{ t("shapes") }}</ShadcnSelectLabel>
-                  <ShadcnSelectItem
-                    v-for="p in STENCIL_PRESETS.filter(p => p.category === 'geometric')"
-                    :key="p.id"
-                    :value="p.id"
-                    class="text-xs"
-                  >
-                    {{ locale === 'de' ? p.i18n.de : p.i18n.en }}
-                  </ShadcnSelectItem>
-                </ShadcnSelectGroup>
-                <ShadcnSelectGroup>
-                  <ShadcnSelectLabel class="text-[10px]">Social Media</ShadcnSelectLabel>
-                  <ShadcnSelectItem
-                    v-for="p in STENCIL_PRESETS.filter(p => p.category === 'social')"
-                    :key="p.id"
-                    :value="p.id"
-                    class="text-xs"
-                  >
-                    {{ locale === 'de' ? p.i18n.de : p.i18n.en }}
-                  </ShadcnSelectItem>
-                </ShadcnSelectGroup>
-                <ShadcnSelectGroup>
-                  <ShadcnSelectLabel class="text-[10px]">Ads</ShadcnSelectLabel>
-                  <ShadcnSelectItem
-                    v-for="p in STENCIL_PRESETS.filter(p => p.category === 'ads')"
-                    :key="p.id"
-                    :value="p.id"
-                    class="text-xs"
-                  >
-                    {{ locale === 'de' ? p.i18n.de : p.i18n.en }}
-                  </ShadcnSelectItem>
-                </ShadcnSelectGroup>
-                <ShadcnSelectGroup>
-                  <ShadcnSelectLabel class="text-[10px]">Screens</ShadcnSelectLabel>
-                  <ShadcnSelectItem
-                    v-for="p in STENCIL_PRESETS.filter(p => p.category === 'screens')"
-                    :key="p.id"
-                    :value="p.id"
-                    class="text-xs"
-                  >
-                    {{ locale === 'de' ? p.i18n.de : p.i18n.en }}
-                  </ShadcnSelectItem>
-                </ShadcnSelectGroup>
-              </ShadcnSelectContent>
-            </ShadcnSelect>
+        <!-- Rotation (apply to all) -->
+        <div>
+          <label class="mb-1 block text-xs text-muted-foreground">{{ t("rotation") }}</label>
+          <div class="flex items-center gap-1">
+            <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiRotationDeg -= 1">
+              <Minus class="size-4" />
+            </button>
+            <div class="relative flex-1">
+              <input :value="multiRotationDeg" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="multiRotationDeg = Number(($event.target as HTMLInputElement).value) || 0" />
+              <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">°</span>
+            </div>
+            <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiRotationDeg += 1">
+              <Plus class="size-4" />
+            </button>
           </div>
-
-          <!-- Rotation -->
-          <div>
-            <label class="mb-1 block text-xs text-muted-foreground">{{ t("rotation") }}</label>
-            <div class="flex items-center gap-1">
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="rotationDeg -= 1">
-                <Minus class="size-4" />
-              </button>
-              <div class="relative flex-1">
-                <input :value="rotationDeg" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="rotationDeg = Number(($event.target as HTMLInputElement).value) || 0" />
-                <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">°</span>
-              </div>
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="rotationDeg += 1">
-                <Plus class="size-4" />
-              </button>
-            </div>
-            <div class="mt-1.5 flex items-center gap-2">
-              <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.rotateStencil(stencil!.id, -Math.PI / 2)">
-                <RotateCcw class="size-4" /> -90°
-              </button>
-              <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="stencilStore.rotateStencil(stencil!.id, Math.PI / 2)">
-                <RotateCw class="size-4" /> +90°
-              </button>
-            </div>
-            <input :value="rotationDeg" type="range" :min="-180" :max="180" step="1" class="mt-1.5 w-full" @input="rotationDeg = Number(($event.target as HTMLInputElement).value)" />
+          <div class="mt-1.5 flex items-center gap-2">
+            <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="rotateAll(-Math.PI / 2)">
+              <RotateCcw class="size-4" /> -90°
+            </button>
+            <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="rotateAll(Math.PI / 2)">
+              <RotateCw class="size-4" /> +90°
+            </button>
           </div>
+          <input :value="multiRotationDeg" type="range" :min="-180" :max="180" step="1" class="mt-1.5 w-full" @input="multiRotationDeg = Number(($event.target as HTMLInputElement).value)" />
+        </div>
 
-          <!-- Size (resizable only) -->
-          <div v-if="isResizable">
-            <label class="mb-1 block text-xs text-muted-foreground">{{ t("diameter") }}</label>
-            <div class="flex items-center gap-1">
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="sizeValue -= 10">
-                <Minus class="size-4" />
-              </button>
-              <div class="relative flex-1">
-                <input :value="sizeValue" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="sizeValue = Number(($event.target as HTMLInputElement).value) || 50" />
-                <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">px</span>
-              </div>
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="sizeValue += 10">
-                <Plus class="size-4" />
-              </button>
+        <!-- Size (if all resizable) -->
+        <div v-if="allResizable">
+          <label class="mb-1 block text-xs text-muted-foreground">{{ t("diameter") }}</label>
+          <div class="flex items-center gap-1">
+            <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiSizeValue -= 10">
+              <Minus class="size-4" />
+            </button>
+            <div class="relative flex-1">
+              <input :value="multiSizeValue" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="multiSizeValue = Number(($event.target as HTMLInputElement).value) || 50" />
+              <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">px</span>
             </div>
-            <input :value="sizeValue" type="range" :min="10" :max="5000" step="10" class="mt-1.5 w-full" @input="sizeValue = Number(($event.target as HTMLInputElement).value)" />
+            <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiSizeValue += 10">
+              <Plus class="size-4" />
+            </button>
           </div>
+          <input :value="multiSizeValue" type="range" :min="10" :max="5000" step="10" class="mt-1.5 w-full" @input="multiSizeValue = Number(($event.target as HTMLInputElement).value)" />
+        </div>
 
-          <!-- Info (DIN) -->
-          <div v-if="!isResizable" class="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            <div class="flex justify-between">
-              <span>{{ t("size") }}</span>
-              <span>{{ stencil.width }} × {{ stencil.height }}px</span>
-            </div>
-          </div>
+        <div class="h-px bg-border" />
 
-          <div class="h-px bg-border" />
-
-          <!-- Single actions -->
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil)">
-            <Download class="size-4" /> {{ t("export") }}
-          </button>
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
-            <Copy class="size-4" /> {{ t("copy") }}
-          </button>
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.togglePin(stencil!.id)">
-            <component :is="stencil.pinned ? PinOff : Pin" class="size-4" />
-            {{ stencil.pinned ? t("unpin") : t("pin") }}
-          </button>
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10" @click="stencilStore.removeStencil(stencil!.id); close()">
-            <Trash2 class="size-4" /> {{ t("delete") }}
-          </button>
-        </template>
-
-        <!-- ======================== -->
-        <!-- MULTI STENCIL VIEW       -->
-        <!-- ======================== -->
-        <template v-else-if="isMulti">
-          <!-- Rotation (apply to all) -->
-          <div>
-            <label class="mb-1 block text-xs text-muted-foreground">{{ t("rotation") }}</label>
-            <div class="flex items-center gap-1">
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiRotationDeg -= 1">
-                <Minus class="size-4" />
-              </button>
-              <div class="relative flex-1">
-                <input :value="multiRotationDeg" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="multiRotationDeg = Number(($event.target as HTMLInputElement).value) || 0" />
-                <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">°</span>
-              </div>
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiRotationDeg += 1">
-                <Plus class="size-4" />
-              </button>
-            </div>
-            <div class="mt-1.5 flex items-center gap-2">
-              <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="rotateAll(-Math.PI / 2)">
-                <RotateCcw class="size-4" /> -90°
-              </button>
-              <button class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm hover:bg-accent active:bg-accent/70" @click="rotateAll(Math.PI / 2)">
-                <RotateCw class="size-4" /> +90°
-              </button>
-            </div>
-            <input :value="multiRotationDeg" type="range" :min="-180" :max="180" step="1" class="mt-1.5 w-full" @input="multiRotationDeg = Number(($event.target as HTMLInputElement).value)" />
-          </div>
-
-          <!-- Size (if all resizable) -->
-          <div v-if="allResizable">
-            <label class="mb-1 block text-xs text-muted-foreground">{{ t("diameter") }}</label>
-            <div class="flex items-center gap-1">
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiSizeValue -= 10">
-                <Minus class="size-4" />
-              </button>
-              <div class="relative flex-1">
-                <input :value="multiSizeValue" type="text" inputmode="numeric" class="h-9 w-full rounded-md border border-input bg-background px-2 pr-7 text-center text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" @change="multiSizeValue = Number(($event.target as HTMLInputElement).value) || 50" />
-                <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">px</span>
-              </div>
-              <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" @click="multiSizeValue += 10">
-                <Plus class="size-4" />
-              </button>
-            </div>
-            <input :value="multiSizeValue" type="range" :min="10" :max="5000" step="10" class="mt-1.5 w-full" @input="multiSizeValue = Number(($event.target as HTMLInputElement).value)" />
-          </div>
-
-          <div class="h-px bg-border" />
-
-          <!-- Multi actions -->
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
-            <Copy class="size-4" /> {{ t("copyAll") }}
-          </button>
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="pinAll()">
-            <component :is="allPinned ? PinOff : Pin" class="size-4" />
-            {{ allPinned ? t("unpinAll") : t("pinAll") }}
-          </button>
-          <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10" @click="stencilStore.removeSelected(); close()">
-            <Trash2 class="size-4" /> {{ t("deleteAll") }}
-          </button>
-        </template>
-
+        <!-- Multi actions -->
+        <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
+          <Copy class="size-4" /> {{ t("copyAll") }}
+        </button>
+        <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="pinAll()">
+          <component :is="allPinned ? PinOff : Pin" class="size-4" />
+          {{ allPinned ? t("unpinAll") : t("pinAll") }}
+        </button>
+        <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10" @click="stencilStore.removeSelected(); close()">
+          <Trash2 class="size-4" /> {{ t("deleteAll") }}
+        </button>
       </div>
     </ShadcnScrollArea>
   </div>
@@ -432,11 +512,19 @@ const exportStencilAsync = async (s: Stencil) => {
 de:
   stencil: Schablone
   stencils: Schablonen
+  transform: Transform
+  image: Bild
+  actions: Aktionen
   shape: Form
   shapes: Formen
   rotation: Drehung
   diameter: Durchmesser
   size: Größe
+  opacity: Deckkraft
+  saturation: Sättigung
+  brightness: Helligkeit
+  contrast: Kontrast
+  resetAdjustments: Zurücksetzen
   export: Als PNG exportieren
   copy: Kopieren
   copyAll: Alle kopieren
@@ -444,16 +532,27 @@ de:
   unpin: Lösen
   pinAll: Alle fixieren
   unpinAll: Alle lösen
+  layer: Ebene
+  layerUp: Höher
+  layerDown: Tiefer
   delete: Entfernen
   deleteAll: Alle entfernen
 en:
   stencil: Stencil
   stencils: Stencils
+  transform: Transform
+  image: Image
+  actions: Actions
   shape: Shape
   shapes: Shapes
   rotation: Rotation
   diameter: Diameter
   size: Size
+  opacity: Opacity
+  saturation: Saturation
+  brightness: Brightness
+  contrast: Contrast
+  resetAdjustments: Reset
   export: Export as PNG
   copy: Copy
   copyAll: Copy all
@@ -461,6 +560,8 @@ en:
   unpin: Unpin
   pinAll: Pin all
   unpinAll: Unpin all
+  layerUp: Up
+  layerDown: Down
   delete: Remove
   deleteAll: Remove all
 </i18n>

@@ -576,6 +576,26 @@ function getAdaptiveGridSize(zoom: number): { major: number; minor: number } {
 const imageCache = new Map<string, HTMLImageElement>();
 const imageLoading = new Set<string>();
 
+// Cache for rendered emoji (emoji char → HTMLCanvasElement)
+const emojiCache = new Map<string, HTMLCanvasElement>();
+
+function getOrRenderEmoji(emoji: string, size: number): HTMLCanvasElement {
+  const key = `${emoji}_${size}`;
+  const cached = emojiCache.get(key);
+  if (cached) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.font = `${size * 0.85}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(emoji, size / 2, size / 2);
+  emojiCache.set(key, canvas);
+  return canvas;
+}
+
 function getOrLoadImage(stencil: Stencil): HTMLImageElement | null {
   if (!stencil.imageData) return null;
 
@@ -607,13 +627,67 @@ function renderStencil(ctx: CanvasRenderingContext2D, stencil: Stencil, isHovere
   ctx.translate(stencil.x, stencil.y);
   ctx.rotate(stencil.rotation);
 
+  // Emoji stencil: draw pre-rendered emoji image
+  if (stencil.shapeType === "emoji" && stencil.emoji) {
+    const renderSize = Math.max(128, Math.round(Math.min(stencil.width, stencil.height)));
+    const emojiCanvas = getOrRenderEmoji(stencil.emoji, renderSize);
+    if (stencil.opacity !== undefined && stencil.opacity < 1) {
+      ctx.globalAlpha = stencil.opacity;
+    }
+    ctx.drawImage(emojiCanvas, -hw, -hh, stencil.width, stencil.height);
+
+    // Selection border
+    if (isSelected || isHovered) {
+      ctx.strokeStyle = isSelected ? "rgba(100, 100, 255, 0.7)" : "rgba(100, 100, 255, 0.5)";
+      ctx.lineWidth = (isSelected ? 2 : 1) / zoom;
+      ctx.setLineDash(isSelected ? [] : [8 / zoom, 4 / zoom]);
+      ctx.strokeRect(-hw, -hh, stencil.width, stencil.height);
+      ctx.setLineDash([]);
+    }
+
+    // Rotation handles
+    if (isSelected && !stencil.pinned) {
+      const handleSize = 6 / zoom;
+      const corners: [number, number][] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+      ctx.fillStyle = "rgba(100, 100, 255, 0.8)";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5 / zoom;
+      for (const [cx, cy] of corners) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, handleSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+    return;
+  }
+
   // Image stencil: draw the image as background
   if (stencil.shapeType === "image" && stencil.imageData) {
     const img = getOrLoadImage(stencil);
     if (img) {
-      ctx.globalAlpha = 0.4;
+      ctx.save();
+      if (stencil.opacity !== undefined && stencil.opacity < 1) {
+        ctx.globalAlpha = stencil.opacity;
+      }
+      // Apply CSS-like filters (saturation, brightness, contrast)
+      const filters: string[] = [];
+      if (stencil.saturation !== undefined && stencil.saturation !== 1) {
+        filters.push(`saturate(${stencil.saturation})`);
+      }
+      if (stencil.brightness !== undefined && stencil.brightness !== 1) {
+        filters.push(`brightness(${stencil.brightness})`);
+      }
+      if (stencil.contrast !== undefined && stencil.contrast !== 1) {
+        filters.push(`contrast(${stencil.contrast})`);
+      }
+      if (filters.length > 0) {
+        ctx.filter = filters.join(" ");
+      }
       ctx.drawImage(img, -hw, -hh, stencil.width, stencil.height);
-      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     // Border
@@ -796,7 +870,14 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Grid (infinite, adaptive)
     drawGrid(ctx, width, height);
 
-    // Render all strokes
+    // Render stencils first (below strokes — images/emojis as background to paint on)
+    for (const stencil of stencilStore.sortedStencils) {
+      const isHovered = stencil.id === stencilStore.hoveredId;
+      const isSelected = stencilStore.isSelected(stencil.id);
+      renderStencil(ctx, stencil, isHovered, isSelected, canvas.viewport.zoom);
+    }
+
+    // Render all strokes (on top of stencils — so you can paint on images)
     for (const stroke of canvas.strokes) {
       renderStroke(ctx, stroke);
     }
@@ -804,13 +885,6 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Render current stroke (while drawing)
     if (canvas.currentStroke) {
       renderStroke(ctx, canvas.currentStroke);
-    }
-
-    // Render stencils (on top of strokes)
-    for (const stencil of stencilStore.stencils) {
-      const isHovered = stencil.id === stencilStore.hoveredId;
-      const isSelected = stencilStore.isSelected(stencil.id);
-      renderStencil(ctx, stencil, isHovered, isSelected, canvas.viewport.zoom);
     }
   };
 

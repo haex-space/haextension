@@ -24,12 +24,14 @@ import {
   Hexagon,
   Camera,
   Images,
+  Smile,
 } from "lucide-vue-next";
 import type { Tool } from "~/types";
 
 defineProps<{
   historyVisible: boolean;
   galleryVisible: boolean;
+  galleryThumbnail: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -38,6 +40,7 @@ const emit = defineEmits<{
   toggleHistory: [];
   toggleCamera: [];
   toggleGallery: [];
+  toggleEmoji: [];
 }>();
 
 const { t, locale } = useI18n();
@@ -74,39 +77,44 @@ const stencilShapeIcons: Record<string, any> = {
 
 const { importSvgAsync } = useSvgImport();
 
-const importImage = async () => {
+const importFile = async () => {
   try {
     const haexVault = useHaexVaultStore();
     const client = haexVault.client;
     if (!client) return;
 
     const paths = await client.filesystem.selectFile({
-      title: "Bild importieren",
-      filters: [["Bilder", ["png", "jpg", "jpeg", "webp", "gif", "bmp"]]],
+      title: locale.value === "de" ? "Datei importieren" : "Import File",
+      filters: [["Bilder & SVG", ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"]]],
       multiple: false,
     });
 
-    console.log("[haex-draw] selectFile result:", paths);
     if (!paths || paths.length === 0) return;
     const filePath = paths[0]!;
-    const fileName = filePath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "Bild";
+    const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+    const fileName = filePath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "Import";
 
-    // Read file as binary
+    // SVG → custom stencil
+    if (ext === "svg") {
+      const result = await importSvgAsync(filePath);
+      if (!result) return;
+      const center = getViewportCenter();
+      stencilStore.addCustomStencil(result.svgPath, result.width, result.height, result.name, center.x, center.y);
+      stencilPopoverOpen.value = false;
+      return;
+    }
+
+    // Image → image stencil
     const data = await client.filesystem.readFile(filePath);
-
-    // Detect MIME type from extension
-    const ext = filePath.split(".").pop()?.toLowerCase() ?? "png";
     const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
     const mime = mimeMap[ext] ?? "image/png";
 
-    // Convert to base64 data URL
     let binary = "";
     for (let i = 0; i < data.length; i++) {
       binary += String.fromCharCode(data[i]!);
     }
     const dataUrl = `data:${mime};base64,${btoa(binary)}`;
 
-    // Load into Image to get dimensions
     const img = new Image();
     img.onload = () => {
       const center = getViewportCenter();
@@ -115,7 +123,7 @@ const importImage = async () => {
     };
     img.src = dataUrl;
   } catch (e) {
-    console.error("[haex-draw] importImage error:", e);
+    console.error("[haex-draw] importFile error:", e);
   }
 };
 
@@ -132,13 +140,6 @@ const getViewportCenter = () => {
   };
 };
 
-const importSvgStencil = async () => {
-  const result = await importSvgAsync();
-  if (!result) return;
-  const center = getViewportCenter();
-  stencilStore.addCustomStencil(result.svgPath, result.width, result.height, result.name, center.x, center.y);
-  stencilPopoverOpen.value = false;
-};
 
 const placeStencil = (presetId: string) => {
   const center = getViewportCenter();
@@ -432,11 +433,8 @@ const brushSizes = [2, 4, 8, 16, 32];
             </ShadcnDropdownMenuSubContent>
           </ShadcnDropdownMenuSub>
           <ShadcnDropdownMenuSeparator />
-          <ShadcnDropdownMenuItem @click="importImage">
-            <FileUp class="mr-2 size-4" /> {{ t("importImage") }}
-          </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem @click="importSvgStencil">
-            <FileUp class="mr-2 size-4" /> {{ t("importSvg") }}
+          <ShadcnDropdownMenuItem @click="importFile">
+            <FileUp class="mr-2 size-4" /> {{ t("importFile") }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuContent>
       </ShadcnDropdownMenu>
@@ -459,39 +457,25 @@ const brushSizes = [2, 4, 8, 16, 32];
         :title="t('gallery')"
         @click="emit('toggleGallery')"
       >
-        <Images class="size-6" />
+        <img
+          v-if="galleryThumbnail"
+          :src="galleryThumbnail"
+          class="size-6 rounded object-cover"
+        />
+        <Images v-else class="size-6" />
+      </button>
+
+      <!-- Emoji -->
+      <button
+        class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        :title="t('emoji')"
+        @click="emit('toggleEmoji')"
+      >
+        <Smile class="size-6" />
       </button>
 
       <!-- Separator -->
       <div class="my-1 h-px w-6 bg-border" />
-
-      <!-- Undo / Redo / History -->
-      <button
-        class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30"
-        :title="`${t('undo')} (Ctrl+Z)`"
-        :disabled="!canvas.canUndo"
-        @click="canvas.undo()"
-      >
-        <Undo2 class="size-6" />
-      </button>
-      <button
-        class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30"
-        :title="`${t('redo')} (Ctrl+Y)`"
-        :disabled="!canvas.canRedo"
-        @click="canvas.redo()"
-      >
-        <Redo2 class="size-6" />
-      </button>
-      <button
-        class="rounded-lg p-2 transition-colors"
-        :class="historyVisible
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-        :title="t('history')"
-        @click="emit('toggleHistory')"
-      >
-        <History class="size-6" />
-      </button>
 
       <!-- Spacer -->
       <div class="flex-1" />
@@ -539,10 +523,10 @@ de:
   socialMedia: Soziale Medien
   digitalAds: Digitale Werbung
   screens: Bildschirmgrößen
-  importImage: Bild importieren
-  importSvg: SVG importieren
+  importFile: Datei importieren
   camera: Kamera
   gallery: Galerie
+  emoji: Emoji
   undo: Rückgängig
   redo: Wiederherstellen
   history: Verlauf
@@ -564,10 +548,10 @@ en:
   socialMedia: Social Media
   digitalAds: Digital Ads
   screens: Screen Sizes
-  importImage: Import Image
-  importSvg: Import SVG
+  importFile: Import File
   camera: Camera
   gallery: Gallery
+  emoji: Emoji
   undo: Undo
   redo: Redo
   history: History

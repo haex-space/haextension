@@ -9,6 +9,11 @@ export const useStencilStore = defineStore("stencils", () => {
   const placingId = ref<string | null>(null);
   const clipboard = ref<Stencil[]>([]);
 
+  const nextZIndex = () => {
+    if (stencils.value.length === 0) return 0;
+    return Math.max(...stencils.value.map((s) => s.zIndex ?? 0)) + 1;
+  };
+
   // Compat: single selected stencil (first in set, for panel)
   const selectedId = computed({
     get: () => {
@@ -52,6 +57,8 @@ export const useStencilStore = defineStore("stencils", () => {
       height: preset.defaultHeight,
       rotation: 0,
       pinned: false,
+      emoji: preset.emoji,
+      zIndex: nextZIndex(),
     };
 
     stencils.value.push(stencil);
@@ -73,6 +80,7 @@ export const useStencilStore = defineStore("stencils", () => {
       rotation: 0,
       pinned: false,
       svgPath,
+      zIndex: nextZIndex(),
     };
 
     stencils.value.push(stencil);
@@ -97,6 +105,28 @@ export const useStencilStore = defineStore("stencils", () => {
       rotation: 0,
       pinned: false,
       imageData,
+      zIndex: nextZIndex(),
+    };
+
+    stencils.value.push(stencil);
+    selectedIds.value = new Set([stencil.id]);
+    return stencil;
+  };
+
+  const addEmojiStencil = (emoji: string, worldX: number, worldY: number) => {
+    const stencil: Stencil = {
+      id: crypto.randomUUID(),
+      presetId: "emoji",
+      shapeType: "emoji",
+      label: emoji,
+      x: worldX,
+      y: worldY,
+      width: 80,
+      height: 80,
+      rotation: 0,
+      pinned: false,
+      emoji,
+      zIndex: nextZIndex(),
     };
 
     stencils.value.push(stencil);
@@ -198,9 +228,27 @@ export const useStencilStore = defineStore("stencils", () => {
     selectedIds.value = newIds;
   };
 
+  const moveLayerUp = (id: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (!stencil) return;
+    stencil.zIndex = (stencil.zIndex ?? 0) + 1;
+  };
+
+  const moveLayerDown = (id: string) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (!stencil) return;
+    stencil.zIndex = (stencil.zIndex ?? 0) - 1;
+  };
+
+  /** Stencils sorted by zIndex for rendering */
+  const sortedStencils = computed(() =>
+    [...stencils.value].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+  );
+
   const hitTest = (worldX: number, worldY: number): Stencil | null => {
-    for (let i = stencils.value.length - 1; i >= 0; i--) {
-      const s = stencils.value[i];
+    // Test in reverse z-order (highest first)
+    const sorted = [...stencils.value].sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0));
+    for (const s of sorted) {
       const dx = worldX - s.x;
       const dy = worldY - s.y;
       const cos = Math.cos(-s.rotation);
@@ -241,6 +289,12 @@ export const useStencilStore = defineStore("stencils", () => {
       pinned: s.pinned ?? false,
       svgPath: s.svgPath,
       imageData: s.imageData,
+      opacity: s.opacity,
+      saturation: s.saturation,
+      brightness: s.brightness,
+      contrast: s.contrast,
+      emoji: s.emoji,
+      zIndex: s.zIndex ?? 0,
     }));
   };
 
@@ -257,6 +311,7 @@ export const useStencilStore = defineStore("stencils", () => {
     addStencil,
     addCustomStencil,
     addImageStencil,
+    addEmojiStencil,
     removeStencil,
     removeSelected,
     moveStencil,
@@ -270,6 +325,9 @@ export const useStencilStore = defineStore("stencils", () => {
     copySelected,
     paste,
     hitTest,
+    sortedStencils,
+    moveLayerUp,
+    moveLayerDown,
     clear,
     loadStencils,
   };

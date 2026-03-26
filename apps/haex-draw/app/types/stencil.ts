@@ -1,9 +1,11 @@
-export type StencilShapeType = "rectangle" | "circle" | "ellipse" | "star" | "triangle" | "heart" | "hexagon" | "custom" | "image";
+export type StencilShapeType = "rectangle" | "circle" | "ellipse" | "star" | "triangle" | "heart" | "hexagon" | "custom" | "image" | "emoji";
 
 export interface StencilPreset {
   id: string;
-  category: "din" | "geometric" | "social" | "ads" | "screens" | "custom";
+  category: "din" | "geometric" | "social" | "ads" | "screens" | "custom" | "emoji";
   shapeType: StencilShapeType;
+  /** Emoji character for emoji stencils */
+  emoji?: string;
   i18n: { de: string; en: string };
   /** Default width/height in world-space pixels */
   defaultWidth: number;
@@ -28,4 +30,16 @@ export interface Stencil {
   svgPath?: string;
   /** Base64 image data for image stencils */
   imageData?: string;
+  /** Emoji character for emoji stencils */
+  emoji?: string;
+  /** Layer order (higher = rendered later = on top) */
+  zIndex?: number;
+  /** Opacity 0-1 (default: 1) */
+  opacity?: number;
+  /** Saturation multiplier (default: 1, 0 = grayscale, 2 = oversaturated) */
+  saturation?: number;
+  /** Brightness multiplier (default: 1, 0 = black, 2 = bright) */
+  brightness?: number;
+  /** Contrast multiplier (default: 1) */
+  contrast?: number;
 }

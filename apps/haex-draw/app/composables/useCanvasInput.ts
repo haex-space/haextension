@@ -91,6 +91,13 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   const rotationStartAngle = ref(0);
   const stencilStartRotation = ref(0);
 
+  // Stencil resize state
+  const isResizing = ref(false);
+  const resizingId = ref<string | null>(null);
+  const resizeStartDist = ref(0);
+  const resizeStartWidth = ref(0);
+  const resizeStartHeight = ref(0);
+
   // Stencil placing state (drag-to-configure after placement)
   const isPlacing = ref(false);
   const placingBaseSize = ref({ w: 0, h: 0 });
@@ -149,9 +156,15 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     if (e.button === 0) {
       // 1. Pan tool: stencil interaction + canvas pan
       if (canvas.activeTool === "pan") {
-        // Check corner rotation first (works on selected stencil)
+        // Check corner handles: resize + rotate simultaneously
         const selected = stencilStore.selectedId ? stencilStore.getStencil(stencilStore.selectedId) : null;
         if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected)) {
+          isResizing.value = true;
+          resizingId.value = selected.id;
+          resizeStartDist.value = Math.hypot(world.x - selected.x, world.y - selected.y);
+          resizeStartWidth.value = selected.width;
+          resizeStartHeight.value = selected.height;
+          // Also track rotation
           isRotating.value = true;
           rotatingId.value = selected.id;
           stencilStartRotation.value = selected.rotation;
@@ -249,8 +262,31 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       return;
     }
 
-    // Stencil rotation
-    if (isRotating.value && rotatingId.value) {
+    // Stencil corner handle: resize + rotate simultaneously
+    if (isResizing.value && resizingId.value) {
+      const stencil = stencilStore.getStencil(resizingId.value);
+      if (stencil) {
+        // Resize: scale proportionally based on distance from center
+        const currentDist = Math.hypot(world.x - stencil.x, world.y - stencil.y);
+        const scale = Math.max(0.1, currentDist / resizeStartDist.value);
+        stencilStore.resizeStencil(
+          stencil.id,
+          Math.max(10, Math.round(resizeStartWidth.value * scale)),
+          Math.max(10, Math.round(resizeStartHeight.value * scale)),
+        );
+
+        // Rotate: track angle change from center
+        if (isRotating.value) {
+          const currentAngle = Math.atan2(world.y - stencil.y, world.x - stencil.x);
+          const delta = currentAngle - rotationStartAngle.value;
+          stencilStore.setStencilRotation(stencil.id, stencilStartRotation.value + delta);
+        }
+      }
+      return;
+    }
+
+    // Stencil rotation only (legacy, not currently triggered)
+    if (isRotating.value && rotatingId.value && !isResizing.value) {
       const stencil = stencilStore.getStencil(rotatingId.value);
       if (stencil) {
         const currentAngle = Math.atan2(world.y - stencil.y, world.x - stencil.x);
@@ -370,9 +406,12 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       return;
     }
 
-    if (isRotating.value) {
+    if (isResizing.value || isRotating.value) {
+      isResizing.value = false;
+      resizingId.value = null;
       isRotating.value = false;
       rotatingId.value = null;
+      canvas.isDirty = true;
       return;
     }
 

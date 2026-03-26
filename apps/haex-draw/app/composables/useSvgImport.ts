@@ -3,7 +3,23 @@
  * centered at origin, and returns the combined path string + dimensions.
  */
 export function useSvgImport() {
-  const importSvgAsync = (): Promise<{ svgPath: string; width: number; height: number; name: string } | null> => {
+  /**
+   * Import SVG either from a file path (vault-sdk) or via file picker dialog.
+   * @param filePath Optional: absolute path to SVG file (reads via vault-sdk)
+   */
+  const importSvgAsync = async (filePath?: string): Promise<{ svgPath: string; width: number; height: number; name: string } | null> => {
+    if (filePath) {
+      // Read SVG via vault-sdk filesystem
+      const haexVault = useHaexVaultStore();
+      const data = await haexVault.client.filesystem.readFile(filePath);
+      const text = new TextDecoder().decode(data);
+      const result = parseSvg(text);
+      if (!result) return null;
+      const name = filePath.split("/").pop()?.replace(/\.svg$/i, "") ?? "SVG";
+      return { ...result, name };
+    }
+
+    // Fallback: HTML file picker
     return new Promise((resolve) => {
       const input = document.createElement("input");
       input.type = "file";
