@@ -37,7 +37,7 @@
     "publish:major": "node scripts/bump-version.js major --tag"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^2.6.5",
+    "@haex-space/vault-sdk": "^2.7.1",
     "@haex/ui": "workspace:*",
     "vue-i18n": "^11.2.2"
   },

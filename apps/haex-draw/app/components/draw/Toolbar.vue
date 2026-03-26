@@ -22,17 +22,22 @@ import {
   Triangle,
   Heart,
   Hexagon,
+  Camera,
+  Images,
 } from "lucide-vue-next";
 import type { Tool } from "~/types";
 
 defineProps<{
   historyVisible: boolean;
+  galleryVisible: boolean;
 }>();
 
 const emit = defineEmits<{
   save: [];
   exportPng: [];
   toggleHistory: [];
+  toggleCamera: [];
+  toggleGallery: [];
 }>();
 
 const { t, locale } = useI18n();
@@ -436,6 +441,27 @@ const brushSizes = [2, 4, 8, 16, 32];
         </ShadcnDropdownMenuContent>
       </ShadcnDropdownMenu>
 
+      <!-- Camera -->
+      <button
+        class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        :title="t('camera')"
+        @click="emit('toggleCamera')"
+      >
+        <Camera class="size-6" />
+      </button>
+
+      <!-- Gallery -->
+      <button
+        class="rounded-lg p-2 transition-colors"
+        :class="galleryVisible
+          ? 'bg-accent text-accent-foreground'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+        :title="t('gallery')"
+        @click="emit('toggleGallery')"
+      >
+        <Images class="size-6" />
+      </button>
+
       <!-- Separator -->
       <div class="my-1 h-px w-6 bg-border" />
 
@@ -515,6 +541,8 @@ de:
   screens: Bildschirmgrößen
   importImage: Bild importieren
   importSvg: SVG importieren
+  camera: Kamera
+  gallery: Galerie
   undo: Rückgängig
   redo: Wiederherstellen
   history: Verlauf
@@ -538,6 +566,8 @@ en:
   screens: Screen Sizes
   importImage: Import Image
   importSvg: Import SVG
+  camera: Camera
+  gallery: Gallery
   undo: Undo
   redo: Redo
   history: History

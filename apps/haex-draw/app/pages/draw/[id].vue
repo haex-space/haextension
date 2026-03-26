@@ -12,6 +12,8 @@ const paletteStore = usePaletteStore();
 const { saveAsync, loadAsync, exportPngAsync, generateThumbnailAsync } = useDrawingPersistence();
 
 const historyVisible = ref(false);
+const cameraVisible = ref(false);
+const galleryVisible = ref(false);
 const isLoaded = ref(false);
 
 const rightPanelVisible = computed(() =>
@@ -111,6 +113,32 @@ const onDrawingNameUpdate = (name: string) => {
   canvas.drawingName = name;
   canvas.isDirty = true;
 };
+
+// Camera & Gallery
+const getViewportCenter = () => {
+  const { x: panX, y: panY, zoom } = canvas.viewport;
+  const el = document.querySelector("canvas");
+  const w = el?.clientWidth ?? 800;
+  const h = el?.clientHeight ?? 600;
+  return {
+    x: (w / 2 - panX) / zoom,
+    y: (h / 2 - panY) / zoom,
+  };
+};
+
+const onCameraCapture = (dataUrl: string, width: number, height: number) => {
+  const center = getViewportCenter();
+  stencilStore.addImageStencil(dataUrl, width, height, "Camera", center.x, center.y);
+  cameraVisible.value = false;
+  canvas.isDirty = true;
+};
+
+const onGallerySelect = (dataUrl: string, width: number, height: number, name: string) => {
+  const center = getViewportCenter();
+  stencilStore.addImageStencil(dataUrl, width, height, name, center.x, center.y);
+  galleryVisible.value = false;
+  canvas.isDirty = true;
+};
 </script>
 
 <template>
@@ -118,9 +146,12 @@ const onDrawingNameUpdate = (name: string) => {
     <!-- Left Toolbar -->
     <DrawToolbar
       :history-visible="historyVisible"
+      :gallery-visible="galleryVisible"
       @save="onSave"
       @export-png="onExportPng"
       @toggle-history="historyVisible = !historyVisible"
+      @toggle-camera="cameraVisible = true"
+      @toggle-gallery="galleryVisible = !galleryVisible"
     />
     <!-- Canvas -->
     <div class="relative flex-1 min-w-0">
@@ -145,6 +176,19 @@ const onDrawingNameUpdate = (name: string) => {
         <DrawHistoryPanel v-else-if="historyVisible" />
       </div>
     </div>
+    <!-- Camera Overlay -->
+    <DrawCameraOverlay
+      v-if="cameraVisible"
+      @close="cameraVisible = false"
+      @capture="onCameraCapture"
+    />
+
+    <!-- Image Gallery -->
+    <DrawImageGallery
+      v-if="galleryVisible"
+      @close="galleryVisible = false"
+      @select="onGallerySelect"
+    />
   </div>
 </template>
 
