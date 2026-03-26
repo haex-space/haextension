@@ -3,17 +3,6 @@ import type { CropRect, ImageAdjustments, FilterType } from "~/types";
 export function useImageProcessor() {
   const editor = useEditorStore();
 
-  function getCanvasFromCurrent(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d")!;
-    const img = new Image();
-    img.src = editor.imageDataUrl!;
-    canvas.width = editor.imageWidth;
-    canvas.height = editor.imageHeight;
-    ctx.drawImage(img, 0, 0);
-    return { canvas, ctx };
-  }
-
   async function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -94,7 +83,7 @@ export function useImageProcessor() {
     const imageData = ctx.getImageData(0, 0, w, h);
     const d = imageData.data;
     for (let i = 0; i < d.length; i += 4) {
-      const [r, g, b] = fn(d[i], d[i + 1], d[i + 2]);
+      const [r, g, b] = fn(d[i]!, d[i + 1]!, d[i + 2]!);
       d[i] = Math.max(0, Math.min(255, r));
       d[i + 1] = Math.max(0, Math.min(255, g));
       d[i + 2] = Math.max(0, Math.min(255, b));
@@ -166,6 +155,40 @@ export function useImageProcessor() {
     editor.activeTool = null;
   }
 
+  async function estimateCompressedSize(format: "jpeg" | "webp" | "png", quality: number): Promise<number> {
+    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => resolve(blob?.size ?? 0),
+        `image/${format}`,
+        quality,
+      );
+    });
+  }
+
+  async function applyCompress(format: "jpeg" | "webp" | "png", quality: number) {
+    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d")!;
+    // Fill white background for JPEG (no alpha support)
+    if (format === "jpeg") {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0);
+    const mimeType = `image/${format}`;
+    const dataUrl = canvas.toDataURL(mimeType, quality);
+    editor.pushHistory(dataUrl, canvas.width, canvas.height);
+    editor.activeTool = null;
+  }
+
   async function exportImage(format: "png" | "jpeg", quality = 0.92): Promise<Blob> {
     const img = await loadImageFromDataUrl(editor.imageDataUrl!);
     const canvas = document.createElement("canvas");
@@ -184,6 +207,7 @@ export function useImageProcessor() {
 
   return {
     applyCrop, applyRotate, applyRotate90, applyFlip,
-    applyResize, applyAdjustments, applyFilter, exportImage,
+    applyResize, applyAdjustments, applyFilter,
+    estimateCompressedSize, applyCompress, exportImage,
   };
 }

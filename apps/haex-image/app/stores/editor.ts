@@ -1,4 +1,3 @@
-import { defineStore } from "pinia";
 import type { EditorTool, CropRect, ImageAdjustments, FilterType } from "~/types";
 
 interface HistoryEntry {
@@ -94,7 +93,7 @@ export const useEditorStore = defineStore("editor", () => {
   function undo() {
     if (!canUndo.value) return;
     historyIndex.value--;
-    const entry = history.value[historyIndex.value];
+    const entry = history.value[historyIndex.value]!;
     imageDataUrl.value = entry.imageData;
     imageWidth.value = entry.width;
     imageHeight.value = entry.height;
@@ -105,7 +104,7 @@ export const useEditorStore = defineStore("editor", () => {
   function redo() {
     if (!canRedo.value) return;
     historyIndex.value++;
-    const entry = history.value[historyIndex.value];
+    const entry = history.value[historyIndex.value]!;
     imageDataUrl.value = entry.imageData;
     imageWidth.value = entry.width;
     imageHeight.value = entry.height;

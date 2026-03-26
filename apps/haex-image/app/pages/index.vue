@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {
-  ImagePlus, Undo2, Redo2, Download, Crop, RotateCw, RotateCcw,
+  ImagePlus, Undo2, Redo2, Crop, RotateCw, RotateCcw,
   FlipHorizontal2, FlipVertical2, Maximize2, SlidersHorizontal,
-  Sparkles, X, Check, Lock, Unlock, Save, Menu,
+  Sparkles, X, Check, Save, Menu, Archive,
 } from "lucide-vue-next";
-import type { FilterType, AspectRatioPreset } from "~/types";
+import type { EditorTool, FilterType, AspectRatioPreset } from "~/types";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
@@ -15,7 +15,6 @@ const canvasRef = useTemplateRef<HTMLCanvasElement>("canvasRef");
 const containerRef = useTemplateRef<HTMLDivElement>("containerRef");
 
 // Crop state
-const isCropping = ref(false);
 const cropStart = ref<{ x: number; y: number } | null>(null);
 const cropDragging = ref(false);
 
@@ -25,10 +24,11 @@ const toolButtons = computed(() => [
   { id: "resize", icon: Maximize2, label: t("resize") },
   { id: "adjust", icon: SlidersHorizontal, label: t("adjust") },
   { id: "filter", icon: Sparkles, label: t("filter") },
+  { id: "compress", icon: Archive, label: t("compress") },
 ]);
 
 function selectTool(id: string) {
-  editor.activeTool = editor.activeTool === id ? null : id as any;
+  editor.activeTool = editor.activeTool === id ? null : id as EditorTool;
 }
 
 // Free rotation
@@ -103,7 +103,7 @@ function render() {
         const sat = 1 + adj.saturation / 100;
         for (let i = 0; i < d.length; i += 4) {
           // Brightness
-          let r = d[i] + br, g = d[i + 1] + br, b = d[i + 2] + br;
+          let r = d[i]! + br, g = d[i + 1]! + br, b = d[i + 2]! + br;
           // Contrast
           r = ((r / 255 - 0.5) * co + 0.5) * 255;
           g = ((g / 255 - 0.5) * co + 0.5) * 255;
@@ -127,7 +127,7 @@ function render() {
       const d = imageData.data;
       const f = editor.activeFilter;
       for (let i = 0; i < d.length; i += 4) {
-        let r = d[i], g = d[i + 1], b = d[i + 2];
+        let r = d[i]!, g = d[i + 1]!, b = d[i + 2]!;
         if (f === "grayscale") {
           const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
           r = g = b = gray;
@@ -139,9 +139,9 @@ function render() {
         } else if (f === "invert") {
           r = 255 - r; g = 255 - g; b = 255 - b;
         } else if (f === "warm") {
-          r = Math.min(255, r * 1.1 + 10); g = g; b = Math.max(0, b * 0.9 - 5);
+          r = Math.min(255, r * 1.1 + 10); b = Math.max(0, b * 0.9 - 5);
         } else if (f === "cool") {
-          r = Math.max(0, r * 0.9 - 5); g = g; b = Math.min(255, b * 1.1 + 10);
+          r = Math.max(0, r * 0.9 - 5); b = Math.min(255, b * 1.1 + 10);
         } else if (f === "vintage") {
           const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
           r = gray * 0.6 + r * 0.4 + 20;
@@ -198,7 +198,7 @@ function render() {
         [sx, sy + sh / 2], [sx + sw, sy + sh / 2],
         [sx, sy + sh], [sx + sw / 2, sy + sh], [sx + sw, sy + sh],
       ];
-      for (const [hx, hy] of handles) {
+      for (const [hx, hy] of handles as [number, number][]) {
         ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
         ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs);
       }
@@ -255,7 +255,7 @@ async function openFile() {
     const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
     const mime = mimeMap[ext] ?? "image/png";
 
-    const blob = new Blob([data], { type: mime });
+    const blob = new Blob([data as BlobPart], { type: mime });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
@@ -445,9 +445,48 @@ async function confirmFilter() {
   await processor.applyFilter(editor.activeFilter);
 }
 
-// Export
-const showSaveMenu = ref(false);
+// Compress
+const compressFormat = ref<"jpeg" | "webp" | "png">("jpeg");
+const compressQuality = ref(80);
+const compressEstimatedSize = ref<number | null>(null);
+const compressOriginalSize = ref<number | null>(null);
+const compressEstimating = ref(false);
 
+async function updateCompressEstimate() {
+  if (!editor.imageDataUrl) return;
+  compressEstimating.value = true;
+  compressOriginalSize.value = Math.round((editor.imageDataUrl.length * 3) / 4);
+  compressEstimatedSize.value = await processor.estimateCompressedSize(
+    compressFormat.value,
+    compressQuality.value / 100,
+  );
+  compressEstimating.value = false;
+}
+
+watch([compressFormat, compressQuality], () => {
+  if (editor.activeTool === "compress") updateCompressEstimate();
+});
+
+watch(() => editor.activeTool, (tool) => {
+  if (tool === "compress") {
+    compressQuality.value = 80;
+    compressFormat.value = "jpeg";
+    updateCompressEstimate();
+  }
+});
+
+async function confirmCompress() {
+  await processor.applyCompress(compressFormat.value, compressQuality.value / 100);
+  nextTick(render);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Export
 async function saveAs() {
   const client = haexVault.client;
   if (!client || !editor.imageDataUrl) return;
@@ -739,6 +778,65 @@ async function saveAs() {
           </div>
         </template>
 
+        <!-- Compress options -->
+        <template v-if="editor.activeTool === 'compress'">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("compress") }}</p>
+          <div class="flex flex-col gap-3">
+            <div>
+              <p class="mb-1 text-xs text-muted-foreground">{{ t("format") }}</p>
+              <div class="flex gap-1">
+                <button
+                  v-for="fmt in (['jpeg', 'webp', 'png'] as const)"
+                  :key="fmt"
+                  class="flex-1 rounded-md px-2 py-1.5 text-xs uppercase transition-colors"
+                  :class="compressFormat === fmt
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-accent/50 text-foreground hover:bg-accent'"
+                  @click="compressFormat = fmt"
+                >
+                  {{ fmt }}
+                </button>
+              </div>
+            </div>
+            <div v-if="compressFormat !== 'png'">
+              <div class="mb-1 flex justify-between text-xs">
+                <span class="text-muted-foreground">{{ t("quality") }}</span>
+                <span class="font-mono text-foreground">{{ compressQuality }}%</span>
+              </div>
+              <input
+                v-model.number="compressQuality"
+                type="range"
+                min="1"
+                max="100"
+                class="w-full accent-primary"
+              >
+            </div>
+            <p v-else class="text-xs text-muted-foreground">{{ t("pngLossless") }}</p>
+            <div v-if="compressOriginalSize != null" class="rounded-md bg-accent/30 p-2 text-xs">
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">{{ t("original") }}</span>
+                <span class="font-mono text-foreground">{{ formatFileSize(compressOriginalSize) }}</span>
+              </div>
+              <div class="mt-1 flex justify-between">
+                <span class="text-muted-foreground">{{ t("compressed") }}</span>
+                <span v-if="compressEstimating" class="font-mono text-muted-foreground">...</span>
+                <span v-else-if="compressEstimatedSize != null" class="font-mono text-foreground">{{ formatFileSize(compressEstimatedSize) }}</span>
+              </div>
+              <div v-if="compressEstimatedSize != null && compressOriginalSize > 0 && !compressEstimating" class="mt-1 flex justify-between">
+                <span class="text-muted-foreground">{{ t("savings") }}</span>
+                <span class="font-mono text-green-500">-{{ Math.round((1 - compressEstimatedSize / compressOriginalSize) * 100) }}%</span>
+              </div>
+            </div>
+            <button
+              class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              @click="confirmCompress"
+            >
+              <Check class="size-4" />
+              {{ t("applyCompress") }}
+            </button>
+          </div>
+        </template>
+
         <!-- Filter options -->
         <template v-if="editor.activeTool === 'filter'">
           <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ t("filter") }}</p>
@@ -831,6 +929,14 @@ de:
   cancel: Abbrechen
   apply: Anwenden
   applyFilter: Filter anwenden
+  compress: Komprimieren
+  format: Format
+  quality: Qualität
+  original: Original
+  compressed: Komprimiert
+  savings: Ersparnis
+  applyCompress: Komprimieren
+  pngLossless: PNG ist verlustfrei — keine Qualitätseinstellung nötig.
 en:
   open: Open
   save: Save
@@ -861,4 +967,12 @@ en:
   cancel: Cancel
   apply: Apply
   applyFilter: Apply Filter
+  compress: Compress
+  format: Format
+  quality: Quality
+  original: Original
+  compressed: Compressed
+  savings: Savings
+  applyCompress: Compress
+  pngLossless: PNG is lossless — no quality setting needed.
 </i18n>

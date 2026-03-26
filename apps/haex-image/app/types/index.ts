@@ -1,4 +1,4 @@
-export type EditorTool = "crop" | "rotate" | "resize" | "adjust" | "filter";
+export type EditorTool = "crop" | "rotate" | "resize" | "adjust" | "filter" | "compress";
 
 export interface CropRect {
   x: number;

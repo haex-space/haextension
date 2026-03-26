@@ -16,6 +16,7 @@
     "shell": [],
     "web": []
   },
+  "icon": "haextension/haex-image-logo.png",
   "singleInstance": true,
   "displayMode": "auto",
   "description": "Image editor for cropping, rotating, adjusting and filtering images",
