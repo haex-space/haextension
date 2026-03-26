@@ -15,6 +15,7 @@ on:
           - haex-files
           - haex-calendar
           - haex-code
+          - haex-tetris
       version:
         description: 'Version (without v prefix, e.g., 1.4.13)'
         required: true
