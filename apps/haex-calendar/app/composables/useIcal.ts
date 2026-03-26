@@ -1,7 +1,7 @@
 import ICAL from "ical.js";
 import { eq } from "drizzle-orm";
 import { events } from "~/database/schemas";
-import type { InsertEvent, SelectEvent } from "~/database/schemas";
+import type { SelectEvent } from "~/database/schemas";
 
 export interface ParsedEvent {
   uid: string;
@@ -27,6 +27,7 @@ export function parseICS(icsString: string): ParsedEvent[] {
   const comp = new ICAL.Component(jcal);
   const vevents = comp.getAllSubcomponents("vevent");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return vevents.map((vevent: any) => {
     const event = new ICAL.Event(vevent);
     const startDate = event.startDate;

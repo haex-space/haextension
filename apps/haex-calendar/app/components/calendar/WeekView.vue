@@ -4,7 +4,9 @@
     <div class="border-b border-border shrink-0 overflow-y-hidden pr-[var(--scrollbar-width,0px)]">
       <!-- Day names -->
       <div class="grid grid-cols-(--week-grid)">
-        <div /> <!-- Time gutter spacer -->
+        <div class="flex items-center justify-center text-xs text-muted-foreground/60 font-mono">
+          <template v-if="settingsStore.showWeekNumbers">{{ weekNumber }}</template>
+        </div>
         <div
           v-for="day in weekDays"
           :key="day.key"
@@ -39,7 +41,10 @@
           <div
             v-for="bar in allDayBars.bars"
             :key="bar.event.id"
-            class="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[18px] leading-[18px]"
+            :class="[
+              'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[18px] leading-[18px]',
+              isEventPast(bar.event) && 'opacity-40',
+            ]"
             :style="{
               gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
               gridRow: bar.row + 1,
@@ -113,7 +118,10 @@
             v-for="pe in getPositionedEvents(day.key)"
             :key="pe.event.id"
             data-event
-            class="absolute rounded-md px-1.5 py-0.5 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-xs border"
+            :class="[
+              'absolute rounded-md px-1.5 py-0.5 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-xs border',
+              isEventPast(pe.event) && 'opacity-40',
+            ]"
             :style="{
               top: `${(pe.top / 100) * HOUR_HEIGHT * 24}px`,
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
@@ -152,7 +160,6 @@ import {
   positionEventsInDay,
   groupEventsByDay,
   getAllDayEvents,
-  eventSpansDate,
   toDateKey,
 } from "~/composables/useTimeGrid";
 
@@ -160,11 +167,26 @@ const { t } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
-const eventDrawer = useEventDrawerStore();
 const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
 const dayCount = computed(() => settingsStore.showWeekends ? 7 : 5);
+
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+const weekNumber = computed(() => {
+  const range = calendarView.visibleRange;
+  return getISOWeekNumber(new Date(range.start));
+});
+
+function isEventPast(event: SelectEvent): boolean {
+  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+}
 const gridCols = computed(() => `3.5rem repeat(${dayCount.value}, 1fr)`);
 
 const scrollAreaRef = ref<ComponentPublicInstance | null>(null);

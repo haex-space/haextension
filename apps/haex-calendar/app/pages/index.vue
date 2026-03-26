@@ -42,7 +42,7 @@
 
       <!-- View Mode Select -->
       <ShadcnSelect v-model="calendarView.viewMode">
-        <ShadcnSelectTrigger class="w-auto min-w-24 shrink-0">
+        <ShadcnSelectTrigger class="w-auto min-w-32 shrink-0 text-base py-2">
           <ShadcnSelectValue />
         </ShadcnSelectTrigger>
         <ShadcnSelectContent>
@@ -50,6 +50,7 @@
             v-for="mode in viewModes"
             :key="mode.value"
             :value="mode.value"
+            class="text-base py-2"
           >
             {{ mode.label }}
           </ShadcnSelectItem>
@@ -104,6 +105,7 @@
           :model-value="selectedCalendarDate"
           locale="de-DE"
           weekday-format="short"
+          :show-week-numbers="settingsStore.showWeekNumbers"
           class="p-0 w-full"
           @update:model-value="onMiniCalendarSelect"
         />
@@ -164,7 +166,7 @@
               @keydown.enter="confirmRename"
               @keydown.escape="renamingCalendarId = null"
               @click.stop
-            />
+            >
             <span v-else class="text-base truncate flex-1">{{ cal.name }}</span>
             <span
               v-if="cal.caldavAccountId"
@@ -313,7 +315,7 @@
       accept=".ics,.ical"
       class="hidden"
       @change="onFileSelected"
-    />
+    >
   </div>
 </template>
 
@@ -328,7 +330,6 @@ import {
   PanelLeftOpen,
   Pencil,
   Plus,
-  Palette,
   CalendarPlus,
   Cloud,
   RefreshCw,

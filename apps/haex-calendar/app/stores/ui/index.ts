@@ -1,7 +1,7 @@
 import { watchImmediate } from "@vueuse/core";
 
 export const useUiStore = defineStore("ui", () => {
-  const context = ref<any>(null);
+  const context = ref<unknown>(null);
   const currentThemeName = ref<"dark" | "light">("dark");
 
   const colorMode = useColorMode();

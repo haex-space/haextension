@@ -11,7 +11,7 @@
               v-model="form.name"
               class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
               :placeholder="t('fields.namePlaceholder')"
-            />
+            >
           </div>
           <div>
             <label class="text-sm font-medium">{{ t('fields.serverUrl') }}</label>
@@ -19,14 +19,14 @@
               v-model="form.serverUrl"
               class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
               :placeholder="t('fields.serverUrlPlaceholder')"
-            />
+            >
           </div>
           <div>
             <label class="text-sm font-medium">{{ t('fields.username') }}</label>
             <input
               v-model="form.username"
               class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
-            />
+            >
           </div>
           <div>
             <label class="text-sm font-medium">{{ t('fields.password') }}</label>
@@ -35,7 +35,7 @@
               type="password"
               class="w-full mt-1 bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary"
               @keydown.enter="handleConnect"
-            />
+            >
           </div>
         </template>
 

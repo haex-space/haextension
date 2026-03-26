@@ -9,7 +9,7 @@
       <div
         v-for="event in allDayEventsForDay"
         :key="event.id"
-        class="text-xs px-2 py-1 rounded cursor-pointer"
+        :class="['text-xs px-2 py-1 rounded cursor-pointer', isEventPast(event) && 'opacity-40']"
         :style="{ backgroundColor: getEventColor(event), color: 'white' }"
         @click="eventPreview.open(event.id)"
       >
@@ -75,7 +75,10 @@
             v-for="pe in positionedEvents"
             :key="pe.event.id"
             data-event
-            class="absolute rounded-md px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-sm border"
+            :class="[
+              'absolute rounded-md px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-sm border',
+              isEventPast(pe.event) && 'opacity-40',
+            ]"
             :style="{
               top: `${(pe.top / 100) * HOUR_HEIGHT * 24}px`,
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
@@ -124,8 +127,12 @@ const { t } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
-const eventDrawer = useEventDrawerStore();
 const eventPreview = useEventPreviewStore();
+const settingsStore = useSettingsStore();
+
+function isEventPast(event: SelectEvent): boolean {
+  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+}
 
 const scrollAreaRef = ref<ComponentPublicInstance | null>(null);
 const scrollContainer = ref<HTMLElement | null>(null);

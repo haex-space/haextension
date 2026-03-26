@@ -1,7 +1,8 @@
 <template>
   <div class="h-full flex flex-col">
     <!-- Day headers -->
-    <div class="grid border-b border-border" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
+    <div class="grid border-b border-border" :style="{ gridTemplateColumns: headerGridCols }">
+      <div v-if="settingsStore.showWeekNumbers" class="text-center text-xs font-medium text-muted-foreground/60 py-2 w-8">KW</div>
       <div
         v-for="day in weekDayNames"
         :key="day"
@@ -19,7 +20,13 @@
         class="flex-1 min-h-0 flex flex-col border-b border-border"
       >
         <!-- Day numbers + multi-day bars -->
-        <div class="grid" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
+        <div class="grid" :style="{ gridTemplateColumns: headerGridCols }">
+          <div
+            v-if="settingsStore.showWeekNumbers"
+            class="flex items-start justify-center w-8 pt-1 text-xs text-muted-foreground/60 font-mono"
+          >
+            {{ week.weekNumber }}
+          </div>
           <div
             v-for="(cell, colIndex) in week.cells"
             :key="colIndex"
@@ -49,12 +56,16 @@
         <div
           v-if="week.multiDayBars.length > 0"
           class="grid gap-y-0.5 px-0.5"
-          :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)`, minHeight: `${week.multiDayBars.length > 0 ? week.barRows * 18 + 2 : 0}px` }"
+          :style="{ gridTemplateColumns: settingsStore.showWeekNumbers ? `2rem repeat(${colCount}, 1fr)` : `repeat(${colCount}, 1fr)`, minHeight: `${week.multiDayBars.length > 0 ? week.barRows * 18 + 2 : 0}px` }"
         >
+          <div v-if="settingsStore.showWeekNumbers" />
           <template v-for="bar in week.multiDayBars" :key="`${bar.event.id}-${weekIndex}`">
             <div
               data-event
-              class="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[16px] leading-[16px]"
+              :class="[
+                'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[16px] leading-[16px]',
+                isEventPast(bar.event) && 'opacity-40',
+              ]"
               :style="{
                 gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
                 gridRow: bar.row + 1,
@@ -69,7 +80,8 @@
         </div>
 
         <!-- Single-day events per cell -->
-        <div class="flex-1 grid min-h-0" :style="{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }">
+        <div class="flex-1 grid min-h-0" :style="{ gridTemplateColumns: headerGridCols }">
+          <div v-if="settingsStore.showWeekNumbers" class="w-8" />
           <div
             v-for="(cell, colIndex) in week.cells"
             :key="colIndex"
@@ -90,6 +102,7 @@
                 :class="[
                   'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer',
                   'hover:opacity-80 transition-opacity',
+                  isEventPast(event) && 'opacity-40',
                 ]"
                 :style="{
                   backgroundColor: getEventColor(event) + '20',
@@ -135,10 +148,23 @@ const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const settingsStore = useSettingsStore();
 
-const eventDrawer = useEventDrawerStore();
 const eventPreview = useEventPreviewStore();
 
 const colCount = computed(() => settingsStore.showWeekends ? 7 : 5);
+const headerGridCols = computed(() =>
+  settingsStore.showWeekNumbers ? `2rem repeat(${colCount.value}, 1fr)` : `repeat(${colCount.value}, 1fr)`,
+);
+
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+function isEventPast(event: SelectEvent): boolean {
+  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+}
 
 const quickCreateDate = ref<Date | null>(null);
 const quickCreateEndDate = ref<Date | null>(null);
@@ -177,6 +203,7 @@ interface WeekRow {
   cells: GridCell[];
   multiDayBars: MultiDayBar[];
   barRows: number;
+  weekNumber: number;
 }
 
 function isMultiDayEvent(event: SelectEvent): boolean {
@@ -313,6 +340,7 @@ const weeks = computed((): WeekRow[] => {
       cells,
       multiDayBars: bars,
       barRows: rowSlots.length,
+      weekNumber: getISOWeekNumber(allDates[weekIdx * 7]!),
     });
   }
 

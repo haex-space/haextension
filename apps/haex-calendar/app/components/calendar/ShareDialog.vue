@@ -73,7 +73,7 @@
                 class="w-full bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
                 :placeholder="t('namePlaceholder')"
                 @keydown.enter="handleCreateAndShare"
-              />
+              >
 
               <select
                 v-if="syncBackends.length > 1"
@@ -108,7 +108,7 @@
     </template>
 
     <template #footer>
-      <div class="flex justify-end p-4 border-t border-border">
+      <div class="flex justify-end">
         <button
           class="text-muted-foreground px-3 py-2 text-sm"
           @click="isOpen = false"
