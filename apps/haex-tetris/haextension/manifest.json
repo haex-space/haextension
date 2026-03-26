@@ -1,0 +1,24 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [],
+    "shell": [],
+    "web": []
+  },
+  "icon": "haextension/haex-tetris-logo.png",
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "Classic Tetris game",
+  "i18n": {
+    "de": {
+      "name": "Tetris",
+      "description": "Klassisches Tetris-Spiel"
+    },
+    "en": {
+      "name": "Tetris",
+      "description": "Classic Tetris game"
+    }
+  }
+}
