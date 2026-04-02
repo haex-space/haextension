@@ -11,6 +11,7 @@ import {
   Minus,
   Plus,
   Copy,
+  Crop,
   SlidersHorizontal,
   Move,
   ImageIcon,
@@ -20,6 +21,7 @@ import {
   ChevronsDown,
 } from "lucide-vue-next";
 import type { Stencil } from "~/types/stencil";
+import type { StrokeData } from "~/database/schemas";
 import getStroke from "perfect-freehand";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 import { STENCIL_PRESETS, getStencilClipPath } from "~/utils/stencilPresets";
@@ -27,6 +29,7 @@ import { STENCIL_PRESETS, getStencilClipPath } from "~/utils/stencilPresets";
 const { t, locale } = useI18n();
 const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
+const haexVault = useHaexVaultStore();
 
 const isMulti = computed(() => stencilStore.selectedIds.size > 1);
 const selectionCount = computed(() => stencilStore.selectedIds.size);
@@ -41,6 +44,27 @@ const selectedStencils = computed(() =>
 );
 
 const isImageStencil = computed(() => stencil.value?.shapeType === "image");
+const isCropping = ref(false);
+
+function onCropApply(imageData: string, cropWidth: number, cropHeight: number) {
+  const s = stencil.value;
+  if (!s) return;
+
+  // Scale crop pixel dimensions to stencil world dimensions
+  // The image may have been scaled when placed on the canvas
+  const img = new Image();
+  img.src = s.imageData!;
+  const imgNaturalWidth = img.naturalWidth || s.width;
+  const imgNaturalHeight = img.naturalHeight || s.height;
+  const scaleX = s.width / imgNaturalWidth;
+  const scaleY = s.height / imgNaturalHeight;
+
+  s.imageData = imageData;
+  s.width = cropWidth * scaleX;
+  s.height = cropHeight * scaleY;
+  canvas.isDirty = true;
+  isCropping.value = false;
+}
 
 const activeTab = ref("transform");
 
@@ -196,6 +220,73 @@ const close = () => {
 
 // --- Export ---
 
+const loadImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+
+const renderStencilToCtx = async (ctx: CanvasRenderingContext2D, st: Stencil) => {
+  const hw = st.width / 2;
+  const hh = st.height / 2;
+
+  ctx.save();
+  ctx.translate(st.x, st.y);
+  ctx.rotate(st.rotation);
+
+  if (st.opacity !== undefined && st.opacity < 1) {
+    ctx.globalAlpha = st.opacity;
+  }
+
+  const filters: string[] = [];
+  if (st.saturation !== undefined && st.saturation !== 1) filters.push(`saturate(${st.saturation})`);
+  if (st.brightness !== undefined && st.brightness !== 1) filters.push(`brightness(${st.brightness})`);
+  if (st.contrast !== undefined && st.contrast !== 1) filters.push(`contrast(${st.contrast})`);
+  if (filters.length > 0) ctx.filter = filters.join(" ");
+
+  if (st.shapeType === "image" && st.imageData) {
+    const img = await loadImage(st.imageData);
+    ctx.drawImage(img, -hw, -hh, st.width, st.height);
+  } else if (st.shapeType === "emoji" && st.emoji) {
+    const fontSize = Math.min(st.width, st.height) * 0.85;
+    ctx.font = `${fontSize}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(st.emoji, 0, 0);
+  }
+
+  ctx.restore();
+};
+
+const renderStrokeToCtx = (ctx: CanvasRenderingContext2D, stroke: StrokeData) => {
+  if (stroke.tool === "eraser") return;
+
+  const preset = BRUSH_PRESETS.find((p) => p.id === stroke.brushPreset) ?? BRUSH_PRESETS[0];
+  const hasPressure = stroke.points.some((p) => p[2] !== 0.5);
+
+  const outlinePoints = getStroke(stroke.points, {
+    size: stroke.size,
+    thinning: preset.options.thinning,
+    smoothing: preset.options.smoothing,
+    streamline: preset.options.streamline,
+    simulatePressure: preset.options.simulatePressure && !hasPressure,
+    start: preset.options.start,
+    end: preset.options.end,
+  });
+
+  if (outlinePoints.length < 2) return;
+
+  ctx.beginPath();
+  const [first, ...rest] = outlinePoints;
+  ctx.moveTo(first[0], first[1]);
+  for (const [x, y] of rest) ctx.lineTo(x, y);
+  ctx.closePath();
+  ctx.fillStyle = stroke.color;
+  ctx.fill();
+};
+
 const exportStencilAsync = async (s: Stencil) => {
   const hw = s.width / 2;
   const hh = s.height / 2;
@@ -208,54 +299,53 @@ const exportStencilAsync = async (s: Stencil) => {
 
   const clipPath = getStencilClipPath(s.shapeType, hw, hh, s.svgPath);
 
+  // Set up coordinate system: origin at stencil center, clipped to stencil shape
   ctx.translate(hw, hh);
-  ctx.rotate(s.rotation);
   ctx.save();
   ctx.clip(clipPath);
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(-hw, -hh, s.width, s.height);
 
+  // Undo the export stencil's rotation so it appears upright,
+  // then shift to world coordinates for rendering all layers
+  ctx.rotate(-s.rotation);
   ctx.translate(-s.x, -s.y);
 
+  // Build sorted layer list (same as renderer)
+  type LayerItem =
+    | { kind: "stroke"; stroke: StrokeData; z: number }
+    | { kind: "stencil"; stencil: Stencil; z: number };
+
+  const layers: LayerItem[] = [];
   for (const stroke of canvas.strokes) {
-    if (stroke.tool === "eraser") continue;
+    layers.push({ kind: "stroke", stroke, z: stroke.zIndex ?? 0 });
+  }
+  for (const st of stencilStore.stencils) {
+    layers.push({ kind: "stencil", stencil: st, z: st.zIndex ?? 0 });
+  }
+  layers.sort((a, b) => a.z - b.z);
 
-    const preset = BRUSH_PRESETS.find((p) => p.id === stroke.brushPreset) ?? BRUSH_PRESETS[0];
-    const hasPressure = stroke.points.some((p) => p[2] !== 0.5);
-
-    const outlinePoints = getStroke(stroke.points, {
-      size: stroke.size,
-      thinning: preset.options.thinning,
-      smoothing: preset.options.smoothing,
-      streamline: preset.options.streamline,
-      simulatePressure: preset.options.simulatePressure && !hasPressure,
-      start: preset.options.start,
-      end: preset.options.end,
-    });
-
-    if (outlinePoints.length < 2) continue;
-
-    ctx.beginPath();
-    const [first, ...rest] = outlinePoints;
-    ctx.moveTo(first[0], first[1]);
-    for (const [x, y] of rest) ctx.lineTo(x, y);
-    ctx.closePath();
-    ctx.fillStyle = stroke.color;
-    ctx.fill();
+  // Render all layers in z-order (including self)
+  for (const item of layers) {
+    if (item.kind === "stencil") {
+      await renderStencilToCtx(ctx, item.stencil);
+    } else {
+      renderStrokeToCtx(ctx, item.stroke);
+    }
   }
 
   ctx.restore();
 
-  tmpCanvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${s.label}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, "image/png");
+  const blob = await new Promise<Blob | null>((resolve) => tmpCanvas.toBlob(resolve, "image/png"));
+  if (!blob) return;
+
+  const buffer = await blob.arrayBuffer();
+  await haexVault.client.filesystem.saveFileAsync(new Uint8Array(buffer), {
+    defaultPath: `${s.label}.png`,
+    title: "Export as PNG",
+    filters: [{ name: "PNG Image", extensions: ["png"] }],
+  });
 };
 </script>
 
@@ -374,8 +464,19 @@ const exportStencilAsync = async (s: Stencil) => {
 
         <!-- Image Tab (only for image stencils) -->
         <ShadcnTabsContent v-if="isImageStencil" value="image" class="flex-1 overflow-hidden">
+          <!-- Crop mode -->
           <ShadcnScrollArea class="h-full">
             <div class="flex flex-col gap-4 p-3">
+              <!-- Crop button -->
+              <button
+                class="flex w-full items-center justify-center gap-2 rounded-lg border border-input px-3 py-2 text-sm text-foreground hover:bg-accent"
+                @click="isCropping = true"
+              >
+                <Crop class="size-4" /> {{ t("crop") }}
+              </button>
+
+              <div class="h-px bg-border" />
+
               <!-- Opacity -->
               <div>
                 <div class="mb-1 flex items-center justify-between">
@@ -514,6 +615,14 @@ const exportStencilAsync = async (s: Stencil) => {
       </div>
     </ShadcnScrollArea>
   </div>
+
+  <!-- Crop Dialog -->
+  <DrawStencilCrop
+    v-if="stencil"
+    v-model:open="isCropping"
+    :stencil="stencil"
+    @apply="onCropApply"
+  />
 </template>
 
 <i18n lang="yaml">
@@ -532,6 +641,7 @@ de:
   saturation: Sättigung
   brightness: Helligkeit
   contrast: Kontrast
+  crop: Zuschneiden
   resetAdjustments: Zurücksetzen
   export: Als PNG exportieren
   copy: Kopieren
@@ -562,6 +672,7 @@ en:
   saturation: Saturation
   brightness: Brightness
   contrast: Contrast
+  crop: Crop
   resetAdjustments: Reset
   export: Export as PNG
   copy: Copy

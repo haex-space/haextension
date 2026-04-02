@@ -20,7 +20,7 @@ export const useCanvasStore = defineStore("canvas", () => {
   const viewport = ref<ViewportState>({ x: 0, y: 0, zoom: 1 });
 
   // Tool state
-  const activeTool = ref<Tool>("brush");
+  const activeTool = ref<Tool>("pan");
   const activeBrushPreset = ref("pencil");
   const brushColor = ref("#000000");
   const brushSize = ref(4);

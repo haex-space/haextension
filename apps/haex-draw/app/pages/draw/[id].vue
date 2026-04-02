@@ -95,12 +95,12 @@ const onExportPng = async () => {
   const blob = await exportPngAsync();
   if (!blob) return;
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${canvas.drawingName || "drawing"}.png`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const buffer = await blob.arrayBuffer();
+  await haexVault.client.filesystem.saveFileAsync(new Uint8Array(buffer), {
+    defaultPath: `${canvas.drawingName || "drawing"}.png`,
+    title: "Export as PNG",
+    filters: [{ name: "PNG Image", extensions: ["png"] }],
+  });
 };
 
 // Ctrl+S
