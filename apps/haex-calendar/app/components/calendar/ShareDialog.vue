@@ -35,15 +35,19 @@
                 </div>
                 <div class="flex-1 min-w-0">
                   <span class="text-sm font-medium truncate block">{{ space.name }}</span>
-                  <span class="text-xs text-muted-foreground truncate block">{{ space.serverUrl }}</span>
+                  <span v-if="space.originUrl" class="text-xs text-muted-foreground truncate block">{{ space.originUrl }}</span>
                 </div>
                 <span
-                  class="text-xs px-1.5 py-0.5 rounded-full shrink-0"
-                  :class="space.role === 'admin'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-muted-foreground/10 text-muted-foreground'"
+                  v-if="space.originUrl"
+                  class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-primary/10 text-primary"
                 >
-                  {{ space.role }}
+                  online
+                </span>
+                <span
+                  v-else
+                  class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-muted-foreground/10 text-muted-foreground"
+                >
+                  local
                 </span>
               </button>
             </div>
@@ -51,52 +55,6 @@
             <p v-else class="text-sm text-muted-foreground text-center py-4">
               {{ t('noSpaces') }}
             </p>
-          </div>
-
-          <!-- Create new space (collapsible) -->
-          <div class="border-t border-border pt-4">
-            <button
-              class="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider w-full"
-              @click="showCreateForm = !showCreateForm"
-            >
-              <ChevronRight
-                class="w-4 h-4 transition-transform"
-                :class="showCreateForm && 'rotate-90'"
-              />
-              {{ t('createSpace') }}
-            </button>
-
-            <div v-if="showCreateForm" class="mt-3 space-y-3">
-              <input
-                ref="createNameInput"
-                v-model="createForm.name"
-                class="w-full bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-                :placeholder="t('namePlaceholder')"
-                @keydown.enter="handleCreateAndShare"
-              >
-
-              <select
-                v-if="syncBackends.length > 1"
-                v-model="createForm.serverUrl"
-                class="w-full bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary"
-              >
-                <option
-                  v-for="backend in syncBackends"
-                  :key="backend.id"
-                  :value="backend.serverUrl"
-                >
-                  {{ backend.name }} ({{ backend.serverUrl }})
-                </option>
-              </select>
-
-              <button
-                class="w-full bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                :disabled="!createForm.name.trim() || !createForm.serverUrl || isProcessing"
-                @click="handleCreateAndShare"
-              >
-                {{ t('createAndShare') }}
-              </button>
-            </div>
           </div>
         </template>
 
@@ -121,8 +79,8 @@
 </template>
 
 <script setup lang="ts">
-import { Check, ChevronRight, Loader2 } from "lucide-vue-next";
-import type { SpaceAssignment, DecryptedSpace, SyncBackendInfo } from "@haex-space/vault-sdk";
+import { Check, Loader2 } from "lucide-vue-next";
+import type { SpaceAssignment, DecryptedSpace } from "@haex-space/vault-sdk";
 
 const props = defineProps<{
   calendarId: string;
@@ -136,32 +94,16 @@ const calendarsStore = useCalendarsStore();
 
 const availableSpaces = ref<DecryptedSpace[]>([]);
 const assignments = ref<SpaceAssignment[]>([]);
-const syncBackends = ref<SyncBackendInfo[]>([]);
 const isLoadingSpaces = ref(false);
 const isProcessing = ref(false);
 const errorMessage = ref("");
-const showCreateForm = ref(false);
-const createNameInput = ref<HTMLInputElement | null>(null);
-
-const createForm = reactive({
-  name: "",
-  serverUrl: "",
-});
 
 watch(isOpen, async (open) => {
   if (open) {
     errorMessage.value = "";
-    showCreateForm.value = false;
-    createForm.name = "";
     await loadDataAsync();
   }
 }, { immediate: true });
-
-watch(showCreateForm, (show) => {
-  if (show) {
-    nextTick(() => createNameInput.value?.focus());
-  }
-});
 
 function isSpaceAssigned(spaceId: string): boolean {
   return assignments.value.some((assignment) => assignment.spaceId === spaceId);
@@ -170,20 +112,12 @@ function isSpaceAssigned(spaceId: string): boolean {
 async function loadDataAsync() {
   isLoadingSpaces.value = true;
   try {
-    const [spacesResult, assignmentsResult, backendsResult] = await Promise.all([
+    const [spacesResult, assignmentsResult] = await Promise.all([
       haexVault.client.spaces.listSpacesAsync(),
       calendarsStore.getCalendarAssignmentsAsync(props.calendarId),
-      haexVault.client.spaces.listSyncBackendsAsync(),
     ]);
     availableSpaces.value = spacesResult;
     assignments.value = assignmentsResult;
-    syncBackends.value = backendsResult;
-
-    // Pre-select backend: prefer default, fall back to first available
-    const defaultBackend = backendsResult.find((backend) => backend.isDefault) ?? backendsResult[0];
-    if (defaultBackend) {
-      createForm.serverUrl = defaultBackend.serverUrl;
-    }
   } catch (err) {
     console.warn("[haex-calendar] Failed to load share dialog data:", err);
     errorMessage.value = t('loadFailed');
@@ -211,55 +145,25 @@ async function toggleSpaceAssignment(space: DecryptedSpace) {
     isProcessing.value = false;
   }
 }
-
-async function handleCreateAndShare() {
-  const spaceName = createForm.name.trim();
-  if (!spaceName || !createForm.serverUrl || isProcessing.value) return;
-
-  isProcessing.value = true;
-  errorMessage.value = "";
-  try {
-    const newSpace = await haexVault.client.spaces.createSpaceAsync(spaceName, createForm.serverUrl);
-    await calendarsStore.shareCalendarWithSpaceAsync(props.calendarId, newSpace.id);
-
-    // Refresh data
-    createForm.name = "";
-    showCreateForm.value = false;
-    await loadDataAsync();
-  } catch (err) {
-    console.error("[haex-calendar] Create and share failed:", err);
-    errorMessage.value = t('createFailed');
-  } finally {
-    isProcessing.value = false;
-  }
-}
 </script>
 
 <i18n lang="yaml">
 de:
   title: Kalender teilen
-  description: Teile diesen Kalender mit Shared Spaces, um ihn mit anderen Nutzern zu synchronisieren.
+  description: Weise diesen Kalender einem Space zu, um ihn mit anderen zu teilen.
   availableSpaces: Verfügbare Spaces
-  noSpaces: Du bist noch keinem Space beigetreten. Erstelle einen neuen Space.
-  createSpace: Neuen Space erstellen
-  namePlaceholder: Name (z.B. Familie, Arbeit)
-  createAndShare: Erstellen & Teilen
+  noSpaces: Es sind keine Spaces vorhanden. Spaces können in den Vault-Einstellungen verwaltet werden.
   close: Schließen
   loadFailed: Daten konnten nicht geladen werden.
   shareFailed: Fehler beim Teilen des Kalenders.
   unshareFailed: Fehler beim Aufheben der Freigabe.
-  createFailed: Fehler beim Erstellen des Spaces.
 en:
   title: Share Calendar
-  description: Share this calendar with Shared Spaces to sync it with other users.
+  description: Assign this calendar to a space to share it with others.
   availableSpaces: Available Spaces
-  noSpaces: You haven't joined any space yet. Create a new space.
-  createSpace: Create new space
-  namePlaceholder: Name (e.g. Family, Work)
-  createAndShare: Create & Share
+  noSpaces: No spaces available. Spaces can be managed in the vault settings.
   close: Close
   loadFailed: Failed to load data.
   shareFailed: Failed to share the calendar.
   unshareFailed: Failed to unshare the calendar.
-  createFailed: Failed to create the space.
 </i18n>

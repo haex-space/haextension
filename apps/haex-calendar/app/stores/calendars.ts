@@ -82,11 +82,18 @@ export const useCalendarsStore = defineStore("calendars", () => {
   async function shareCalendarWithSpaceAsync(calendarId: string, spaceId: string) {
     if (!haexVault.orm) return;
 
+    const calendar = getCalendar(calendarId);
+
     // Gather all events for this calendar
     const calendarEvents = await haexVault.orm
       .select()
       .from(events)
       .where(eq(events.calendarId, calendarId));
+
+    // Shared metadata — groupId ties calendar + events together as one logical unit
+    const groupId = calendarId;
+    const type = "Calendar";
+    const label = calendar?.name ?? undefined;
 
     // Build assignments: calendar row + all event rows
     const assignments: SpaceAssignment[] = [
@@ -94,11 +101,15 @@ export const useCalendarsStore = defineStore("calendars", () => {
         tableName: FULL_CALENDARS_TABLE,
         rowPks: JSON.stringify({ id: calendarId }),
         spaceId,
+        groupId,
+        type,
+        label,
       },
       ...calendarEvents.map((calendarEvent) => ({
         tableName: FULL_EVENTS_TABLE,
         rowPks: JSON.stringify({ id: calendarEvent.id }),
         spaceId,
+        groupId,
       })),
     ];
 
@@ -124,17 +135,21 @@ export const useCalendarsStore = defineStore("calendars", () => {
       .from(events)
       .where(eq(events.calendarId, calendarId));
 
+    const groupId = calendarId;
+
     // Build unassignment list
     const assignments: SpaceAssignment[] = [
       {
         tableName: FULL_CALENDARS_TABLE,
         rowPks: JSON.stringify({ id: calendarId }),
         spaceId,
+        groupId,
       },
       ...calendarEvents.map((calendarEvent) => ({
         tableName: FULL_EVENTS_TABLE,
         rowPks: JSON.stringify({ id: calendarEvent.id }),
         spaceId,
+        groupId,
       })),
     ];
 

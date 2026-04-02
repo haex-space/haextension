@@ -65,6 +65,7 @@ export const useEventsStore = defineStore("events", () => {
             tableName: FULL_EVENTS_TABLE,
             rowPks: JSON.stringify({ id }),
             spaceId: assignment.spaceId,
+            groupId: assignment.groupId,
           })),
         );
       }
