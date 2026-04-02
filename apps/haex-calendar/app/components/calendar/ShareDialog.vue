@@ -116,7 +116,9 @@ async function loadDataAsync() {
       haexVault.client.spaces.listSpacesAsync(),
       calendarsStore.getCalendarAssignmentsAsync(props.calendarId),
     ]);
-    availableSpaces.value = spacesResult;
+    availableSpaces.value = spacesResult.filter((space) =>
+      space.capabilities.includes("space/write") || space.capabilities.includes("space/admin"),
+    );
     assignments.value = assignmentsResult;
   } catch (err) {
     console.warn("[haex-calendar] Failed to load share dialog data:", err);
