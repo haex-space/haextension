@@ -131,15 +131,18 @@ export class OverworldScene extends Phaser.Scene {
     const palette = this.seasonSystem.palette
     this.skyGradient.clear()
 
+    const w = this.cameras.main.width
+    const h = this.cameras.main.height
+
     // Gradient sky
     const steps = 16
     for (let i = 0; i < steps; i++) {
       const t = i / steps
       const color = this.lerpColor(palette.sky, palette.skyBottom, t)
       this.skyGradient.fillStyle(color, 1)
-      const yStart = (GAME_HEIGHT / steps) * i
-      const yHeight = GAME_HEIGHT / steps + 1
-      this.skyGradient.fillRect(0, yStart, GAME_WIDTH, yHeight)
+      const yStart = (h / steps) * i
+      const yHeight = h / steps + 1
+      this.skyGradient.fillRect(0, yStart, w, yHeight)
     }
   }
 
@@ -169,7 +172,7 @@ export class OverworldScene extends Phaser.Scene {
     mountainGfx.generateTexture('mountains-tex', 480, 64)
     mountainGfx.destroy()
 
-    this.mountainLayer = this.add.tileSprite(GAME_WIDTH / 2, 20, GAME_WIDTH, 64, 'mountains-tex')
+    this.mountainLayer = this.add.tileSprite(this.cameras.main.width / 2, 20, this.cameras.main.width, 64, 'mountains-tex')
     this.mountainLayer.setScrollFactor(0)
     this.mountainLayer.setDepth(DEPTH.MOUNTAINS)
     this.mountainLayer.setOrigin(0.5, 0)
@@ -186,7 +189,7 @@ export class OverworldScene extends Phaser.Scene {
     farTreeGfx.generateTexture('far-trees-tex', 480, 40)
     farTreeGfx.destroy()
 
-    this.farTreeLayer = this.add.tileSprite(GAME_WIDTH / 2, 52, GAME_WIDTH, 40, 'far-trees-tex')
+    this.farTreeLayer = this.add.tileSprite(this.cameras.main.width / 2, 52, this.cameras.main.width, 40, 'far-trees-tex')
     this.farTreeLayer.setScrollFactor(0)
     this.farTreeLayer.setDepth(DEPTH.FAR_TREES)
     this.farTreeLayer.setOrigin(0.5, 0)
@@ -224,6 +227,13 @@ export class OverworldScene extends Phaser.Scene {
     const scrollX = cam.scrollX
     const scrollY = cam.scrollY
 
+    // Resize parallax layers to fill camera
+    const camW = cam.width
+    this.mountainLayer.width = camW
+    this.mountainLayer.x = camW / 2
+    this.farTreeLayer.width = camW
+    this.farTreeLayer.x = camW / 2
+
     // Parallax scroll — distant layers move slower
     this.mountainLayer.tilePositionX = scrollX * 0.05
     this.mountainLayer.y = Math.max(0, 10 - scrollY * 0.03)
@@ -233,7 +243,7 @@ export class OverworldScene extends Phaser.Scene {
     // Cloud drift
     for (const cloud of this.clouds) {
       cloud.x += cloud.getData('speed') as number * 0.005
-      if (cloud.x > GAME_WIDTH + 50) {
+      if (cloud.x > cam.width + 50) {
         cloud.x = -50
         cloud.y = this.rng.between(5, 35)
       }
