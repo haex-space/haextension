@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { BootScene } from './scenes/BootScene'
 import { OverworldScene } from './scenes/OverworldScene'
+import { BeeAwakeningScene } from './scenes/BeeAwakeningScene'
+import { NestSearchScene } from './scenes/NestSearchScene'
 
 export const GAME_WIDTH = 480
 export const GAME_HEIGHT = 320
@@ -24,7 +26,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
         debug: false,
       },
     },
-    scene: [BootScene, OverworldScene],
+    scene: [BootScene, OverworldScene, BeeAwakeningScene, NestSearchScene],
     input: {
       activePointers: 2,
     },
