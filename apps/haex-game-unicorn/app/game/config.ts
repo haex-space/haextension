@@ -3,6 +3,8 @@ import { BootScene } from './scenes/BootScene'
 import { OverworldScene } from './scenes/OverworldScene'
 import { BeeAwakeningScene } from './scenes/BeeAwakeningScene'
 import { NestSearchScene } from './scenes/NestSearchScene'
+import { CutsceneScene } from './scenes/CutsceneScene'
+import { NestInteriorScene } from './scenes/NestInteriorScene'
 
 export const GAME_WIDTH = 480
 export const GAME_HEIGHT = 320
@@ -26,7 +28,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
         debug: false,
       },
     },
-    scene: [BootScene, OverworldScene, BeeAwakeningScene, NestSearchScene],
+    scene: [BootScene, OverworldScene, BeeAwakeningScene, NestSearchScene, CutsceneScene, NestInteriorScene],
     input: {
       activePointers: 2,
     },

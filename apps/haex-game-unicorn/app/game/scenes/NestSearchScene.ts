@@ -295,13 +295,12 @@ export class NestSearchScene extends Phaser.Scene {
           onComplete: () => glow.destroy(),
         })
 
-        // If this is the best nest (mouse hole), auto-select
-        if (candidate.type === 'mouse-hole') {
-          this.time.delayedCall(1500, () => this.selectNest(candidate))
-        }
-        else {
-          this.inspecting = false
-        }
+        // Any suitable nest can be selected — tap again to choose
+        candidate.sprite.setInteractive({ useHandCursor: true })
+        candidate.sprite.once('pointerdown', () => {
+          this.selectNest(candidate)
+        })
+        this.inspecting = false
       },
     })
   }
@@ -350,7 +349,7 @@ export class NestSearchScene extends Phaser.Scene {
             taskId: 'nest-search',
             chapter: 2,
           })
-          this.scene.start('OverworldScene')
+          this.scene.start('NestInteriorScene')
         })
       },
     })

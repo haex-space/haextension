@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
+import { createNestFoundCutscene } from './CutsceneScene'
 
 const TILE_SIZE = 16
 const SCENE_WIDTH = 40
@@ -533,7 +534,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
             taskId: 'bee-awakening',
             chapter: 1,
           })
-          this.scene.start('OverworldScene')
+          this.scene.start('CutsceneScene', createNestFoundCutscene())
         })
       },
     })

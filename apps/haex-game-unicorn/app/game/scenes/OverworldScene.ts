@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { SeasonSystem } from '../systems/SeasonSystem'
 import { WeatherSystem } from '../systems/WeatherSystem'
+import { AudioSystem } from '../systems/AudioSystem'
+import { createQueenEmergenceCutscene } from './CutsceneScene'
 
 const TILE_SIZE = 16
 const MAP_WIDTH = 60
@@ -70,7 +72,9 @@ export class OverworldScene extends Phaser.Scene {
   // Systems
   private seasonSystem!: SeasonSystem
   private weatherSystem!: WeatherSystem
+  private audioSystem!: AudioSystem
   private weatherGfx!: Phaser.GameObjects.Graphics
+  private audioInitialized = false
 
   // Ambient
   private lastCreatureSpawn = 0
@@ -86,6 +90,7 @@ export class OverworldScene extends Phaser.Scene {
 
     this.seasonSystem = new SeasonSystem(this)
     this.weatherSystem = new WeatherSystem(this)
+    this.audioSystem = new AudioSystem(this)
 
     this.createSky()
     this.createParallaxLayers()
@@ -424,7 +429,12 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     this.emitEvent('nest-interact', { nestType: 'bumblebee' })
-    this.scene.start('BeeAwakeningScene')
+
+    // Start cutscene transition to Chapter 1
+    this.cameras.main.fadeOut(600, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('CutsceneScene', createQueenEmergenceCutscene())
+    })
   }
 
   // ── Unicorn ─────────────────────────────────────
@@ -485,6 +495,13 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Init audio on first user gesture (Web Audio requirement)
+      if (!this.audioInitialized) {
+        this.audioSystem.init()
+        this.audioSystem.setSeason(this.seasonSystem.season)
+        this.audioInitialized = true
+      }
+
       // Ignore if an interactive object handled it
       if (pointer.downElement !== this.game.canvas) return
 
