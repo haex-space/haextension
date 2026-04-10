@@ -2,7 +2,7 @@
   "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
   "signature": "",
   "permissions": {
-    "database": ["world_state", "completed_tasks", "flowers", "nest"],
+    "database": [],
     "filesystem": [],
     "shell": [],
     "web": []

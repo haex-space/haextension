@@ -447,10 +447,13 @@ export class OverworldScene extends Phaser.Scene {
     this.unicornShadow = this.add.ellipse(startX, startY + 12, 20, 8, 0x000000, 0.15)
     this.unicornShadow.setDepth(DEPTH.ENTITIES - 0.1)
 
-    this.unicorn = this.physics.add.sprite(startX, startY, 'unicorn')
+    this.unicorn = this.physics.add.sprite(startX, startY, 'unicorn', 0)
     this.unicorn.setCollideWorldBounds(true)
     this.unicorn.setDepth(DEPTH.ENTITIES)
     this.unicorn.setOrigin(0.5, 0.8)
+    // Scale down: the spritesheet frames are 384x256, we want ~32px in-game
+    this.unicorn.setScale(0.12)
+    this.unicorn.play('unicorn-idle')
   }
 
   private updateUnicornDepth() {
@@ -515,6 +518,24 @@ export class OverworldScene extends Phaser.Scene {
     })
   }
 
+  private playWalkAnim(vx: number, vy: number) {
+    // Pick animation based on dominant direction
+    const absX = Math.abs(vx)
+    const absY = Math.abs(vy)
+
+    let anim: string
+    if (absX > absY) {
+      anim = vx < 0 ? 'unicorn-walk-left' : 'unicorn-walk-right'
+    }
+    else {
+      anim = vy < 0 ? 'unicorn-walk-up' : 'unicorn-walk-down'
+    }
+
+    if (this.unicorn.anims.currentAnim?.key !== anim) {
+      this.unicorn.play(anim, true)
+    }
+  }
+
   private handleMovement() {
     const body = this.unicorn.body as Phaser.Physics.Arcade.Body
 
@@ -541,9 +562,7 @@ export class OverworldScene extends Phaser.Scene {
         }
 
         body.setVelocity(vx, vy)
-
-        if (vx < 0) this.unicorn.setFlipX(true)
-        else if (vx > 0) this.unicorn.setFlipX(false)
+        this.playWalkAnim(vx, vy)
 
         return
       }
@@ -558,20 +577,22 @@ export class OverworldScene extends Phaser.Scene {
       if (distance < 4) {
         body.setVelocity(0, 0)
         this.touchTarget = null
+        this.unicorn.play('unicorn-idle', true)
         return
       }
 
       const vx = (dx / distance) * UNICORN_SPEED
       const vy = (dy / distance) * UNICORN_SPEED
       body.setVelocity(vx, vy)
-
-      if (vx < 0) this.unicorn.setFlipX(true)
-      else if (vx > 0) this.unicorn.setFlipX(false)
+      this.playWalkAnim(vx, vy)
 
       return
     }
 
     body.setVelocity(0, 0)
+    if (this.unicorn.anims.currentAnim?.key !== 'unicorn-idle') {
+      this.unicorn.play('unicorn-idle', true)
+    }
   }
 
   // ── Ambient Creatures ───────────────────────────

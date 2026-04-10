@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 
+import unicornSheet from '~/assets/sprites/characters/unicorn-spritesheet.png'
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BootScene' })
@@ -8,10 +10,11 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     this.createLoadingBar()
-    this.loadPlaceholderAssets()
+    this.loadAssets()
   }
 
   create() {
+    this.createAnimations()
     this.scene.start('OverworldScene')
   }
 
@@ -22,11 +25,9 @@ export class BootScene extends Phaser.Scene {
     const barWidth = 200
     const barHeight = 16
 
-    // Background bar
     const bgBar = this.add.rectangle(centerX, centerY, barWidth, barHeight, 0x3a5a40)
     bgBar.setStrokeStyle(2, 0x2d4a30)
 
-    // Progress bar
     const progressBar = this.add.rectangle(
       centerX - barWidth / 2 + 2,
       centerY,
@@ -41,21 +42,19 @@ export class BootScene extends Phaser.Scene {
     })
   }
 
-  private loadPlaceholderAssets() {
-    // Generate placeholder sprites programmatically for now
-    // These will be replaced with real pixel art assets later
+  private loadAssets() {
+    // Unicorn spritesheet: 1536x1024, 4x4 grid = 384x256 per frame
+    this.load.spritesheet('unicorn', unicornSheet, {
+      frameWidth: 384,
+      frameHeight: 256,
+    })
 
-    // Unicorn placeholder (32x32 pink rectangle)
-    const unicornGfx = this.make.graphics({ x: 0, y: 0 })
-    unicornGfx.fillStyle(0xf0a0d0)
-    unicornGfx.fillRect(0, 0, 32, 32)
-    // Horn
-    unicornGfx.fillStyle(0xffd700)
-    unicornGfx.fillTriangle(16, 0, 12, 10, 20, 10)
-    unicornGfx.generateTexture('unicorn', 32, 32)
-    unicornGfx.destroy()
+    // Generate remaining placeholder assets until real ones are provided
+    this.generatePlaceholderAssets()
+  }
 
-    // Grass tile placeholder (16x16)
+  private generatePlaceholderAssets() {
+    // Grass tile (16x16)
     const grassGfx = this.make.graphics({ x: 0, y: 0 })
     grassGfx.fillStyle(0x5a8f3d)
     grassGfx.fillRect(0, 0, 16, 16)
@@ -96,5 +95,48 @@ export class BootScene extends Phaser.Scene {
     nestGfx.fillCircle(12, 16, 4)
     nestGfx.generateTexture('bumblebee-nest', 24, 20)
     nestGfx.destroy()
+  }
+
+  private createAnimations() {
+    // Unicorn walk animations
+    // Row 0 (frames 0-3): Walking DOWN
+    // Row 1 (frames 4-7): Walking LEFT
+    // Row 2 (frames 8-11): Walking RIGHT
+    // Row 3 (frames 12-15): Walking UP
+
+    this.anims.create({
+      key: 'unicorn-walk-down',
+      frames: this.anims.generateFrameNumbers('unicorn', { start: 0, end: 3 }),
+      frameRate: 6,
+      repeat: -1,
+    })
+
+    this.anims.create({
+      key: 'unicorn-walk-left',
+      frames: this.anims.generateFrameNumbers('unicorn', { start: 4, end: 7 }),
+      frameRate: 6,
+      repeat: -1,
+    })
+
+    this.anims.create({
+      key: 'unicorn-walk-right',
+      frames: this.anims.generateFrameNumbers('unicorn', { start: 8, end: 11 }),
+      frameRate: 6,
+      repeat: -1,
+    })
+
+    this.anims.create({
+      key: 'unicorn-walk-up',
+      frames: this.anims.generateFrameNumbers('unicorn', { start: 12, end: 15 }),
+      frameRate: 6,
+      repeat: -1,
+    })
+
+    // Idle = first frame of down walk
+    this.anims.create({
+      key: 'unicorn-idle',
+      frames: [{ key: 'unicorn', frame: 0 }],
+      frameRate: 1,
+    })
   }
 }
