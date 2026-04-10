@@ -1,0 +1,24 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": ["world_state", "completed_tasks", "flowers", "nest"],
+    "filesystem": [],
+    "shell": [],
+    "web": []
+  },
+  "icon": "haextension/haex-game-unicorn-logo.png",
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "Nature learning game for kids",
+  "i18n": {
+    "de": {
+      "name": "Einhorn-Abenteuer",
+      "description": "Naturnahes Lernspiel fuer Kinder"
+    },
+    "en": {
+      "name": "Unicorn Adventure",
+      "description": "Nature learning game for kids"
+    }
+  }
+}
