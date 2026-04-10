@@ -43,10 +43,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   private loadAssets() {
-    // Unicorn spritesheet: 1536x1024, 4x4 grid = 384x256 per frame
+    // Unicorn spritesheet: 1000x844, 4x4 grid = 250x211 per frame
     this.load.spritesheet('unicorn', unicornSheet, {
-      frameWidth: 384,
-      frameHeight: 256,
+      frameWidth: 250,
+      frameHeight: 211,
     })
 
     // Generate remaining placeholder assets until real ones are provided

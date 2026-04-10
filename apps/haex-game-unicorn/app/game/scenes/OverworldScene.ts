@@ -451,8 +451,8 @@ export class OverworldScene extends Phaser.Scene {
     this.unicorn.setCollideWorldBounds(true)
     this.unicorn.setDepth(DEPTH.ENTITIES)
     this.unicorn.setOrigin(0.5, 0.8)
-    // Scale down: the spritesheet frames are 384x256, we want ~32px in-game
-    this.unicorn.setScale(0.12)
+    // Scale down: spritesheet frames are 250x211, we want ~32px wide in-game
+    this.unicorn.setScale(0.14)
     this.unicorn.play('unicorn-idle')
   }
 
