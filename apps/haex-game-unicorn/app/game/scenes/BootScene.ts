@@ -101,14 +101,14 @@ export class BootScene extends Phaser.Scene {
     })
 
     this.anims.create({
-      key: 'unicorn-walk-left',
+      key: 'unicorn-walk-right',
       frames: this.anims.generateFrameNumbers('unicorn', { start: 4, end: 7 }),
       frameRate: 6,
       repeat: -1,
     })
 
     this.anims.create({
-      key: 'unicorn-walk-right',
+      key: 'unicorn-walk-left',
       frames: this.anims.generateFrameNumbers('unicorn', { start: 8, end: 11 }),
       frameRate: 6,
       repeat: -1,
