@@ -423,9 +423,12 @@ export class OverworldScene extends Phaser.Scene {
     let anim: string
     if (absX > absY) {
       anim = vx < 0 ? 'unicorn-walk-left' : 'unicorn-walk-right'
+      // Flip sprite horizontally for left-walking
+      this.unicorn.setFlipX(vx < 0)
     }
     else {
       anim = vy < 0 ? 'unicorn-walk-up' : 'unicorn-walk-down'
+      this.unicorn.setFlipX(false)
     }
 
     if (this.unicorn.anims.currentAnim?.key !== anim) {
