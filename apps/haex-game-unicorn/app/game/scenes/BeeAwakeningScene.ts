@@ -84,7 +84,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
     }
 
     // Win condition: visited enough flowers and energy recovered
-    if (this.flowersVisited >= 3 && this.queen.energy > 0.6) {
+    if (this.flowersVisited >= 3 && this.queen.energy > 0.45) {
       this.completeChapter()
     }
   }
@@ -233,6 +233,9 @@ export class BeeAwakeningScene extends Phaser.Scene {
   // ── UI (no text, visual only) ───────────────────
 
   private createUI() {
+    // Back button — top-right, arrow pointing left with unicorn hint
+    this.createBackButton()
+
     // Temperature indicator — top-left, small thermometer visual
     this.temperatureIndicator = this.add.graphics()
     this.temperatureIndicator.setScrollFactor(0)
@@ -537,6 +540,36 @@ export class BeeAwakeningScene extends Phaser.Scene {
           this.scene.start('CutsceneScene', createNestFoundCutscene())
         })
       },
+    })
+  }
+
+  // ── Navigation ──────────────────────────────────
+
+  private createBackButton() {
+    const btn = this.add.graphics()
+    btn.setScrollFactor(0)
+    btn.setDepth(DEPTH.UI)
+
+    // Circular button with left arrow
+    btn.fillStyle(0x000000, 0.3)
+    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
+    btn.lineStyle(2, 0xffffff, 0.7)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
+
+    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
+    hitZone.setScrollFactor(0)
+    hitZone.setDepth(DEPTH.UI)
+    hitZone.setInteractive({ useHandCursor: true })
+    hitZone.on('pointerdown', () => this.returnToOverworld())
+  }
+
+  private returnToOverworld() {
+    this.input.removeAllListeners()
+    this.cameras.main.fadeOut(600, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('OverworldScene')
     })
   }
 

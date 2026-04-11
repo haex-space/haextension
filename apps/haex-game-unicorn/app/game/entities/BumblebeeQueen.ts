@@ -26,42 +26,59 @@ export class BumblebeeQueen {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene
 
-    // Generate queen texture
+    // Generate queen texture — bumblebee: round, fuzzy, black with yellow bands + orange tail
     if (!scene.textures.exists('bee-queen')) {
       const gfx = scene.make.graphics({ x: 0, y: 0 })
 
-      // Body — plump, fuzzy look
-      gfx.fillStyle(0x3a2a1a) // dark stripe
-      gfx.fillEllipse(16, 18, 22, 16)
-      gfx.fillStyle(0xf5c542) // yellow-orange fur
-      gfx.fillEllipse(16, 16, 20, 14)
-      gfx.fillStyle(0x3a2a1a)
-      gfx.fillRect(10, 14, 12, 2) // stripe 1
-      gfx.fillRect(10, 18, 12, 2) // stripe 2
+      // Body — round and fat (bumblebees are chunky!)
+      // Black base
+      gfx.fillStyle(0x1a1a1a)
+      gfx.fillEllipse(16, 16, 22, 18)
 
-      // Head
-      gfx.fillStyle(0x3a2a1a)
-      gfx.fillCircle(6, 14, 5)
+      // Yellow band — front thorax
+      gfx.fillStyle(0xf0c830)
+      gfx.fillRect(8, 10, 10, 4)
+      // Fuzzy edge pixels
+      gfx.fillStyle(0xd4b020, 0.6)
+      gfx.fillRect(7, 11, 1, 2)
+      gfx.fillRect(18, 11, 1, 2)
+
+      // Yellow band — rear abdomen
+      gfx.fillStyle(0xf0c830)
+      gfx.fillRect(12, 18, 10, 3)
+      gfx.fillStyle(0xd4b020, 0.6)
+      gfx.fillRect(11, 19, 1, 1)
+      gfx.fillRect(22, 19, 1, 1)
+
+      // Orange-red tail (white-tailed bumblebee style → orange for visibility)
+      gfx.fillStyle(0xe06030)
+      gfx.fillEllipse(24, 18, 8, 10)
+      gfx.fillStyle(0xcc5020, 0.5)
+      gfx.fillEllipse(25, 17, 5, 6)
+
+      // Head — black, round
+      gfx.fillStyle(0x1a1a1a)
+      gfx.fillCircle(5, 14, 5)
 
       // Eyes
       gfx.fillStyle(0x111111)
-      gfx.fillCircle(4, 12, 1.5)
+      gfx.fillCircle(3, 12, 1.5)
 
       // Antennae
-      gfx.lineStyle(1, 0x3a2a1a)
+      gfx.lineStyle(1, 0x2a2a2a)
       gfx.lineBetween(4, 10, 2, 5)
       gfx.lineBetween(6, 10, 5, 4)
-      gfx.fillStyle(0x3a2a1a)
+      gfx.fillStyle(0x2a2a2a)
       gfx.fillCircle(2, 5, 1)
       gfx.fillCircle(5, 4, 1)
 
-      // Wings (translucent)
-      gfx.fillStyle(0xddddff, 0.5)
-      gfx.fillEllipse(14, 8, 10, 6)
-      gfx.fillEllipse(20, 9, 8, 5)
+      // Wings (translucent, larger than honeybee relative to body)
+      gfx.fillStyle(0xccccee, 0.4)
+      gfx.fillEllipse(13, 7, 12, 7)
+      gfx.fillEllipse(20, 8, 10, 6)
 
       // Legs
-      gfx.lineStyle(1, 0x3a2a1a)
+      gfx.lineStyle(1, 0x1a1a1a)
       gfx.lineBetween(12, 22, 10, 26)
       gfx.lineBetween(16, 22, 16, 27)
       gfx.lineBetween(20, 22, 22, 26)
@@ -146,7 +163,7 @@ export class BumblebeeQueen {
 
   collectNectar(amount: number) {
     this.nectarLoad = Math.min(1, this.nectarLoad + amount)
-    this.energy = Math.min(1, this.energy + amount * 0.3) // Eating restores energy
+    this.energy = Math.min(1, this.energy + amount * 0.7) // Nectar is the main energy source
   }
 
   collectPollen(amount: number) {
@@ -192,11 +209,12 @@ export class BumblebeeQueen {
   }
 
   private updateVisuals() {
-    // Body color reflects temperature (cold = dull, warm = vibrant)
+    // Body brightness reflects temperature (cold = dark/dull, warm = normal)
     const warmth = this.bodyTemperature
-    const r = Math.round(0xf5 * (0.5 + warmth * 0.5))
-    const g = Math.round(0xc5 * (0.4 + warmth * 0.6))
-    const b = Math.round(0x42 * (0.3 + warmth * 0.7))
+    const brightness = 0.5 + warmth * 0.5
+    const r = Math.round(0xff * brightness)
+    const g = Math.round(0xff * brightness)
+    const b = Math.round(0xff * brightness)
     this.sprite.setTint((r << 16) | (g << 8) | b)
 
     // Scale reflects energy (queen gets visibly thinner when hungry)

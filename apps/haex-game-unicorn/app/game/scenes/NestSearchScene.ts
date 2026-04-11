@@ -49,6 +49,7 @@ export class NestSearchScene extends Phaser.Scene {
     this.createNestCandidates()
     this.createScenery()
     this.createQueen()
+    this.createBackButton()
     this.setupCamera()
     this.setupInput()
 
@@ -352,6 +353,35 @@ export class NestSearchScene extends Phaser.Scene {
           this.scene.start('NestInteriorScene')
         })
       },
+    })
+  }
+
+  // ── Navigation ──────────────────────────────────
+
+  private createBackButton() {
+    const btn = this.add.graphics()
+    btn.setScrollFactor(0)
+    btn.setDepth(DEPTH.UI)
+
+    btn.fillStyle(0x000000, 0.3)
+    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
+    btn.lineStyle(2, 0xffffff, 0.7)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
+    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
+
+    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
+    hitZone.setScrollFactor(0)
+    hitZone.setDepth(DEPTH.UI)
+    hitZone.setInteractive({ useHandCursor: true })
+    hitZone.on('pointerdown', () => this.returnToOverworld())
+  }
+
+  private returnToOverworld() {
+    this.input.removeAllListeners()
+    this.cameras.main.fadeOut(600, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('OverworldScene')
     })
   }
 
