@@ -147,47 +147,10 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createParallaxLayers() {
-    // Mountains (distant, slow scroll)
-    const mountainGfx = this.make.graphics({ x: 0, y: 0 })
-    mountainGfx.fillStyle(0x6a8a6a, 0.5)
-    for (let i = 0; i < 8; i++) {
-      const peakX = i * 60 + 30
-      const peakY = 20 + Math.sin(i * 1.5) * 15
-      mountainGfx.fillTriangle(
-        peakX - 40, 64,
-        peakX, peakY,
-        peakX + 40, 64,
-      )
-    }
-    mountainGfx.fillStyle(0x5a7a5a, 0.4)
-    for (let i = 0; i < 6; i++) {
-      const peakX = i * 80 + 50
-      const peakY = 30 + Math.sin(i * 2.1) * 10
-      mountainGfx.fillTriangle(
-        peakX - 50, 64,
-        peakX, peakY,
-        peakX + 50, 64,
-      )
-    }
-    mountainGfx.generateTexture('mountains-tex', 480, 64)
-    mountainGfx.destroy()
-
     this.mountainLayer = this.add.tileSprite(this.cameras.main.width / 2, 20, this.cameras.main.width, 64, 'mountains-tex')
     this.mountainLayer.setScrollFactor(0)
     this.mountainLayer.setDepth(DEPTH.MOUNTAINS)
     this.mountainLayer.setOrigin(0.5, 0)
-
-    // Far tree silhouettes
-    const farTreeGfx = this.make.graphics({ x: 0, y: 0 })
-    farTreeGfx.fillStyle(0x2a5a2a, 0.4)
-    for (let i = 0; i < 24; i++) {
-      const tx = i * 20 + 10
-      const height = 12 + Math.sin(i * 1.7) * 6
-      farTreeGfx.fillCircle(tx, 32 - height / 2, height / 2)
-      farTreeGfx.fillRect(tx - 1, 32 - height / 2, 2, height / 2 + 8)
-    }
-    farTreeGfx.generateTexture('far-trees-tex', 480, 40)
-    farTreeGfx.destroy()
 
     this.farTreeLayer = this.add.tileSprite(this.cameras.main.width / 2, 52, this.cameras.main.width, 40, 'far-trees-tex')
     this.farTreeLayer.setScrollFactor(0)
@@ -199,14 +162,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createClouds() {
-    const cloudGfx = this.make.graphics({ x: 0, y: 0 })
-    cloudGfx.fillStyle(0xffffff, 0.6)
-    cloudGfx.fillEllipse(16, 10, 28, 12)
-    cloudGfx.fillEllipse(10, 12, 16, 10)
-    cloudGfx.fillEllipse(22, 12, 20, 10)
-    cloudGfx.generateTexture('cloud', 40, 20)
-    cloudGfx.destroy()
-
     for (let i = 0; i < 5; i++) {
       const cloud = this.add.sprite(
         this.rng.between(-40, GAME_WIDTH + 40),
@@ -275,17 +230,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createGrassDetails() {
-    // Tall grass tufts that sway in the wind
-    const tallGrassGfx = this.make.graphics({ x: 0, y: 0 })
-    tallGrassGfx.fillStyle(0x5a9f3d)
-    tallGrassGfx.fillTriangle(4, 16, 3, 2, 5, 16)
-    tallGrassGfx.fillStyle(0x4a8f2d)
-    tallGrassGfx.fillTriangle(8, 16, 7, 0, 9, 16)
-    tallGrassGfx.fillStyle(0x6aaf4d)
-    tallGrassGfx.fillTriangle(12, 16, 11, 4, 13, 16)
-    tallGrassGfx.generateTexture('tall-grass', 16, 16)
-    tallGrassGfx.destroy()
-
     for (let i = 0; i < 80; i++) {
       const x = this.rng.between(TILE_SIZE, MAP_WIDTH * TILE_SIZE - TILE_SIZE)
       const y = this.rng.between(TILE_SIZE, MAP_HEIGHT * TILE_SIZE - TILE_SIZE)
@@ -297,26 +241,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createTrees() {
-    // Better tree with separate trunk + foliage for depth sorting
-    const trunkGfx = this.make.graphics({ x: 0, y: 0 })
-    trunkGfx.fillStyle(0x6b4423)
-    trunkGfx.fillRect(12, 16, 8, 28)
-    trunkGfx.fillStyle(0x5a3818)
-    trunkGfx.fillRect(14, 16, 2, 28)
-    trunkGfx.generateTexture('tree-trunk', 32, 48)
-    trunkGfx.destroy()
-
-    const foliageGfx = this.make.graphics({ x: 0, y: 0 })
-    foliageGfx.fillStyle(0x2d6a1e)
-    foliageGfx.fillCircle(20, 18, 16)
-    foliageGfx.fillStyle(0x3a8a28)
-    foliageGfx.fillCircle(14, 14, 10)
-    foliageGfx.fillCircle(26, 14, 9)
-    foliageGfx.fillStyle(0x4a9a38)
-    foliageGfx.fillCircle(18, 10, 7)
-    foliageGfx.generateTexture('tree-foliage', 40, 36)
-    foliageGfx.destroy()
-
     for (let i = 0; i < 18; i++) {
       const x = this.rng.between(TILE_SIZE * 4, MAP_WIDTH * TILE_SIZE - TILE_SIZE * 4)
       const y = this.rng.between(TILE_SIZE * 4, MAP_HEIGHT * TILE_SIZE - TILE_SIZE * 4)
@@ -341,32 +265,12 @@ export class OverworldScene extends Phaser.Scene {
 
   private createFlowers() {
     const flowerTypes = [
-      { key: 'flower-pink', color: 0xff6b9d, center: 0xffdd44 },
-      { key: 'flower-blue', color: 0x6b9dff, center: 0xffffff },
-      { key: 'flower-yellow', color: 0xffdd44, center: 0xff8844 },
-      { key: 'flower-white', color: 0xffffff, center: 0xffee88 },
-      { key: 'flower-purple', color: 0xbb77dd, center: 0xffdd88 },
+      { key: 'flower-pink' },
+      { key: 'flower-blue' },
+      { key: 'flower-yellow' },
+      { key: 'flower-white' },
+      { key: 'flower-purple' },
     ]
-
-    // Generate flower textures
-    for (const ft of flowerTypes) {
-      const gfx = this.make.graphics({ x: 0, y: 0 })
-      // Stem
-      gfx.fillStyle(0x3a7a28)
-      gfx.fillRect(7, 9, 2, 7)
-      // Petals
-      gfx.fillStyle(ft.color)
-      gfx.fillCircle(8, 6, 3)
-      gfx.fillCircle(5, 7, 2.5)
-      gfx.fillCircle(11, 7, 2.5)
-      gfx.fillCircle(6, 4, 2.5)
-      gfx.fillCircle(10, 4, 2.5)
-      // Center
-      gfx.fillStyle(ft.center)
-      gfx.fillCircle(8, 6, 1.5)
-      gfx.generateTexture(ft.key, 16, 16)
-      gfx.destroy()
-    }
 
     for (let i = 0; i < 50; i++) {
       const x = this.rng.between(TILE_SIZE * 2, MAP_WIDTH * TILE_SIZE - TILE_SIZE * 2)
@@ -387,23 +291,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createBumblebeeNest() {
-    // More detailed nest
-    const nestGfx = this.make.graphics({ x: 0, y: 0 })
-    // Earth mound
-    nestGfx.fillStyle(0x6a5a3a)
-    nestGfx.fillEllipse(16, 18, 28, 14)
-    nestGfx.fillStyle(0x5a4a2a)
-    nestGfx.fillEllipse(16, 16, 24, 12)
-    // Entrance hole
-    nestGfx.fillStyle(0x2a1a0a)
-    nestGfx.fillEllipse(16, 19, 6, 5)
-    // Grass around entrance
-    nestGfx.fillStyle(0x4a8f3d)
-    nestGfx.fillTriangle(4, 22, 3, 12, 6, 22)
-    nestGfx.fillTriangle(26, 22, 28, 10, 29, 22)
-    nestGfx.generateTexture('bumblebee-nest-v2', 32, 26)
-    nestGfx.destroy()
-
     const nestX = (MAP_WIDTH * TILE_SIZE) / 2 + 100
     const nestY = (MAP_HEIGHT * TILE_SIZE) / 2 - 60
 
@@ -411,7 +298,7 @@ export class OverworldScene extends Phaser.Scene {
     this.nestGlow = this.add.ellipse(nestX, nestY + 2, 40, 24, 0xffee88, 0)
     this.nestGlow.setDepth(DEPTH.NEST - 0.1)
 
-    this.bumblebeeNest = this.add.sprite(nestX, nestY, 'bumblebee-nest-v2')
+    this.bumblebeeNest = this.add.sprite(nestX, nestY, 'bumblebee-nest')
     this.bumblebeeNest.setDepth(DEPTH.NEST)
     this.bumblebeeNest.setInteractive({ useHandCursor: true })
 
@@ -648,19 +535,6 @@ export class OverworldScene extends Phaser.Scene {
     const type = this.rng.frac() > 0.3 ? 'butterfly' : 'ladybug'
 
     if (type === 'butterfly') {
-      if (!this.textures.exists('butterfly')) {
-        const gfx = this.make.graphics({ x: 0, y: 0 })
-        const colors = [0xff88aa, 0xffaa44, 0x88aaff, 0xffff77]
-        const color = colors[this.rng.between(0, colors.length - 1)]
-        gfx.fillStyle(color, 0.8)
-        gfx.fillEllipse(3, 4, 5, 6)
-        gfx.fillEllipse(9, 4, 5, 6)
-        gfx.fillStyle(0x333333)
-        gfx.fillRect(5, 2, 2, 8)
-        gfx.generateTexture('butterfly', 12, 10)
-        gfx.destroy()
-      }
-
       const sprite = this.add.sprite(
         cx + (this.rng.frac() > 0.5 ? -10 : cw + 10),
         cy + this.rng.between(10, ch - 10),
@@ -678,18 +552,6 @@ export class OverworldScene extends Phaser.Scene {
       })
     }
     else {
-      if (!this.textures.exists('ladybug')) {
-        const gfx = this.make.graphics({ x: 0, y: 0 })
-        gfx.fillStyle(0xdd2222)
-        gfx.fillCircle(4, 4, 3)
-        gfx.fillStyle(0x111111)
-        gfx.fillCircle(3, 3, 1)
-        gfx.fillCircle(5, 5, 1)
-        gfx.fillRect(3.5, 1, 1, 6)
-        gfx.generateTexture('ladybug', 8, 8)
-        gfx.destroy()
-      }
-
       const sprite = this.add.sprite(
         cx + this.rng.between(20, cw - 20),
         cy + ch - this.rng.between(5, 20),
