@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../../../../../packages/haex-ui/assets/css/theme.css";
+
+/* Include haex-ui components in Tailwind scanning */
+@source "../../../../../packages/haex-ui/components";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --primary: oklch(0.62 0.21 27);
+}
+
+.dark {
+  --primary: oklch(0.7 0.19 27);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    @apply overflow-hidden;
+  }
+  body {
+    @apply bg-background text-foreground;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+  }
+}

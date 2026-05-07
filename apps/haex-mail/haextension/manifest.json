@@ -1,0 +1,30 @@
+{
+  "publicKey": "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd",
+  "signature": "",
+  "permissions": {
+    "passwords": [
+      { "target": "haex-mail", "operation": "readWrite" }
+    ],
+    "mail": [
+      { "target": "*", "operation": "fetch" },
+      { "target": "*", "operation": "send" }
+    ],
+    "filesystem": [],
+    "shell": [],
+    "web": []
+  },
+  "icon": "haextension/haex-mail-logo.png",
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "Mail client for IMAP and SMTP accounts",
+  "i18n": {
+    "de": {
+      "name": "Mail",
+      "description": "Mail-Client für IMAP- und SMTP-Konten"
+    },
+    "en": {
+      "name": "Mail",
+      "description": "Mail client for IMAP and SMTP accounts"
+    }
+  }
+}
