@@ -161,7 +161,7 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         </label>
         <label class="block space-y-1">
           <span class="text-sm">Passwort (oder App-Password)</span>
-          <UiInput v-model="password" type="password" required />
+          <UiInputPassword v-model="password" required />
           <p class="text-xs text-muted-foreground">
             Bei Gmail/Outlook ein App-spezifisches Passwort verwenden.
           </p>
