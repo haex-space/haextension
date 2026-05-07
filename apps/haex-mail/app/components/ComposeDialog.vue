@@ -99,8 +99,8 @@ const sendAsync = async () => {
       <p v-if="error" class="px-4 pb-1 text-sm text-destructive">{{ error }}</p>
 
       <footer class="h-12 flex items-center justify-end gap-2 px-4 border-t border-border">
-        <UiButtontype="button" variant="ghost" @click="open = false">Verwerfen</UiButton>
-        <UiButtontype="submit" :loading="isSending">Senden</UiButton>
+        <UiButton type="button" variant="ghost" @click="open = false">Verwerfen</UiButton>
+        <UiButton type="submit" :loading="isSending">Senden</UiButton>
       </footer>
     </form>
   </div>
