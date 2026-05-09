@@ -13,7 +13,10 @@
     "release:haex-code": "node scripts/release.js haex-code",
     "release:haex-draw": "node scripts/release.js haex-draw",
     "release:haex-notes": "node scripts/release.js haex-notes",
-    "release:haex-image": "node scripts/release.js haex-image"
+    "release:haex-image": "node scripts/release.js haex-image",
+    "release:haex-tetris": "node scripts/release.js haex-tetris",
+    "release:haex-mail": "node scripts/release.js haex-mail",
+    "release:haex-game-unicorn": "node scripts/release.js haex-game-unicorn"
   },
   "pnpm": {
     "overrides": {
