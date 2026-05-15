@@ -16,11 +16,17 @@ import {
   type ExternalConnection,
 } from '@haex-space/vault-sdk'
 import { HAEX_PASS_METHODS } from '@haex-pass/api'
-import { getExtensionIdentifiers, getWebSocketPort } from '~/logic/settings'
+import { getWebSocketPort } from '~/logic/settings'
 
 const PROTOCOL_VERSION = 1
 const CLIENT_NAME = 'haex-pass Browser Extension'
 const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
+
+// All requests from this browser extension target the haex-vault core directly,
+// not an installed extension. The sentinel values below are recognized by the
+// haex-vault external_bridge to route requests to its built-in core handler.
+const CORE_TARGET_PUBLIC_KEY = '__core__'
+const CORE_TARGET_NAME = 'core'
 
 // Re-export SDK types for use in the extension
 export { ExternalConnectionErrorCode, ExternalConnectionState, type ExternalConnection }
@@ -295,10 +301,6 @@ class VaultConnectionManager {
     if (!this.ws || !this.clientId || !this.publicKeyBase64)
       return
 
-    // Get extension identifiers
-    const extensionIds = await getExtensionIdentifiers()
-    console.log('[haex-pass] Sending handshake with extension identifiers:', extensionIds)
-
     const handshake: HandshakeRequest = {
       type: 'handshake',
       version: PROTOCOL_VERSION,
@@ -306,9 +308,9 @@ class VaultConnectionManager {
         clientId: this.clientId,
         clientName: CLIENT_NAME,
         publicKey: this.publicKeyBase64,
-        // Request access to haex-pass extension (will be pre-selected in authorization dialog)
+        // Request core access (will be pre-selected in authorization dialog)
         requestedExtensions: [
-          { name: extensionIds.name, extensionPublicKey: extensionIds.publicKey },
+          { name: CORE_TARGET_NAME, extensionPublicKey: CORE_TARGET_PUBLIC_KEY },
         ],
       },
     }
@@ -453,10 +455,6 @@ class VaultConnectionManager {
     const requestId = this.generateRequestId()
     const payloadWithId = { ...payload, requestId }
 
-    // Get target extension identifiers
-    const extensionIds = await getExtensionIdentifiers()
-    console.log('[haex-pass] Sending request with extension identifiers:', extensionIds)
-
     // Create encrypted envelope
     const encrypted = await createEncryptedMessage(
       action,
@@ -465,7 +463,7 @@ class VaultConnectionManager {
       this.serverPublicKey,
     )
 
-    // Wrap in protocol message with extension identifiers
+    // All requests target the haex-vault core, identified by the sentinel pair
     const request: EncryptedEnvelope = {
       type: 'request',
       action: encrypted.action,
@@ -473,8 +471,8 @@ class VaultConnectionManager {
       iv: encrypted.iv,
       clientId: encrypted.clientID,
       publicKey: encrypted.publicKey,
-      extensionPublicKey: extensionIds.publicKey,
-      extensionName: extensionIds.name,
+      extensionPublicKey: CORE_TARGET_PUBLIC_KEY,
+      extensionName: CORE_TARGET_NAME,
     }
 
     return new Promise((resolve, reject) => {
