@@ -196,11 +196,15 @@ navigator.credentials.create = async function(
   console.log('[HaexPass WebAuthn] Intercepted credentials.create for:', relyingPartyId)
 
   return new Promise((resolve, reject) => {
+    // Safety net only — the bridge is expected to answer (with credential,
+    // 'USE_BROWSER_NATIVE', or a real error) once the user has clicked through
+    // the consent prompt. 120s is more than enough for any human; if we hit
+    // it the bridge is broken and we should fall back rather than hang.
     const timeoutId = setTimeout(() => {
       pendingRequests.delete(requestId)
-      console.log('[HaexPass WebAuthn] Request timed out, falling back to browser')
+      console.warn('[HaexPass WebAuthn] Bridge did not respond in 120s, falling back to browser')
       originalCreate(options).then(resolve).catch(reject)
-    }, 60000) // 60 Sekunden Timeout
+    }, 120000)
 
     pendingRequests.set(requestId, {
       resolve: (credential) => {
@@ -242,9 +246,9 @@ navigator.credentials.get = async function(
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       pendingRequests.delete(requestId)
-      console.log('[HaexPass WebAuthn] Request timed out, falling back to browser')
+      console.warn('[HaexPass WebAuthn] Bridge did not respond in 120s, falling back to browser')
       originalGet(options).then(resolve).catch(reject)
-    }, 60000) // 60 Sekunden Timeout
+    }, 120000)
 
     pendingRequests.set(requestId, {
       resolve: (credential) => {
