@@ -158,7 +158,12 @@ class VaultConnectionManager {
       return null
     }
 
-    if (!stored || !stored.publicKey || !stored.privateKey) {
+    if (!stored) {
+      console.log('[haex-pass] storage.local has no keypair entry')
+      return null
+    }
+    if (!stored.publicKey || !stored.privateKey) {
+      console.warn('[haex-pass] storage.local entry is incomplete:', { hasPub: !!stored.publicKey, hasPriv: !!stored.privateKey })
       return null
     }
 
@@ -188,13 +193,52 @@ class VaultConnectionManager {
       [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
     })
 
-    // Read back to make sure the write actually committed — a silent failure
-    // here causes a new clientId on every service-worker restart.
-    const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
-    const persisted = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
-    if (!persisted || persisted.publicKey !== publicKey || persisted.privateKey !== privateKey) {
-      throw new Error('keypair did not persist in storage.local')
+    // Full round-trip check: re-read from storage AND re-import as CryptoKeys.
+    // String-equality on the base64 alone wouldn't catch an export/import
+    // mismatch that would later make loadKeypair() return null on every
+    // service-worker restart.
+    const reloaded = await this.loadKeypair()
+    if (!reloaded) {
+      throw new Error('keypair save verification failed — storage.local does not return what we wrote')
     }
+    const reloadedPublic = await exportPublicKey(reloaded.publicKey)
+    if (reloadedPublic !== publicKey) {
+      throw new Error('keypair save verification failed — re-imported public key differs from saved one')
+    }
+  }
+
+  /**
+   * Wait until the WebSocket handshake completed and the client is paired
+   * (either via permanent or session authorization). Resolves the moment
+   * state transitions to PAIRED, rejects on terminal failure states or after
+   * the timeout elapses.
+   *
+   * Without this, content scripts that fire a request right after a service
+   * worker wakeup race ahead of the handshake response and get
+   * "Handshake not complete".
+   */
+  private async waitForPaired(timeoutMs: number): Promise<void> {
+    if (this.state === ExternalConnectionState.PAIRED) return
+
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        unsubscribe()
+        reject(new Error(`Timed out after ${timeoutMs}ms waiting for handshake/authorization (state=${this.state})`))
+      }, timeoutMs)
+
+      const unsubscribe = this.onStateChange((state) => {
+        if (state.state === ExternalConnectionState.PAIRED) {
+          clearTimeout(timer)
+          unsubscribe()
+          resolve()
+        }
+        else if (state.state === ExternalConnectionState.DISCONNECTED) {
+          clearTimeout(timer)
+          unsubscribe()
+          reject(new Error(`Disconnected while waiting for pairing (error=${state.errorMessage ?? state.errorCode})`))
+        }
+      })
+    })
   }
 
   private generateRequestId(): string {
@@ -448,8 +492,22 @@ class VaultConnectionManager {
   }
 
   async sendRequest<T = unknown>(action: string, payload: object, timeout = 10000): Promise<T> {
-    // Wait for initialization
+    // Wait for keypair initialization
     await this.initPromise
+
+    // If the service worker just woke up, the WebSocket may not be connected
+    // yet — trigger a connect (idempotent if already connected). Then wait
+    // for the handshake to actually finish before sending the encrypted
+    // request, otherwise we'd race the handshake response and throw.
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.state !== ExternalConnectionState.PAIRED) {
+      await this.connect()
+      // connect() resolves once the WS is OPEN, not once the handshake is
+      // through. Wait specifically for PAIRED with a budget that's shorter
+      // than the per-request timeout so a stuck pending approval doesn't
+      // swallow the request silently.
+      const handshakeBudget = Math.min(Math.max(timeout - 1000, 1000), timeout)
+      await this.waitForPaired(handshakeBudget)
+    }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Not connected')
@@ -457,10 +515,6 @@ class VaultConnectionManager {
 
     if (!this.serverPublicKey || !this.keyPair) {
       throw new Error('Handshake not complete')
-    }
-
-    if (this.state !== ExternalConnectionState.PAIRED) {
-      throw new Error('Not authorized')
     }
 
     const requestId = this.generateRequestId()
