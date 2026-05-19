@@ -1,4 +1,12 @@
+import type { ExternalConnection } from '@haex-space/vault-sdk'
 import type { EncryptedMessage, KeyPair } from './crypto'
+import { HAEX_PASS_METHODS } from '@haex-pass/api'
+import {
+
+  ExternalConnectionErrorCode,
+  ExternalConnectionState,
+} from '@haex-space/vault-sdk'
+import { getWebSocketPort } from '~/logic/settings'
 import {
   createEncryptedMessage,
   decryptMessageEnvelope,
@@ -10,17 +18,13 @@ import {
   importPublicKey,
   toHex,
 } from './crypto'
-import {
-  ExternalConnectionErrorCode,
-  ExternalConnectionState,
-  type ExternalConnection,
-} from '@haex-space/vault-sdk'
-import { HAEX_PASS_METHODS } from '@haex-pass/api'
-import { getWebSocketPort } from '~/logic/settings'
 
 const PROTOCOL_VERSION = 1
 const CLIENT_NAME = 'haex-pass Browser Extension'
 const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
+// 25 s is comfortably below the typical 30 s MV3 service-worker idle timeout
+// and below most stateful firewalls' connection-track timeouts.
+const PING_INTERVAL_MS = 25000
 
 // All requests from this browser extension target the haex-vault core directly,
 // not an installed extension. The sentinel values below are recognized by the
@@ -29,7 +33,7 @@ const CORE_TARGET_PUBLIC_KEY = '__core__'
 const CORE_TARGET_NAME = 'core'
 
 // Re-export SDK types for use in the extension
-export { ExternalConnectionErrorCode, ExternalConnectionState, type ExternalConnection }
+export { type ExternalConnection, ExternalConnectionErrorCode, ExternalConnectionState }
 // Backward compatibility aliases
 export type ConnectionState = ExternalConnectionState
 export type VaultConnection = ExternalConnection
@@ -98,14 +102,14 @@ interface PongMessage {
   type: 'pong'
 }
 
-type ProtocolMessage =
-  | HandshakeRequest
-  | HandshakeResponse
-  | EncryptedEnvelope
-  | AuthorizationUpdate
-  | ErrorMessage
-  | PingMessage
-  | PongMessage
+type ProtocolMessage
+  = | HandshakeRequest
+    | HandshakeResponse
+    | EncryptedEnvelope
+    | AuthorizationUpdate
+    | ErrorMessage
+    | PingMessage
+    | PongMessage
 
 class VaultConnectionManager {
   private ws: WebSocket | null = null
@@ -120,6 +124,12 @@ class VaultConnectionManager {
   private messageHandlers: Set<(message: unknown) => void> = new Set()
   private stateChangeHandlers: Set<(state: VaultConnection) => void> = new Set()
   private initPromise: Promise<void> | null = null
+  // Cached in-flight connect() so concurrent callers (popup + content scripts
+  // racing on get-items) reuse one WebSocket instead of opening orphaned ones.
+  private connectPromise: Promise<void> | null = null
+  // Keep-alive timer that pings haex-vault every PING_INTERVAL_MS. Keeps the
+  // MV3 service worker alive AND prevents idle WS timeouts.
+  private pingInterval: ReturnType<typeof setInterval> | null = null
 
   constructor() {
     // Initialize keypair asynchronously
@@ -133,8 +143,7 @@ class VaultConnectionManager {
     if (stored) {
       this.keyPair = stored
       console.log('[haex-pass] Loaded existing keypair from storage')
-    }
-    else {
+    } else {
       this.keyPair = await generateKeyPair()
       // Persist BEFORE deriving the clientId, so a save failure aborts init
       // instead of producing an ephemeral identity.
@@ -152,8 +161,7 @@ class VaultConnectionManager {
     try {
       const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
       stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
-    }
-    catch (err) {
+    } catch (err) {
       console.error('[haex-pass] storage.local.get failed:', err)
       return null
     }
@@ -171,15 +179,13 @@ class VaultConnectionManager {
       const publicKey = await importPublicKey(stored.publicKey)
       const privateKey = await importPrivateKey(stored.privateKey)
       return { publicKey, privateKey }
-    }
-    catch (err) {
+    } catch (err) {
       // Stored bytes are unusable (format change, corruption). Drop them so
       // the caller generates and persists a fresh keypair instead of looping.
       console.error('[haex-pass] Stored keypair is unusable, clearing:', err)
       try {
         await browser.storage.local.remove(STORAGE_KEY_KEYPAIR)
-      }
-      catch (removeErr) {
+      } catch (removeErr) {
         console.error('[haex-pass] storage.local.remove failed:', removeErr)
       }
       return null
@@ -218,21 +224,22 @@ class VaultConnectionManager {
    * "Handshake not complete".
    */
   private async waitForPaired(timeoutMs: number): Promise<void> {
-    if (this.state === ExternalConnectionState.PAIRED) return
+    if (this.state === ExternalConnectionState.PAIRED)
+      return
 
     await new Promise<void>((resolve, reject) => {
+      let unsubscribe: () => void = () => {}
       const timer = setTimeout(() => {
         unsubscribe()
         reject(new Error(`Timed out after ${timeoutMs}ms waiting for handshake/authorization (state=${this.state})`))
       }, timeoutMs)
 
-      const unsubscribe = this.onStateChange((state) => {
+      unsubscribe = this.onStateChange((state) => {
         if (state.state === ExternalConnectionState.PAIRED) {
           clearTimeout(timer)
           unsubscribe()
           resolve()
-        }
-        else if (state.state === ExternalConnectionState.DISCONNECTED) {
+        } else if (state.state === ExternalConnectionState.DISCONNECTED) {
           clearTimeout(timer)
           unsubscribe()
           reject(new Error(`Disconnected while waiting for pairing (error=${state.errorMessage ?? state.errorCode})`))
@@ -285,7 +292,26 @@ class VaultConnectionManager {
   }
 
   async connect(): Promise<void> {
-    // Wait for initialization to complete
+    // Idempotent: concurrent callers share the same in-flight attempt.
+    // Without this, two parallel sendRequest()s would each open their own
+    // WebSocket and orphan all but the last one — leaving zombie sockets
+    // open on haex-vault and a race between competing handshakes.
+    if (this.connectPromise)
+      return this.connectPromise
+
+    // Fast path: already up and paired, no work to do.
+    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.state === ExternalConnectionState.PAIRED) {
+      return
+    }
+
+    this.connectPromise = this.doConnect().finally(() => {
+      this.connectPromise = null
+    })
+    return this.connectPromise
+  }
+
+  private async doConnect(): Promise<void> {
+    // Wait for keypair initialization to complete
     await this.initPromise
 
     // If already connected but not paired, resend handshake to trigger new authorization request
@@ -307,49 +333,86 @@ class VaultConnectionManager {
 
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(wsUrl)
+        const ws = new WebSocket(wsUrl)
+        this.ws = ws
 
-        this.ws.onopen = () => {
+        ws.onopen = () => {
+          // Defend against an old WS firing onopen after we already started
+          // a newer one: only act if this instance is still the live one.
+          if (this.ws !== ws) {
+            try {
+              ws.close()
+            } catch {
+              /* ignore */
+            }
+            return
+          }
           console.log('[haex-pass] WebSocket connected')
           this.sendHandshake()
         }
 
-        this.ws.onmessage = (event) => {
+        ws.onmessage = (event) => {
+          if (this.ws !== ws)
+            return
           this.handleMessage(event.data)
         }
 
-        this.ws.onclose = () => {
+        ws.onclose = () => {
+          if (this.ws !== ws)
+            return
           console.log('[haex-pass] WebSocket closed')
           this.state = ExternalConnectionState.DISCONNECTED
           this.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
           this.serverPublicKey = null
+          this.stopPing()
           this.notifyStateChange()
-          // Don't auto-reconnect - user must manually reconnect to avoid
-          // repeated authorization requests when using "allow once"
         }
 
-        this.ws.onerror = (err) => {
+        ws.onerror = (err) => {
+          if (this.ws !== ws)
+            return
           console.error('[haex-pass] WebSocket error:', err)
           this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
           this.state = ExternalConnectionState.DISCONNECTED
+          this.stopPing()
           this.notifyStateChange()
           reject(new Error(this.errorMessage || 'Connection failed'))
         }
 
         // Resolve after a short timeout if connection seems stable
         setTimeout(() => {
-          if (this.ws?.readyState === WebSocket.OPEN) {
+          if (ws.readyState === WebSocket.OPEN) {
             resolve()
           }
         }, 100)
-      }
-      catch (err) {
+      } catch (err) {
         this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, `Failed to connect: ${err}`)
         this.state = ExternalConnectionState.DISCONNECTED
         this.notifyStateChange()
         reject(err)
       }
     })
+  }
+
+  private startPing() {
+    if (this.pingInterval)
+      return
+    this.pingInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ type: 'ping' }))
+        } catch (err) {
+          console.error('[haex-pass] Ping failed:', err)
+        }
+      }
+    }, PING_INTERVAL_MS)
+  }
+
+  private stopPing() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+      this.pingInterval = null
+    }
   }
 
   private async sendHandshake(): Promise<void> {
@@ -407,8 +470,7 @@ class VaultConnectionManager {
         default:
           console.warn('[haex-pass] Unknown message type:', (message as { type: string }).type)
       }
-    }
-    catch (err) {
+    } catch (err) {
       console.error('[haex-pass] Failed to handle message:', err)
     }
   }
@@ -427,12 +489,11 @@ class VaultConnectionManager {
     if (response.authorized) {
       this.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Client is authorized')
-    }
-    else if (response.pendingApproval) {
+      this.startPing()
+    } else if (response.pendingApproval) {
       this.state = ExternalConnectionState.PENDING_APPROVAL
       console.log('[haex-pass] Waiting for user approval in haex-vault')
-    }
-    else {
+    } else {
       this.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Connected but not authorized')
     }
@@ -483,8 +544,8 @@ class VaultConnectionManager {
     if (update.authorized) {
       this.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Authorization granted!')
-    }
-    else {
+      this.startPing()
+    } else {
       this.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Authorization denied')
     }
@@ -612,6 +673,7 @@ class VaultConnectionManager {
   }
 
   disconnect() {
+    this.stopPing()
     if (this.ws) {
       this.ws.close()
       this.ws = null
