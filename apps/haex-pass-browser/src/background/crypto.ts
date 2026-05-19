@@ -1,13 +1,17 @@
 /**
- * WebCrypto-based encryption for browser bridge communication
- * Uses ECDH (P-256) for key exchange and AES-GCM for encryption
+ * WebCrypto-based encryption for browser bridge communication.
+ *
+ * Uses X25519 for key exchange and AES-256-GCM for encryption — matching the
+ * haex-vault external bridge (src-tauri/src/external_bridge/crypto.rs), which
+ * migrated from ECDH P-256 to X25519 in commit 80ee80b4.
+ *
+ * Browser support: Firefox 132+, Chrome/Edge 123+, Safari 17+.
  */
 
 // Cryptographic algorithm constants
-const ECDH_ALGORITHM = 'ECDH'
-const ECDH_CURVE = 'P-256'
+const KEX_ALGORITHM = 'X25519'
 const AES_ALGORITHM = 'AES-GCM'
-const AES_KEY_LENGTH = 256
+const AES_KEY_LENGTH = 256 // bits
 const IV_LENGTH = 12
 const CLIENT_ID_LENGTH = 16
 
@@ -17,8 +21,8 @@ export interface KeyPair {
 }
 
 export interface ExportedKeyPair {
-  publicKey: string // Base64 encoded SPKI
-  privateKey: string // Base64 encoded PKCS8
+  publicKey: string // Base64 raw 32 bytes
+  privateKey: string // Base64 PKCS#8 DER
 }
 
 export interface EncryptedMessage {
@@ -26,21 +30,18 @@ export interface EncryptedMessage {
   message: string // Base64 encrypted payload
   iv: string // Base64 12-byte IV
   clientID: string
-  publicKey: string // Ephemeral public key for this message
+  publicKey: string // Ephemeral public key for this message (raw, base64)
 }
 
 /**
- * Generate a new ECDH keypair for key exchange
+ * Generate a new X25519 keypair for key exchange.
  */
 export async function generateKeyPair(): Promise<KeyPair> {
   const keyPair = await crypto.subtle.generateKey(
-    {
-      name: ECDH_ALGORITHM,
-      namedCurve: ECDH_CURVE,
-    },
-    true, // extractable
+    { name: KEX_ALGORITHM },
+    true, // extractable so we can persist it
     ['deriveBits'],
-  )
+  ) as CryptoKeyPair
   return {
     publicKey: keyPair.publicKey,
     privateKey: keyPair.privateKey,
@@ -48,32 +49,31 @@ export async function generateKeyPair(): Promise<KeyPair> {
 }
 
 /**
- * Export a public key to Base64 string
+ * Export a public key as raw 32 bytes (base64). Matches haex-vault's
+ * `ServerKeyPair::public_key_base64`.
  */
 export async function exportPublicKey(key: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('spki', key)
+  const exported = await crypto.subtle.exportKey('raw', key)
   return arrayBufferToBase64(exported)
 }
 
 /**
- * Import a public key from Base64 string
+ * Import a public key from raw 32 bytes (base64).
  */
 export async function importPublicKey(base64Key: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(base64Key)
   return crypto.subtle.importKey(
-    'spki',
+    'raw',
     keyData,
-    {
-      name: ECDH_ALGORITHM,
-      namedCurve: ECDH_CURVE,
-    },
+    { name: KEX_ALGORITHM },
     true,
     [],
   )
 }
 
 /**
- * Export a private key to Base64 string
+ * Export a private key as PKCS#8 (base64). X25519 in WebCrypto only exposes
+ * the private key via `pkcs8` or `jwk` — not `raw`.
  */
 export async function exportPrivateKey(key: CryptoKey): Promise<string> {
   const exported = await crypto.subtle.exportKey('pkcs8', key)
@@ -81,34 +81,30 @@ export async function exportPrivateKey(key: CryptoKey): Promise<string> {
 }
 
 /**
- * Import a private key from Base64 string
+ * Import a private key from PKCS#8 (base64).
  */
 export async function importPrivateKey(base64Key: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(base64Key)
   return crypto.subtle.importKey(
     'pkcs8',
     keyData,
-    {
-      name: ECDH_ALGORITHM,
-      namedCurve: ECDH_CURVE,
-    },
+    { name: KEX_ALGORITHM },
     true,
     ['deriveBits'],
   )
 }
 
 /**
- * Derive a shared AES-GCM key from ECDH key exchange
+ * Derive a shared AES-256-GCM key from X25519 key agreement. haex-vault uses
+ * the raw 32-byte shared secret directly as the AES key (no KDF), so we do
+ * the same here.
  */
 export async function deriveSharedKey(
   privateKey: CryptoKey,
   publicKey: CryptoKey,
 ): Promise<CryptoKey> {
   const sharedBits = await crypto.subtle.deriveBits(
-    {
-      name: ECDH_ALGORITHM,
-      public: publicKey,
-    },
+    { name: KEX_ALGORITHM, public: publicKey },
     privateKey,
     AES_KEY_LENGTH,
   )
@@ -123,7 +119,7 @@ export async function deriveSharedKey(
 }
 
 /**
- * Encrypt a message using AES-GCM
+ * Encrypt a message using AES-GCM.
  */
 export async function encryptMessage(
   message: string,
@@ -145,7 +141,7 @@ export async function encryptMessage(
 }
 
 /**
- * Decrypt a message using AES-GCM
+ * Decrypt a message using AES-GCM.
  */
 export async function decryptMessage(
   ciphertextBase64: string,
@@ -163,21 +159,20 @@ export async function decryptMessage(
     )
 
     return new TextDecoder().decode(decrypted)
-  }
-  catch {
+  } catch {
     return null
   }
 }
 
 /**
- * Generate a random IV
+ * Generate a random IV.
  */
 export function generateIV(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(IV_LENGTH))
 }
 
 /**
- * Convert Uint8Array to hex string
+ * Convert Uint8Array to hex string.
  */
 export function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -186,7 +181,7 @@ export function toHex(bytes: Uint8Array): string {
 }
 
 /**
- * Convert hex string to Uint8Array
+ * Convert hex string to Uint8Array.
  */
 export function fromHex(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)
@@ -197,7 +192,7 @@ export function fromHex(hex: string): Uint8Array {
 }
 
 /**
- * Convert ArrayBuffer or Uint8Array to Base64 string
+ * Convert ArrayBuffer or Uint8Array to Base64 string.
  */
 export function arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
@@ -209,7 +204,7 @@ export function arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
 }
 
 /**
- * Convert Base64 string to ArrayBuffer
+ * Convert Base64 string to ArrayBuffer.
  */
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64)
@@ -221,17 +216,20 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 /**
- * Generate a client ID from the public key (SHA-256 hash, first 16 bytes as hex)
+ * Generate a client ID by hashing the raw public key (first 16 bytes hex).
+ * Using the raw key bytes rather than SPKI keeps the fingerprint stable
+ * regardless of how WebCrypto wraps the key.
  */
 export async function generateClientId(publicKey: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('spki', publicKey)
+  const exported = await crypto.subtle.exportKey('raw', publicKey)
   const hash = await crypto.subtle.digest('SHA-256', exported)
   const hashArray = new Uint8Array(hash)
   return toHex(hashArray.slice(0, CLIENT_ID_LENGTH))
 }
 
 /**
- * Create an encrypted message envelope with ephemeral key
+ * Create an encrypted message envelope with an ephemeral key for forward
+ * secrecy.
  */
 export async function createEncryptedMessage(
   action: string,
@@ -239,14 +237,11 @@ export async function createEncryptedMessage(
   clientID: string,
   serverPublicKey: CryptoKey,
 ): Promise<EncryptedMessage> {
-  // Generate ephemeral keypair for forward secrecy
   const ephemeralKeyPair = await generateKeyPair()
   const ephemeralPublicKeyExported = await exportPublicKey(ephemeralKeyPair.publicKey)
 
-  // Derive shared key using ephemeral private key and server's public key
   const sharedKey = await deriveSharedKey(ephemeralKeyPair.privateKey, serverPublicKey)
 
-  // Encrypt the payload
   const { ciphertext, iv } = await encryptMessage(JSON.stringify(payload), sharedKey)
 
   return {
@@ -259,27 +254,23 @@ export async function createEncryptedMessage(
 }
 
 /**
- * Decrypt an encrypted message envelope
+ * Decrypt an encrypted message envelope.
  */
 export async function decryptMessageEnvelope(
   envelope: EncryptedMessage,
   myPrivateKey: CryptoKey,
 ): Promise<object | null> {
   try {
-    // Import the sender's ephemeral public key
     const senderPublicKey = await importPublicKey(envelope.publicKey)
 
-    // Derive shared key
     const sharedKey = await deriveSharedKey(myPrivateKey, senderPublicKey)
 
-    // Decrypt the message
     const decrypted = await decryptMessage(envelope.message, envelope.iv, sharedKey)
     if (!decrypted)
       return null
 
     return JSON.parse(decrypted)
-  }
-  catch {
+  } catch {
     return null
   }
 }
