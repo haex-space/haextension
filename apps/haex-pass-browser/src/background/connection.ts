@@ -127,62 +127,73 @@ class VaultConnectionManager {
   }
 
   private async initialize(): Promise<void> {
-    try {
-      // Try to load existing keypair from storage
-      const stored = await this.loadKeypair()
-      if (stored) {
-        this.keyPair = stored
-        console.log('[haex-pass] Loaded existing keypair from storage')
-      }
-      else {
-        // Generate new keypair and save it
-        this.keyPair = await generateKeyPair()
-        await this.saveKeypair(this.keyPair)
-        console.log('[haex-pass] Generated and saved new keypair')
-      }
-
-      this.clientId = await generateClientId(this.keyPair.publicKey)
-      this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
-      console.log('[haex-pass] Initialized with clientId:', this.clientId)
+    // Always try storage first — a stable clientId across service-worker
+    // restarts is what makes haex-vault's permanent authorization useful.
+    const stored = await this.loadKeypair()
+    if (stored) {
+      this.keyPair = stored
+      console.log('[haex-pass] Loaded existing keypair from storage')
     }
-    catch (err) {
-      console.error('[haex-pass] Initialization failed, using fallback:', err)
-      // Fallback: generate new keypair without saving (in case storage is broken)
+    else {
       this.keyPair = await generateKeyPair()
-      this.clientId = await generateClientId(this.keyPair.publicKey)
-      this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
-      console.log('[haex-pass] Fallback keypair with clientId:', this.clientId)
+      // Persist BEFORE deriving the clientId, so a save failure aborts init
+      // instead of producing an ephemeral identity.
+      await this.saveAndVerifyKeypair(this.keyPair)
+      console.log('[haex-pass] Generated and saved new keypair')
     }
+
+    this.clientId = await generateClientId(this.keyPair.publicKey)
+    this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
+    console.log('[haex-pass] Initialized with clientId:', this.clientId)
   }
 
   private async loadKeypair(): Promise<KeyPair | null> {
+    let stored: { publicKey?: string, privateKey?: string } | undefined
     try {
       const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
-      const stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
-      if (!stored || !stored.publicKey || !stored.privateKey) {
-        return null
-      }
+      stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
+    }
+    catch (err) {
+      console.error('[haex-pass] storage.local.get failed:', err)
+      return null
+    }
 
+    if (!stored || !stored.publicKey || !stored.privateKey) {
+      return null
+    }
+
+    try {
       const publicKey = await importPublicKey(stored.publicKey)
       const privateKey = await importPrivateKey(stored.privateKey)
       return { publicKey, privateKey }
     }
     catch (err) {
-      console.error('[haex-pass] Failed to load keypair:', err)
+      // Stored bytes are unusable (format change, corruption). Drop them so
+      // the caller generates and persists a fresh keypair instead of looping.
+      console.error('[haex-pass] Stored keypair is unusable, clearing:', err)
+      try {
+        await browser.storage.local.remove(STORAGE_KEY_KEYPAIR)
+      }
+      catch (removeErr) {
+        console.error('[haex-pass] storage.local.remove failed:', removeErr)
+      }
       return null
     }
   }
 
-  private async saveKeypair(keyPair: KeyPair): Promise<void> {
-    try {
-      const publicKey = await exportPublicKey(keyPair.publicKey)
-      const privateKey = await exportPrivateKey(keyPair.privateKey)
-      await browser.storage.local.set({
-        [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
-      })
-    }
-    catch (err) {
-      console.error('[haex-pass] Failed to save keypair:', err)
+  private async saveAndVerifyKeypair(keyPair: KeyPair): Promise<void> {
+    const publicKey = await exportPublicKey(keyPair.publicKey)
+    const privateKey = await exportPrivateKey(keyPair.privateKey)
+    await browser.storage.local.set({
+      [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
+    })
+
+    // Read back to make sure the write actually committed — a silent failure
+    // here causes a new clientId on every service-worker restart.
+    const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
+    const persisted = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
+    if (!persisted || persisted.publicKey !== publicKey || persisted.privateKey !== privateKey) {
+      throw new Error('keypair did not persist in storage.local')
     }
   }
 
