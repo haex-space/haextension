@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'haex-*-v*'
+      # haex-pass-browser is a plain WebExtension (no Nuxt) and has its own
+      # release pipeline in browser-extension-release.yml.
+      - '!haex-pass-browser-v*'
   workflow_dispatch:
     inputs:
       extension:
