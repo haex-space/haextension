@@ -7,14 +7,17 @@ on:
       # haex-pass-browser is a plain WebExtension (no Nuxt) and has its own
       # release pipeline in browser-extension-release.yml.
       - '!haex-pass-browser-v*'
+      # haex-pass has been fully integrated into haex-vault and is no longer
+      # published as a separate extension. The apps/haex-pass directory is
+      # kept as an archive only.
+      - '!haex-pass-v*'
   workflow_dispatch:
     inputs:
       extension:
-        description: 'Extension name (e.g., haex-pass)'
+        description: 'Extension name (e.g., haex-files)'
         required: true
         type: choice
         options:
-          - haex-pass
           - haex-files
           - haex-calendar
           - haex-code
