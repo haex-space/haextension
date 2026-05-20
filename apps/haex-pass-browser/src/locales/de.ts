@@ -98,6 +98,16 @@ export default {
       button: 'Trennen',
       success: 'Verbindung getrennt',
     },
+    passkeyPrefs: {
+      label: 'Passkey-Entscheidungen pro Seite',
+      description: 'Hier siehst du, für welche Seiten du festgelegt hast, ob haex-vault oder dein Browser Passkey-Anfragen bearbeitet. Lösche einen Eintrag, um beim nächsten Besuch erneut gefragt zu werden.',
+      empty: 'Noch keine Entscheidungen gespeichert.',
+      remove: 'Entfernen',
+      choice: {
+        haexPass: 'Über haex-vault',
+        browser: 'Browser / Hardware-Key',
+      },
+    },
   },
   error: {
     clientNotAuthorized: 'Client nicht autorisiert',

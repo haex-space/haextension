@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SupportedLocale } from '~/locales'
+import type { PasskeyPrefs } from '~/logic/settings'
 import { canExternalClientSendRequests, ExternalConnectionState } from '@haex-space/vault-sdk'
 import { PlugZap } from 'lucide-vue-next'
 import { getLocaleSetting, setLocale, useI18n } from '~/locales'
@@ -9,7 +10,13 @@ import {
   MSG_DISCONNECT,
   MSG_GET_CONNECTION_STATE,
 } from '~/logic/messages'
-import { getWebSocketPort, setWebSocketPort } from '~/logic/settings'
+import {
+  getAllPasskeyPrefs,
+  getWebSocketPort,
+
+  removePasskeyPref,
+  setWebSocketPort,
+} from '~/logic/settings'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
@@ -21,6 +28,22 @@ const portError = ref<string | null>(null)
 const portSaved = ref(false)
 const connectionState = ref<ExternalConnectionState>(ExternalConnectionState.DISCONNECTED)
 const isConnecting = ref(false)
+const passkeyPrefs = ref<PasskeyPrefs>({})
+
+const passkeyPrefList = computed(() => {
+  return Object.entries(passkeyPrefs.value)
+    .map(([rpId, value]) => ({ rpId, ...value }))
+    .sort((a, b) => a.rpId.localeCompare(b.rpId))
+})
+
+async function reloadPasskeyPrefs() {
+  passkeyPrefs.value = await getAllPasskeyPrefs()
+}
+
+async function handleRemovePref(rpId: string) {
+  await removePasskeyPref(rpId)
+  await reloadPasskeyPrefs()
+}
 
 // Show disconnect button only when paired
 const showDisconnectButton = computed(() => canExternalClientSendRequests(connectionState.value))
@@ -138,6 +161,7 @@ onMounted(async () => {
   currentLocale.value = await getLocaleSetting()
   currentPort.value = await getWebSocketPort()
   portInput.value = currentPort.value.toString()
+  await reloadPasskeyPrefs()
   await fetchConnectionState()
 })
 </script>
@@ -147,7 +171,7 @@ onMounted(async () => {
     <div class="max-w-2xl mx-auto">
       <!-- Header -->
       <div class="flex items-center gap-4 mb-8">
-        <img :src="logoUrl" alt="haex-pass" class="w-12 h-12" />
+        <img :src="logoUrl" alt="haex-pass" class="w-12 h-12">
         <div>
           <h1 class="text-2xl font-bold">
             {{ t('extension.name') }}
@@ -207,7 +231,7 @@ onMounted(async () => {
                   :placeholder="t('settings.port.placeholder')"
                   class="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   @input="handlePortInput"
-                />
+                >
                 <button
                   class="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
                   :disabled="portInput === currentPort.toString()"
@@ -258,6 +282,41 @@ onMounted(async () => {
               {{ t('settings.disconnect.button') }}
             </button>
           </div>
+        </div>
+
+        <!-- Passkey handler decisions per site -->
+        <div class="rounded-lg border p-4">
+          <h3 class="font-medium mb-1">
+            {{ t('settings.passkeyPrefs.label') }}
+          </h3>
+          <p class="text-sm text-muted-foreground mb-3">
+            {{ t('settings.passkeyPrefs.description') }}
+          </p>
+          <p v-if="passkeyPrefList.length === 0" class="text-sm text-muted-foreground italic">
+            {{ t('settings.passkeyPrefs.empty') }}
+          </p>
+          <ul v-else class="space-y-2">
+            <li
+              v-for="pref in passkeyPrefList"
+              :key="pref.rpId"
+              class="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="font-mono truncate">
+                  {{ pref.rpId }}
+                </div>
+                <div class="text-xs text-muted-foreground">
+                  {{ pref.choice === 'haex-pass' ? t('settings.passkeyPrefs.choice.haexPass') : t('settings.passkeyPrefs.choice.browser') }}
+                </div>
+              </div>
+              <button
+                class="px-3 py-1 rounded-md border text-xs font-medium hover:bg-accent"
+                @click="handleRemovePref(pref.rpId)"
+              >
+                {{ t('settings.passkeyPrefs.remove') }}
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
     </div>

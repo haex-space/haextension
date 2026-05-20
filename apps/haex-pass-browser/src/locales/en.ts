@@ -98,6 +98,16 @@ export default {
       button: 'Disconnect',
       success: 'Disconnected',
     },
+    passkeyPrefs: {
+      label: 'Per-site passkey decisions',
+      description: 'Sites where you have chosen whether haex-vault or the browser handles passkey requests. Remove an entry to be asked again next visit.',
+      empty: 'No decisions saved yet.',
+      remove: 'Remove',
+      choice: {
+        haexPass: 'Handled by haex-vault',
+        browser: 'Browser / hardware key',
+      },
+    },
   },
   error: {
     clientNotAuthorized: 'Client not authorized',
