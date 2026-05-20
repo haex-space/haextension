@@ -8,20 +8,9 @@ Haextension ist eine Sammlung von Extensions für [HaexVault](https://haex.space
 
 ## Extensions
 
-### HaexPass - Passwort-Manager
+### HaexPass - Passwort-Manager (in HaexVault integriert)
 
-Ein moderner Passwort-Manager, inspiriert von KeePass - aber besser.
-
-**Features:**
-- KeePass-kompatibel (KDBX Import)
-- Konsistente UI auf allen Geräten
-- Responsive Design
-- Fuzzy-Suche für schnellen Zugriff
-- Automatische Synchronisation via HaexSpace
-- TOTP-Unterstützung (2FA)
-- Ende-zu-Ende-Verschlüsselung
-
-**Installation:** [HaexPass im Marketplace](https://haex.space/marketplace/haex-pass)
+> **Hinweis:** HaexPass wurde vollständig in [HaexVault](https://haex.space) integriert und wird nicht mehr als separate Extension veröffentlicht. Das Verzeichnis `apps/haex-pass/` bleibt nur als Archiv erhalten.
 
 ### HaexPass Browser - Browser-Extension
 
