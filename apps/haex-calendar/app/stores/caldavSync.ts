@@ -11,6 +11,7 @@ import {
 export const useCaldavSyncStore = defineStore("caldavSync", () => {
   const haexVault = useHaexVaultStore();
   const eventsStore = useEventsStore();
+  const accountsStore = useCaldavAccountsStore();
 
   const isSyncing = ref(false);
   const syncErrors = ref<Map<string, string>>(new Map()); // calendarId → error message
@@ -47,11 +48,13 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
     try {
       syncErrors.value.delete(calendarId);
 
+      const password = await accountsStore.getPasswordAsync(account);
+
       // Fetch event list from server
       const { ctag: serverCtag, events: serverEvents } = await fetchEventListAsync(
         calendarRow.caldavPath,
         account.username,
-        account.password,
+        password,
         account.serverUrl,
       );
 
@@ -84,7 +87,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
           calendarRow.caldavPath,
           hrefsToFetch,
           account.username,
-          account.password,
+          password,
           account.serverUrl,
         );
 
@@ -227,6 +230,8 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     if (!account) return;
 
+    const password = await accountsStore.getPasswordAsync(account);
+
     // Generate ICS for this single event
     const icsData = generateICS([eventRow], calendarRow.name);
 
@@ -238,7 +243,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
       icsData,
       eventRow.etag,
       account.username,
-      account.password,
+      password,
       account.serverUrl,
     );
 
@@ -279,11 +284,13 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     if (!account) return;
 
+    const password = await accountsStore.getPasswordAsync(account);
+
     await caldavDeleteAsync(
       eventRow.href,
       eventRow.etag,
       account.username,
-      account.password,
+      password,
       account.serverUrl,
     );
   }

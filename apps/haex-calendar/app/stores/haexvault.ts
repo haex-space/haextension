@@ -1,11 +1,5 @@
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import * as schema from "~/database/schemas";
-import {
-  isPermissionPromptError,
-  isPermissionDeniedError,
-  type PermissionPromptError,
-  type PermissionDeniedError,
-} from "@haex-space/vault-sdk";
 
 const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
   query: "?raw",
@@ -13,20 +7,11 @@ const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
   eager: true,
 });
 
-export { isPermissionPromptError, isPermissionDeniedError, type PermissionPromptError, type PermissionDeniedError };
-
 export const useHaexVaultStore = defineStore("haexvault", () => {
   const nuxtApp = useNuxtApp();
 
   const isInitialized = ref(false);
   const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
-
-  // Permission prompt state (code 1004)
-  const pendingPermission = ref<PermissionPromptError | null>(null);
-  const pendingRetryFn = shallowRef<(() => Promise<void>) | null>(null);
-
-  // Permission denied state (code 1002)
-  const deniedPermission = ref<PermissionDeniedError | null>(null);
 
   const { currentThemeName, context } = storeToRefs(useUiStore());
   const { defaultLocale, locales, setLocale } = useI18n();
@@ -82,36 +67,11 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
 
   const isReady = computed(() => isInitialized.value && orm.value !== null);
 
-  const setPermissionPrompt = (error: PermissionPromptError, retryFn: () => Promise<void>) => {
-    pendingPermission.value = error;
-    pendingRetryFn.value = retryFn;
-  };
-  const clearPermissionPrompt = () => {
-    pendingPermission.value = null;
-    pendingRetryFn.value = null;
-  };
-  const retryAfterPermissionAsync = async () => {
-    const retryFn = pendingRetryFn.value;
-    if (retryFn) {
-      clearPermissionPrompt();
-      await retryFn();
-    }
-  };
-  const setPermissionDenied = (error: PermissionDeniedError) => { deniedPermission.value = error; };
-  const clearPermissionDenied = () => { deniedPermission.value = null; };
-
   return {
     get client() { return getHaexVault().client; },
     get state() { return getHaexVault().state; },
     orm,
     isReady,
     initializeAsync,
-    pendingPermission: computed(() => pendingPermission.value),
-    setPermissionPrompt,
-    clearPermissionPrompt,
-    retryAfterPermissionAsync,
-    deniedPermission: computed(() => deniedPermission.value),
-    setPermissionDenied,
-    clearPermissionDenied,
   };
 });

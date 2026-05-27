@@ -37,6 +37,13 @@
               @keydown.enter="handleConnect"
             >
           </div>
+          <label class="flex items-start gap-3 cursor-pointer pt-1">
+            <ShadcnCheckbox v-model="form.storeInManager" class="mt-0.5" />
+            <span class="text-sm">
+              {{ t('fields.storeInManager') }}
+              <span class="block text-xs text-muted-foreground">{{ t('fields.storeInManagerHint') }}</span>
+            </span>
+          </label>
         </template>
 
         <!-- Phase 2: Calendar selection -->
@@ -123,6 +130,7 @@ const form = reactive({
   serverUrl: "",
   username: "",
   password: "",
+  storeInManager: true,
 });
 
 const discoveredCalendars = ref<CaldavCalendarInfo[]>([]);
@@ -143,6 +151,7 @@ watch(isOpen, (open) => {
     form.serverUrl = "";
     form.username = "";
     form.password = "";
+    form.storeInManager = true;
     discoveredCalendars.value = [];
     selectedPaths.value = new Set();
     discoveryResult.value = null;
@@ -187,6 +196,7 @@ async function handleSubscribe() {
       serverUrl: form.serverUrl.trim(),
       username: form.username.trim(),
       password: form.password,
+      storeInManager: form.storeInManager,
       principalUrl: discoveryResult.value.principalUrl,
       calendarHomeUrl: discoveryResult.value.calendarHomeUrl,
     });
@@ -218,7 +228,8 @@ async function handleSubscribe() {
     isOpen.value = false;
   } catch (err) {
     console.error("[haex-calendar] CalDAV subscribe failed:", err);
-    errorMessage.value = t("errors.subscribe");
+    const detail = err instanceof Error ? err.message : String(err);
+    errorMessage.value = `${t("errors.subscribe")} (${detail})`;
   } finally {
     isProcessing.value = false;
   }
@@ -256,6 +267,8 @@ de:
     serverUrlPlaceholder: https://cloud.example.com
     username: Benutzername
     password: Passwort
+    storeInManager: Zugangsdaten im HaexVault-Passwortmanager speichern
+    storeInManagerHint: Andernfalls bleibt das Passwort nur in dieser Erweiterung gespeichert.
   selectDescription: Wähle die Kalender aus, die du abonnieren möchtest.
   discovering: Verbinde mit Server...
   subscribing: Kalender werden eingerichtet...
@@ -277,6 +290,8 @@ en:
     serverUrlPlaceholder: https://cloud.example.com
     username: Username
     password: Password
+    storeInManager: Save credentials in the HaexVault password manager
+    storeInManagerHint: Otherwise the password is kept only within this extension.
   selectDescription: Select the calendars you want to subscribe to.
   discovering: Connecting to server...
   subscribing: Setting up calendars...
