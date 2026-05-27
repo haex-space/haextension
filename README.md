@@ -27,16 +27,9 @@ Browser-Extension für HaexPass zum automatischen Ausfüllen von Login-Formulare
 - **Firefox:** [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/haexpass/)
 - **Chrome/Chromium:** [Releases](https://github.com/haex-space/haextension/releases) herunterladen und als "unpacked extension" laden
 
-### haex-files - E2E-verschlüsselter File-Sync (in Entwicklung)
+### haex-files - File-Sync (in HaexVault integriert)
 
-Ende-zu-Ende-verschlüsselter, geräteübergreifender Dateisync.
-
-**Geplante Features:**
-- E2E-verschlüsselter File-Sync
-- Multi-Backend-Support (S3, Cloudflare R2, MinIO)
-- Automatische Synchronisation
-- Selective Sync für Mobile
-- Konfliktfreier Multi-Device-Sync (CRDT)
+> **Hinweis:** haex-files wurde vollständig in [HaexVault](https://haex.space) integriert und wird nicht mehr als separate Extension veröffentlicht. Das Verzeichnis `apps/haex-files/` bleibt nur als Archiv erhalten.
 
 ## Projektstruktur
 
