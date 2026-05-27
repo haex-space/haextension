@@ -171,17 +171,90 @@
           <p class="text-xs text-muted-foreground">{{ t('timezone.description') }}</p>
         </div>
       </section>
+
+      <!-- Section: External Calendars -->
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{{ t('external.title') }}</h2>
+          <button
+            v-if="caldavAccounts.accounts.length > 0"
+            class="flex items-center gap-1.5 text-sm text-primary hover:opacity-80 disabled:opacity-50"
+            :disabled="caldavSync.isSyncing"
+            @click="syncAll"
+          >
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': caldavSync.isSyncing }" />
+            {{ t('external.syncAll') }}
+          </button>
+        </div>
+
+        <!-- Account list -->
+        <div
+          v-for="account in caldavAccounts.accounts"
+          :key="account.id"
+          class="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-muted"
+        >
+          <Cloud class="w-5 h-5 mt-0.5 shrink-0 text-muted-foreground" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">{{ account.name }}</p>
+            <p class="text-xs text-muted-foreground truncate">{{ account.serverUrl }}</p>
+            <p class="text-xs text-muted-foreground">
+              {{ account.lastSyncAt ? t('external.lastSync', { time: formatSyncTime(account.lastSyncAt) }) : t('external.neverSynced') }}
+            </p>
+          </div>
+          <button
+            class="p-1.5 rounded-md hover:bg-background transition-colors text-destructive shrink-0"
+            :title="t('external.delete')"
+            @click="confirmDelete(account.id)"
+          >
+            <Trash2 class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Empty state -->
+        <p v-if="caldavAccounts.accounts.length === 0" class="text-sm text-muted-foreground">
+          {{ t('external.empty') }}
+        </p>
+
+        <!-- Add button -->
+        <button
+          class="flex items-center gap-2 w-full justify-center bg-muted hover:bg-muted/80 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+          @click="showCaldavDialog = true"
+        >
+          <Plus class="w-4 h-4" />
+          {{ t('external.add') }}
+        </button>
+      </section>
     </div>
+
+    <!-- CalDAV Account Dialog -->
+    <CalendarCaldavAccountDialog v-model:open="showCaldavDialog" />
+
+    <!-- Delete account confirmation -->
+    <ShadcnAlertDialog v-model:open="showDeleteConfirm">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t('external.deleteConfirm.title') }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>{{ t('external.deleteConfirm.description') }}</ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t('external.deleteConfirm.abort') }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="executeDelete">{{ t('external.deleteConfirm.confirm') }}</ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft } from "lucide-vue-next";
+import { ArrowLeft, Cloud, Plus, RefreshCw, Trash2 } from "lucide-vue-next";
 import type { DefaultEventDuration } from "~/stores/settings";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 const settings = useSettingsStore();
+const caldavAccounts = useCaldavAccountsStore();
+const caldavSync = useCaldavSyncStore();
+const calendarsStore = useCalendarsStore();
 
 const eventDurationStr = computed({
   get: () => String(settings.defaultEventDuration),
@@ -191,6 +264,37 @@ const eventDurationStr = computed({
 });
 
 const timezones = Intl.supportedValuesOf("timeZone");
+
+// --- External calendars (CalDAV accounts) ---
+const showCaldavDialog = ref(false);
+const showDeleteConfirm = ref(false);
+const deleteAccountId = ref<string | null>(null);
+
+onMounted(() => {
+  caldavAccounts.loadAccountsAsync();
+});
+
+function formatSyncTime(date: Date) {
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+async function syncAll() {
+  await caldavSync.syncAllRemoteCalendarsAsync();
+  await caldavAccounts.loadAccountsAsync();
+}
+
+function confirmDelete(id: string) {
+  deleteAccountId.value = id;
+  showDeleteConfirm.value = true;
+}
+
+async function executeDelete() {
+  if (!deleteAccountId.value) return;
+  await caldavAccounts.deleteAccountAsync(deleteAccountId.value);
+  await calendarsStore.loadCalendarsAsync();
+  deleteAccountId.value = null;
+  showDeleteConfirm.value = false;
+}
 </script>
 
 <i18n lang="yaml">
@@ -232,6 +336,19 @@ de:
   timezone:
     label: Zeitzone
     description: Wird für neue Events verwendet
+  external:
+    title: Externe Kalender
+    add: CalDAV-Konto verbinden
+    syncAll: Synchronisieren
+    empty: Noch keine externen Kalender verbunden.
+    lastSync: "Zuletzt synchronisiert: {time}"
+    neverSynced: Noch nicht synchronisiert
+    delete: Konto entfernen
+    deleteConfirm:
+      title: Konto entfernen?
+      description: Das Konto und alle zugehörigen Kalender und Termine werden lokal gelöscht. Das gespeicherte Passwort wird aus dem Passwortmanager entfernt.
+      abort: Abbrechen
+      confirm: Entfernen
 en:
   title: Settings
   sections:
@@ -270,4 +387,17 @@ en:
   timezone:
     label: Timezone
     description: Used for new events
+  external:
+    title: External Calendars
+    add: Connect CalDAV Account
+    syncAll: Sync
+    empty: No external calendars connected yet.
+    lastSync: "Last synced: {time}"
+    neverSynced: Not synced yet
+    delete: Remove account
+    deleteConfirm:
+      title: Remove account?
+      description: The account and all associated calendars and events will be deleted locally. The stored password will be removed from the password manager.
+      abort: Cancel
+      confirm: Remove
 </i18n>

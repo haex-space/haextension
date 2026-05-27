@@ -6,6 +6,12 @@
     "filesystem": [],
     "shell": [],
     "web": [],
+    "passwords": [
+      {
+        "target": "haex-calendar",
+        "operation": "read_write"
+      }
+    ],
     "spaces": [
       {
         "target": "*",
