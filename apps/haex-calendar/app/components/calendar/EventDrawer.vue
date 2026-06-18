@@ -315,8 +315,11 @@ import { rruleFrequency } from "~/lib/rrule";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
+import type { EventDrawerInitialValues } from "~/stores/eventDrawer";
+
 const props = defineProps<{
   eventId?: string | null;
+  initialValues?: EventDrawerInitialValues | null;
 }>();
 
 const { t } = useI18n();
@@ -456,33 +459,57 @@ onMounted(() => {
   eventTypesStore.loadTypesAsync();
 });
 
+/**
+ * Parse an ISO/all-day dtstring into the {date, time} pair the form uses.
+ * Same logic as the load path below, exposed as a helper so initialValues
+ * (which carry dtstart/dtend strings) can reuse it.
+ */
+function parseDtToFormPair(dt: string, allDay: boolean, defaultTime: string): { date: string; time: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (allDay) return { date: dt.split("T")[0] ?? "", time: defaultTime };
+  const d = new Date(dt);
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 // Load event data when eventId changes
 watch(
-  () => props.eventId,
-  async (id) => {
+  () => [props.eventId, props.initialValues] as const,
+  async ([id, initial]) => {
     if (!id) {
+      // New-event mode: start from defaults, then layer initialValues on top.
+      // Date/time form fields are derived from the optional dtstart/dtend.
+      const startPair = initial?.dtstart
+        ? parseDtToFormPair(initial.dtstart, !!initial.allDay, "09:00")
+        : { date: "", time: "09:00" };
+      const endPair = initial?.dtend
+        ? parseDtToFormPair(initial.dtend, !!initial.allDay, "10:00")
+        : { date: "", time: "10:00" };
+
       Object.assign(form, {
-        summary: "",
-        kind: "event",
-        startDate: "",
-        endDate: "",
-        startTime: "09:00",
-        endTime: "10:00",
-        allDay: false,
-        location: "",
+        summary: initial?.summary ?? "",
+        kind: initial?.kind ?? "event",
+        startDate: startPair.date,
+        endDate: endPair.date,
+        startTime: startPair.time,
+        endTime: endPair.time,
+        allDay: initial?.allDay ?? false,
+        location: initial?.location ?? "",
         status: "CONFIRMED",
         color: null,
         colorOverride: false,
         categories: "",
         url: "",
-        description: "",
-        calendarId: calendarsStore.calendars[0]?.id ?? "",
+        description: initial?.description ?? "",
+        calendarId: initial?.calendarId ?? calendarsStore.calendars[0]?.id ?? "",
         eventTypeId: null,
-        reminderOffsets: [],
-        rrule: null,
-        rruleOverride: false,
+        reminderOffsets: initial?.reminderOffsets ?? [],
+        rrule: initial?.rrule ?? null,
+        rruleOverride: !!initial?.rrule,
       });
-      remindersOverridden.value = false;
+      remindersOverridden.value = (initial?.reminderOffsets?.length ?? 0) > 0;
       typeWatcherArmed = true;
       return;
     }

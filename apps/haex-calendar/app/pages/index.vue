@@ -274,6 +274,7 @@
     <CalendarEventDrawer
       v-model:open="eventDrawer.isOpen"
       :event-id="eventDrawer.eventId"
+      :initial-values="eventDrawer.initialValues"
     />
 
     <!-- Share Calendar Dialog -->

@@ -235,17 +235,27 @@ async function handleCreate() {
   return id;
 }
 
-async function handleMoreDetails() {
+function handleMoreDetails() {
   if (!selectedCalendarId.value) return;
 
-  const id = await eventsStore.createEventAsync(
-    buildEventPayload(title.value.trim() || t("titlePlaceholder")),
-  );
+  // Don't create the event yet — hand the collected values to the full
+  // EventDrawer in "new" mode. The actual create happens when the user hits
+  // Save there; clicking Cancel discards the draft cleanly (no orphan row,
+  // and the delete button stays correctly hidden during creation).
+  const { dtstart, dtend, allDay: isAllDay } = buildEventData();
+  eventDrawer.openNew({
+    calendarId: selectedCalendarId.value,
+    summary: title.value.trim(),
+    dtstart,
+    dtend,
+    allDay: isAllDay,
+    location: location.value.trim() || null,
+    description: description.value.trim() || null,
+    reminderOffsets: [...reminderOffsets.value],
+    rrule: rrule.value,
+  });
 
   emit("created");
-  if (id) {
-    eventDrawer.open(id);
-  }
 }
 </script>
 
