@@ -256,7 +256,7 @@
         <button
           v-if="!isNew"
           class="text-destructive hover:text-destructive/80 px-3 py-2 transition-colors"
-          @click="handleDelete"
+          @click="confirmDelete"
         >
           {{ t('delete') }}
         </button>
@@ -276,6 +276,30 @@
       </div>
     </template>
   </UiDrawerModal>
+
+  <ShadcnAlertDialog v-model:open="showDeleteConfirm">
+    <ShadcnAlertDialogContent>
+      <ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogTitle>
+          {{ t(form.kind === 'task' ? 'deleteConfirm.titleTask' : 'deleteConfirm.titleEvent') }}
+        </ShadcnAlertDialogTitle>
+        <ShadcnAlertDialogDescription>
+          <span class="font-semibold inline-block my-1">{{ form.summary || t('deleteConfirm.untitled') }}</span>
+          <br>
+          {{ form.rrule ? t('deleteConfirm.descriptionRecurring') : t('deleteConfirm.description') }}
+        </ShadcnAlertDialogDescription>
+      </ShadcnAlertDialogHeader>
+      <ShadcnAlertDialogFooter>
+        <ShadcnAlertDialogCancel>{{ t('deleteConfirm.cancel') }}</ShadcnAlertDialogCancel>
+        <ShadcnAlertDialogAction
+          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          @click="executeDelete"
+        >
+          {{ t('deleteConfirm.confirm') }}
+        </ShadcnAlertDialogAction>
+      </ShadcnAlertDialogFooter>
+    </ShadcnAlertDialogContent>
+  </ShadcnAlertDialog>
 </template>
 
 <script setup lang="ts">
@@ -568,9 +592,17 @@ async function handleSave() {
   isOpen.value = false;
 }
 
-async function handleDelete() {
+const showDeleteConfirm = ref(false);
+
+function confirmDelete() {
+  if (!props.eventId) return;
+  showDeleteConfirm.value = true;
+}
+
+async function executeDelete() {
   if (!props.eventId) return;
   await eventsStore.deleteEventAsync(props.eventId);
+  showDeleteConfirm.value = false;
   isOpen.value = false;
 }
 </script>
@@ -627,6 +659,14 @@ de:
   save: Speichern
   cancel: Abbrechen
   delete: Löschen
+  deleteConfirm:
+    titleEvent: Termin löschen?
+    titleTask: Aufgabe löschen?
+    description: Wird unwiderruflich gelöscht.
+    descriptionRecurring: Die gesamte Serie wird unwiderruflich gelöscht (alle Wiederholungen).
+    untitled: (ohne Titel)
+    confirm: Löschen
+    cancel: Abbrechen
 en:
   title:
     new: New Event
@@ -678,4 +718,12 @@ en:
   save: Save
   cancel: Cancel
   delete: Delete
+  deleteConfirm:
+    titleEvent: Delete event?
+    titleTask: Delete task?
+    description: This will be permanently deleted.
+    descriptionRecurring: The whole series will be permanently deleted (every occurrence).
+    untitled: (untitled)
+    confirm: Delete
+    cancel: Cancel
 </i18n>
