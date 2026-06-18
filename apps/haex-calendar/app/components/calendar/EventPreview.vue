@@ -2,6 +2,18 @@
   <UiDrawerModal v-model:open="preview.isOpen" :title="event?.summary" :description="dateDescription">
     <template #content>
       <div class="space-y-3 p-4">
+        <!-- Task completion -->
+        <label
+          v-if="master?.kind === 'task'"
+          class="flex items-center gap-2 text-sm cursor-pointer"
+          @click.prevent="toggleComplete"
+        >
+          <ShadcnCheckbox :model-value="!!master?.completedAt" />
+          <span :class="master?.completedAt ? 'line-through opacity-60' : ''">
+            {{ master?.completedAt ? t('completed') : t('markComplete') }}
+          </span>
+        </label>
+
         <!-- Time -->
         <div v-if="event && !event.allDay" class="flex items-center gap-2 text-sm">
           <Clock class="w-4 h-4 text-muted-foreground shrink-0" />
@@ -49,29 +61,26 @@
     </template>
 
     <template #footer>
-      <div class="w-full">
-        <div class="-mx-6 border-t border-border" />
-        <div class="flex gap-2 pt-4">
-          <button
-            class="text-destructive hover:text-destructive/80 px-3 py-2 transition-colors"
-            @click="handleDelete"
-          >
-            <Trash2 class="w-4 h-4" />
-          </button>
-          <div class="flex-1" />
-          <button
-            class="text-muted-foreground px-3 py-2"
-            @click="preview.close()"
-          >
-            {{ t('close') }}
-          </button>
-          <button
-            class="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
-            @click="handleEdit"
-          >
-            {{ t('edit') }}
-          </button>
-        </div>
+      <div class="flex gap-2 w-full">
+        <button
+          class="text-destructive hover:text-destructive/80 px-3 py-2 transition-colors"
+          @click="handleDelete"
+        >
+          <Trash2 class="w-4 h-4" />
+        </button>
+        <div class="flex-1" />
+        <button
+          class="text-muted-foreground px-3 py-2"
+          @click="preview.close()"
+        >
+          {{ t('close') }}
+        </button>
+        <button
+          class="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+          @click="handleEdit"
+        >
+          {{ t('edit') }}
+        </button>
       </div>
     </template>
   </UiDrawerModal>
@@ -86,9 +95,21 @@ const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventDrawer = useEventDrawerStore();
 
-const event = computed(() => {
+const master = computed(() => {
   if (!preview.eventId) return null;
   return eventsStore.getEvent(preview.eventId);
+});
+
+// For recurring events, show the clicked occurrence's date/time (the master's
+// stored dtstart is the base date, possibly years ago).
+const event = computed(() => {
+  const m = master.value;
+  if (!m) return null;
+  const occ = preview.occurrenceStart;
+  if (!occ || occ === m.dtstart) return m;
+  const durationMs = new Date(m.dtend).getTime() - new Date(m.dtstart).getTime();
+  const occEnd = new Date(new Date(occ).getTime() + Math.max(0, durationMs));
+  return { ...m, dtstart: occ, dtend: occEnd.toISOString() };
 });
 
 const calendar = computed(() => {
@@ -126,6 +147,13 @@ async function handleDelete() {
   preview.close();
   await eventsStore.deleteEventAsync(id);
 }
+
+async function toggleComplete() {
+  const id = preview.eventId;
+  if (!id) return;
+  preview.close();
+  await eventsStore.completeTaskAsync(id);
+}
 </script>
 
 <i18n lang="yaml">
@@ -133,6 +161,8 @@ de:
   allDay: Ganztägig
   close: Schließen
   edit: Bearbeiten
+  markComplete: Als erledigt markieren
+  completed: Erledigt
   status:
     tentative: Vorläufig
     cancelled: Abgesagt
@@ -140,6 +170,8 @@ en:
   allDay: All day
   close: Close
   edit: Edit
+  markComplete: Mark as complete
+  completed: Completed
   status:
     tentative: Tentative
     cancelled: Cancelled

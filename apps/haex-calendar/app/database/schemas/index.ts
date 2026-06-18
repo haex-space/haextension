@@ -58,7 +58,11 @@ export const events = sqliteTable(
 
     // Date/time (ISO 8601 strings for direct iCal compatibility)
     dtstart: text().notNull(),               // DTSTART — "2026-03-09T14:00:00"
-    dtend: text().notNull(),                 // DTEND — "2026-03-09T15:00:00"
+    // DTEND — "2026-03-09T15:00:00". Kept NOT NULL (the CRDT-managed events
+    // table is not safe to recreate just to relax nullability). For tasks
+    // (kind="task") this mirrors dtstart and is ignored — VTODO export emits
+    // dtstart as DUE and omits DTEND.
+    dtend: text().notNull(),
     allDay: integer("all_day", { mode: "boolean" }).notNull().default(false),
     timezone: text().notNull().default("Europe/Berlin"), // TZID
 
@@ -71,11 +75,77 @@ export const events = sqliteTable(
     etag: text(),
     href: text(),
 
+    // --- Termin/Aufgabe, Termin-Arten, Wiederholung (migrations 0005–0008) ---
+    // "event" (Termin) or "task" (Aufgabe). Existing rows default to "event".
+    kind: text().notNull().default("event"),
+    // References event_types.id. No DB-level FK (added via ALTER COLUMN, and the
+    // event_types table is created in a later migration). ON DELETE SET NULL is
+    // enforced in app code (see stores/eventTypes.ts deleteAsync).
+    eventTypeId: text("event_type_id"),
+    // RFC 5545 RRULE string, e.g. "FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=15".
+    rrule: text(),
+    // Event's rrule overrides the type's default (even when rrule is null).
+    rruleOverride: integer("rrule_override", { mode: "boolean" }).notNull().default(false),
+    // Event's color was set explicitly (overrides the type's color).
+    colorOverride: integer("color_override", { mode: "boolean" }).notNull().default(false),
+    // Tasks only: set = done.
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+
     ...timestamps,
   }
 );
 export type InsertEvent = typeof events.$inferInsert;
 export type SelectEvent = typeof events.$inferSelect;
+
+/**
+ * Event-Types ("Termin-Arten") — user-defined categories that carry default
+ * reminders and recurrence. Local only (not synced); see migration 0006.
+ */
+export const eventTypes = sqliteTable(
+  tableName("event_types"),
+  {
+    id: text().primaryKey(),
+    name: text().notNull().unique(),     // "Geburtstag", "Urlaub"
+    color: text().notNull(),             // hex
+    defaultRrule: text("default_rrule"), // optional default recurrence
+    ...timestamps,
+  }
+);
+export type InsertEventType = typeof eventTypes.$inferInsert;
+export type SelectEventType = typeof eventTypes.$inferSelect;
+
+/**
+ * Per-event reminders. If an event has ≥1 row here, these win (no merge with
+ * the type defaults). Empty → the type's defaults fire. See migration 0007.
+ */
+export const eventReminders = sqliteTable(
+  tableName("event_reminders"),
+  {
+    id: text().primaryKey(),
+    eventId: text("event_id")
+      .references((): AnySQLiteColumn => events.id, { onDelete: "cascade" })
+      .notNull(),
+    offsetMinutes: integer("offset_minutes").notNull(), // 10080 = 1 week
+  }
+);
+export type InsertEventReminder = typeof eventReminders.$inferInsert;
+export type SelectEventReminder = typeof eventReminders.$inferSelect;
+
+/**
+ * Default reminders for an event-type. See migration 0008.
+ */
+export const eventTypeReminders = sqliteTable(
+  tableName("event_type_reminders"),
+  {
+    id: text().primaryKey(),
+    eventTypeId: text("event_type_id")
+      .references((): AnySQLiteColumn => eventTypes.id, { onDelete: "cascade" })
+      .notNull(),
+    offsetMinutes: integer("offset_minutes").notNull(),
+  }
+);
+export type InsertEventTypeReminder = typeof eventTypeReminders.$inferInsert;
+export type SelectEventTypeReminder = typeof eventTypeReminders.$inferSelect;
 
 /**
  * Settings — single-row table for user preferences (synced across devices).

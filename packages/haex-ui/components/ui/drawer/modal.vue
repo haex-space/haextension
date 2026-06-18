@@ -16,11 +16,16 @@
       </ShadcnDrawerHeader>
 
       <!-- Scrollable Content -->
-      <ShadcnScrollArea class="flex-1 min-h-0 px-4 pb-4">
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 px-4 pb-4">
         <slot name="content" />
-      </ShadcnScrollArea>
+      </div>
 
-      <!-- Footer (optional) -->
+      <!--
+        Footer (optional).
+        IMPORTANT: This wrapper provides the top border AND padding for every
+        consumer. Footer slot content MUST NOT add its own `border-t` or `p-*`
+        — doing so produces a duplicated line / mismatched padding.
+      -->
       <ShadcnDrawerFooter v-if="$slots.footer" class="shrink-0 border-t border-border">
         <slot name="footer" />
       </ShadcnDrawerFooter>
@@ -44,11 +49,18 @@
       </ShadcnDialogHeader>
 
       <!-- Scrollable Dialog Body -->
-      <ShadcnScrollArea class="flex-1 min-h-0">
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
         <slot name="content" />
-      </ShadcnScrollArea>
+      </div>
 
-      <!-- Dialog Footer (optional) -->
+      <!--
+        Dialog Footer (optional).
+        IMPORTANT: This wrapper provides the top border for every consumer.
+        Footer slot content MUST NOT add its own `border-t` — doing so
+        produces a duplicated line. Horizontal padding comes from
+        ShadcnDialogContent's `p-6`; vertical separation is the border itself
+        plus the parent grid's `gap-4`.
+      -->
       <ShadcnDialogFooter v-if="$slots.footer" class="shrink-0 border-t border-border">
         <slot name="footer" />
       </ShadcnDialogFooter>

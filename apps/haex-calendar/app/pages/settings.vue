@@ -172,6 +172,12 @@
         </div>
       </section>
 
+      <!-- Section: Event Types ("Termin-Arten") -->
+      <section class="space-y-4">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{{ t('eventTypes.title') }}</h2>
+        <CalendarEventTypesSettings />
+      </section>
+
       <!-- Section: External Calendars -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
@@ -336,6 +342,8 @@ de:
   timezone:
     label: Zeitzone
     description: Wird für neue Events verwendet
+  eventTypes:
+    title: Termin-Arten
   external:
     title: Externe Kalender
     add: CalDAV-Konto verbinden
@@ -387,6 +395,8 @@ en:
   timezone:
     label: Timezone
     description: Used for new events
+  eventTypes:
+    title: Event Types
   external:
     title: External Calendars
     add: Connect CalDAV Account

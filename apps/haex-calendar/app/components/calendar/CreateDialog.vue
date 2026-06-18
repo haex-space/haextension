@@ -32,7 +32,7 @@
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-2 p-4 border-t border-border">
+      <div class="flex justify-end gap-2 w-full">
         <button
           class="text-muted-foreground px-3 py-2"
           @click="isOpen = false"

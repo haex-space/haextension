@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { calendars, events, caldavAccounts } from "~/database/schemas";
-import { parseICS, generateICS } from "~/composables/useIcal";
+import { parseICS, generateICS, useIcal } from "~/composables/useIcal";
 import {
   fetchEventListAsync,
   fetchEventsDataAsync,
@@ -11,7 +11,9 @@ import {
 export const useCaldavSyncStore = defineStore("caldavSync", () => {
   const haexVault = useHaexVaultStore();
   const eventsStore = useEventsStore();
+  const eventTypesStore = useEventTypesStore();
   const accountsStore = useCaldavAccountsStore();
+  const ical = useIcal();
 
   const isSyncing = ref(false);
   const syncErrors = ref<Map<string, string>>(new Map()); // calendarId → error message
@@ -47,6 +49,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     try {
       syncErrors.value.delete(calendarId);
+      await eventTypesStore.loadTypesAsync();
 
       const password = await accountsStore.getPasswordAsync(account);
 
@@ -99,6 +102,8 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
           const eventData = parsed[0]!;
 
           const existingLocal = localByHref.get(fetched.href);
+          // kind / recurrence / type-from-CATEGORIES / completion.
+          const columns = ical.mapImportColumns(eventData);
 
           if (existingLocal) {
             // Update existing
@@ -117,10 +122,13 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
                 url: eventData.url,
                 categories: eventData.categories,
                 color: eventData.color,
+                ...columns,
                 etag: fetched.etag,
                 href: fetched.href,
               })
               .where(eq(events.id, existingLocal.id));
+            // VALARM → own reminder rows (empty clears → inherit type defaults).
+            await eventsStore.replaceEventRemindersAsync(existingLocal.id, eventData.reminderOffsets);
           } else {
             // Insert new
             const id = crypto.randomUUID();
@@ -140,9 +148,11 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
               url: eventData.url,
               categories: eventData.categories,
               color: eventData.color,
+              ...columns,
               etag: fetched.etag,
               href: fetched.href,
             });
+            await eventsStore.replaceEventRemindersAsync(id, eventData.reminderOffsets);
           }
         }
       }
@@ -232,8 +242,9 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     const password = await accountsStore.getPasswordAsync(account);
 
-    // Generate ICS for this single event
-    const icsData = generateICS([eventRow], calendarRow.name);
+    // Generate ICS for this single event (effective rrule/reminders/type/colour)
+    const items = await ical.buildExportItemsAsync([eventRow]);
+    const icsData = generateICS(items, calendarRow.name);
 
     // Determine href — use existing or create new
     const href = eventRow.href || `${calendarRow.caldavPath}${eventRow.uid}.ics`;

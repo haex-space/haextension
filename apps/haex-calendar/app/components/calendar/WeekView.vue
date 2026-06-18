@@ -40,7 +40,7 @@
         >
           <div
             v-for="bar in allDayBars.bars"
-            :key="bar.event.id"
+            :key="`${bar.event.id}-${bar.event.dtstart}`"
             :class="[
               'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity h-[18px] leading-[18px]',
               isEventPast(bar.event) && 'opacity-40',
@@ -51,7 +51,7 @@
               backgroundColor: getEventColor(bar.event),
               color: 'white',
             }"
-            @click.stop="eventPreview.open(bar.event.id)"
+            @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
           >
             {{ bar.showTitle ? bar.event.summary : '' }}
           </div>
@@ -116,7 +116,7 @@
           <!-- Positioned events -->
           <div
             v-for="pe in getPositionedEvents(day.key)"
-            :key="pe.event.id"
+            :key="`${pe.event.id}-${pe.event.dtstart}`"
             data-event
             :class="[
               'absolute rounded-md px-1.5 py-0.5 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-xs border',
@@ -131,7 +131,7 @@
               borderColor: getEventColor(pe.event),
               color: getEventColor(pe.event),
             }"
-            @click.stop="eventPreview.open(pe.event.id)"
+            @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
             <div class="font-medium truncate">{{ pe.event.summary }}</div>
             <div class="truncate">

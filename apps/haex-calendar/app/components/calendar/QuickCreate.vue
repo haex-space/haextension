@@ -10,6 +10,26 @@
           @keydown.enter="handleCreate"
         >
 
+        <!-- Location -->
+        <div>
+          <label class="text-sm font-medium mb-1 block">{{ t('location') }}</label>
+          <input
+            v-model="location"
+            class="w-full bg-muted rounded-md px-3 py-2 outline-none focus:ring-2 ring-primary placeholder:text-muted-foreground"
+            :placeholder="t('locationPlaceholder')"
+          >
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="text-sm font-medium mb-1 block">{{ t('description') }}</label>
+          <textarea
+            v-model="description"
+            rows="3"
+            class="w-full bg-muted rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ring-primary resize-none"
+          />
+        </div>
+
         <!-- All day toggle -->
         <label class="flex items-center gap-2 cursor-pointer">
           <ShadcnCheckbox v-model="allDay" />
@@ -49,13 +69,24 @@
             </ShadcnSelectItem>
           </ShadcnSelectContent>
         </ShadcnSelect>
+
+        <!-- Reminders -->
+        <div>
+          <label class="text-sm font-medium mb-1 block">{{ t('reminders') }}</label>
+          <CalendarRemindersEditor v-model="reminderOffsets" />
+        </div>
+
+        <!-- Recurrence -->
+        <div>
+          <label class="text-sm font-medium mb-1 block">{{ t('recurrence') }}</label>
+          <CalendarRecurrenceEditor v-model="rrule" :dtstart="recurrenceSampleStart" />
+        </div>
       </div>
     </template>
 
     <template #footer>
       <div class="w-full">
-        <div class="-mx-6 border-t border-border" />
-        <div class="flex justify-end gap-2 pt-4">
+        <div class="flex justify-end gap-2">
           <button
             class="text-muted-foreground hover:text-foreground px-3 py-2 transition-colors"
             @click="handleMoreDetails"
@@ -100,6 +131,10 @@ watch(isOpen, (open) => {
 
 const titleInput = ref<HTMLInputElement | null>(null);
 const title = ref("");
+const location = ref("");
+const description = ref("");
+const reminderOffsets = ref<number[]>([]);
+const rrule = ref<string | null>(null);
 const selectedCalendarId = ref(calendarsStore.calendars[0]?.id ?? "");
 const isMultiDay = !!props.endDate && props.endDate.getTime() !== props.date.getTime();
 const allDay = ref(isMultiDay);
@@ -145,6 +180,13 @@ const formattedDate = computed(() => {
   return dateFormatter.format(props.date);
 });
 
+// Base date for the RRule editor's sample expansions — uses the picked start
+// time so the rule preview reflects what the user just chose.
+const recurrenceSampleStart = computed(() => {
+  if (allDay.value) return props.date;
+  return new Date(`${dateStr}T${startTimeStr.value}`);
+});
+
 function buildEventData() {
   if (allDay.value) {
     const endDay = props.endDate ?? props.date;
@@ -161,22 +203,33 @@ function buildEventData() {
   return { dtstart, dtend, allDay: false };
 }
 
-async function handleCreate() {
-  if (!title.value.trim()) return;
-  if (!selectedCalendarId.value) return;
-
+function buildEventPayload(summary: string) {
   const { dtstart, dtend, allDay: isAllDay } = buildEventData();
-
-  const id = await eventsStore.createEventAsync({
+  return {
     calendarId: selectedCalendarId.value,
-    summary: title.value.trim(),
+    summary,
     dtstart,
     dtend,
     allDay: isAllDay,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    status: "CONFIRMED",
+    status: "CONFIRMED" as const,
     sequence: 0,
-  });
+    location: location.value.trim() || null,
+    description: description.value.trim() || null,
+    rrule: rrule.value,
+    // `undefined` would leave reminders untouched on update; on create we want
+    // to apply whatever the user picked (empty array = no reminders).
+    reminderOffsets: [...reminderOffsets.value],
+  };
+}
+
+async function handleCreate() {
+  if (!title.value.trim()) return;
+  if (!selectedCalendarId.value) return;
+
+  const id = await eventsStore.createEventAsync(
+    buildEventPayload(title.value.trim()),
+  );
 
   emit("created");
   return id;
@@ -185,18 +238,9 @@ async function handleCreate() {
 async function handleMoreDetails() {
   if (!selectedCalendarId.value) return;
 
-  const { dtstart, dtend, allDay: isAllDay } = buildEventData();
-
-  const id = await eventsStore.createEventAsync({
-    calendarId: selectedCalendarId.value,
-    summary: title.value.trim() || t("titlePlaceholder"),
-    dtstart,
-    dtend,
-    allDay: isAllDay,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    status: "CONFIRMED",
-    sequence: 0,
-  });
+  const id = await eventsStore.createEventAsync(
+    buildEventPayload(title.value.trim() || t("titlePlaceholder")),
+  );
 
   emit("created");
   if (id) {
@@ -212,6 +256,11 @@ de:
   startTime: Von
   endTime: Bis
   allDay: Ganztägig
+  location: Ort
+  locationPlaceholder: Ort hinzufügen
+  description: Beschreibung
+  reminders: Erinnerungen
+  recurrence: Wiederholung
   create: Erstellen
   moreDetails: Mehr Details →
 en:
@@ -220,6 +269,11 @@ en:
   startTime: From
   endTime: To
   allDay: All day
+  location: Location
+  locationPlaceholder: Add location
+  description: Description
+  reminders: Reminders
+  recurrence: Recurrence
   create: Create
   moreDetails: More details →
 </i18n>

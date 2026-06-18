@@ -17,6 +17,12 @@
         "target": "*",
         "operation": "readWrite"
       }
+    ],
+    "notifications": [
+      {
+        "target": "*",
+        "operation": "show"
+      }
     ]
   },
   "icon": "haextension/haex-calendar-logo.png",
