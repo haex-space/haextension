@@ -31,10 +31,7 @@ export function useReminderScheduler() {
   const haexVault = useHaexVaultStore();
   const eventTypesStore = useEventTypesStore();
   const eventsStore = useEventsStore();
-  // Global scope: this composable is instantiated inside a component setup
-  // that already calls useI18n() — a local-scope call here would trigger
-  // Vue-I18n's "Duplicate useI18n calling by local scope" warning.
-  const { locale } = useI18n({ useScope: "global" });
+  const { locale } = useI18n();
 
   let queue: ReminderEntry[] = [];
   let fireTimer: ReturnType<typeof setTimeout> | null = null;
