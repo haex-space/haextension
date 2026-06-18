@@ -120,10 +120,12 @@ export const useEventsStore = defineStore("events", () => {
 
       for (const occ of expandOccurrences(rule, baseStart, start, end)) {
         const occEnd = new Date(occ.getTime() + durationMs);
+        // rrule.js anchors all-day occurrences at UTC midnight; using local
+        // getters here would shift the date by one in non-UTC timezones.
         const dtstart = event.allDay
-          ? toDateOnly(occ)
+          ? toDateOnlyUTC(occ)
           : occ.toISOString();
-        const dtend = event.allDay ? toDateOnly(occEnd) : occEnd.toISOString();
+        const dtend = event.allDay ? toDateOnlyUTC(occEnd) : occEnd.toISOString();
         result.push({ ...event, dtstart, dtend, occurrenceStart: occ.toISOString() });
       }
     }
@@ -135,6 +137,12 @@ export const useEventsStore = defineStore("events", () => {
   function toDateOnly(d: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  /** UTC YYYY-MM-DD — for rrule.js outputs which anchor at UTC midnight. */
+  function toDateOnlyUTC(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
   }
 
   /** Occurrences for the currently visible range — what the views render. */
@@ -294,7 +302,12 @@ export const useEventsStore = defineStore("events", () => {
     const rule = effectiveRrule(ev);
 
     if (rule) {
-      const next = nextOccurrence(rule, new Date(ev.dtstart), new Date(ev.dtstart));
+      // Advance from the LATER of "now" and the stored dtstart. Otherwise an
+      // old master row (e.g. yearly task created in 2020) advances by one
+      // occurrence (→ 2021) instead of jumping to the next upcoming one.
+      const dtstart = new Date(ev.dtstart);
+      const cursor = new Date(Math.max(Date.now(), dtstart.getTime()));
+      const next = nextOccurrence(rule, dtstart, cursor);
       if (next) {
         const durationMs = Math.max(
           0,
@@ -302,8 +315,8 @@ export const useEventsStore = defineStore("events", () => {
         );
         const nextEnd = new Date(next.getTime() + durationMs);
         await updateEventAsync(id, {
-          dtstart: ev.allDay ? toDateOnly(next) : next.toISOString(),
-          dtend: ev.allDay ? toDateOnly(nextEnd) : nextEnd.toISOString(),
+          dtstart: ev.allDay ? toDateOnlyUTC(next) : next.toISOString(),
+          dtend: ev.allDay ? toDateOnlyUTC(nextEnd) : nextEnd.toISOString(),
           completedAt: null,
         });
         return;
