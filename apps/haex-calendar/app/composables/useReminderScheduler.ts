@@ -31,7 +31,10 @@ export function useReminderScheduler() {
   const haexVault = useHaexVaultStore();
   const eventTypesStore = useEventTypesStore();
   const eventsStore = useEventsStore();
-  const { locale } = useI18n();
+  // Use $i18n directly: this composable runs inside a component setup that
+  // already calls useI18n(); calling useI18n() here too would either trigger
+  // a duplicate-local-scope warning or interfere with the parent's scope.
+  const { locale } = useNuxtApp().$i18n;
 
   let queue: ReminderEntry[] = [];
   let fireTimer: ReturnType<typeof setTimeout> | null = null;

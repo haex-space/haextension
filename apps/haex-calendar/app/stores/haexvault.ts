@@ -14,7 +14,11 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
   const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
 
   const { currentThemeName, context } = storeToRefs(useUiStore());
-  const { defaultLocale, locales, setLocale } = useI18n();
+  // Direct $i18n access avoids the "Duplicate useI18n calling by local scope"
+  // warning that fires when this store's setup runs inside a component which
+  // also calls useI18n(). The store has no <i18n> block of its own, so it
+  // doesn't need a composer scope at all — just the underlying instance.
+  const { defaultLocale, locales, setLocale } = nuxtApp.$i18n;
 
   const getHaexVault = () => {
     const haexVault = nuxtApp.$haexVault;
