@@ -81,6 +81,14 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
       .where(eq(caldavAccounts.id, id))
       .limit(1);
 
+    // Delete the credential from the password manager FIRST. If the local
+    // rows go first and this call then fails (network, permission revoked),
+    // the secret would orphan in the password manager with no local row
+    // pointing at it — undeletable from the UI.
+    if (account?.passwordItemId) {
+      await haexVault.client.passwords.deleteAsync(account.passwordItemId);
+    }
+
     // First delete all events belonging to calendars of this account
     const accountCalendars = await haexVault.orm
       .select({ id: calendars.id })
@@ -96,11 +104,6 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
 
     // Delete the account itself
     await haexVault.orm.delete(caldavAccounts).where(eq(caldavAccounts.id, id));
-
-    // Remove the credential from the password manager
-    if (account?.passwordItemId) {
-      await haexVault.client.passwords.deleteAsync(account.passwordItemId);
-    }
 
     await loadAccountsAsync();
   }

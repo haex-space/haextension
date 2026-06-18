@@ -41,7 +41,35 @@ export function useReminderScheduler() {
   let refillTimer: ReturnType<typeof setInterval> | null = null;
   let running = false;
 
+  // In-flight guard. The 500 ms watcher in pages/index.vue and the 30 min
+  // refill timer can both ask for a rebuild while one is already running.
+  // Without serialisation the second SELECT batch can finish first, then
+  // the first overwrites `queue` with its stale rows — and an imminent
+  // reminder gets dropped until the next refill. We let only one rebuild
+  // run at a time; concurrent requests coalesce into a single follow-up
+  // pass after the current one finishes (so the queue reflects the latest
+  // DB state at the end).
+  let rebuilding = false;
+  let rebuildQueued = false;
+
   async function rebuildAsync() {
+    if (rebuilding) {
+      rebuildQueued = true;
+      return;
+    }
+    rebuilding = true;
+    rebuildQueued = false;
+    try {
+      await doRebuildAsync();
+    } finally {
+      rebuilding = false;
+    }
+    if (rebuildQueued) {
+      void rebuildAsync();
+    }
+  }
+
+  async function doRebuildAsync() {
     if (!haexVault.orm) return;
     const now = Date.now();
     const horizon = now + LOOKAHEAD_MS;

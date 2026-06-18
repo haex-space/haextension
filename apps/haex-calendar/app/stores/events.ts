@@ -56,10 +56,19 @@ export const useEventsStore = defineStore("events", () => {
 
     isLoading.value = true;
     try {
-      // Load events overlapping the range, PLUS every recurring/typed master
-      // regardless of its own date — a yearly birthday's master row sits at its
-      // original date (possibly years ago) and must still be expanded into the
-      // current view. A typed event may inherit a default rrule from its type.
+      // Load events overlapping the range, PLUS every master that needs
+      // out-of-range loading to be expandable into the current view:
+      //  - events with their own RRULE (a yearly birthday whose master sits
+      //    at its original date, possibly years ago).
+      //  - events whose type has a default_rrule (the rrule is inherited).
+      // Typed events whose type has NO default_rrule are *not* loaded out of
+      // range — they behave like plain events, so the date overlap is the
+      // only condition that matters. The old `isNotNull(eventTypeId)` branch
+      // pulled the entire history of every typed event on every view change.
+      const typeIdsWithRrule = eventTypesStore.types
+        .filter((t) => t.defaultRrule)
+        .map((t) => t.id);
+
       visibleEvents.value = await haexVault.orm
         .select()
         .from(events)
@@ -72,7 +81,9 @@ export const useEventsStore = defineStore("events", () => {
                 gte(events.dtend, start)  // ends after range starts
               ),
               isNotNull(events.rrule),
-              isNotNull(events.eventTypeId)
+              typeIdsWithRrule.length > 0
+                ? inArray(events.eventTypeId, typeIdsWithRrule)
+                : undefined
             )
           )
         );
