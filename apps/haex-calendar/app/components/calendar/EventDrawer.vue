@@ -174,7 +174,7 @@
                 form.color === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105',
               ]"
               :style="{ backgroundColor: c }"
-              @click="form.color = form.color === c ? null : c"
+              @click="pickColor(c)"
             />
           </div>
         </div>
@@ -308,6 +308,7 @@ const form = reactive({
   location: "",
   status: "CONFIRMED",
   color: null as string | null,
+  colorOverride: false,
   categories: "",
   url: "",
   description: "",
@@ -377,6 +378,49 @@ function resetRecurrence() {
   form.rruleOverride = false;
 }
 
+/**
+ * Click handler for the colour palette. Sets `colorOverride` based on whether
+ * the user actively picked a colour, not on whether `form.color` happens to
+ * hold a non-null value (which it almost always does after load).
+ */
+function pickColor(c: string) {
+  if (form.color === c) {
+    // Toggle off — back to inherited (when typed) or no colour (when not).
+    form.color = null;
+    form.colorOverride = false;
+  } else {
+    form.color = c;
+    form.colorOverride = true;
+  }
+}
+
+// Guard for the eventTypeId watcher: kept false during the watch-load Object.assign
+// so the initial load doesn't get treated as a user-driven type switch.
+let typeWatcherArmed = false;
+
+watch(
+  () => form.eventTypeId,
+  (newTypeId) => {
+    if (!typeWatcherArmed) return;
+    const type = newTypeId ? eventTypesStore.getType(newTypeId) : undefined;
+
+    // Inherited rrule follows the new type's default — keep user overrides intact.
+    if (!form.rruleOverride) {
+      form.rrule = type?.defaultRrule ?? null;
+    }
+    // Inherited reminders: only refresh when the user hasn't overridden them.
+    // form.reminderOffsets stays empty while inherited (the read path applies
+    // the type defaults), so just keep it empty.
+    if (!remindersOverridden.value) {
+      form.reminderOffsets = [];
+    }
+    // Inherited colour follows the new type's color.
+    if (!form.colorOverride) {
+      form.color = null;
+    }
+  },
+);
+
 onMounted(() => {
   eventTypesStore.loadTypesAsync();
 });
@@ -397,6 +441,7 @@ watch(
         location: "",
         status: "CONFIRMED",
         color: null,
+        colorOverride: false,
         categories: "",
         url: "",
         description: "",
@@ -407,6 +452,7 @@ watch(
         rruleOverride: false,
       });
       remindersOverridden.value = false;
+      typeWatcherArmed = true;
       return;
     }
 
@@ -432,6 +478,10 @@ watch(
 
     const ownReminders = await eventsStore.loadEventRemindersAsync(id);
 
+    // Disarm the eventTypeId watcher during load — it would otherwise treat
+    // the initial assignment as a "user switched type" event and overwrite
+    // the just-loaded rrule/reminders with the type defaults.
+    typeWatcherArmed = false;
     Object.assign(form, {
       summary: event.summary,
       kind: event.kind === "task" ? "task" : "event",
@@ -442,7 +492,12 @@ watch(
       allDay: event.allDay,
       location: event.location ?? "",
       status: event.status,
-      color: event.color,
+      // While inheriting, leave form.color empty so the picker shows nothing
+      // highlighted — pre-filling with a stale stored value (e.g. the type's
+      // colour copied at some earlier save) would mislead the user into
+      // thinking they had picked it themselves.
+      color: event.colorOverride ? event.color : null,
+      colorOverride: !!event.colorOverride,
       categories: event.categories ?? "",
       url: event.url ?? "",
       description: event.description ?? "",
@@ -453,6 +508,8 @@ watch(
       rruleOverride: !!event.rruleOverride,
     });
     remindersOverridden.value = ownReminders.length > 0;
+    await nextTick();
+    typeWatcherArmed = true;
   },
   { immediate: true }
 );
@@ -489,7 +546,7 @@ async function handleSave() {
     location: form.location || null,
     status: form.status,
     color: form.color,
-    colorOverride: !!form.color,
+    colorOverride: form.colorOverride,
     categories: form.categories || null,
     url: form.url || null,
     description: form.description || null,

@@ -87,6 +87,38 @@ export function rruleFrequency(rule: string | null | undefined): Frequency | nul
   return FREQ_REVERSE[opts.freq] ?? null;
 }
 
+/**
+ * Semantic equality for two RRULE bodies. `BYDAY=MO,WE` and `BYDAY=WE,MO` are
+ * the same rule even though the strings differ — a raw `===` would treat them
+ * as override-vs-default mismatches and break inheritance after a CalDAV
+ * round-trip.
+ */
+export function rrulesEqual(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  if (a === b) return true;
+  const ao = parseRRule(a);
+  const bo = parseRRule(b);
+  if (!ao || !bo) return false;
+  // Normalize: serialize each set/option in a stable order. RRule.optionsToString
+  // already canonicalises field order; sorting array-valued options handles
+  // BYDAY/BYMONTH/etc. reordering.
+  const normalize = (opts: Partial<Options>) => {
+    const sorted: Record<string, unknown> = {};
+    const keys = Object.keys(opts).sort();
+    for (const k of keys) {
+      const v = (opts as Record<string, unknown>)[k];
+      if (Array.isArray(v)) {
+        sorted[k] = [...v].sort((x, y) => String(x).localeCompare(String(y)));
+      } else {
+        sorted[k] = v;
+      }
+    }
+    return JSON.stringify(sorted);
+  };
+  return normalize(ao) === normalize(bo);
+}
+
 export const FREQUENCIES = FREQ_MAP;
 export { RRule };
 export type { Options };

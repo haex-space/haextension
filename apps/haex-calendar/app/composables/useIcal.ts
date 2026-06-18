@@ -2,6 +2,7 @@ import ICAL from "ical.js";
 import { eq } from "drizzle-orm";
 import { events } from "~/database/schemas";
 import type { SelectEvent, SelectEventType } from "~/database/schemas";
+import { rrulesEqual } from "~/lib/rrule";
 
 export interface ParsedEvent {
   uid: string;
@@ -205,12 +206,29 @@ export function generateICS(items: IcalExportItem[], calendarName: string): stri
   return comp.toString();
 }
 
-/** Match a CATEGORIES value (first entry) against a type name, case-insensitive. */
+/**
+ * Resolve the event type from a CATEGORIES list and return the remaining
+ * user-typed entries. The convention is: if the first entry matches a known
+ * type name (case-insensitive), it's the type slot; the rest is the user's
+ * own categories. If no first-entry match, the whole list stays as-is.
+ */
+export function resolveEventTypeFromCategories(
+  categories: string | null,
+  types: SelectEventType[],
+): { eventTypeId: string | null; categories: string | null } {
+  if (!categories) return { eventTypeId: null, categories: null };
+  const parts = categories.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return { eventTypeId: null, categories: null };
+  const firstLower = parts[0]!.toLowerCase();
+  const matched = types.find((t) => t.name.toLowerCase() === firstLower);
+  if (!matched) return { eventTypeId: null, categories: categories };
+  const rest = parts.slice(1).join(", ");
+  return { eventTypeId: matched.id, categories: rest || null };
+}
+
+/** Back-compat alias retained for any external callers. */
 export function resolveEventTypeId(categories: string | null, types: SelectEventType[]): string | null {
-  if (!categories) return null;
-  const first = categories.split(",")[0]?.trim().toLowerCase();
-  if (!first) return null;
-  return types.find((t) => t.name.toLowerCase() === first)?.id ?? null;
+  return resolveEventTypeFromCategories(categories, types).eventTypeId;
 }
 
 /** Columns derived from a parsed event for import (type/recurrence/kind). */
@@ -219,6 +237,7 @@ export interface ImportColumns {
   rrule: string | null;
   rruleOverride: boolean;
   eventTypeId: string | null;
+  categories: string | null;
   completedAt: Date | null;
 }
 
@@ -242,13 +261,22 @@ export function useIcal() {
         : type
           ? eventTypesStore.getTypeReminders(type.id)
           : [];
+      // Prepend the type name to the user's free-text categories, separated by
+      // a comma. The import step uses the first entry to look up the type and
+      // keeps the rest as the event's own categories — so the user's free-text
+      // tags survive a CalDAV round-trip alongside the type slot.
+      const userCats = event.categories?.trim() || null;
+      const combinedCategories = type
+        ? userCats
+          ? `${type.name}, ${userCats}`
+          : type.name
+        : userCats;
+
       items.push({
         event,
         rrule: eventsStore.effectiveRrule(event),
         reminderOffsets,
-        // Type name takes the CATEGORIES slot when a type is set; otherwise the
-        // event's free-text categories round-trip unchanged.
-        categories: type?.name ?? event.categories ?? null,
+        categories: combinedCategories,
         color: event.colorOverride ? event.color ?? null : type?.color ?? event.color ?? null,
       });
     }
@@ -257,16 +285,24 @@ export function useIcal() {
 
   /** Map a parsed event to the type/recurrence/kind columns (types must be loaded). */
   function mapImportColumns(parsed: ParsedEvent): ImportColumns {
-    const eventTypeId = resolveEventTypeId(parsed.categories, eventTypesStore.types);
+    const { eventTypeId, categories } = resolveEventTypeFromCategories(
+      parsed.categories,
+      eventTypesStore.types,
+    );
     const type = eventTypeId ? eventTypesStore.getType(eventTypeId) : undefined;
-    // Override when the incoming rule differs from the matched type's default
-    // (also true when there is no type but a rule is present, so it applies).
-    const rruleOverride = parsed.rrule ? parsed.rrule !== (type?.defaultRrule ?? null) : false;
+    // Override only when an rrule is actually present AND differs semantically
+    // from the matched type's default. Raw string compare would treat
+    // BYDAY=FR,MO as a different rule than BYDAY=MO,FR and silently lock the
+    // event out of future type-default updates.
+    const rruleOverride = parsed.rrule
+      ? !rrulesEqual(parsed.rrule, type?.defaultRrule ?? null)
+      : false;
     return {
       kind: parsed.kind,
       rrule: parsed.rrule,
       rruleOverride,
       eventTypeId,
+      categories,
       completedAt: parsed.completedAt,
     };
   }
@@ -308,8 +344,9 @@ export function useIcal() {
             status: event.status,
             sequence: event.sequence,
             url: event.url,
-            categories: event.categories,
             color: event.color,
+            // `...columns` carries the type-stripped `categories`, `rrule`,
+            // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
             ...columns,
             reminderOffsets: event.reminderOffsets,
           });
@@ -330,8 +367,9 @@ export function useIcal() {
           status: event.status,
           sequence: event.sequence,
           url: event.url,
-          categories: event.categories,
           color: event.color,
+          // `...columns` carries the type-stripped `categories`, `rrule`,
+          // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
           ...columns,
           reminderOffsets: event.reminderOffsets,
         });
