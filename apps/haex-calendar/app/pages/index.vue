@@ -289,27 +289,39 @@
     />
 
     <!-- Delete calendar confirmation -->
-    <ShadcnAlertDialog v-model:open="showDeleteConfirm">
-      <ShadcnAlertDialogContent>
-        <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('deleteConfirm.title') }}</ShadcnAlertDialogTitle>
-          <ShadcnAlertDialogDescription>
-            <span
-              class="font-semibold inline-block my-1"
-              :style="{ color: deleteCalendarColor }"
-            >{{ deleteCalendarName }}</span>
-            <br>
+    <UiDrawerModal
+      v-model:open="showDeleteConfirm"
+      :title="t('deleteConfirm.title')"
+    >
+      <template #content>
+        <div class="space-y-2 p-4">
+          <p
+            class="font-semibold"
+            :style="{ color: deleteCalendarColor }"
+          >{{ deleteCalendarName }}</p>
+          <p class="text-sm text-muted-foreground">
             {{ t('deleteConfirm.description') }}
-          </ShadcnAlertDialogDescription>
-        </ShadcnAlertDialogHeader>
-        <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('deleteConfirm.abort') }}</ShadcnAlertDialogCancel>
-          <ShadcnAlertDialogAction @click="executeDeleteCalendar">
+          </p>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <button
+            class="text-muted-foreground px-3 py-2"
+            @click="showDeleteConfirm = false"
+          >
+            {{ t('deleteConfirm.abort') }}
+          </button>
+          <button
+            class="bg-destructive text-destructive-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+            @click="executeDeleteCalendar"
+          >
             {{ t('deleteConfirm.confirm') }}
-          </ShadcnAlertDialogAction>
-        </ShadcnAlertDialogFooter>
-      </ShadcnAlertDialogContent>
-    </ShadcnAlertDialog>
+          </button>
+        </div>
+      </template>
+    </UiDrawerModal>
 
     <!-- Toast notifications -->
     <ShadcnSonnerToaster position="bottom-right" />
