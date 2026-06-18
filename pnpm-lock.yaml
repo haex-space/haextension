@@ -6,7 +6,7 @@ settings:
 
 overrides:
   drizzle-orm: 0.45.1
-  '@haex-space/vault-sdk': ^3.2.6
+  '@haex-space/vault-sdk': ^3.3.0
 
 importers:
 
@@ -22,8 +22,8 @@ importers:
   apps/haex-calendar:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.8
-        version: 3.2.8(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
@@ -69,6 +69,9 @@ importers:
       reka-ui:
         specifier: ^2.6.1
         version: 2.7.0(typescript@5.9.3)(vue@3.5.26(typescript@5.9.3))
+      rrule:
+        specifier: ^2.8.1
+        version: 2.8.1
       shadcn-nuxt:
         specifier: 2.3.2
         version: 2.3.2(magicast@0.5.1)
@@ -110,8 +113,8 @@ importers:
   apps/haex-code:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify-json/vscode-icons':
         specifier: ^1.2.45
         version: 1.2.45
@@ -213,8 +216,8 @@ importers:
         specifier: ^1.2.1
         version: 1.2.1
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -292,8 +295,8 @@ importers:
   apps/haex-files:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -377,8 +380,8 @@ importers:
   apps/haex-game-unicorn:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -447,8 +450,8 @@ importers:
   apps/haex-image:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -514,8 +517,8 @@ importers:
   apps/haex-mail:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -587,8 +590,8 @@ importers:
   apps/haex-notes:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -666,8 +669,8 @@ importers:
   apps/haex-pass:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
@@ -769,8 +772,8 @@ importers:
   apps/haex-pass-browser:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@haex/ui':
         specifier: workspace:*
         version: link:../../packages/haex-ui
@@ -881,8 +884,8 @@ importers:
   apps/haex-tetris:
     dependencies:
       '@haex-space/vault-sdk':
-        specifier: ^3.2.6
-        version: 3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        specifier: ^3.3.0
+        version: 3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -1859,29 +1862,8 @@ packages:
     resolution: {integrity: sha512-PyUXQWB42s4jBli435TDiYuVsadwRHnMc27YaLouINktvTWsL3FcKrRMGawTayFk46X+n5bE23RjUTWQwrukWw==}
     engines: {node: '>= 0.10.0'}
 
-  '@haex-space/vault-sdk@3.2.6':
-    resolution: {integrity: sha512-zWDlAD7UhIjiaJBiUVkK9gu8b8/juCAiinH9+TTams03IuHjq3pNuLpR8vYR+yH9WgXyBw40qPNWorx+rv3ryQ==}
-    hasBin: true
-    peerDependencies:
-      '@nuxt/kit': ^3.0.0 || ^4.0.0
-      react: ^18.0.0 || ^19.0.0
-      svelte: ^4.0.0 || ^5.0.0
-      vite: ^5.0.0 || ^6.0.0 || ^7.0.0
-      vue: ^3.0.0
-    peerDependenciesMeta:
-      '@nuxt/kit':
-        optional: true
-      react:
-        optional: true
-      svelte:
-        optional: true
-      vite:
-        optional: true
-      vue:
-        optional: true
-
-  '@haex-space/vault-sdk@3.2.8':
-    resolution: {integrity: sha512-GaiXoNfc4ADBcsyV/Y7nZY2UR0MDTbWWcnJIxQHEphub0Ysz7TciMQa0BEijic20p7K7TFy2Czk3A8xNCD03zA==}
+  '@haex-space/vault-sdk@3.3.0':
+    resolution: {integrity: sha512-F0W0/uQxR7Z7jrm9wiFY6xy82VMTJEskzAp9HkUa+bfSgYtxkibFu6ZSZA1uCxzwFB2R4iBghE8i51SnTpYTnA==}
     hasBin: true
     peerDependencies:
       '@nuxt/kit': ^3.0.0 || ^4.0.0
@@ -7012,6 +6994,9 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rrule@2.8.1:
+    resolution: {integrity: sha512-hM3dHSBMeaJ0Ktp7W38BJZ7O1zOgaFEsn41PDk+yHoEtfLV+PoJt9E9xAlZiWgf/iqEqionN0ebHFZIDAp+iGw==}
+
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
     engines: {node: '>=18'}
@@ -8981,50 +8966,7 @@ snapshots:
 
   '@fregante/relaxed-json@2.0.0': {}
 
-  '@haex-space/vault-sdk@3.2.6(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
-    dependencies:
-      archiver: 7.0.1
-      commander: 14.0.3
-      drizzle-orm: 0.45.1
-      jszip: 3.10.1
-    optionalDependencies:
-      '@nuxt/kit': 4.2.2(magicast@0.5.1)
-      vite: 7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.26(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@aws-sdk/client-rds-data'
-      - '@cloudflare/workers-types'
-      - '@electric-sql/pglite'
-      - '@libsql/client'
-      - '@libsql/client-wasm'
-      - '@neondatabase/serverless'
-      - '@op-engineering/op-sqlite'
-      - '@opentelemetry/api'
-      - '@planetscale/database'
-      - '@prisma/client'
-      - '@tidbcloud/serverless'
-      - '@types/better-sqlite3'
-      - '@types/pg'
-      - '@types/sql.js'
-      - '@upstash/redis'
-      - '@vercel/postgres'
-      - '@xata.io/client'
-      - bare-abort-controller
-      - better-sqlite3
-      - bun-types
-      - expo-sqlite
-      - gel
-      - knex
-      - kysely
-      - mysql2
-      - pg
-      - postgres
-      - prisma
-      - react-native-b4a
-      - sql.js
-      - sqlite3
-
-  '@haex-space/vault-sdk@3.2.8(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
+  '@haex-space/vault-sdk@3.3.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
     dependencies:
       archiver: 7.0.1
       commander: 14.0.3
@@ -15159,6 +15101,10 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.54.0
       '@rollup/rollup-win32-x64-msvc': 4.54.0
       fsevents: 2.3.3
+
+  rrule@2.8.1:
+    dependencies:
+      tslib: 2.8.1
 
   run-applescript@7.1.0: {}
 

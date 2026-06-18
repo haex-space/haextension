@@ -14,7 +14,11 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
   const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
 
   const { currentThemeName, context } = storeToRefs(useUiStore());
-  const { defaultLocale, locales, setLocale } = useI18n();
+  // Global scope: this store gets set up inside the first component that uses
+  // it, so a local-scope useI18n() here would collide with that component's
+  // own useI18n() and trigger Vue-I18n's "Duplicate useI18n calling by local
+  // scope" warning.
+  const { defaultLocale, locales, setLocale } = useI18n({ useScope: "global" });
 
   const getHaexVault = () => {
     const haexVault = nuxtApp.$haexVault;

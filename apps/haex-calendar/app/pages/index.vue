@@ -12,13 +12,19 @@
         <PanelLeftOpen v-else class="w-5 h-5" />
       </button>
 
-      <!-- Navigation -->
+      <!-- Jump to today. Disabled-look when the current view already shows
+           today, so a click would be a no-op and the user can tell. -->
       <button
-        class="p-1.5 rounded-md hover:bg-muted transition-colors shrink-0"
-        :title="t('toolbar.today')"
+        class="px-2.5 py-1 rounded-md text-sm font-medium transition-colors shrink-0"
+        :class="
+          calendarView.isShowingToday
+            ? 'text-muted-foreground/50 cursor-default'
+            : 'hover:bg-muted text-foreground'
+        "
+        :disabled="calendarView.isShowingToday"
         @click="calendarView.today()"
       >
-        <CalendarDays class="w-5 h-5" />
+        {{ t('toolbar.today') }}
       </button>
 
       <button
@@ -323,7 +329,6 @@
 import {
   ChevronLeft,
   ChevronRight,
-  CalendarDays,
   Download,
   EllipsisVertical,
   PanelLeftClose,
@@ -353,6 +358,17 @@ const haexVault = useHaexVaultStore();
 
 const settingsStore = useSettingsStore();
 const eventDrawer = useEventDrawerStore();
+const eventTypesStore = useEventTypesStore();
+const reminderScheduler = useReminderScheduler();
+const eventPreview = useEventPreviewStore();
+
+// Unsubscribe handle for the notification click listener.
+let unsubscribeNotificationClick: (() => void) | null = null;
+
+// Mount-time loads (calendars, types, events, scheduler.start) populate the
+// refs the watchers below observe. Without this gate the watchers would re-run
+// loadEventsAsync / syncRemote / rebuildAsync that onMounted just did.
+const initialized = ref(false);
 
 const showCreateCalendar = ref(false);
 const showCaldavDialog = ref(false);
@@ -399,6 +415,7 @@ onMounted(async () => {
   calendarView.viewMode = settingsStore.defaultView;
 
   await calendarsStore.loadCalendarsAsync();
+  await eventTypesStore.loadTypesAsync();
 
   // Auto-create personal calendar on first run (query DB directly to avoid HMR race conditions)
   if (haexVault.orm) {
@@ -416,16 +433,47 @@ onMounted(async () => {
   // Load CalDAV accounts and trigger initial sync
   await caldavAccounts.loadAccountsAsync();
   caldavSync.syncAllRemoteCalendarsAsync(); // Non-blocking
+
+  // Start firing reminders for the loaded data.
+  reminderScheduler.start();
+
+  // React to clicks on our notifications (deep-link "/event/:id"). Optional-
+  // chained so it is a no-op against SDKs without the notifications API.
+  unsubscribeNotificationClick =
+    haexVault.client.notifications?.onClick?.((e) => {
+      const path = e.path;
+      if (!path?.startsWith("/event/")) return;
+      const id = path.slice("/event/".length).split("?")[0];
+      if (id) eventPreview.open(id);
+    }) ?? null;
+
+  initialized.value = true;
+});
+
+onUnmounted(() => {
+  reminderScheduler.stop();
+  unsubscribeNotificationClick?.();
 });
 
 // Reload events when view range or visible calendars change
 watchDebounced(
   () => [calendarView.visibleRange, calendarsStore.visibleCalendarIds] as const,
   () => {
+    if (!initialized.value) return;
     eventsStore.loadEventsAsync();
     caldavSync.syncAllRemoteCalendarsAsync();
   },
   { debounce: 100, deep: true }
+);
+
+// Recompute reminders after event / type / reminder mutations.
+watchDebounced(
+  () => [eventsStore.rawEvents, eventTypesStore.types, eventTypesStore.remindersByType] as const,
+  () => {
+    if (!initialized.value) return;
+    reminderScheduler.refresh();
+  },
+  { debounce: 500, deep: true }
 );
 
 // iCal import

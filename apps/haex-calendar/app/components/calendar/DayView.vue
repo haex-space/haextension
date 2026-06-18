@@ -8,10 +8,10 @@
       <div class="text-xs text-muted-foreground mb-1">{{ t('allDay') }}</div>
       <div
         v-for="event in allDayEventsForDay"
-        :key="event.id"
+        :key="`${event.id}-${event.dtstart}`"
         :class="['text-xs px-2 py-1 rounded cursor-pointer', isEventPast(event) && 'opacity-40']"
         :style="{ backgroundColor: getEventColor(event), color: 'white' }"
-        @click="eventPreview.open(event.id)"
+        @click="eventPreview.open(event.id, event.dtstart)"
       >
         {{ event.summary }}
       </div>
@@ -73,7 +73,7 @@
           <!-- Positioned events -->
           <div
             v-for="pe in positionedEvents"
-            :key="pe.event.id"
+            :key="`${pe.event.id}-${pe.event.dtstart}`"
             data-event
             :class="[
               'absolute rounded-md px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-sm border',
@@ -88,7 +88,7 @@
               borderColor: getEventColor(pe.event),
               color: getEventColor(pe.event),
             }"
-            @click.stop="eventPreview.open(pe.event.id)"
+            @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
             <div class="font-medium">{{ pe.event.summary }}</div>
             <div>

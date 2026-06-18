@@ -84,6 +84,30 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
   });
 
   /**
+   * Whether the current view already shows today — used to gray out the
+   * "jump to today" button so the user knows their click would be a no-op.
+   * Granularity matches the current view: same day for day view, same ISO
+   * week for week view, same month/year for month view.
+   */
+  const isShowingToday = computed(() => {
+    const now = new Date();
+    const d = currentDate.value;
+    switch (viewMode.value) {
+      case "day":
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth() &&
+          d.getDate() === now.getDate()
+        );
+      case "week": {
+        return startOfWeek(d).getTime() === startOfWeek(now).getTime();
+      }
+      case "month":
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+  });
+
+  /**
    * Title for the toolbar (e.g., "März 2026", "KW 10, 2026", "9. März 2026")
    */
   const title = computed(() => {
@@ -157,6 +181,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
     currentDate,
     visibleRange,
     title,
+    isShowingToday,
     next,
     prev,
     today,

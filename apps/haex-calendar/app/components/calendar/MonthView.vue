@@ -59,7 +59,7 @@
           :style="{ gridTemplateColumns: settingsStore.showWeekNumbers ? `2rem repeat(${colCount}, 1fr)` : `repeat(${colCount}, 1fr)`, minHeight: `${week.multiDayBars.length > 0 ? week.barRows * 18 + 2 : 0}px` }"
         >
           <div v-if="settingsStore.showWeekNumbers" />
-          <template v-for="bar in week.multiDayBars" :key="`${bar.event.id}-${weekIndex}`">
+          <template v-for="bar in week.multiDayBars" :key="`${bar.event.id}-${bar.event.dtstart}-${weekIndex}`">
             <div
               data-event
               :class="[
@@ -72,7 +72,7 @@
                 backgroundColor: getEventColor(bar.event),
                 color: 'white',
               }"
-              @click.stop="eventPreview.open(bar.event.id)"
+              @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
             >
               {{ bar.showTitle ? bar.event.summary : '' }}
             </div>
@@ -97,7 +97,7 @@
             <div class="space-y-0.5">
               <div
                 v-for="event in cell.singleDayEvents.slice(0, 3)"
-                :key="event.id"
+                :key="`${event.id}-${event.dtstart}`"
                 data-event
                 :class="[
                   'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer',
@@ -109,12 +109,22 @@
                   color: getEventColor(event),
                   borderLeft: `3px solid ${getEventColor(event)}`,
                 }"
-                @click.stop="eventPreview.open(event.id)"
+                @click.stop="eventPreview.open(event.id, event.dtstart)"
               >
-                <span class="font-medium">
+                <span
+                  v-if="event.kind === 'task'"
+                  class="inline-flex items-center mr-1 align-middle cursor-pointer"
+                  role="checkbox"
+                  :aria-checked="!!event.completedAt"
+                  @click.stop="eventsStore.completeTaskAsync(event.id)"
+                >
+                  <CheckSquare v-if="event.completedAt" class="w-3 h-3" />
+                  <Square v-else class="w-3 h-3" />
+                </span>
+                <span v-else class="font-medium">
                   {{ formatTime(event.dtstart) }}
                 </span>
-                {{ event.summary }}
+                <span :class="event.completedAt ? 'line-through opacity-60' : ''">{{ event.summary }}</span>
               </div>
               <div
                 v-if="cell.totalOverflow > 0"
@@ -140,6 +150,7 @@
 </template>
 
 <script setup lang="ts">
+import { CheckSquare, Square } from "lucide-vue-next";
 import type { SelectEvent } from "~/database/schemas";
 import { toDateKey } from "~/composables/useTimeGrid";
 
