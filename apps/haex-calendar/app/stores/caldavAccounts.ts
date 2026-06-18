@@ -10,9 +10,6 @@ export interface CreateAccountData {
   serverUrl: string;
   username: string;
   password: string;
-  /** When true, the secret is added to the core password manager; otherwise
-   *  it is kept only in this extension's own DB. */
-  storeInManager: boolean;
   principalUrl?: string | null;
   calendarHomeUrl?: string | null;
 }
@@ -28,27 +25,20 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
   }
 
   /**
-   * Create an account. Depending on `data.storeInManager`, the secret is
-   * either added to the core password manager (only its item id is kept
-   * locally) or stored in this extension's own DB.
+   * Create a CalDAV account. The credentials always go into the core HaexVault
+   * password manager (tagged `haex-calendar`); the local row only holds the
+   * password-item reference.
    */
   async function createAccountAsync(data: CreateAccountData) {
     if (!haexVault.orm) return;
 
-    let passwordItemId: string | null = null;
-    let password: string | null = null;
-
-    if (data.storeInManager) {
-      passwordItemId = await haexVault.client.passwords.createAsync({
-        title: data.name,
-        username: data.username,
-        password: data.password,
-        url: data.serverUrl,
-        tags: [CALENDAR_TAG],
-      });
-    } else {
-      password = data.password;
-    }
+    const passwordItemId = await haexVault.client.passwords.createAsync({
+      title: data.name,
+      username: data.username,
+      password: data.password,
+      url: data.serverUrl,
+      tags: [CALENDAR_TAG],
+    });
 
     const id = crypto.randomUUID();
     const entry: InsertCaldavAccount = {
@@ -57,7 +47,6 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
       serverUrl: data.serverUrl,
       username: data.username,
       passwordItemId,
-      password,
       principalUrl: data.principalUrl ?? null,
       calendarHomeUrl: data.calendarHomeUrl ?? null,
     };
@@ -72,7 +61,16 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
     await loadAccountsAsync();
   }
 
-  async function deleteAccountAsync(id: string) {
+  /**
+   * Delete a CalDAV account, its calendars, and the events they hold.
+   *
+   * The associated password-manager item is NEVER touched by default — the
+   * credential is treated as the user's, independent of this extension's
+   * lifecycle. Pass `deletePasswordItem=true` only after the user has
+   * explicitly confirmed they want the login removed from the password
+   * manager too.
+   */
+  async function deleteAccountAsync(id: string, deletePasswordItem = false) {
     if (!haexVault.orm) return;
 
     const [account] = await haexVault.orm
@@ -81,11 +79,9 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
       .where(eq(caldavAccounts.id, id))
       .limit(1);
 
-    // Delete the credential from the password manager FIRST. If the local
-    // rows go first and this call then fails (network, permission revoked),
-    // the secret would orphan in the password manager with no local row
-    // pointing at it — undeletable from the UI.
-    if (account?.passwordItemId) {
+    // Optional, opt-in: remove the credential from the password manager.
+    // Run this first so a failure aborts before we touch any local data.
+    if (deletePasswordItem && account?.passwordItemId) {
       await haexVault.client.passwords.deleteAsync(account.passwordItemId);
     }
 
@@ -112,16 +108,11 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
     return accounts.value.find((account) => account.id === id);
   }
 
-  /**
-   * Resolve the plaintext password for an account, from whichever store holds
-   * it (password manager item or the extension's own DB column).
-   */
+  /** Resolve the plaintext password for an account from the password manager. */
   async function getPasswordAsync(account: SelectCaldavAccount): Promise<string> {
-    if (account.passwordItemId) {
-      const item = await haexVault.client.passwords.readAsync(account.passwordItemId);
-      return item.password ?? "";
-    }
-    return account.password ?? "";
+    if (!account.passwordItemId) return "";
+    const item = await haexVault.client.passwords.readAsync(account.passwordItemId);
+    return item.password ?? "";
   }
 
   return {

@@ -236,18 +236,43 @@
     <CalendarCaldavAccountDialog v-model:open="showCaldavDialog" />
 
     <!-- Delete account confirmation -->
-    <ShadcnAlertDialog v-model:open="showDeleteConfirm">
-      <ShadcnAlertDialogContent>
-        <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{ t('external.deleteConfirm.title') }}</ShadcnAlertDialogTitle>
-          <ShadcnAlertDialogDescription>{{ t('external.deleteConfirm.description') }}</ShadcnAlertDialogDescription>
-        </ShadcnAlertDialogHeader>
-        <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t('external.deleteConfirm.abort') }}</ShadcnAlertDialogCancel>
-          <ShadcnAlertDialogAction @click="executeDelete">{{ t('external.deleteConfirm.confirm') }}</ShadcnAlertDialogAction>
-        </ShadcnAlertDialogFooter>
-      </ShadcnAlertDialogContent>
-    </ShadcnAlertDialog>
+    <UiDrawerModal
+      v-model:open="showDeleteConfirm"
+      :title="t('external.deleteConfirm.title')"
+    >
+      <template #content>
+        <div class="space-y-3 p-4">
+          <p class="text-sm text-muted-foreground">{{ t('external.deleteConfirm.description') }}</p>
+          <label
+            v-if="deleteAccountHasPasswordItem"
+            class="flex items-start gap-3 cursor-pointer"
+          >
+            <ShadcnCheckbox v-model="deletePasswordItem" class="mt-0.5" />
+            <span class="text-sm">
+              {{ t('external.deleteConfirm.alsoDeleteLogin') }}
+              <span class="block text-xs text-muted-foreground">{{ t('external.deleteConfirm.alsoDeleteLoginHint') }}</span>
+            </span>
+          </label>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <button
+            class="text-muted-foreground px-3 py-2"
+            @click="showDeleteConfirm = false"
+          >
+            {{ t('external.deleteConfirm.abort') }}
+          </button>
+          <button
+            class="bg-destructive text-destructive-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
+            @click="executeDelete"
+          >
+            {{ t('external.deleteConfirm.confirm') }}
+          </button>
+        </div>
+      </template>
+    </UiDrawerModal>
   </div>
 </template>
 
@@ -275,6 +300,13 @@ const timezones = Intl.supportedValuesOf("timeZone");
 const showCaldavDialog = ref(false);
 const showDeleteConfirm = ref(false);
 const deleteAccountId = ref<string | null>(null);
+const deletePasswordItem = ref(false);
+
+const deleteAccountHasPasswordItem = computed(() => {
+  if (!deleteAccountId.value) return false;
+  const account = caldavAccounts.getAccount(deleteAccountId.value);
+  return !!account?.passwordItemId;
+});
 
 onMounted(() => {
   caldavAccounts.loadAccountsAsync();
@@ -291,12 +323,15 @@ async function syncAll() {
 
 function confirmDelete(id: string) {
   deleteAccountId.value = id;
+  // Default OFF: the credential belongs to the user, not to this extension —
+  // deleting it from the password manager is an opt-in extra step.
+  deletePasswordItem.value = false;
   showDeleteConfirm.value = true;
 }
 
 async function executeDelete() {
   if (!deleteAccountId.value) return;
-  await caldavAccounts.deleteAccountAsync(deleteAccountId.value);
+  await caldavAccounts.deleteAccountAsync(deleteAccountId.value, deletePasswordItem.value);
   await calendarsStore.loadCalendarsAsync();
   deleteAccountId.value = null;
   showDeleteConfirm.value = false;
@@ -354,7 +389,9 @@ de:
     delete: Konto entfernen
     deleteConfirm:
       title: Konto entfernen?
-      description: Das Konto und alle zugehörigen Kalender und Termine werden lokal gelöscht. Das gespeicherte Passwort wird aus dem Passwortmanager entfernt.
+      description: Das Konto und alle zugehörigen Kalender und Termine werden lokal gelöscht. Die Zugangsdaten im Passwortmanager bleiben erhalten.
+      alsoDeleteLogin: Login auch aus dem Passwortmanager entfernen
+      alsoDeleteLoginHint: Nur aktivieren, wenn du den Login nirgends mehr brauchst.
       abort: Abbrechen
       confirm: Entfernen
 en:
@@ -407,7 +444,9 @@ en:
     delete: Remove account
     deleteConfirm:
       title: Remove account?
-      description: The account and all associated calendars and events will be deleted locally. The stored password will be removed from the password manager.
+      description: The account and all its calendars and events will be deleted locally. The credentials in the password manager are kept.
+      alsoDeleteLogin: Also delete the login from the password manager
+      alsoDeleteLoginHint: Only enable if you no longer need the login anywhere.
       abort: Cancel
       confirm: Remove
 </i18n>

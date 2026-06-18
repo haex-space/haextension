@@ -192,14 +192,10 @@ export const caldavAccounts = sqliteTable(
     name: text().notNull(),
     serverUrl: text("server_url").notNull(),
     username: text().notNull(),
-    // Exactly one of the two is set, depending on the "store in password
-    // manager" choice at connect time:
-    //   passwordItemId — reference to an item in the core HaexVault password
-    //     manager (tag-scoped to "haex-calendar").
-    //   password — kept only in this extension's own (encrypted) DB when the
-    //     user opts out of adding it to the central password manager.
+    // Reference to an item in the core HaexVault password manager
+    // (tag-scoped to "haex-calendar"). Credentials always live there, never
+    // in the extension's own DB.
     passwordItemId: text("password_item_id"),
-    password: text(),
     principalUrl: text("principal_url"),
     calendarHomeUrl: text("calendar_home_url"),
     lastSyncAt: integer("last_sync_at", { mode: "timestamp" }),
