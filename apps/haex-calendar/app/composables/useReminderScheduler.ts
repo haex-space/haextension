@@ -104,10 +104,16 @@ export function useReminderScheduler() {
         ? expandOccurrences(rule, new Date(ev.dtstart), new Date(now), expandEnd)
         : [new Date(ev.dtstart)];
 
+      // Queue any reminder whose event falls within the look-ahead window;
+      // the fireAt itself may sit before the event time (e.g. a 1-week
+      // reminder for an event 8 days away has fireAt ≈ now+24h). Using the
+      // unextended horizon here would silently drop those reminders until
+      // the event was already <24h away.
+      const queueHorizon = horizon + maxOffsetMin * 60_000;
       for (const start of starts) {
         for (const offsetMinutes of offsets) {
           const fireAt = start.getTime() - offsetMinutes * 60_000;
-          if (fireAt >= now && fireAt <= horizon) {
+          if (fireAt >= now && fireAt <= queueHorizon) {
             entries.push({
               fireAt,
               eventId: ev.id,

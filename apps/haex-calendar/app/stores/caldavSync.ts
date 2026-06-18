@@ -127,8 +127,13 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
                 href: fetched.href,
               })
               .where(eq(events.id, existingLocal.id));
-            // VALARM → own reminder rows (empty clears → inherit type defaults).
-            await eventsStore.replaceEventRemindersAsync(existingLocal.id, eventData.reminderOffsets);
+            // Only replace own reminders when the server actually sent VALARMs.
+            // Many CalDAV servers (iCloud, some Radicale configs) strip alarms
+            // on round-trip; treating an empty list as "clear local reminders"
+            // silently wipes user-set per-event reminders on every poll.
+            if (eventData.reminderOffsets.length > 0) {
+              await eventsStore.replaceEventRemindersAsync(existingLocal.id, eventData.reminderOffsets);
+            }
           } else {
             // Insert new
             const id = crypto.randomUUID();
@@ -152,7 +157,9 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
               etag: fetched.etag,
               href: fetched.href,
             });
-            await eventsStore.replaceEventRemindersAsync(id, eventData.reminderOffsets);
+            if (eventData.reminderOffsets.length > 0) {
+              await eventsStore.replaceEventRemindersAsync(id, eventData.reminderOffsets);
+            }
           }
         }
       }

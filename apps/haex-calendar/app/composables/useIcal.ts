@@ -58,10 +58,13 @@ function rruleString(component: any): string | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseVevent(vevent: any): ParsedEvent {
+function parseVevent(vevent: any): ParsedEvent | null {
   const event = new ICAL.Event(vevent);
   const startDate = event.startDate;
   const endDate = event.endDate;
+
+  // Same UID-required guard as VTODO — see parseVtodo.
+  if (!event.uid) return null;
 
   return {
     uid: event.uid,
@@ -85,15 +88,20 @@ function parseVevent(vevent: any): ParsedEvent {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseVtodo(vtodo: any): ParsedEvent {
+function parseVtodo(vtodo: any): ParsedEvent | null {
   // A task's due date maps to DUE (fall back to DTSTART). There is no end.
   const due = vtodo.getFirstPropertyValue("due") ?? vtodo.getFirstPropertyValue("dtstart");
   const allDay = due?.isDate ?? false;
   const dtstart = due ? due.toString() : new Date().toISOString();
   const completed = vtodo.getFirstPropertyValue("completed");
 
+  // Skip UID-less VTODOs: importFileAsync upserts by UID, so a random
+  // fallback UID would produce a new row on every re-import (duplicates).
+  const uid = vtodo.getFirstPropertyValue("uid");
+  if (!uid) return null;
+
   return {
-    uid: vtodo.getFirstPropertyValue("uid") || crypto.randomUUID(),
+    uid,
     summary: vtodo.getFirstPropertyValue("summary") || "Untitled",
     description: vtodo.getFirstPropertyValue("description") || null,
     location: vtodo.getFirstPropertyValue("location") || null,
@@ -126,7 +134,7 @@ export function parseICS(icsString: string): ParsedEvent[] {
     ...comp.getAllSubcomponents("vevent").map((c: any) => parseVevent(c)),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...comp.getAllSubcomponents("vtodo").map((c: any) => parseVtodo(c)),
-  ];
+  ].filter((e): e is ParsedEvent => e !== null);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

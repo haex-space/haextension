@@ -160,7 +160,10 @@ function currentOptions(): Partial<Options> | null {
   if (endMode.value === "count") {
     options.count = Math.max(1, count.value || 1);
   } else if (endMode.value === "until" && until.value) {
-    options.until = new Date(`${until.value}T23:59:59`);
+    // rrule.js treats UNTIL as a UTC instant. Building it from a local-time
+    // string would shift the boundary by the TZ offset and drop / include an
+    // extra tail occurrence depending on the user's zone.
+    options.until = new Date(`${until.value}T23:59:59Z`);
   }
   return options;
 }
