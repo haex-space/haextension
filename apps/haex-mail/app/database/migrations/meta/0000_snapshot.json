@@ -4,8 +4,8 @@
   "id": "3c3feac7-c1fd-4160-ac96-86e00661c8c1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__accounts": {
-      "name": "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__accounts",
+    "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__accounts": {
+      "name": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__accounts",
       "columns": {
         "id": {
           "name": "id",
@@ -112,8 +112,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__mailboxes": {
-      "name": "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__mailboxes",
+    "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__mailboxes": {
+      "name": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__mailboxes",
       "columns": {
         "id": {
           "name": "id",
@@ -203,8 +203,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__message_bodies": {
-      "name": "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__message_bodies",
+    "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__message_bodies": {
+      "name": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__message_bodies",
       "columns": {
         "message_id": {
           "name": "message_id",
@@ -250,8 +250,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__messages": {
-      "name": "89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__messages",
+    "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__messages": {
+      "name": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__messages",
       "columns": {
         "id": {
           "name": "id",

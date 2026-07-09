@@ -1,4 +1,4 @@
-CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__accounts` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__accounts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`display_name` text NOT NULL,
 	`email` text NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__
 	`updated_at` integer DEFAULT (unixepoch())
 );
 --> statement-breakpoint
-CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__mailboxes` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__mailboxes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`account_id` text NOT NULL,
 	`name` text NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__
 	`updated_at` integer DEFAULT (unixepoch())
 );
 --> statement-breakpoint
-CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__message_bodies` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__message_bodies` (
 	`message_id` text PRIMARY KEY NOT NULL,
 	`body_text` text,
 	`body_html` text,
@@ -36,7 +36,7 @@ CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__
 	`fetched_at` integer DEFAULT (unixepoch())
 );
 --> statement-breakpoint
-CREATE TABLE `89426bcca57fe760e32d781783d8f3a1aeca4165c706c988c289b1ba3bf46abd__haex-mail__messages` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__messages` (
 	`id` text PRIMARY KEY NOT NULL,
 	`account_id` text NOT NULL,
 	`mailbox_name` text NOT NULL,

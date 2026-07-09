@@ -8,9 +8,17 @@ const mailStore = useMailStore();
 const showCompose = ref(false);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
+const initError = ref<string | null>(null);
 
 onMounted(async () => {
-  await haexVault.initializeAsync();
+  try {
+    await haexVault.initializeAsync();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    initError.value = msg;
+    console.error('[haex-mail] Initialization failed:', msg);
+    return;
+  }
   await accountsStore.loadAccountsAsync();
   if (!accountsStore.hasAccounts) {
     showSetup.value = true;
@@ -69,7 +77,14 @@ const onSetupComplete = async () => {
 </script>
 
 <template>
-  <div v-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
+  <div v-if="initError" class="h-full grid place-items-center p-8">
+    <div class="max-w-xl space-y-3 text-center">
+      <p class="font-semibold text-destructive">{{ $t("initError", "Initialisierung fehlgeschlagen") }}</p>
+      <pre class="text-xs text-left bg-muted rounded p-3 overflow-auto whitespace-pre-wrap break-all">{{ initError }}</pre>
+    </div>
+  </div>
+
+  <div v-else-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
     <p>{{ $t("loading", "Lade…") }}</p>
   </div>
 
