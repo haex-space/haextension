@@ -46,6 +46,17 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     fillAllFields: (entry: EntryWithAliases) => fillAllFields(entry.fields, entry.autofillAliases),
   }
 
+  // Maps detected field types to canonical vault field keys.
+  // 'text' fields pass isLoginField only when inside a login form context,
+  // so they are treated as username candidates.
+  const fieldTypeToCanonical: Record<string, string> = {
+    username: 'username',
+    email: 'username',
+    text: 'username',
+    password: 'password',
+    otp: 'otpSecret',
+  }
+
   // Detect input fields and request matching entries
   async function scanAndRequest() {
     detectedFields = detectInputFields()
@@ -58,24 +69,20 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       return
     }
 
+    const canonicalFields = [...new Set(
+      detectedFields
+        .map(f => fieldTypeToCanonical[f.type])
+        .filter((f): f is string => f !== undefined),
+    )]
+
+    if (canonicalFields.length === 0) {
+      console.log('[haex-pass] No canonical fields to query')
+      return
+    }
+
     // Request matching entries from background script
     try {
       console.log('[haex-pass] Requesting items for URL:', window.location.href)
-
-      // Map detected field types to canonical vault field names.
-      // The vault filters by canonical keys (username/password/otpSecret),
-      // not by raw HTML identifiers like "ccp_user".
-      const fieldTypeToCanonical: Record<string, string> = {
-        username: 'username',
-        email: 'username',
-        password: 'password',
-        otp: 'otpSecret',
-      }
-      const canonicalFields = [...new Set(
-        detectedFields
-          .map(f => fieldTypeToCanonical[f.type])
-          .filter((f): f is string => f !== undefined),
-      )]
 
       const response = await sendMessage('get-items', {
         url: window.location.href,
