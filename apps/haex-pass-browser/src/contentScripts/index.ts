@@ -61,9 +61,25 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     // Request matching entries from background script
     try {
       console.log('[haex-pass] Requesting items for URL:', window.location.href)
+
+      // Map detected field types to canonical vault field names.
+      // The vault filters by canonical keys (username/password/otpSecret),
+      // not by raw HTML identifiers like "ccp_user".
+      const fieldTypeToCanonical: Record<string, string> = {
+        username: 'username',
+        email: 'username',
+        password: 'password',
+        otp: 'otpSecret',
+      }
+      const canonicalFields = [...new Set(
+        detectedFields
+          .map(f => fieldTypeToCanonical[f.type])
+          .filter((f): f is string => f !== undefined),
+      )]
+
       const response = await sendMessage('get-items', {
         url: window.location.href,
-        fields: detectedFields.map(f => f.identifier),
+        fields: canonicalFields,
       }, 'background')
 
       console.log('[haex-pass] Response from background:', response)
