@@ -14,9 +14,8 @@ onMounted(async () => {
   try {
     await haexVault.initializeAsync();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    initError.value = msg;
-    console.error('[haex-mail] Initialization failed:', msg);
+    initError.value = (err as any)?.message ?? String(err);
+    console.error('[haex-mail] Initialization failed:', err);
     return;
   }
   await accountsStore.loadAccountsAsync();
@@ -79,13 +78,13 @@ const onSetupComplete = async () => {
 <template>
   <div v-if="initError" class="h-full grid place-items-center p-8">
     <div class="max-w-xl space-y-3 text-center">
-      <p class="font-semibold text-destructive">{{ $t("initError", "Initialisierung fehlgeschlagen") }}</p>
+      <p class="font-semibold text-destructive">{{ $t("initError") }}</p>
       <pre class="text-xs text-left bg-muted rounded p-3 overflow-auto whitespace-pre-wrap break-all">{{ initError }}</pre>
     </div>
   </div>
 
   <div v-else-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
-    <p>{{ $t("loading", "Lade…") }}</p>
+    <p>{{ $t("loading") }}</p>
   </div>
 
   <AccountSetupWizard
@@ -105,3 +104,12 @@ const onSetupComplete = async () => {
     :account="currentAccount"
   />
 </template>
+
+<i18n lang="yaml">
+de:
+  loading: Lade…
+  initError: Initialisierung fehlgeschlagen
+en:
+  loading: Loading…
+  initError: Initialization failed
+</i18n>
