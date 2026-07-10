@@ -1,4 +1,4 @@
-import { breakpointsTailwind, useBreakpoints, watchImmediate } from "@vueuse/core";
+import { breakpointsTailwind, useBreakpoints, useLocalStorage, watchImmediate } from "@vueuse/core";
 import type { ApplicationContext } from "@haex-space/vault-sdk";
 
 export const useUiStore = defineStore("ui", () => {
