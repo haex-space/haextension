@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onLongPress } from "@vueuse/core";
 import type { SelectMessage } from "~/database/schemas";
-import { labelForRole } from "~/stores/mail";
+import { roleLabelKey } from "~/stores/mail";
 
+const { t } = useI18n();
 const mailStore = useMailStore();
 const accountsStore = useAccountsStore();
 const selectionStore = useSelectionStore();
@@ -101,9 +102,10 @@ const onMoveTargetAsync = async (mailboxName: string) => {
 
 const headerLabel = computed(() => {
   if (mailStore.isUnifiedView) {
-    return labelForRole(mailStore.selectedRole) ?? "Kein Postfach gewählt";
+    const labelKey = roleLabelKey(mailStore.selectedRole);
+    return labelKey ? t(labelKey) : t("noMailbox");
   }
-  return mailStore.selectedMailboxName ?? "Kein Postfach gewählt";
+  return mailStore.selectedMailboxName ?? t("noMailbox");
 });
 
 /** Stable per-account color for the unified view's row indicator. */
@@ -125,7 +127,7 @@ const accountEmail = (accountId: string) =>
 
 const formatSender = (msg: SelectMessage) => {
   const first = msg.fromJson[0];
-  if (!first) return "(unbekannt)";
+  if (!first) return t("unknownSender");
   return first.name ?? first.email;
 };
 
@@ -185,7 +187,7 @@ const isUnread = (msg: SelectMessage) => {
           </span>
         </div>
         <div class="text-sm truncate mt-0.5">
-          {{ msg.subject ?? "(kein Betreff)" }}
+          {{ msg.subject ?? t("noSubject") }}
         </div>
         <div
           v-if="mailStore.isUnifiedView"
@@ -203,8 +205,8 @@ const isUnread = (msg: SelectMessage) => {
     </ul>
 
     <div v-else class="flex-1 grid place-items-center text-sm text-muted-foreground">
-      <p v-if="mailStore.isLoadingMessages">Lade Nachrichten…</p>
-      <p v-else>Keine Nachrichten.</p>
+      <p v-if="mailStore.isLoadingMessages">{{ t("loading") }}</p>
+      <p v-else>{{ t("empty") }}</p>
     </div>
 
     <MailMoveDialog
@@ -216,3 +218,18 @@ const isUnread = (msg: SelectMessage) => {
     />
   </section>
 </template>
+
+<i18n lang="yaml">
+de:
+  noMailbox: Kein Postfach gewählt
+  loading: Lade Nachrichten…
+  empty: Keine Nachrichten.
+  noSubject: (kein Betreff)
+  unknownSender: (unbekannt)
+en:
+  noMailbox: No mailbox selected
+  loading: Loading messages…
+  empty: No messages.
+  noSubject: (no subject)
+  unknownSender: (unknown)
+</i18n>

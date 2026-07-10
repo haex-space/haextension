@@ -10,11 +10,12 @@ import {
   Pencil,
   Settings,
 } from "lucide-vue-next";
-import { ALL_ACCOUNTS_ID, labelForRole } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
 import type { MailboxRole } from "~/database/schemas";
 
 defineEmits<{ compose: [] }>();
 
+const { t } = useI18n();
 const router = useRouter();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
@@ -37,7 +38,7 @@ const selectedAccountModel = computed<string | null>({
 });
 
 const selectedAccountLabel = computed(() => {
-  if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) return "Alle Konten";
+  if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) return t("allAccounts");
   return (
     accountsStore.accounts.find((a) => a.id === mailStore.selectedAccountId)
       ?.email ?? null
@@ -50,11 +51,12 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
     return ROLE_ORDER.flatMap((role) => {
       const boxes = mailStore.mailboxes.filter((m) => m.role === role);
       if (boxes.length === 0) return [];
+      const labelKey = roleLabelKey(role);
       return [
         {
           id: `role::${role}`,
           name: "",
-          displayName: labelForRole(role) ?? role,
+          displayName: labelKey ? t(labelKey) : role,
           role,
           unseen: boxes.reduce((sum, m) => sum + (m.unseen ?? 0), 0),
         },
@@ -65,7 +67,7 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
   const rows: MailboxRow[] = mailStore.mailboxes.map((m) => ({
     id: m.id,
     name: m.name,
-    displayName: m.name === "INBOX" ? "Posteingang" : m.name,
+    displayName: m.name === "INBOX" ? t("mail.roles.inbox") : m.name,
     role: m.role,
     unseen: m.unseen ?? 0,
   }));
@@ -118,18 +120,18 @@ const iconForRole = (role: string | null) => {
   <aside class="border-r border-border flex flex-col bg-muted/30">
     <div class="p-3">
       <UiButton class="w-full" size="lg" :prepend-icon="Pencil" @click="$emit('compose')">
-        Neue Nachricht
+        {{ t("compose") }}
       </UiButton>
     </div>
 
     <ShadcnSelect v-model="selectedAccountModel">
       <ShadcnSelectTrigger class="mx-3 mb-2 w-[calc(100%-1.5rem)]">
-        <ShadcnSelectValue placeholder="Konto wählen">
-          {{ selectedAccountLabel ?? "Konto wählen" }}
+        <ShadcnSelectValue :placeholder="t('chooseAccount')">
+          {{ selectedAccountLabel ?? t("chooseAccount") }}
         </ShadcnSelectValue>
       </ShadcnSelectTrigger>
       <ShadcnSelectContent>
-        <ShadcnSelectItem :value="ALL_ACCOUNTS_ID">Alle Konten</ShadcnSelectItem>
+        <ShadcnSelectItem :value="ALL_ACCOUNTS_ID">{{ t("allAccounts") }}</ShadcnSelectItem>
         <ShadcnSelectItem
           v-for="account in accountsStore.accounts"
           :key="account.id"
@@ -179,8 +181,21 @@ const iconForRole = (role: string | null) => {
         :prepend-icon="Settings"
         @click="router.push('/settings')"
       >
-        Einstellungen
+        {{ t("settings") }}
       </UiButton>
     </div>
   </aside>
 </template>
+
+<i18n lang="yaml">
+de:
+  compose: Neue Nachricht
+  chooseAccount: Konto wählen
+  allAccounts: Alle Konten
+  settings: Einstellungen
+en:
+  compose: New message
+  chooseAccount: Choose account
+  allAccounts: All accounts
+  settings: Settings
+</i18n>

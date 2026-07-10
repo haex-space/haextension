@@ -14,6 +14,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [mailboxName: string] }>();
 
+const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const folders = ref<schema.SelectMailbox[]>([]);
 
@@ -35,7 +36,7 @@ const onSelect = (mailboxName: string) => {
 </script>
 
 <template>
-  <UiDrawerModal v-model:open="open" title="In Ordner verschieben">
+  <UiDrawerModal v-model:open="open" :title="t('title')">
     <template #content>
       <div class="p-4 space-y-0.5 max-h-[60vh] overflow-y-auto">
         <UiButton
@@ -48,13 +49,22 @@ const onSelect = (mailboxName: string) => {
           @click="onSelect(folder.name)"
         >
           <span class="truncate">
-            {{ folder.name === "INBOX" ? "Posteingang" : folder.name }}
+            {{ folder.name === "INBOX" ? t("mail.roles.inbox") : folder.name }}
           </span>
         </UiButton>
         <p v-if="folders.length === 0" class="text-sm text-muted-foreground">
-          Keine weiteren Ordner vorhanden.
+          {{ t("empty") }}
         </p>
       </div>
     </template>
   </UiDrawerModal>
 </template>
+
+<i18n lang="yaml">
+de:
+  title: In Ordner verschieben
+  empty: Keine weiteren Ordner vorhanden.
+en:
+  title: Move to folder
+  empty: No other folders available.
+</i18n>

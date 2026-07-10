@@ -22,6 +22,7 @@ export const ALL_ACCOUNTS_ID = "__all__";
 export const useMailStore = defineStore("mail", () => {
   const haexVault = useHaexVaultStore();
   const accountsStore = useAccountsStore();
+  const { $i18n } = useNuxtApp();
 
   const selectedAccountId = ref<string | null>(null);
   const selectedMailboxName = ref<string | null>(null);
@@ -272,7 +273,7 @@ export const useMailStore = defineStore("mail", () => {
       const account = await accountsStore.getCredentialsCachedAsync(
         message.accountId,
       );
-      if (!account) throw new Error("Zugangsdaten konnten nicht geladen werden");
+      if (!account) throw new Error($i18n.t("mail.errors.credentials"));
       const msg = await haexVault.client.mail.fetchMessageAsync(
         account.imap,
         message.mailboxName,
@@ -380,7 +381,7 @@ export const useMailStore = defineStore("mail", () => {
     const results = await Promise.allSettled(
       groups.map(async (g) => {
         const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
-        if (!account) throw new Error("Zugangsdaten konnten nicht geladen werden");
+        if (!account) throw new Error($i18n.t("mail.errors.credentials"));
         await haexVault.client.mail.setFlagsAsync(
           account.imap,
           g.mailboxName,
@@ -400,7 +401,7 @@ export const useMailStore = defineStore("mail", () => {
     if (!haexVault.orm) return;
     if (destinationName === g.mailboxName) return;
     const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
-    if (!account) throw new Error("Zugangsdaten konnten nicht geladen werden");
+    if (!account) throw new Error($i18n.t("mail.errors.credentials"));
     await haexVault.client.mail.moveMessagesAsync(
       account.imap,
       g.mailboxName,
@@ -435,7 +436,9 @@ export const useMailStore = defineStore("mail", () => {
         )[0];
         if (!dest) {
           throw new Error(
-            `Kein ${labelForRole(role)}-Ordner für dieses Konto gefunden`,
+            $i18n.t("mail.errors.noFolderForRole", {
+              folder: $i18n.t(`mail.roles.${role}`),
+            }),
           );
         }
         await moveGroupAsync(g, dest.name);
@@ -535,24 +538,21 @@ export const useMailStore = defineStore("mail", () => {
  * \Trash, \Junk, \Archive) are most reliable; fall back to common
  * folder names when the server doesn't advertise them.
  */
-/** German UI label for a standardized mailbox role. */
-export function labelForRole(role: string | null): string | null {
-  switch (role) {
-    case "inbox":
-      return "Posteingang";
-    case "sent":
-      return "Gesendet";
-    case "drafts":
-      return "Entwürfe";
-    case "trash":
-      return "Papierkorb";
-    case "junk":
-      return "Spam";
-    case "archive":
-      return "Archiv";
-    default:
-      return null;
-  }
+const ROLE_LABEL_KEYS = new Set([
+  "inbox",
+  "sent",
+  "drafts",
+  "trash",
+  "junk",
+  "archive",
+]);
+
+/**
+ * i18n key for a standardized mailbox role's UI label (global messages,
+ * see plugins/i18n-messages.ts). Null for unknown/custom folders.
+ */
+export function roleLabelKey(role: string | null | undefined): string | null {
+  return role && ROLE_LABEL_KEYS.has(role) ? `mail.roles.${role}` : null;
 }
 
 export function inferRole(name: string, flags: string[]): string | null {

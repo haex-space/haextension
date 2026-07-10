@@ -2,8 +2,9 @@
 import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, labelForRole } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
 
+const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
@@ -21,11 +22,12 @@ const sheetOpen = ref(false);
 
 const mobileTitle = computed(() => {
   if (mailStore.isUnifiedView) {
-    return labelForRole(mailStore.selectedRole) ?? "Alle Konten";
+    const labelKey = roleLabelKey(mailStore.selectedRole);
+    return labelKey ? t(labelKey) : t("allAccounts");
   }
   if (mailStore.selectedMailboxName) {
     return mailStore.selectedMailboxName === "INBOX"
-      ? "Posteingang"
+      ? t("mail.roles.inbox")
       : mailStore.selectedMailboxName;
   }
   return "haex-mail";
@@ -35,7 +37,7 @@ const mobileMessageTitle = computed(() => {
   const row = mailStore.messageList.find(
     (m) => m.id === mailStore.selectedMessageId,
   );
-  return row?.subject ?? "(kein Betreff)";
+  return row?.subject ?? t("noSubject");
 });
 
 // Picking a folder (or role) in the sheet navigates — close it.
@@ -257,7 +259,7 @@ const onSetupComplete = async () => {
             variant="ghost"
             size="icon-lg"
             :icon="Menu"
-            aria-label="Menü"
+            :aria-label="t('menu')"
             @click="sheetOpen = true"
           />
           <span class="flex-1 truncate font-medium">{{ mobileTitle }}</span>
@@ -265,7 +267,7 @@ const onSetupComplete = async () => {
             variant="ghost"
             size="icon-lg"
             :icon="Pencil"
-            aria-label="Neue Nachricht"
+            :aria-label="t('compose')"
             @click="showCompose = true"
           />
         </template>
@@ -274,7 +276,7 @@ const onSetupComplete = async () => {
             variant="ghost"
             size="icon-lg"
             :icon="ArrowLeft"
-            aria-label="Zurück"
+            :aria-label="t('back')"
             @click="mailStore.selectMessage(null)"
           />
           <span class="flex-1 truncate font-medium">{{ mobileMessageTitle }}</span>
@@ -286,9 +288,9 @@ const onSetupComplete = async () => {
 
       <ShadcnSheet v-model:open="sheetOpen">
         <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
-          <ShadcnSheetTitle class="sr-only">Menü</ShadcnSheetTitle>
+          <ShadcnSheetTitle class="sr-only">{{ t("menu") }}</ShadcnSheetTitle>
           <ShadcnSheetDescription class="sr-only">
-            Konten und Ordner
+            {{ t("menuDescription") }}
           </ShadcnSheetDescription>
           <MailSidebar class="h-full" @compose="onSheetCompose" />
         </ShadcnSheetContent>
@@ -307,7 +309,19 @@ const onSetupComplete = async () => {
 de:
   loading: Lade…
   initError: Initialisierung fehlgeschlagen
+  menu: Menü
+  menuDescription: Konten und Ordner
+  compose: Neue Nachricht
+  back: Zurück
+  allAccounts: Alle Konten
+  noSubject: (kein Betreff)
 en:
   loading: Loading…
   initError: Initialization failed
+  menu: Menu
+  menuDescription: Accounts and folders
+  compose: New message
+  back: Back
+  allAccounts: All accounts
+  noSubject: (no subject)
 </i18n>

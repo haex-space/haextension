@@ -27,6 +27,7 @@ export interface AccountWithCredentials {
 
 export const useAccountsStore = defineStore("accounts", () => {
   const haexVault = useHaexVaultStore();
+  const { $i18n } = useNuxtApp();
   const accounts = ref<schema.SelectAccount[]>([]);
   const isLoading = ref(false);
 
@@ -260,13 +261,13 @@ export const useAccountsStore = defineStore("accounts", () => {
     if (password) return password;
     if (accountId) {
       const account = accounts.value.find((a) => a.id === accountId);
-      if (!account) throw new Error("Konto nicht gefunden");
+      if (!account) throw new Error($i18n.t("accounts.errors.accountNotFound"));
       const item = await haexVault.client.passwords.readAsync(
         account.passwordItemId,
       );
       if (item.password) return item.password;
     }
-    throw new Error("Passwort fehlt");
+    throw new Error($i18n.t("accounts.errors.passwordMissing"));
   };
 
   /**
@@ -341,11 +342,8 @@ export const useAccountsStore = defineStore("accounts", () => {
     const sentMessageId = await haexVault.client.mail.sendMessageAsync(smtp, {
       from: { email: input.email },
       to: [{ email: input.email }],
-      subject: `haex-mail Verbindungstest ${token}`,
-      bodyText:
-        "Automatischer Verbindungstest von haex-mail. " +
-        "Diese Nachricht kann gelöscht werden.\n\n" +
-        `Test-ID: ${token}`,
+      subject: $i18n.t("accounts.testMail.subject", { token }),
+      bodyText: $i18n.t("accounts.testMail.body", { token }),
     });
 
     if (!input.inboxName) return { cleanedUp: false };

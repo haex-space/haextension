@@ -21,6 +21,7 @@ defineEmits<{
   delete: [];
 }>();
 
+const { t } = useI18n();
 const selectionStore = useSelectionStore();
 </script>
 
@@ -33,12 +34,12 @@ const selectionStore = useSelectionStore();
         variant="ghost"
         size="icon-lg"
         :icon="X"
-        tooltip="Auswahl aufheben"
+        :tooltip="t('clear')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="selectionStore.clearSelection()"
       />
       <span class="font-medium text-sm truncate">
-        {{ selectionStore.selectedCount }} ausgewählt
+        {{ t("selected", { count: selectionStore.selectedCount }) }}
       </span>
     </div>
     <div class="flex items-center">
@@ -46,7 +47,7 @@ const selectionStore = useSelectionStore();
         variant="ghost"
         size="icon-lg"
         :icon="MailOpen"
-        tooltip="Als gelesen markieren"
+        :tooltip="t('markRead')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('markRead')"
       />
@@ -54,7 +55,7 @@ const selectionStore = useSelectionStore();
         variant="ghost"
         size="icon-lg"
         :icon="Mail"
-        tooltip="Als ungelesen markieren"
+        :tooltip="t('markUnread')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('markUnread')"
       />
@@ -62,7 +63,7 @@ const selectionStore = useSelectionStore();
         variant="ghost"
         size="icon-lg"
         :icon="Archive"
-        tooltip="Archivieren"
+        :tooltip="t('archive')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('archive')"
       />
@@ -71,7 +72,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="FolderInput"
         :disabled="!canMove"
-        :tooltip="canMove ? 'In Ordner verschieben' : 'Auswahl umfasst mehrere Konten'"
+        :tooltip="canMove ? t('move') : t('moveDisabled')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('move')"
       />
@@ -79,10 +80,31 @@ const selectionStore = useSelectionStore();
         variant="ghost"
         size="icon-lg"
         :icon="Trash2"
-        tooltip="Löschen"
+        :tooltip="t('delete')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('delete')"
       />
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  selected: "{count} ausgewählt"
+  clear: Auswahl aufheben
+  markRead: Als gelesen markieren
+  markUnread: Als ungelesen markieren
+  archive: Archivieren
+  move: In Ordner verschieben
+  moveDisabled: Auswahl umfasst mehrere Konten
+  delete: Löschen
+en:
+  selected: "{count} selected"
+  clear: Clear selection
+  markRead: Mark as read
+  markUnread: Mark as unread
+  archive: Archive
+  move: Move to folder
+  moveDisabled: Selection spans multiple accounts
+  delete: Delete
+</i18n>

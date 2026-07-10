@@ -13,6 +13,7 @@ const props = defineProps<{
   account?: AccountWithCredentials;
 }>();
 
+const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 
@@ -58,11 +59,11 @@ const sendAsync = async () => {
         ? await accountsStore.getCredentialsCachedAsync(fromAccountId.value)
         : null);
     if (!account) {
-      error.value = "Kein Absenderkonto gewählt.";
+      error.value = t("errors.noFromAccount");
       return;
     }
     if (!account.smtp) {
-      error.value = "Dieses Konto hat keine SMTP-Konfiguration.";
+      error.value = t("errors.noSmtp");
       return;
     }
     const message: OutgoingMessage = {
@@ -89,12 +90,12 @@ const sendAsync = async () => {
     class="fixed bottom-4 right-4 w-[560px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-2rem)] bg-background border border-border rounded-lg shadow-xl flex flex-col"
   >
     <header class="h-12 flex items-center justify-between pl-4 pr-1 border-b border-border bg-muted/50 rounded-t-lg">
-      <h2 class="text-sm font-medium">Neue Nachricht</h2>
+      <h2 class="text-sm font-medium">{{ t("title") }}</h2>
       <UiButton
         variant="ghost"
         size="icon-lg"
         :icon="X"
-        aria-label="Schließen"
+        :aria-label="t('close')"
         @click="open = false"
       />
     </header>
@@ -105,8 +106,8 @@ const sendAsync = async () => {
     >
       <div class="px-4 py-2 space-y-2 border-b border-border">
         <ShadcnSelect v-if="!props.account" v-model="fromAccountId">
-          <ShadcnSelectTrigger class="w-full" aria-label="Absenderkonto">
-            <ShadcnSelectValue placeholder="Von" />
+          <ShadcnSelectTrigger class="w-full" :aria-label="t('fromAccount')">
+            <ShadcnSelectValue :placeholder="t('from')" />
           </ShadcnSelectTrigger>
           <ShadcnSelectContent>
             <ShadcnSelectItem
@@ -118,23 +119,56 @@ const sendAsync = async () => {
             </ShadcnSelectItem>
           </ShadcnSelectContent>
         </ShadcnSelect>
-        <UiInput v-model="to" placeholder="An (mehrere mit Komma trennen)" required />
-        <UiInput v-model="cc" placeholder="Cc (optional)" />
-        <UiInput v-model="subject" placeholder="Betreff" />
+        <UiInput v-model="to" :placeholder="t('toPlaceholder')" required />
+        <UiInput v-model="cc" :placeholder="t('ccPlaceholder')" />
+        <UiInput v-model="subject" :placeholder="t('subjectPlaceholder')" />
       </div>
 
       <textarea
         v-model="body"
         class="flex-1 w-full px-4 py-3 text-sm bg-transparent resize-none focus:outline-none"
-        placeholder="Nachricht schreiben…"
+        :placeholder="t('bodyPlaceholder')"
       />
 
       <p v-if="error" class="px-4 pb-1 text-sm text-destructive">{{ error }}</p>
 
       <footer class="h-14 flex items-center justify-end gap-2 px-4 border-t border-border">
-        <UiButton type="button" variant="ghost" size="lg" @click="open = false">Verwerfen</UiButton>
-        <UiButton type="submit" size="lg" :loading="isSending">Senden</UiButton>
+        <UiButton type="button" variant="ghost" size="lg" @click="open = false">
+          {{ t("discard") }}
+        </UiButton>
+        <UiButton type="submit" size="lg" :loading="isSending">{{ t("send") }}</UiButton>
       </footer>
     </form>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  title: Neue Nachricht
+  close: Schließen
+  from: Von
+  fromAccount: Absenderkonto
+  toPlaceholder: An (mehrere mit Komma trennen)
+  ccPlaceholder: Cc (optional)
+  subjectPlaceholder: Betreff
+  bodyPlaceholder: Nachricht schreiben…
+  discard: Verwerfen
+  send: Senden
+  errors:
+    noFromAccount: Kein Absenderkonto gewählt.
+    noSmtp: Dieses Konto hat keine SMTP-Konfiguration.
+en:
+  title: New message
+  close: Close
+  from: From
+  fromAccount: Sender account
+  toPlaceholder: To (separate multiple with commas)
+  ccPlaceholder: Cc (optional)
+  subjectPlaceholder: Subject
+  bodyPlaceholder: Write a message…
+  discard: Discard
+  send: Send
+  errors:
+    noFromAccount: No sender account selected.
+    noSmtp: This account has no SMTP configuration.
+</i18n>
