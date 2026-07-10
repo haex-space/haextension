@@ -36,6 +36,102 @@ const smtpSecurity = ref<ConnectionSecurity>(
 const isSubmitting = ref(false);
 const error = ref<string | null>(null);
 
+// --- Connection test ---
+interface TestResult {
+  status: "success" | "error" | "info";
+  message: string;
+}
+
+const isTesting = ref(false);
+const imapTestResult = ref<TestResult | null>(null);
+const smtpTestResult = ref<TestResult | null>(null);
+
+// Any change to connection-relevant fields invalidates the last result.
+watch(
+  [email, password, imapHost, imapPort, imapSecurity, smtpHost, smtpPort, smtpSecurity],
+  () => {
+    imapTestResult.value = null;
+    smtpTestResult.value = null;
+  },
+);
+
+const testResultClass = (result: TestResult) => {
+  switch (result.status) {
+    case "success":
+      return "text-green-600 dark:text-green-500";
+    case "error":
+      return "text-destructive";
+    default:
+      return "text-muted-foreground";
+  }
+};
+
+const testConnectionAsync = async () => {
+  imapTestResult.value = null;
+  smtpTestResult.value = null;
+  isTesting.value = true;
+  try {
+    const base = {
+      email: email.value,
+      password: password.value,
+      accountId: props.account?.id,
+      imapHost: imapHost.value,
+      imapPort: imapPort.value,
+      imapSecurity: imapSecurity.value,
+    };
+
+    let inboxName: string | null = null;
+    let trashName: string | null = null;
+    try {
+      const res = await accountsStore.testImapConnectionAsync(base);
+      inboxName = res.inboxName;
+      trashName = res.trashName;
+      imapTestResult.value = {
+        status: "success",
+        message: `Verbindung erfolgreich (${res.mailboxCount} Postfächer)`,
+      };
+    } catch (err) {
+      imapTestResult.value = {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+      return;
+    }
+
+    if (!smtpHost.value) {
+      smtpTestResult.value = {
+        status: "info",
+        message: "nicht konfiguriert – übersprungen",
+      };
+      return;
+    }
+
+    try {
+      const res = await accountsStore.testSmtpRoundtripAsync({
+        ...base,
+        smtpHost: smtpHost.value,
+        smtpPort: smtpPort.value,
+        smtpSecurity: smtpSecurity.value,
+        inboxName,
+        trashName,
+      });
+      smtpTestResult.value = {
+        status: "success",
+        message: res.cleanedUp
+          ? "Test-Mail gesendet und in den Papierkorb verschoben"
+          : "Test-Mail gesendet (Aufräumen nicht bestätigt)",
+      };
+    } catch (err) {
+      smtpTestResult.value = {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  } finally {
+    isTesting.value = false;
+  }
+};
+
 /**
  * Naive provider auto-detection from the email domain. Covers Gmail,
  * Outlook/Microsoft, iCloud, Yahoo. For unknown domains the user fills
@@ -230,8 +326,27 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
 
+    <div v-if="imapTestResult || smtpTestResult" class="space-y-1 text-sm">
+      <p v-if="imapTestResult" :class="testResultClass(imapTestResult)">
+        IMAP: {{ imapTestResult.message }}
+      </p>
+      <p v-if="smtpTestResult" :class="testResultClass(smtpTestResult)">
+        SMTP: {{ smtpTestResult.message }}
+      </p>
+    </div>
+
     <div class="flex justify-end gap-2">
-      <UiButton type="submit" :loading="isSubmitting">
+      <UiButton
+        type="button"
+        variant="outline"
+        size="lg"
+        :loading="isTesting"
+        :disabled="isSubmitting"
+        @click="testConnectionAsync"
+      >
+        Verbindung testen
+      </UiButton>
+      <UiButton type="submit" size="lg" :loading="isSubmitting" :disabled="isTesting">
         {{ isEdit ? "Änderungen speichern" : "Konto speichern" }}
       </UiButton>
     </div>

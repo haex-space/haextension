@@ -1,7 +1,127 @@
 <script setup lang="ts">
+import { onLongPress } from "@vueuse/core";
 import type { SelectMessage } from "~/database/schemas";
+import { labelForRole } from "~/stores/mail";
 
 const mailStore = useMailStore();
+const accountsStore = useAccountsStore();
+const selectionStore = useSelectionStore();
+
+// --- Selection (haex-pass semantics; plain click opens because mail
+// has a detail pane — ctrl/cmd-click or long-press start selecting) ---
+
+const longPressedHook = ref(false);
+
+const setupLongPress = (el: unknown, msg: SelectMessage) => {
+  const element = el as HTMLElement | { $el?: HTMLElement } | null;
+  const target = element instanceof HTMLElement ? element : element?.$el;
+  if (!target) return;
+  onLongPress(
+    target,
+    () => {
+      longPressedHook.value = true;
+      selectionStore.selectItem(msg.id);
+    },
+    { delay: 500 },
+  );
+};
+
+watch(
+  () => selectionStore.selectedCount,
+  (count) => {
+    if (count === 0) longPressedHook.value = false;
+  },
+);
+
+const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
+  // A long press just selected this row — swallow the click it emits.
+  if (longPressedHook.value && selectionStore.isSelected(msg.id)) {
+    event.preventDefault();
+    longPressedHook.value = false;
+    return;
+  }
+
+  if (event.ctrlKey || event.metaKey || selectionStore.isSelectionMode) {
+    selectionStore.toggleSelection(msg.id);
+    return;
+  }
+
+  mailStore.selectMessage(msg.id);
+};
+
+const rowClass = (msg: SelectMessage) => {
+  if (selectionStore.isSelected(msg.id)) return "bg-primary/10";
+  if (mailStore.selectedMessageId === msg.id) return "bg-accent";
+  return "";
+};
+
+// --- Bulk actions ---
+
+const selectedIds = () => Array.from(selectionStore.selectedIds);
+
+const onMarkReadAsync = async (add: boolean) => {
+  await mailStore.bulkSetFlagAsync(selectedIds(), "\\Seen", add);
+};
+
+const onArchiveAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(selectedIds(), "archive");
+  selectionStore.clearSelection();
+};
+
+const onDeleteAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(selectedIds(), "trash");
+  selectionStore.clearSelection();
+};
+
+/**
+ * Move target context: only defined when the whole selection lives in
+ * one account (in the unified view it may span several).
+ */
+const moveContext = computed(() => {
+  let accountId: string | null = null;
+  let mailboxName: string | null = null;
+  for (const msg of mailStore.messageList) {
+    if (!selectionStore.selectedIds.has(msg.id)) continue;
+    if (accountId === null) {
+      accountId = msg.accountId;
+      mailboxName = msg.mailboxName;
+    } else if (accountId !== msg.accountId) {
+      return null;
+    }
+  }
+  return accountId && mailboxName ? { accountId, mailboxName } : null;
+});
+
+const showMoveDialog = ref(false);
+
+const onMoveTargetAsync = async (mailboxName: string) => {
+  await mailStore.bulkMoveToMailboxAsync(selectedIds(), mailboxName);
+  selectionStore.clearSelection();
+};
+
+const headerLabel = computed(() => {
+  if (mailStore.isUnifiedView) {
+    return labelForRole(mailStore.selectedRole) ?? "Kein Postfach gewählt";
+  }
+  return mailStore.selectedMailboxName ?? "Kein Postfach gewählt";
+});
+
+/** Stable per-account color for the unified view's row indicator. */
+const ACCOUNT_COLORS = [
+  "bg-sky-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-violet-500",
+];
+
+const accountColor = (accountId: string) => {
+  const idx = accountsStore.accounts.findIndex((a) => a.id === accountId);
+  return ACCOUNT_COLORS[(idx >= 0 ? idx : 0) % ACCOUNT_COLORS.length];
+};
+
+const accountEmail = (accountId: string) =>
+  accountsStore.accounts.find((a) => a.id === accountId)?.email ?? "";
 
 const formatSender = (msg: SelectMessage) => {
   const first = msg.fromJson[0];
@@ -30,9 +150,22 @@ const isUnread = (msg: SelectMessage) => {
 </script>
 
 <template>
-  <section class="border-r border-border flex flex-col">
-    <header class="h-12 border-b border-border flex items-center px-4 text-sm font-medium">
-      {{ mailStore.selectedMailboxName ?? "Kein Postfach gewählt" }}
+  <section class="md:border-r border-border flex flex-col">
+    <MailSelectionToolbar
+      v-if="selectionStore.isSelectionMode"
+      :can-move="!!moveContext"
+      @mark-read="onMarkReadAsync(true)"
+      @mark-unread="onMarkReadAsync(false)"
+      @archive="onArchiveAsync"
+      @move="showMoveDialog = true"
+      @delete="onDeleteAsync"
+    />
+    <!-- On mobile the page header already names the folder. -->
+    <header
+      v-else
+      class="h-12 border-b border-border hidden md:flex items-center px-4 text-sm font-medium"
+    >
+      {{ headerLabel }}
       <span v-if="mailStore.isLoadingMessages" class="ml-2 text-muted-foreground">…</span>
     </header>
 
@@ -40,12 +173,10 @@ const isUnread = (msg: SelectMessage) => {
       <li
         v-for="msg in mailStore.messageList"
         :key="msg.id"
-        class="border-b border-border px-4 py-3 cursor-pointer hover:bg-accent/50"
-        :class="{
-          'bg-accent': mailStore.selectedMessageUid === msg.uid,
-          'font-semibold': isUnread(msg),
-        }"
-        @click="mailStore.selectMessage(msg.uid)"
+        :ref="(el) => setupLongPress(el, msg)"
+        class="border-b border-border px-4 py-3 cursor-pointer hover:bg-accent/50 select-none"
+        :class="[rowClass(msg), { 'font-semibold': isUnread(msg) }]"
+        @click="onClickMessage(msg, $event)"
       >
         <div class="flex items-baseline gap-2">
           <span class="truncate text-sm flex-1">{{ formatSender(msg) }}</span>
@@ -56,6 +187,18 @@ const isUnread = (msg: SelectMessage) => {
         <div class="text-sm truncate mt-0.5">
           {{ msg.subject ?? "(kein Betreff)" }}
         </div>
+        <div
+          v-if="mailStore.isUnifiedView"
+          class="flex items-center gap-1.5 mt-1"
+        >
+          <span
+            class="size-2 rounded-full shrink-0"
+            :class="accountColor(msg.accountId)"
+          />
+          <span class="text-xs font-normal text-muted-foreground truncate">
+            {{ accountEmail(msg.accountId) }}
+          </span>
+        </div>
       </li>
     </ul>
 
@@ -63,5 +206,13 @@ const isUnread = (msg: SelectMessage) => {
       <p v-if="mailStore.isLoadingMessages">Lade Nachrichten…</p>
       <p v-else>Keine Nachrichten.</p>
     </div>
+
+    <MailMoveDialog
+      v-if="moveContext"
+      v-model:open="showMoveDialog"
+      :account-id="moveContext.accountId"
+      :exclude-mailbox-name="moveContext.mailboxName"
+      @select="onMoveTargetAsync"
+    />
   </section>
 </template>

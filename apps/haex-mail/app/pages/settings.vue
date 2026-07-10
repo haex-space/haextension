@@ -57,13 +57,13 @@ const executeDeleteAsync = async () => {
 <template>
   <div class="h-screen flex flex-col bg-background text-foreground">
     <header class="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
-      <button
-        class="p-1.5 rounded-md hover:bg-muted transition-colors"
+      <UiButton
+        variant="ghost"
+        size="icon-lg"
+        :icon="ArrowLeft"
         :aria-label="t('back')"
         @click="router.push('/')"
-      >
-        <ArrowLeft class="w-5 h-5" />
-      </button>
+      />
       <h1 class="text-lg font-semibold">{{ t("title") }}</h1>
     </header>
 
@@ -86,33 +86,37 @@ const executeDeleteAsync = async () => {
               {{ account.imapHost }}:{{ account.imapPort }}
             </p>
           </div>
-          <button
-            class="p-1.5 rounded-md hover:bg-background transition-colors shrink-0"
-            :title="t('accounts.edit')"
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Pencil"
+            class="shrink-0 hover:bg-background"
+            :tooltip="t('accounts.edit')"
             @click="openEdit(account)"
-          >
-            <Pencil class="w-4 h-4" />
-          </button>
-          <button
-            class="p-1.5 rounded-md hover:bg-background transition-colors text-destructive shrink-0"
-            :title="t('accounts.delete')"
+          />
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Trash2"
+            class="shrink-0 text-destructive hover:bg-background"
+            :tooltip="t('accounts.delete')"
             @click="confirmDelete(account.id)"
-          >
-            <Trash2 class="w-4 h-4" />
-          </button>
+          />
         </div>
 
         <p v-if="accountsStore.accounts.length === 0" class="text-sm text-muted-foreground">
           {{ t("accounts.empty") }}
         </p>
 
-        <button
-          class="flex items-center gap-2 w-full justify-center bg-muted hover:bg-muted/80 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+        <UiButton
+          variant="secondary"
+          size="lg"
+          class="w-full"
+          :prepend-icon="Plus"
           @click="openCreate"
         >
-          <Plus class="w-4 h-4" />
           {{ t("accounts.add") }}
-        </button>
+        </UiButton>
       </section>
     </div>
 
@@ -148,18 +152,12 @@ const executeDeleteAsync = async () => {
 
       <template #footer>
         <div class="flex justify-end gap-2 w-full">
-          <button
-            class="text-muted-foreground px-3 py-2"
-            @click="showDeleteConfirm = false"
-          >
+          <UiButton variant="ghost" size="lg" @click="showDeleteConfirm = false">
             {{ t("accounts.deleteConfirm.abort") }}
-          </button>
-          <button
-            class="bg-destructive text-destructive-foreground rounded-md px-4 py-2 hover:opacity-90 transition-opacity"
-            @click="executeDeleteAsync"
-          >
+          </UiButton>
+          <UiButton variant="destructive" size="lg" @click="executeDeleteAsync">
             {{ t("accounts.deleteConfirm.confirm") }}
-          </button>
+          </UiButton>
         </div>
       </template>
     </UiDrawerModal>

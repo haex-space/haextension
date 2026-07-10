@@ -1,9 +1,12 @@
-import { watchImmediate } from "@vueuse/core";
+import { breakpointsTailwind, useBreakpoints, watchImmediate } from "@vueuse/core";
 import type { ApplicationContext } from "@haex-space/vault-sdk";
 
 export const useUiStore = defineStore("ui", () => {
   const context = ref<ApplicationContext | null>(null);
   const currentThemeName = ref<"dark" | "light">("dark");
+
+  const breakpoints = useBreakpoints(breakpointsTailwind);
+  const isMediumScreen = breakpoints.greaterOrEqual("md");
 
   const colorMode = useColorMode();
 
@@ -14,5 +17,6 @@ export const useUiStore = defineStore("ui", () => {
   return {
     context,
     currentThemeName,
+    isMediumScreen,
   };
 });
