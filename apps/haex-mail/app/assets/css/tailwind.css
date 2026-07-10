@@ -8,11 +8,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --primary: oklch(0.62 0.21 27);
+  --primary: oklch(0.50 0.18 190);
 }
 
 .dark {
-  --primary: oklch(0.7 0.19 27);
+  --primary: oklch(0.65 0.16 190);
 }
 
 @layer base {

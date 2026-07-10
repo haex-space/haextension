@@ -81,11 +81,56 @@ onKeyStroke("Delete", async (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (!selectionStore.isSelectionMode) return;
   e.preventDefault();
-  await mailStore.bulkMoveToRoleAsync(
-    Array.from(selectionStore.selectedIds),
-    "trash",
-  );
+
+  const ids = Array.from(selectionStore.selectedIds);
+  const list = mailStore.messageList;
+  const idSet = new Set(ids);
+
+  // Find the next message to select after deletion
+  const selectedIndices = list
+    .map((m, i) => (idSet.has(m.id) ? i : -1))
+    .filter((i) => i !== -1);
+
+  let nextId: string | null = null;
+  if (selectedIndices.length > 0) {
+    const maxIdx = Math.max(...selectedIndices);
+    const afterCandidate = list.slice(maxIdx + 1).find((m) => !idSet.has(m.id));
+    if (afterCandidate) {
+      nextId = afterCandidate.id;
+    } else {
+      const minIdx = Math.min(...selectedIndices);
+      const beforeCandidate = list.slice(0, minIdx).reverse().find((m) => !idSet.has(m.id));
+      if (beforeCandidate) nextId = beforeCandidate.id;
+    }
+  }
+
+  await mailStore.bulkMoveToRoleAsync(ids, "trash");
   selectionStore.clearSelection();
+  if (nextId) {
+    mailStore.selectMessage(nextId);
+  }
+});
+
+onKeyStroke("ArrowDown", (e) => {
+  if (isEditableTarget(e) || showCompose.value) return;
+  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
+  e.preventDefault();
+  const list = mailStore.messageList;
+  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
+  if (idx !== -1 && idx < list.length - 1) {
+    mailStore.selectMessage(list[idx + 1].id);
+  }
+});
+
+onKeyStroke("ArrowUp", (e) => {
+  if (isEditableTarget(e) || showCompose.value) return;
+  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
+  e.preventDefault();
+  const list = mailStore.messageList;
+  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
+  if (idx > 0) {
+    mailStore.selectMessage(list[idx - 1].id);
+  }
 });
 
 // A different folder/account means a different message set — selection
