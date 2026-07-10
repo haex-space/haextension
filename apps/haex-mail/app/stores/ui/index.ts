@@ -14,9 +14,12 @@ export const useUiStore = defineStore("ui", () => {
     colorMode.preference = currentThemeName.value;
   });
 
+  const mailFormat = useLocalStorage<"text" | "html">("haex-mail:mailFormat", "text");
+
   return {
     context,
     currentThemeName,
     isMediumScreen,
+    mailFormat,
   };
 });
