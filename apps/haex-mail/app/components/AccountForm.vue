@@ -197,7 +197,7 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         <UiInput v-model="imapHost" placeholder="imap.example.com" required />
         <UiInput v-model.number="imapPort" type="number" placeholder="Port" required />
         <ShadcnSelect v-model="imapSecurity">
-          <ShadcnSelectTrigger class="w-full">
+          <ShadcnSelectTrigger class="w-full" aria-label="IMAP-Sicherheit">
             <ShadcnSelectValue />
           </ShadcnSelectTrigger>
           <ShadcnSelectContent>
@@ -217,7 +217,7 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         <UiInput v-model="smtpHost" placeholder="smtp.example.com (optional)" />
         <UiInput v-model.number="smtpPort" type="number" placeholder="Port" />
         <ShadcnSelect v-model="smtpSecurity">
-          <ShadcnSelectTrigger class="w-full">
+          <ShadcnSelectTrigger class="w-full" aria-label="SMTP-Sicherheit">
             <ShadcnSelectValue />
           </ShadcnSelectTrigger>
           <ShadcnSelectContent>

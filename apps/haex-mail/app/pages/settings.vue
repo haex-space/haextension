@@ -59,6 +59,7 @@ const executeDeleteAsync = async () => {
     <header class="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
       <button
         class="p-1.5 rounded-md hover:bg-muted transition-colors"
+        :aria-label="t('back')"
         @click="router.push('/')"
       >
         <ArrowLeft class="w-5 h-5" />
@@ -168,6 +169,7 @@ const executeDeleteAsync = async () => {
 <i18n lang="yaml">
 de:
   title: Einstellungen
+  back: Zurück
   accounts:
     title: Mail-Konten
     empty: Noch keine Konten eingerichtet.
@@ -183,6 +185,7 @@ de:
       confirm: Entfernen
 en:
   title: Settings
+  back: Back
   accounts:
     title: Mail Accounts
     empty: No accounts configured yet.

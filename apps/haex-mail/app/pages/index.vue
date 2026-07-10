@@ -26,11 +26,28 @@ onMounted(async () => {
   // Restore credentials after a remount (e.g. returning from /settings) —
   // the selectedAccountId watcher only fires on change.
   if (mailStore.selectedAccountId) {
-    currentAccount.value = await accountsStore.loadAccountWithCredentialsAsync(
+    const acc = await accountsStore.loadAccountWithCredentialsAsync(
       mailStore.selectedAccountId,
     );
+    currentAccount.value = acc;
+    // The selection may have changed while unmounted (e.g. account deleted
+    // in settings) — refresh when the cached mailboxes belong to another one.
+    if (acc && mailStore.mailboxes[0]?.accountId !== acc.account.id) {
+      await refreshMailboxesAndSelectInboxAsync(acc);
+    }
   }
 });
+
+const refreshMailboxesAndSelectInboxAsync = async (
+  acc: AccountWithCredentials,
+) => {
+  await mailStore.refreshMailboxesAsync(acc);
+  // Default to the inbox if we have one.
+  const inbox = mailStore.mailboxes.find((m) => m.role === "inbox");
+  if (inbox) {
+    mailStore.selectMailbox(inbox.name);
+  }
+};
 
 /**
  * When the selected account changes, load credentials and refresh
@@ -47,12 +64,7 @@ watch(
     const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
     currentAccount.value = acc;
     if (acc) {
-      await mailStore.refreshMailboxesAsync(acc);
-      // Default to the inbox if we have one.
-      const inbox = mailStore.mailboxes.find((m) => m.role === "inbox");
-      if (inbox) {
-        mailStore.selectMailbox(inbox.name);
-      }
+      await refreshMailboxesAndSelectInboxAsync(acc);
     }
   },
 );
