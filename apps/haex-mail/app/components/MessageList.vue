@@ -180,30 +180,44 @@ const isUnread = (msg: SelectMessage) => {
         v-for="msg in mailStore.messageList"
         :key="msg.id"
         :ref="(el) => setupLongPress(el, msg)"
-        class="border-b border-border px-4 py-3 cursor-pointer hover:bg-accent/50 select-none"
-        :class="[rowClass(msg), { 'font-semibold': isUnread(msg) }]"
+        class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none"
+        :class="rowClass(msg)"
         @click="onClickMessage(msg, $event)"
       >
-        <div class="flex items-baseline gap-2">
-          <span class="truncate text-sm flex-1">{{ formatSender(msg) }}</span>
-          <span class="text-xs text-muted-foreground tabular-nums shrink-0">
-            {{ formatDate(msg.internalDate) }}
-          </span>
-        </div>
-        <div class="text-sm truncate mt-0.5">
-          {{ msg.subject ?? t("noSubject") }}
-        </div>
-        <div
-          v-if="mailStore.isUnifiedView"
-          class="flex items-center gap-1.5 mt-1"
-        >
+        <div class="w-1.5 shrink-0 flex justify-center pt-1.5">
           <span
-            class="size-2 rounded-full shrink-0"
-            :class="accountColor(msg.accountId)"
+            v-if="isUnread(msg)"
+            class="size-1.5 rounded-full bg-primary"
           />
-          <span class="text-xs font-normal text-muted-foreground truncate">
-            {{ accountEmail(msg.accountId) }}
-          </span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline gap-2">
+            <span
+              class="truncate text-sm flex-1"
+              :class="isUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
+            >{{ formatSender(msg) }}</span>
+            <span class="text-xs text-muted-foreground tabular-nums shrink-0">
+              {{ formatDate(msg.internalDate) }}
+            </span>
+          </div>
+          <div
+            class="text-sm truncate mt-0.5"
+            :class="isUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
+          >
+            {{ msg.subject ?? t("noSubject") }}
+          </div>
+          <div
+            v-if="mailStore.isUnifiedView"
+            class="flex items-center gap-1.5 mt-1"
+          >
+            <span
+              class="size-1.5 rounded-full shrink-0"
+              :class="accountColor(msg.accountId)"
+            />
+            <span class="text-xs text-muted-foreground truncate">
+              {{ accountEmail(msg.accountId) }}
+            </span>
+          </div>
         </div>
       </li>
     </ul>
