@@ -95,6 +95,10 @@ const moveContext = computed(() => {
 
 const showMoveDialog = ref(false);
 
+watch(moveContext, (ctx) => {
+  if (!ctx) showMoveDialog.value = false;
+});
+
 const onMoveTargetAsync = async (mailboxName: string) => {
   await mailStore.bulkMoveToMailboxAsync(selectedIds(), mailboxName);
   selectionStore.clearSelection();

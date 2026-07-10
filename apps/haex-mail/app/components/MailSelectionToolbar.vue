@@ -35,6 +35,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="X"
         :tooltip="t('clear')"
+        :aria-label="t('clear')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="selectionStore.clearSelection()"
       />
@@ -48,6 +49,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="MailOpen"
         :tooltip="t('markRead')"
+        :aria-label="t('markRead')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('markRead')"
       />
@@ -56,6 +58,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="Mail"
         :tooltip="t('markUnread')"
+        :aria-label="t('markUnread')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('markUnread')"
       />
@@ -64,6 +67,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="Archive"
         :tooltip="t('archive')"
+        :aria-label="t('archive')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('archive')"
       />
@@ -73,6 +77,7 @@ const selectionStore = useSelectionStore();
         :icon="FolderInput"
         :disabled="!canMove"
         :tooltip="canMove ? t('move') : t('moveDisabled')"
+        :aria-label="canMove ? t('move') : t('moveDisabled')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('move')"
       />
@@ -81,6 +86,7 @@ const selectionStore = useSelectionStore();
         size="icon-lg"
         :icon="Trash2"
         :tooltip="t('delete')"
+        :aria-label="t('delete')"
         class="text-primary-foreground hover:bg-primary-foreground/10"
         @click="$emit('delete')"
       />

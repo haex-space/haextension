@@ -92,6 +92,7 @@ const executeDeleteAsync = async () => {
             :icon="Pencil"
             class="shrink-0 hover:bg-background"
             :tooltip="t('accounts.edit')"
+            :aria-label="t('accounts.edit')"
             @click="openEdit(account)"
           />
           <UiButton
@@ -100,6 +101,7 @@ const executeDeleteAsync = async () => {
             :icon="Trash2"
             class="shrink-0 text-destructive hover:bg-background"
             :tooltip="t('accounts.delete')"
+            :aria-label="t('accounts.delete')"
             @click="confirmDelete(account.id)"
           />
         </div>

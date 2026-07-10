@@ -151,7 +151,7 @@ export const useMailStore = defineStore("mail", () => {
         mailboxName,
         uid: env.uid,
         threadKey,
-        flags: env.flags,
+        flags: env.flags.map((f) => f.replace(/^\\/, "")),
         internalDate: env.internalDate ?? null,
         subject: env.subject ?? null,
         fromJson: env.from,
@@ -169,7 +169,7 @@ export const useMailStore = defineStore("mail", () => {
         // Flags can change between fetches (e.g. \Seen); update them.
         await haexVault.orm
           .update(schema.messages)
-          .set({ flags: env.flags })
+          .set({ flags: env.flags.map((f) => f.replace(/^\\/, "")) })
           .where(eq(schema.messages.id, id));
       }
     }
@@ -248,7 +248,7 @@ export const useMailStore = defineStore("mail", () => {
         if (r.status === "rejected") {
           console.warn(
             "[haex-mail] unified refresh failed for account",
-            accounts[i]?.account.email,
+            accounts[i]?.account.id,
             r.reason,
           );
         }
