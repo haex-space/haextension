@@ -1,7 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import type {
-  ImapConfig,
   MailMessage,
   MailboxInfo,
   MessageEnvelope,

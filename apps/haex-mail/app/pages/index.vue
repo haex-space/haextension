@@ -14,13 +14,21 @@ onMounted(async () => {
   try {
     await haexVault.initializeAsync();
   } catch (err) {
-    initError.value = (err as any)?.message ?? String(err);
+    initError.value = err instanceof Error ? err.message : String(err);
     console.error('[haex-mail] Initialization failed:', err);
     return;
   }
   await accountsStore.loadAccountsAsync();
   if (!accountsStore.hasAccounts) {
     showSetup.value = true;
+    return;
+  }
+  // Restore credentials after a remount (e.g. returning from /settings) —
+  // the selectedAccountId watcher only fires on change.
+  if (mailStore.selectedAccountId) {
+    currentAccount.value = await accountsStore.loadAccountWithCredentialsAsync(
+      mailStore.selectedAccountId,
+    );
   }
 });
 
@@ -76,33 +84,35 @@ const onSetupComplete = async () => {
 </script>
 
 <template>
-  <div v-if="initError" class="h-full grid place-items-center p-8">
-    <div class="max-w-xl space-y-3 text-center">
-      <p class="font-semibold text-destructive">{{ $t("initError") }}</p>
-      <pre class="text-xs text-left bg-muted rounded p-3 overflow-auto whitespace-pre-wrap break-all">{{ initError }}</pre>
+  <div class="h-full">
+    <div v-if="initError" class="h-full grid place-items-center p-8">
+      <div class="max-w-xl space-y-3 text-center">
+        <p class="font-semibold text-destructive">{{ $t("initError") }}</p>
+        <pre class="text-xs text-left bg-muted rounded p-3 overflow-auto whitespace-pre-wrap break-all">{{ initError }}</pre>
+      </div>
     </div>
+
+    <div v-else-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
+      <p>{{ $t("loading") }}</p>
+    </div>
+
+    <AccountSetupWizard
+      v-else-if="showSetup || !accountsStore.hasAccounts"
+      @complete="onSetupComplete"
+    />
+
+    <div v-else class="h-full grid grid-cols-[260px_360px_1fr]">
+      <MailSidebar @compose="showCompose = true" />
+      <MessageList />
+      <MessageView />
+    </div>
+
+    <ComposeDialog
+      v-if="currentAccount"
+      v-model:open="showCompose"
+      :account="currentAccount"
+    />
   </div>
-
-  <div v-else-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
-    <p>{{ $t("loading") }}</p>
-  </div>
-
-  <AccountSetupWizard
-    v-else-if="showSetup || !accountsStore.hasAccounts"
-    @complete="onSetupComplete"
-  />
-
-  <div v-else class="h-full grid grid-cols-[260px_360px_1fr]">
-    <Sidebar @compose="showCompose = true" />
-    <MessageList />
-    <MessageView />
-  </div>
-
-  <ComposeDialog
-    v-if="currentAccount"
-    v-model:open="showCompose"
-    :account="currentAccount"
-  />
 </template>
 
 <i18n lang="yaml">
