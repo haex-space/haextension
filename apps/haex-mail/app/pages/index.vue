@@ -3,6 +3,7 @@ import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
+import type { SelectMessage } from "~/database/schemas";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
@@ -12,6 +13,7 @@ const selectionStore = useSelectionStore();
 const ui = useUiStore();
 
 const showCompose = ref(false);
+const replyContext = ref<{ to: string; subject: string } | null>(null);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
 const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
@@ -52,6 +54,42 @@ const onSheetCompose = () => {
   sheetOpen.value = false;
   showCompose.value = true;
 };
+
+const buildReplyContext = (from: { name?: string; email: string } | undefined, subject: string | null | undefined) => {
+  return {
+    to: from?.email ?? "",
+    subject: (subject ?? "").startsWith("Re:") ? (subject ?? "") : `Re: ${subject ?? ""}`,
+  };
+};
+
+const onReplyFromList = (msg: SelectMessage) => {
+  replyContext.value = buildReplyContext(msg.fromJson[0], msg.subject);
+  showCompose.value = true;
+};
+
+const onReplyFromView = () => {
+  const env = mailStore.messageBody?.envelope;
+  if (!env) return;
+  replyContext.value = buildReplyContext(env.from?.[0], env.subject);
+  showCompose.value = true;
+};
+
+const onDeleteFromView = async () => {
+  const id = mailStore.selectedMessageId;
+  if (!id) return;
+  const list = mailStore.messageList;
+  const idSet = new Set([id]);
+  const idx = list.findIndex((m) => m.id === id);
+  const next = list.slice(idx + 1).find((m) => !idSet.has(m.id))
+    ?? list.slice(0, idx).reverse().find((m) => !idSet.has(m.id))
+    ?? null;
+  await mailStore.bulkMoveToRoleAsync([id], "trash");
+  if (next) mailStore.selectMessage(next.id);
+};
+
+watch(showCompose, (v) => {
+  if (!v) replyContext.value = null;
+});
 
 // --- Selection keyboard shortcuts (haex-pass parity) ---
 // Guard against text inputs and the compose dialog, otherwise Ctrl+A
@@ -292,8 +330,8 @@ const onSetupComplete = async () => {
       class="h-full grid grid-cols-[260px_360px_1fr]"
     >
       <MailSidebar @compose="showCompose = true" />
-      <MessageList />
-      <MessageView />
+      <MessageList @reply="onReplyFromList" />
+      <MessageView @reply="onReplyFromView" @delete="onDeleteFromView" />
     </div>
 
     <!-- Mobile: single column, list ↔ detail drill-in, sidebar in a sheet -->
@@ -328,8 +366,8 @@ const onSetupComplete = async () => {
         </template>
       </header>
 
-      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" />
-      <MessageView v-else class="flex-1 min-h-0" />
+      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" @reply="onReplyFromList" />
+      <MessageView v-else class="flex-1 min-h-0" @reply="onReplyFromView" @delete="onDeleteFromView" />
 
       <ShadcnSheet v-model:open="sheetOpen">
         <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
@@ -346,6 +384,7 @@ const onSetupComplete = async () => {
       v-if="haexVault.isReady && accountsStore.hasAccounts"
       v-model:open="showCompose"
       :account="currentAccount ?? undefined"
+      :reply-to="replyContext ?? undefined"
     />
   </div>
 </template>

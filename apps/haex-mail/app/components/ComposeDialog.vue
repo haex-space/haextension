@@ -11,6 +11,7 @@ const open = defineModel<boolean>("open", { default: false });
  */
 const props = defineProps<{
   account?: AccountWithCredentials;
+  replyTo?: { to: string; subject: string };
 }>();
 
 const { t } = useI18n();
@@ -39,6 +40,10 @@ watch(open, (v) => {
     return;
   }
   fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
+  if (props.replyTo) {
+    to.value = props.replyTo.to;
+    subject.value = props.replyTo.subject;
+  }
 });
 
 const parseAddresses = (input: string) => {
