@@ -11,6 +11,9 @@ export const useTagStore = defineStore("tagStore", () => {
   // All tags in the database
   const tags = ref<SelectHaexPasswordsTags[]>([]);
 
+  // All item-tag links (loaded once, kept in sync on mutations)
+  const itemTagLinks = ref<SelectHaexPasswordsItemTags[]>([]);
+
   // Load all tags from database
   const syncTagsAsync = async () => {
     const haexVaultStore = useHaexVaultStore();
@@ -22,6 +25,13 @@ export const useTagStore = defineStore("tagStore", () => {
       .orderBy(haexPasswordsTags.name);
 
     tags.value = result;
+  };
+
+  // Load all item-tag links from database
+  const syncItemTagLinksAsync = async () => {
+    const haexVaultStore = useHaexVaultStore();
+    if (!haexVaultStore.orm) throw new Error("Database not initialized");
+    itemTagLinks.value = await haexVaultStore.orm.select().from(haexPasswordsItemTags);
   };
 
   // Get or create a tag by name
@@ -72,11 +82,9 @@ export const useTagStore = defineStore("tagStore", () => {
       return; // Already linked
     }
 
-    await haexVaultStore.orm.insert(haexPasswordsItemTags).values({
-      id: crypto.randomUUID(),
-      itemId,
-      tagId: tag.id,
-    });
+    const newLink = { id: crypto.randomUUID(), itemId, tagId: tag.id };
+    await haexVaultStore.orm.insert(haexPasswordsItemTags).values(newLink);
+    itemTagLinks.value.push(newLink);
   };
 
   // Remove a tag from an item
@@ -95,6 +103,7 @@ export const useTagStore = defineStore("tagStore", () => {
       await haexVaultStore.orm
         .delete(haexPasswordsItemTags)
         .where(eq(haexPasswordsItemTags.id, linkToDelete.id));
+      itemTagLinks.value = itemTagLinks.value.filter((l) => l.id !== linkToDelete.id);
     }
   };
 
@@ -169,6 +178,7 @@ export const useTagStore = defineStore("tagStore", () => {
       .where(eq(haexPasswordsTags.id, tagId));
 
     tags.value = tags.value.filter((t) => t.id !== tagId);
+    itemTagLinks.value = itemTagLinks.value.filter((l) => l.tagId !== tagId);
   };
 
   // Migration function removed - tags field no longer exists in schema
@@ -190,13 +200,12 @@ export const useTagStore = defineStore("tagStore", () => {
       await haexVaultStore.orm
         .delete(haexPasswordsItemTags)
         .where(eq(haexPasswordsItemTags.id, existingLink.id));
+      itemTagLinks.value = itemTagLinks.value.filter((l) => l.id !== existingLink.id);
       return false; // Tag was removed
     } else {
-      await haexVaultStore.orm.insert(haexPasswordsItemTags).values({
-        id: crypto.randomUUID(),
-        itemId,
-        tagId,
-      });
+      const newLink = { id: crypto.randomUUID(), itemId, tagId };
+      await haexVaultStore.orm.insert(haexPasswordsItemTags).values(newLink);
+      itemTagLinks.value.push(newLink);
       return true; // Tag was added
     }
   };
@@ -219,7 +228,9 @@ export const useTagStore = defineStore("tagStore", () => {
 
   return {
     tags,
+    itemTagLinks,
     syncTagsAsync,
+    syncItemTagLinksAsync,
     getOrCreateTagAsync,
     addTagToItemAsync,
     removeTagFromItemAsync,

@@ -20,20 +20,49 @@ export const useSearchStore = defineStore('searchStore', () => {
   // Get items from password store
   const { items } = storeToRefs(usePasswordItemStore())
 
+  // Get tag data for enriching search
+  const { itemTagLinks, tags } = storeToRefs(useTagStore())
+
   // Get table name for search keys
   const itemDetailsTableName = getTableName(haexPasswordsItemDetails)
 
-  // Create Fuse instance reactively
-  // Note: Tags are now stored in a separate table and not included in search yet
+  // Map tagId → tagName for fast lookup
+  const tagNameMap = computed(() => {
+    const m = new Map<string, string>()
+    for (const tag of tags.value) m.set(tag.id, tag.name)
+    return m
+  })
+
+  // Map itemId → tag names array
+  const itemTagNamesMap = computed(() => {
+    const m = new Map<string, string[]>()
+    for (const link of itemTagLinks.value) {
+      const name = tagNameMap.value.get(link.tagId)
+      if (!name) continue
+      const arr = m.get(link.itemId) ?? []
+      arr.push(name)
+      m.set(link.itemId, arr)
+    }
+    return m
+  })
+
+  // Create Fuse instance reactively, enriching items with their tag names
   const searchableFuse = computed(() => {
-    return new Fuse(items.value, {
+    const enrichedItems = items.value.map((item) => {
+      const details = (item as Record<string, Record<string, unknown>>)[itemDetailsTableName]
+      const itemId = details?.id as string
+      return { ...item, __tagNames: itemTagNamesMap.value.get(itemId) ?? [] }
+    })
+
+    return new Fuse(enrichedItems, {
       keys: [
         `${itemDetailsTableName}.title`,
         `${itemDetailsTableName}.username`,
         `${itemDetailsTableName}.url`,
         `${itemDetailsTableName}.note`,
+        '__tagNames',
       ],
-      threshold: 0.2, // Stricter matching (0.0 = exact, 1.0 = match everything)
+      threshold: 0.2,
       ignoreLocation: true,
       shouldSort: true,
       minMatchCharLength: 2,
