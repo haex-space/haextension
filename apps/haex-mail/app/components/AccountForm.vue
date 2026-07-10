@@ -98,7 +98,7 @@ const testConnectionAsync = async () => {
     } catch (err) {
       imapTestResult.value = {
         status: "error",
-        message: err instanceof Error ? err.message : String(err),
+        message: err instanceof Error ? err.message : ((err as any)?.message ?? String(err)),
       };
       return;
     }
@@ -127,7 +127,7 @@ const testConnectionAsync = async () => {
     } catch (err) {
       smtpTestResult.value = {
         status: "error",
-        message: err instanceof Error ? err.message : String(err),
+        message: err instanceof Error ? err.message : ((err as any)?.message ?? String(err)),
       };
     }
   } finally {
