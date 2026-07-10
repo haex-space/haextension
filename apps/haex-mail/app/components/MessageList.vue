@@ -50,6 +50,14 @@ const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
   mailStore.selectMessage(msg.id);
 };
 
+const onActivateMessage = (msg: SelectMessage) => {
+  if (selectionStore.isSelectionMode) {
+    selectionStore.toggleSelection(msg.id);
+    return;
+  }
+  mailStore.selectMessage(msg.id);
+};
+
 const rowClass = (msg: SelectMessage) => {
   if (selectionStore.isSelected(msg.id)) return "bg-primary/10";
   if (mailStore.selectedMessageId === msg.id) return "bg-accent";
@@ -180,9 +188,12 @@ const isUnread = (msg: SelectMessage) => {
         v-for="msg in mailStore.messageList"
         :key="msg.id"
         :ref="(el) => setupLongPress(el, msg)"
-        class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none"
+        tabindex="0"
+        class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         :class="rowClass(msg)"
         @click="onClickMessage(msg, $event)"
+        @keydown.enter="onActivateMessage(msg)"
+        @keydown.space.prevent="onActivateMessage(msg)"
       >
         <div class="w-1.5 shrink-0 flex justify-center pt-1.5">
           <span

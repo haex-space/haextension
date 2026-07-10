@@ -156,7 +156,7 @@ const iconForRole = (role: string | null) => {
       <button
         v-for="mb in sortedMailboxes"
         :key="mb.id"
-        class="w-full flex items-center gap-2 rounded-md px-3 py-1.5 min-h-11 md:min-h-9 text-sm hover:bg-accent text-left"
+        class="w-full flex items-center gap-2 rounded-md px-3 py-1.5 min-h-11 md:min-h-9 text-sm hover:bg-accent text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         :class="{
           'bg-accent font-medium': isRowActive(mb),
         }"
