@@ -8,10 +8,12 @@ import {
   Archive,
   Folder,
   Pencil,
+  Settings,
 } from "lucide-vue-next";
 
 defineEmits<{ compose: [] }>();
 
+const router = useRouter();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
 
@@ -73,18 +75,20 @@ const iconForRole = (role: string | null) => {
       </UiButton>
     </div>
 
-    <select
-      v-model="mailStore.selectedAccountId"
-      class="mx-3 mb-2 h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-    >
-      <option
-        v-for="account in accountsStore.accounts"
-        :key="account.id"
-        :value="account.id"
-      >
-        {{ account.displayName }}
-      </option>
-    </select>
+    <ShadcnSelect v-model="mailStore.selectedAccountId">
+      <ShadcnSelectTrigger class="mx-3 mb-2 w-[calc(100%-1.5rem)]">
+        <ShadcnSelectValue placeholder="Konto wählen" />
+      </ShadcnSelectTrigger>
+      <ShadcnSelectContent>
+        <ShadcnSelectItem
+          v-for="account in accountsStore.accounts"
+          :key="account.id"
+          :value="account.id"
+        >
+          {{ account.displayName }}
+        </ShadcnSelectItem>
+      </ShadcnSelectContent>
+    </ShadcnSelect>
 
     <Separator />
 
@@ -108,5 +112,15 @@ const iconForRole = (role: string | null) => {
         </span>
       </button>
     </nav>
+
+    <div class="p-2 border-t border-border">
+      <button
+        class="w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent text-left"
+        @click="router.push('/settings')"
+      >
+        <Settings class="size-4 shrink-0" />
+        <span>Einstellungen</span>
+      </button>
+    </div>
   </aside>
 </template>

@@ -101,6 +101,88 @@ export const useAccountsStore = defineStore("accounts", () => {
     return id;
   };
 
+  /** keyValues managed by haex-mail on its password items. */
+  const MANAGED_KEYS = [
+    "imapHost",
+    "imapPort",
+    "imapSecurity",
+    "smtpHost",
+    "smtpPort",
+    "smtpSecurity",
+  ];
+
+  /**
+   * Update an existing account: sync the password item in the core
+   * vault (empty `password` keeps the stored one), then update the
+   * local cache row.
+   */
+  const updateAccountAsync = async (
+    accountId: string,
+    input: {
+      displayName: string;
+      email: string;
+      password?: string;
+      imapHost: string;
+      imapPort: number;
+      imapSecurity: ConnectionSecurity;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecurity?: ConnectionSecurity;
+    },
+  ) => {
+    if (!haexVault.orm) throw new Error("ORM not initialized");
+    const account = accounts.value.find((a) => a.id === accountId);
+    if (!account) throw new Error("Account not found");
+
+    // 1. Update the password item — preserve the stored password when
+    // none is given, plus any tags/keyValues added outside haex-mail.
+    const current = await haexVault.client.passwords.readAsync(
+      account.passwordItemId,
+    );
+    const foreignKeyValues = current.keyValues.filter(
+      (kv) => !kv.key || !MANAGED_KEYS.includes(kv.key),
+    );
+    await haexVault.client.passwords.updateAsync(account.passwordItemId, {
+      title: input.displayName,
+      username: input.email,
+      password: input.password || current.password,
+      tags: current.tags.includes(HAEX_MAIL_TAG)
+        ? current.tags
+        : [...current.tags, HAEX_MAIL_TAG],
+      keyValues: [
+        ...foreignKeyValues.map((kv) => ({ key: kv.key, value: kv.value })),
+        { key: "imapHost", value: input.imapHost },
+        { key: "imapPort", value: String(input.imapPort) },
+        { key: "imapSecurity", value: input.imapSecurity },
+        ...(input.smtpHost
+          ? [
+              { key: "smtpHost", value: input.smtpHost },
+              { key: "smtpPort", value: String(input.smtpPort ?? 465) },
+              { key: "smtpSecurity", value: input.smtpSecurity ?? "tls" },
+            ]
+          : []),
+      ],
+    });
+
+    // 2. Update the local cache row.
+    await haexVault.orm
+      .update(schema.accounts)
+      .set({
+        displayName: input.displayName,
+        email: input.email,
+        imapHost: input.imapHost,
+        imapPort: input.imapPort,
+        imapSecurity: input.imapSecurity,
+        smtpHost: input.smtpHost ?? null,
+        smtpPort: input.smtpPort ?? null,
+        smtpSecurity: input.smtpSecurity ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.accounts.id, accountId));
+
+    await loadAccountsAsync();
+  };
+
   /**
    * Load credentials from the core vault and combine with the local
    * account row. Returns null if the password item is gone (e.g. user
@@ -173,6 +255,7 @@ export const useAccountsStore = defineStore("accounts", () => {
     isLoading,
     loadAccountsAsync,
     createAccountAsync,
+    updateAccountAsync,
     loadAccountWithCredentialsAsync,
     deleteAccountAsync,
   };
