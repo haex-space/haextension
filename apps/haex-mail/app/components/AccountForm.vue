@@ -13,6 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ saved: [] }>();
 
+const { t } = useI18n();
 const accountsStore = useAccountsStore();
 
 const isEdit = computed(() => !!props.account);
@@ -35,6 +36,104 @@ const smtpSecurity = ref<ConnectionSecurity>(
 
 const isSubmitting = ref(false);
 const error = ref<string | null>(null);
+
+// --- Connection test ---
+interface TestResult {
+  status: "success" | "error" | "info";
+  message: string;
+}
+
+const isTesting = ref(false);
+const imapTestResult = ref<TestResult | null>(null);
+const smtpTestResult = ref<TestResult | null>(null);
+
+// Any change to connection-relevant fields invalidates the last result.
+watch(
+  [email, password, imapHost, imapPort, imapSecurity, smtpHost, smtpPort, smtpSecurity],
+  () => {
+    imapTestResult.value = null;
+    smtpTestResult.value = null;
+  },
+);
+
+const testResultClass = (result: TestResult) => {
+  switch (result.status) {
+    case "success":
+      return "text-green-600 dark:text-green-500";
+    case "error":
+      return "text-destructive";
+    default:
+      return "text-muted-foreground";
+  }
+};
+
+const testConnectionAsync = async () => {
+  imapTestResult.value = null;
+  smtpTestResult.value = null;
+  isTesting.value = true;
+  try {
+    const base = {
+      email: email.value,
+      password: password.value,
+      accountId: props.account?.id,
+      imapHost: imapHost.value,
+      imapPort: imapPort.value,
+      imapSecurity: imapSecurity.value,
+    };
+
+    let inboxName: string | null = null;
+    let trashName: string | null = null;
+    try {
+      const res = await accountsStore.testImapConnectionAsync(base);
+      inboxName = res.inboxName;
+      trashName = res.trashName;
+      imapTestResult.value = {
+        status: "success",
+        message: t(
+          "test.imapSuccess",
+          { count: res.mailboxCount },
+          res.mailboxCount,
+        ),
+      };
+    } catch (err) {
+      imapTestResult.value = {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+      return;
+    }
+
+    if (!smtpHost.value) {
+      smtpTestResult.value = {
+        status: "info",
+        message: t("test.smtpSkipped"),
+      };
+      return;
+    }
+
+    try {
+      const res = await accountsStore.testSmtpRoundtripAsync({
+        ...base,
+        smtpHost: smtpHost.value,
+        smtpPort: smtpPort.value,
+        smtpSecurity: smtpSecurity.value,
+        inboxName,
+        trashName,
+      });
+      smtpTestResult.value = {
+        status: "success",
+        message: res.cleanedUp ? t("test.smtpCleaned") : t("test.smtpSent"),
+      };
+    } catch (err) {
+      smtpTestResult.value = {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  } finally {
+    isTesting.value = false;
+  }
+};
 
 /**
  * Naive provider auto-detection from the email domain. Covers Gmail,
@@ -159,14 +258,14 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   <form class="space-y-6" @submit.prevent="submitAsync">
     <section class="space-y-3">
       <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-        Konto
+        {{ t("sections.account") }}
       </h2>
       <label class="block space-y-1">
-        <span class="text-sm">Anzeigename</span>
-        <UiInput v-model="displayName" placeholder="z.B. Privates Gmail" />
+        <span class="text-sm">{{ t("displayName") }}</span>
+        <UiInput v-model="displayName" :placeholder="t('displayNamePlaceholder')" />
       </label>
       <label class="block space-y-1">
-        <span class="text-sm">E-Mail</span>
+        <span class="text-sm">{{ t("email") }}</span>
         <UiInput
           v-model="email"
           type="email"
@@ -176,34 +275,29 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         />
       </label>
       <label class="block space-y-1">
-        <span class="text-sm">Passwort (oder App-Password)</span>
+        <span class="text-sm">{{ t("password") }}</span>
         <UiInputPassword v-model="password" :required="!isEdit" />
         <p class="text-xs text-muted-foreground">
-          <template v-if="isEdit">
-            Leer lassen, um das gespeicherte Passwort zu behalten.
-          </template>
-          <template v-else>
-            Bei Gmail/Outlook ein App-spezifisches Passwort verwenden.
-          </template>
+          {{ isEdit ? t("passwordHintEdit") : t("passwordHintCreate") }}
         </p>
       </label>
     </section>
 
     <section class="space-y-3">
       <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-        IMAP (Empfang)
+        {{ t("sections.imap") }}
       </h2>
       <div class="grid grid-cols-[1fr_120px_140px] gap-3">
         <UiInput v-model="imapHost" placeholder="imap.example.com" required />
         <UiInput v-model.number="imapPort" type="number" placeholder="Port" required />
         <ShadcnSelect v-model="imapSecurity">
-          <ShadcnSelectTrigger class="w-full" aria-label="IMAP-Sicherheit">
+          <ShadcnSelectTrigger class="w-full" :aria-label="t('imapSecurity')">
             <ShadcnSelectValue />
           </ShadcnSelectTrigger>
           <ShadcnSelectContent>
             <ShadcnSelectItem value="tls">TLS</ShadcnSelectItem>
-            <ShadcnSelectItem value="startTls" disabled>STARTTLS (Phase 2)</ShadcnSelectItem>
-            <ShadcnSelectItem value="none" disabled>Plain (Phase 2)</ShadcnSelectItem>
+            <ShadcnSelectItem value="startTls" disabled>{{ t("securityPhase2", { protocol: "STARTTLS" }) }}</ShadcnSelectItem>
+            <ShadcnSelectItem value="none" disabled>{{ t("securityPhase2", { protocol: "Plain" }) }}</ShadcnSelectItem>
           </ShadcnSelectContent>
         </ShadcnSelect>
       </div>
@@ -211,13 +305,13 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
 
     <section class="space-y-3">
       <h2 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-        SMTP (Versand)
+        {{ t("sections.smtp") }}
       </h2>
       <div class="grid grid-cols-[1fr_120px_140px] gap-3">
-        <UiInput v-model="smtpHost" placeholder="smtp.example.com (optional)" />
+        <UiInput v-model="smtpHost" :placeholder="t('smtpHostPlaceholder')" />
         <UiInput v-model.number="smtpPort" type="number" placeholder="Port" />
         <ShadcnSelect v-model="smtpSecurity">
-          <ShadcnSelectTrigger class="w-full" aria-label="SMTP-Sicherheit">
+          <ShadcnSelectTrigger class="w-full" :aria-label="t('smtpSecurity')">
             <ShadcnSelectValue />
           </ShadcnSelectTrigger>
           <ShadcnSelectContent>
@@ -230,10 +324,78 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
 
     <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
 
+    <div v-if="imapTestResult || smtpTestResult" class="space-y-1 text-sm">
+      <p v-if="imapTestResult" :class="testResultClass(imapTestResult)">
+        IMAP: {{ imapTestResult.message }}
+      </p>
+      <p v-if="smtpTestResult" :class="testResultClass(smtpTestResult)">
+        SMTP: {{ smtpTestResult.message }}
+      </p>
+    </div>
+
     <div class="flex justify-end gap-2">
-      <UiButton type="submit" :loading="isSubmitting">
-        {{ isEdit ? "Änderungen speichern" : "Konto speichern" }}
+      <UiButton
+        type="button"
+        variant="outline"
+        size="lg"
+        :loading="isTesting"
+        :disabled="isSubmitting"
+        @click="testConnectionAsync"
+      >
+        {{ t("testConnection") }}
+      </UiButton>
+      <UiButton type="submit" size="lg" :loading="isSubmitting" :disabled="isTesting">
+        {{ isEdit ? t("saveChanges") : t("saveAccount") }}
       </UiButton>
     </div>
   </form>
 </template>
+
+<i18n lang="yaml">
+de:
+  sections:
+    account: Konto
+    imap: IMAP (Empfang)
+    smtp: SMTP (Versand)
+  displayName: Anzeigename
+  displayNamePlaceholder: z.B. Privates Gmail
+  email: E-Mail
+  password: Passwort (oder App-Password)
+  passwordHintEdit: Leer lassen, um das gespeicherte Passwort zu behalten.
+  passwordHintCreate: Bei Gmail/Outlook ein App-spezifisches Passwort verwenden.
+  imapSecurity: IMAP-Sicherheit
+  smtpSecurity: SMTP-Sicherheit
+  smtpHostPlaceholder: smtp.example.com (optional)
+  securityPhase2: "{protocol} (Phase 2)"
+  testConnection: Verbindung testen
+  saveChanges: Änderungen speichern
+  saveAccount: Konto speichern
+  test:
+    imapSuccess: Verbindung erfolgreich ({count} Postfach) | Verbindung erfolgreich ({count} Postfächer)
+    smtpSkipped: nicht konfiguriert – übersprungen
+    smtpCleaned: Test-Mail gesendet und in den Papierkorb verschoben
+    smtpSent: Test-Mail gesendet (Aufräumen nicht bestätigt)
+en:
+  sections:
+    account: Account
+    imap: IMAP (incoming)
+    smtp: SMTP (outgoing)
+  displayName: Display name
+  displayNamePlaceholder: e.g. Personal Gmail
+  email: Email
+  password: Password (or app password)
+  passwordHintEdit: Leave empty to keep the stored password.
+  passwordHintCreate: For Gmail/Outlook use an app-specific password.
+  imapSecurity: IMAP security
+  smtpSecurity: SMTP security
+  smtpHostPlaceholder: smtp.example.com (optional)
+  securityPhase2: "{protocol} (phase 2)"
+  testConnection: Test connection
+  saveChanges: Save changes
+  saveAccount: Save account
+  test:
+    imapSuccess: Connection successful ({count} mailbox) | Connection successful ({count} mailboxes)
+    smtpSkipped: not configured – skipped
+    smtpCleaned: Test mail sent and moved to trash
+    smtpSent: Test mail sent (cleanup not confirmed)
+</i18n>

@@ -1,14 +1,105 @@
 <script setup lang="ts">
+import { onKeyStroke } from "@vueuse/core";
+import { ArrowLeft, Menu, Pencil } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
+import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
 
+const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
+const selectionStore = useSelectionStore();
+const ui = useUiStore();
 
 const showCompose = ref(false);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
+const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
 const initError = ref<string | null>(null);
+
+// --- Mobile (1-column) navigation ---
+const sheetOpen = ref(false);
+
+const mobileTitle = computed(() => {
+  if (mailStore.isUnifiedView) {
+    const labelKey = roleLabelKey(mailStore.selectedRole);
+    return labelKey ? t(labelKey) : t("allAccounts");
+  }
+  if (mailStore.selectedMailboxName) {
+    return mailStore.selectedMailboxName === "INBOX"
+      ? t("mail.roles.inbox")
+      : mailStore.selectedMailboxName;
+  }
+  return "haex-mail";
+});
+
+const mobileMessageTitle = computed(() => {
+  const row = mailStore.messageList.find(
+    (m) => m.id === mailStore.selectedMessageId,
+  );
+  return row?.subject ?? t("noSubject");
+});
+
+// Picking a folder (or role) in the sheet navigates — close it.
+watch(
+  [() => mailStore.selectedMailboxName, () => mailStore.selectedRole],
+  () => {
+    sheetOpen.value = false;
+  },
+);
+
+const onSheetCompose = () => {
+  sheetOpen.value = false;
+  showCompose.value = true;
+};
+
+// --- Selection keyboard shortcuts (haex-pass parity) ---
+// Guard against text inputs and the compose dialog, otherwise Ctrl+A
+// would hijack text selection.
+const isEditableTarget = (e: KeyboardEvent) => {
+  const t = e.target as HTMLElement | null;
+  return (
+    !!t &&
+    (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+  );
+};
+
+onKeyStroke(["a", "A"], (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (isEditableTarget(e) || showCompose.value) return;
+  e.preventDefault();
+  selectionStore.selectAll(mailStore.messageList.map((m) => m.id));
+});
+
+onKeyStroke("Escape", (e) => {
+  if (!selectionStore.isSelectionMode) return;
+  e.preventDefault();
+  selectionStore.clearSelection();
+});
+
+onKeyStroke("Delete", async (e) => {
+  if (isEditableTarget(e) || showCompose.value) return;
+  if (!selectionStore.isSelectionMode) return;
+  e.preventDefault();
+  await mailStore.bulkMoveToRoleAsync(
+    Array.from(selectionStore.selectedIds),
+    "trash",
+  );
+  selectionStore.clearSelection();
+});
+
+// A different folder/account means a different message set — selection
+// keys would go stale.
+watch(
+  [
+    () => mailStore.selectedMailboxName,
+    () => mailStore.selectedRole,
+    () => mailStore.selectedAccountId,
+  ],
+  () => {
+    selectionStore.clearSelection();
+  },
+);
 
 onMounted(async () => {
   try {
@@ -25,7 +116,9 @@ onMounted(async () => {
   }
   // Restore credentials after a remount (e.g. returning from /settings) —
   // the selectedAccountId watcher only fires on change.
-  if (mailStore.selectedAccountId) {
+  if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) {
+    await initUnifiedAsync();
+  } else if (mailStore.selectedAccountId) {
     const acc = await accountsStore.loadAccountWithCredentialsAsync(
       mailStore.selectedAccountId,
     );
@@ -50,6 +143,31 @@ const refreshMailboxesAndSelectInboxAsync = async (
 };
 
 /**
+ * Unified view: load credentials for every account (may surface vault
+ * permission prompts), then refresh the selected role — default inbox.
+ */
+const initUnifiedAsync = async () => {
+  currentAccount.value = null;
+  const creds = await Promise.all(
+    accountsStore.accounts.map((a) =>
+      accountsStore.getCredentialsCachedAsync(a.id),
+    ),
+  );
+  unifiedAccounts.value = creds.filter(
+    (c): c is AccountWithCredentials => c !== null,
+  );
+  if (mailStore.selectedRole) {
+    // Restored selection — the role watcher won't fire, refresh directly.
+    await mailStore.refreshUnifiedAsync(
+      mailStore.selectedRole,
+      unifiedAccounts.value,
+    );
+  } else {
+    mailStore.selectRole("inbox");
+  }
+};
+
+/**
  * When the selected account changes, load credentials and refresh
  * mailboxes. Credentials live in the core passwords vault — accessing
  * them may surface a permission prompt the first time.
@@ -59,6 +177,10 @@ watch(
   async (id) => {
     if (!id) {
       currentAccount.value = null;
+      return;
+    }
+    if (id === ALL_ACCOUNTS_ID) {
+      await initUnifiedAsync();
       return;
     }
     const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
@@ -78,14 +200,20 @@ watch(
 );
 
 watch(
-  () => mailStore.selectedMessageUid,
-  async (uid) => {
-    if (!uid || !currentAccount.value || !mailStore.selectedMailboxName) return;
-    await mailStore.loadMessageBodyAsync(
-      currentAccount.value,
-      mailStore.selectedMailboxName,
-      uid,
-    );
+  () => mailStore.selectedRole,
+  async (role) => {
+    if (!role || !mailStore.isUnifiedView) return;
+    await mailStore.refreshUnifiedAsync(role, unifiedAccounts.value);
+  },
+);
+
+watch(
+  () => mailStore.selectedMessageId,
+  async (id) => {
+    if (!id) return;
+    const row = mailStore.messageList.find((m) => m.id === id);
+    if (!row) return;
+    await mailStore.loadMessageBodyAsync(row);
   },
 );
 
@@ -113,16 +241,66 @@ const onSetupComplete = async () => {
       @complete="onSetupComplete"
     />
 
-    <div v-else class="h-full grid grid-cols-[260px_360px_1fr]">
+    <!-- Desktop: 3 columns -->
+    <div
+      v-else-if="ui.isMediumScreen"
+      class="h-full grid grid-cols-[260px_360px_1fr]"
+    >
       <MailSidebar @compose="showCompose = true" />
       <MessageList />
       <MessageView />
     </div>
 
+    <!-- Mobile: single column, list ↔ detail drill-in, sidebar in a sheet -->
+    <div v-else class="h-full flex flex-col">
+      <header class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
+        <template v-if="!mailStore.selectedMessageId">
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Menu"
+            :aria-label="t('menu')"
+            @click="sheetOpen = true"
+          />
+          <span class="flex-1 truncate font-medium">{{ mobileTitle }}</span>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Pencil"
+            :aria-label="t('compose')"
+            @click="showCompose = true"
+          />
+        </template>
+        <template v-else>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="ArrowLeft"
+            :aria-label="t('back')"
+            @click="mailStore.selectMessage(null)"
+          />
+          <span class="flex-1 truncate font-medium">{{ mobileMessageTitle }}</span>
+        </template>
+      </header>
+
+      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" />
+      <MessageView v-else class="flex-1 min-h-0" />
+
+      <ShadcnSheet v-model:open="sheetOpen">
+        <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
+          <ShadcnSheetTitle class="sr-only">{{ t("menu") }}</ShadcnSheetTitle>
+          <ShadcnSheetDescription class="sr-only">
+            {{ t("menuDescription") }}
+          </ShadcnSheetDescription>
+          <MailSidebar class="h-full" @compose="onSheetCompose" />
+        </ShadcnSheetContent>
+      </ShadcnSheet>
+    </div>
+
     <ComposeDialog
-      v-if="currentAccount"
+      v-if="haexVault.isReady && accountsStore.hasAccounts"
       v-model:open="showCompose"
-      :account="currentAccount"
+      :account="currentAccount ?? undefined"
     />
   </div>
 </template>
@@ -131,7 +309,19 @@ const onSetupComplete = async () => {
 de:
   loading: Lade…
   initError: Initialisierung fehlgeschlagen
+  menu: Menü
+  menuDescription: Konten und Ordner
+  compose: Neue Nachricht
+  back: Zurück
+  allAccounts: Alle Konten
+  noSubject: (kein Betreff)
 en:
   loading: Loading…
   initError: Initialization failed
+  menu: Menu
+  menuDescription: Accounts and folders
+  compose: New message
+  back: Back
+  allAccounts: All accounts
+  noSubject: (no subject)
 </i18n>

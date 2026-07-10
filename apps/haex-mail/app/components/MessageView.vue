@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useI18n();
 const mailStore = useMailStore();
 
 const formatAddresses = (
@@ -20,27 +21,27 @@ const formatDate = (ts: number | undefined) => {
       v-if="!mailStore.messageBody && !mailStore.isLoadingMessage"
       class="h-full grid place-items-center text-sm text-muted-foreground"
     >
-      <p>Wähle eine Nachricht.</p>
+      <p>{{ t("selectPrompt") }}</p>
     </div>
 
     <div
       v-else-if="mailStore.isLoadingMessage"
       class="h-full grid place-items-center text-sm text-muted-foreground"
     >
-      <p>Lade Nachricht…</p>
+      <p>{{ t("loading") }}</p>
     </div>
 
     <div v-else-if="mailStore.messageBody" class="p-6 max-w-4xl mx-auto">
       <header class="space-y-1 pb-4 border-b border-border">
         <h1 class="text-xl font-semibold">
-          {{ mailStore.messageBody.envelope.subject ?? "(kein Betreff)" }}
+          {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
         </h1>
         <div class="text-sm text-muted-foreground">
-          <strong class="text-foreground">Von:</strong>
+          <strong class="text-foreground">{{ t("from") }}:</strong>
           {{ formatAddresses(mailStore.messageBody.envelope.from) }}
         </div>
         <div class="text-sm text-muted-foreground">
-          <strong class="text-foreground">An:</strong>
+          <strong class="text-foreground">{{ t("to") }}:</strong>
           {{ formatAddresses(mailStore.messageBody.envelope.to) }}
         </div>
         <div
@@ -68,14 +69,14 @@ const formatDate = (ts: number | undefined) => {
       <pre
         v-else
         class="whitespace-pre-wrap font-sans text-sm mt-4"
-      >{{ mailStore.messageBody.bodyText ?? "(leer)" }}</pre>
+      >{{ mailStore.messageBody.bodyText ?? t("emptyBody") }}</pre>
 
       <div
         v-if="mailStore.messageBody.attachments.length > 0"
         class="mt-6 pt-4 border-t border-border"
       >
         <h2 class="text-sm font-medium mb-2">
-          Anhänge ({{ mailStore.messageBody.attachments.length }})
+          {{ t("attachments", { count: mailStore.messageBody.attachments.length }) }}
         </h2>
         <ul class="space-y-1 text-sm">
           <li
@@ -83,7 +84,7 @@ const formatDate = (ts: number | undefined) => {
             :key="att.partIndex"
             class="text-muted-foreground"
           >
-            {{ att.filename ?? "(unbenannt)" }} —
+            {{ att.filename ?? t("unnamed") }} —
             {{ att.contentType }} ({{ Math.round(att.size / 1024) }} KB)
           </li>
         </ul>
@@ -91,3 +92,24 @@ const formatDate = (ts: number | undefined) => {
     </div>
   </article>
 </template>
+
+<i18n lang="yaml">
+de:
+  selectPrompt: Wähle eine Nachricht.
+  loading: Lade Nachricht…
+  noSubject: (kein Betreff)
+  from: Von
+  to: An
+  emptyBody: (leer)
+  attachments: "Anhänge ({count})"
+  unnamed: (unbenannt)
+en:
+  selectPrompt: Select a message.
+  loading: Loading message…
+  noSubject: (no subject)
+  from: From
+  to: To
+  emptyBody: (empty)
+  attachments: "Attachments ({count})"
+  unnamed: (unnamed)
+</i18n>

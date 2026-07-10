@@ -1,0 +1,26 @@
+{
+  "mail": {
+    "roles": {
+      "inbox": "Inbox",
+      "sent": "Sent",
+      "drafts": "Drafts",
+      "trash": "Trash",
+      "junk": "Spam",
+      "archive": "Archive"
+    },
+    "errors": {
+      "credentials": "Failed to load credentials",
+      "noFolderForRole": "No {folder} folder found for this account"
+    }
+  },
+  "accounts": {
+    "errors": {
+      "accountNotFound": "Account not found",
+      "passwordMissing": "Password missing"
+    },
+    "testMail": {
+      "subject": "haex-mail connection test {token}",
+      "body": "Automated connection test from haex-mail. This message can be deleted.\n\nTest ID: {token}"
+    }
+  }
+}

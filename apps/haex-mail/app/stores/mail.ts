@@ -1,4 +1,5 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
 import type {
   MailMessage,
@@ -8,16 +9,29 @@ import type {
 import type { AccountWithCredentials } from "./accounts";
 
 /**
+ * Pseudo-account id for the unified view across all accounts. Folder
+ * selection then works by mailbox *role* instead of name (per-account
+ * inbox/trash names differ).
+ */
+export const ALL_ACCOUNTS_ID = "__all__";
+
+/**
  * Currently-selected account + mailbox + message. The mail UI is
  * driven by these three IDs — switching any of them triggers fetches.
  */
 export const useMailStore = defineStore("mail", () => {
   const haexVault = useHaexVaultStore();
   const accountsStore = useAccountsStore();
+  const { $i18n } = useNuxtApp();
 
   const selectedAccountId = ref<string | null>(null);
   const selectedMailboxName = ref<string | null>(null);
-  const selectedMessageUid = ref<number | null>(null);
+  const selectedRole = ref<schema.MailboxRole | null>(null);
+  const selectedMessageId = ref<string | null>(null);
+
+  const isUnifiedView = computed(
+    () => selectedAccountId.value === ALL_ACCOUNTS_ID,
+  );
 
   const mailboxes = ref<schema.SelectMailbox[]>([]);
   const messageList = ref<schema.SelectMessage[]>([]);
@@ -41,12 +55,14 @@ export const useMailStore = defineStore("mail", () => {
     }
   };
 
-  const loadMailboxesAsync = async (accountId: string) => {
+  const loadMailboxesAsync = async (accountId?: string) => {
     if (!haexVault.orm) return;
-    const rows = await haexVault.orm
-      .select()
-      .from(schema.mailboxes)
-      .where(eq(schema.mailboxes.accountId, accountId));
+    const rows = accountId
+      ? await haexVault.orm
+          .select()
+          .from(schema.mailboxes)
+          .where(eq(schema.mailboxes.accountId, accountId))
+      : await haexVault.orm.select().from(schema.mailboxes);
     mailboxes.value = rows;
   };
 
@@ -135,7 +151,7 @@ export const useMailStore = defineStore("mail", () => {
         mailboxName,
         uid: env.uid,
         threadKey,
-        flags: env.flags,
+        flags: env.flags.map((f) => f.replace(/^\\/, "")),
         internalDate: env.internalDate ?? null,
         subject: env.subject ?? null,
         fromJson: env.from,
@@ -153,7 +169,7 @@ export const useMailStore = defineStore("mail", () => {
         // Flags can change between fetches (e.g. \Seen); update them.
         await haexVault.orm
           .update(schema.messages)
-          .set({ flags: env.flags })
+          .set({ flags: env.flags.map((f) => f.replace(/^\\/, "")) })
           .where(eq(schema.messages.id, id));
       }
     }
@@ -174,18 +190,94 @@ export const useMailStore = defineStore("mail", () => {
     messageList.value = rows;
   };
 
-  const loadMessageBodyAsync = async (
-    account: AccountWithCredentials,
-    mailboxName: string,
-    uid: number,
+  /**
+   * Unified view: cached messages of every account's mailbox with the
+   * given role, merged and sorted by date.
+   */
+  const loadUnifiedMessagesAsync = async (role: schema.MailboxRole) => {
+    if (!haexVault.orm) return;
+    const rows = await haexVault.orm
+      .select({ message: schema.messages })
+      .from(schema.messages)
+      .innerJoin(
+        schema.mailboxes,
+        and(
+          eq(schema.mailboxes.accountId, schema.messages.accountId),
+          eq(schema.mailboxes.name, schema.messages.mailboxName),
+        ),
+      )
+      .where(eq(schema.mailboxes.role, role))
+      .orderBy(desc(schema.messages.internalDate));
+    messageList.value = rows.map((r) => r.message);
+  };
+
+  /**
+   * Unified refresh: for every account, sync mailboxes and fetch the
+   * latest envelopes of its role mailbox. Per-account failures don't
+   * abort the others.
+   */
+  const refreshUnifiedAsync = async (
+    role: schema.MailboxRole,
+    accounts: AccountWithCredentials[],
+    count: number = 50,
   ) => {
+    if (!haexVault.orm) return;
+    isLoadingMailboxes.value = true;
+    isLoadingMessages.value = true;
+    try {
+      const results = await Promise.allSettled(
+        accounts.map(async (acc) => {
+          const remote = await haexVault.client.mail.listMailboxesAsync(
+            acc.imap,
+            { includeStatus: true },
+          );
+          await syncMailboxesAsync(acc.account.id, remote);
+          const roleName = remote.find(
+            (m) => inferRole(m.name, m.flags) === role,
+          )?.name;
+          if (!roleName) return;
+          const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
+            acc.imap,
+            roleName,
+            { type: "latest", count },
+          );
+          await persistEnvelopesAsync(acc.account.id, roleName, envelopes);
+        }),
+      );
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.warn(
+            "[haex-mail] unified refresh failed for account",
+            accounts[i]?.account.id,
+            r.reason,
+          );
+        }
+      });
+      // The user may have switched views while fetches were in flight.
+      if (isUnifiedView.value) {
+        await loadMailboxesAsync();
+        if (selectedRole.value === role) {
+          await loadUnifiedMessagesAsync(role);
+        }
+      }
+    } finally {
+      isLoadingMailboxes.value = false;
+      isLoadingMessages.value = false;
+    }
+  };
+
+  const loadMessageBodyAsync = async (message: schema.SelectMessage) => {
     isLoadingMessage.value = true;
     messageBody.value = null;
     try {
+      const account = await accountsStore.getCredentialsCachedAsync(
+        message.accountId,
+      );
+      if (!account) throw new Error($i18n.t("mail.errors.credentials"));
       const msg = await haexVault.client.mail.fetchMessageAsync(
         account.imap,
-        mailboxName,
-        uid,
+        message.mailboxName,
+        message.uid,
       );
       messageBody.value = msg;
       // Mark as \Seen if not already. Best-effort.
@@ -193,11 +285,12 @@ export const useMailStore = defineStore("mail", () => {
         try {
           await haexVault.client.mail.setFlagsAsync(
             account.imap,
-            mailboxName,
-            [uid],
+            message.mailboxName,
+            [message.uid],
             ["\\Seen"],
             true,
           );
+          await updateLocalFlagsAsync([message.id], "\\Seen", true);
         } catch (err) {
           console.warn("[haex-mail] failed to set \\Seen flag", err);
         }
@@ -207,20 +300,192 @@ export const useMailStore = defineStore("mail", () => {
     }
   };
 
+  /**
+   * Mirror a flag change into the cached rows (DB + in-memory list) so
+   * the list reflects read/unread state without a server re-fetch.
+   */
+  const updateLocalFlagsAsync = async (
+    ids: string[],
+    flag: string,
+    add: boolean,
+  ) => {
+    if (!haexVault.orm) return;
+    const bare = flag.replace(/^\\/, "");
+    for (const id of ids) {
+      const row = messageList.value.find((m) => m.id === id);
+      const current = row?.flags ?? [];
+      const next = add
+        ? current.includes(bare)
+          ? current
+          : [...current, bare]
+        : current.filter((f) => f.replace(/^\\/, "") !== bare);
+      await haexVault.orm
+        .update(schema.messages)
+        .set({ flags: next })
+        .where(eq(schema.messages.id, id));
+      if (row) row.flags = next;
+    }
+  };
+
+  // --- Bulk actions ------------------------------------------------------
+  // All bulk actions group the selected rows by (accountId, mailboxName),
+  // so they work identically in per-account and unified view.
+
+  interface MessageGroup {
+    accountId: string;
+    mailboxName: string;
+    rows: schema.SelectMessage[];
+  }
+
+  const groupSelectedRows = (ids: string[]): MessageGroup[] => {
+    const groups = new Map<string, MessageGroup>();
+    for (const id of ids) {
+      const row = messageList.value.find((m) => m.id === id);
+      if (!row) continue;
+      const key = `${row.accountId}::${row.mailboxName}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = { accountId: row.accountId, mailboxName: row.mailboxName, rows: [] };
+        groups.set(key, group);
+      }
+      group.rows.push(row);
+    }
+    return [...groups.values()];
+  };
+
+  const reloadCurrentListAsync = async () => {
+    if (isUnifiedView.value && selectedRole.value) {
+      await loadUnifiedMessagesAsync(selectedRole.value);
+    } else if (selectedAccountId.value && selectedMailboxName.value) {
+      await loadMessagesAsync(selectedAccountId.value, selectedMailboxName.value);
+    }
+  };
+
+  const reportBulkFailures = (results: PromiseSettledResult<unknown>[]) => {
+    const failed = results.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+    if (failed) {
+      console.warn("[haex-mail] bulk action failed", failed.reason);
+      toast.error(
+        failed.reason instanceof Error
+          ? failed.reason.message
+          : String(failed.reason),
+      );
+    }
+  };
+
+  /** Mark messages read/unread (\Seen) or set any other flag. */
+  const bulkSetFlagAsync = async (ids: string[], flag: string, add: boolean) => {
+    const groups = groupSelectedRows(ids);
+    const results = await Promise.allSettled(
+      groups.map(async (g) => {
+        const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
+        if (!account) throw new Error($i18n.t("mail.errors.credentials"));
+        await haexVault.client.mail.setFlagsAsync(
+          account.imap,
+          g.mailboxName,
+          g.rows.map((r) => r.uid),
+          [flag],
+          add,
+        );
+        await updateLocalFlagsAsync(g.rows.map((r) => r.id), flag, add);
+      }),
+    );
+    reportBulkFailures(results);
+    await reloadCurrentListAsync();
+  };
+
+  /** Move messages of one group to a destination mailbox and drop the cache rows. */
+  const moveGroupAsync = async (g: MessageGroup, destinationName: string) => {
+    if (!haexVault.orm) return;
+    if (destinationName === g.mailboxName) return;
+    const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
+    if (!account) throw new Error($i18n.t("mail.errors.credentials"));
+    await haexVault.client.mail.moveMessagesAsync(
+      account.imap,
+      g.mailboxName,
+      destinationName,
+      g.rows.map((r) => r.uid),
+    );
+    await haexVault.orm
+      .delete(schema.messages)
+      .where(inArray(schema.messages.id, g.rows.map((r) => r.id)));
+  };
+
+  /** Delete (role "trash") or archive (role "archive") messages. */
+  const bulkMoveToRoleAsync = async (ids: string[], role: "trash" | "archive") => {
+    if (!haexVault.orm) return;
+    if (selectedMessageId.value && ids.includes(selectedMessageId.value)) {
+      selectMessage(null);
+    }
+    const groups = groupSelectedRows(ids);
+    const results = await Promise.allSettled(
+      groups.map(async (g) => {
+        const dest = (
+          await haexVault.orm!
+            .select()
+            .from(schema.mailboxes)
+            .where(
+              and(
+                eq(schema.mailboxes.accountId, g.accountId),
+                eq(schema.mailboxes.role, role),
+              ),
+            )
+            .limit(1)
+        )[0];
+        if (!dest) {
+          throw new Error(
+            $i18n.t("mail.errors.noFolderForRole", {
+              folder: $i18n.t(`mail.roles.${role}`),
+            }),
+          );
+        }
+        await moveGroupAsync(g, dest.name);
+      }),
+    );
+    reportBulkFailures(results);
+    await reloadCurrentListAsync();
+  };
+
+  /** Move messages to a specific mailbox — caller ensures a single account. */
+  const bulkMoveToMailboxAsync = async (ids: string[], mailboxName: string) => {
+    if (selectedMessageId.value && ids.includes(selectedMessageId.value)) {
+      selectMessage(null);
+    }
+    const groups = groupSelectedRows(ids);
+    const results = await Promise.allSettled(
+      groups.map((g) => moveGroupAsync(g, mailboxName)),
+    );
+    reportBulkFailures(results);
+    await reloadCurrentListAsync();
+  };
+
   const selectMailbox = (mailboxName: string | null) => {
     selectedMailboxName.value = mailboxName;
-    selectedMessageUid.value = null;
+    selectedRole.value = null;
+    selectedMessageId.value = null;
     messageBody.value = null;
   };
 
-  const selectMessage = (uid: number | null) => {
-    selectedMessageUid.value = uid;
+  /** Unified-view counterpart to selectMailbox — selects by role. */
+  const selectRole = (role: schema.MailboxRole | null) => {
+    selectedRole.value = role;
+    selectedMailboxName.value = null;
+    selectedMessageId.value = null;
+    messageBody.value = null;
+  };
+
+  const selectMessage = (id: string | null) => {
+    selectedMessageId.value = id;
+    if (!id) messageBody.value = null;
   };
 
   const selectAccount = (accountId: string | null) => {
     selectedAccountId.value = accountId;
     selectedMailboxName.value = null;
-    selectedMessageUid.value = null;
+    selectedRole.value = null;
+    selectedMessageId.value = null;
     mailboxes.value = [];
     messageList.value = [];
     messageBody.value = null;
@@ -240,7 +505,9 @@ export const useMailStore = defineStore("mail", () => {
   return {
     selectedAccountId,
     selectedMailboxName,
-    selectedMessageUid,
+    selectedRole,
+    selectedMessageId,
+    isUnifiedView,
     mailboxes,
     messageList,
     messageBody,
@@ -251,9 +518,16 @@ export const useMailStore = defineStore("mail", () => {
     loadMailboxesAsync,
     refreshMessagesAsync,
     loadMessagesAsync,
+    loadUnifiedMessagesAsync,
+    refreshUnifiedAsync,
     loadMessageBodyAsync,
+    updateLocalFlagsAsync,
+    bulkSetFlagAsync,
+    bulkMoveToRoleAsync,
+    bulkMoveToMailboxAsync,
     selectAccount,
     selectMailbox,
+    selectRole,
     selectMessage,
   };
 });
@@ -264,7 +538,24 @@ export const useMailStore = defineStore("mail", () => {
  * \Trash, \Junk, \Archive) are most reliable; fall back to common
  * folder names when the server doesn't advertise them.
  */
-function inferRole(name: string, flags: string[]): string | null {
+const ROLE_LABEL_KEYS = new Set([
+  "inbox",
+  "sent",
+  "drafts",
+  "trash",
+  "junk",
+  "archive",
+]);
+
+/**
+ * i18n key for a standardized mailbox role's UI label (global messages,
+ * see plugins/i18n-messages.ts). Null for unknown/custom folders.
+ */
+export function roleLabelKey(role: string | null | undefined): string | null {
+  return role && ROLE_LABEL_KEYS.has(role) ? `mail.roles.${role}` : null;
+}
+
+export function inferRole(name: string, flags: string[]): string | null {
   const flagSet = new Set(flags.map((f) => f.toLowerCase()));
   if (flagSet.has("\\inbox") || name.toUpperCase() === "INBOX") return "inbox";
   if (flagSet.has("\\sent")) return "sent";
