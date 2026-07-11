@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { onLongPress } from "@vueuse/core";
+import { onLongPress, useMediaQuery } from "@vueuse/core";
 import type { SelectMessage } from "~/database/schemas";
 import { roleLabelKey } from "~/stores/mail";
+
+const emit = defineEmits<{ reply: [msg: SelectMessage] }>();
 
 const { t } = useI18n();
 const mailStore = useMailStore();
@@ -42,6 +44,11 @@ const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
     return;
   }
 
+  if (event.shiftKey && !selectionStore.isSelectionMode) {
+    selectionStore.selectItem(msg.id);
+    return;
+  }
+
   if (event.ctrlKey || event.metaKey || selectionStore.isSelectionMode) {
     selectionStore.toggleSelection(msg.id);
     return;
@@ -56,6 +63,19 @@ const onActivateMessage = (msg: SelectMessage) => {
     return;
   }
   mailStore.selectMessage(msg.id);
+};
+
+// --- Context menu actions ---
+
+// On touch, long-press already enters selection mode; reka's built-in
+// long-press-to-open would fire on the same hold, so the context menu
+// stays a fine-pointer (mouse) affordance.
+const isCoarsePointer = useMediaQuery("(pointer: coarse)");
+
+const onContextDelete = async (msg: SelectMessage) => {
+  await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
+  // The row is gone — a stale selection id would keep selection mode on.
+  if (selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
 };
 
 const rowClass = (msg: SelectMessage) => {
@@ -184,53 +204,67 @@ const isUnread = (msg: SelectMessage) => {
     </header>
 
     <ul v-if="mailStore.messageList.length > 0" class="flex-1 overflow-y-auto">
-      <li
-        v-for="msg in mailStore.messageList"
-        :key="msg.id"
-        :ref="(el) => setupLongPress(el, msg)"
-        tabindex="0"
-        class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        :class="rowClass(msg)"
-        @click="onClickMessage(msg, $event)"
-        @keydown.enter="onActivateMessage(msg)"
-        @keydown.space.prevent="onActivateMessage(msg)"
-      >
-        <div class="w-1.5 shrink-0 flex justify-center pt-1.5">
-          <span
-            v-if="isUnread(msg)"
-            class="size-1.5 rounded-full bg-primary"
-          />
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-baseline gap-2">
-            <span
-              class="truncate text-sm flex-1"
-              :class="isUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
-            >{{ formatSender(msg) }}</span>
-            <span class="text-xs text-muted-foreground tabular-nums shrink-0">
-              {{ formatDate(msg.internalDate) }}
-            </span>
-          </div>
-          <div
-            class="text-sm truncate mt-0.5"
-            :class="isUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
+      <ShadcnContextMenu v-for="msg in mailStore.messageList" :key="msg.id">
+        <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
+          <li
+            :ref="(el) => setupLongPress(el, msg)"
+            tabindex="0"
+            class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            :class="rowClass(msg)"
+            @click="onClickMessage(msg, $event)"
+            @keydown.enter="onActivateMessage(msg)"
+            @keydown.space.prevent="onActivateMessage(msg)"
           >
-            {{ msg.subject ?? t("noSubject") }}
-          </div>
-          <div
-            v-if="mailStore.isUnifiedView"
-            class="flex items-center gap-1.5 mt-1"
-          >
-            <span
-              class="size-1.5 rounded-full shrink-0"
-              :class="accountColor(msg.accountId)"
-            />
-            <span class="text-xs text-muted-foreground truncate">
-              {{ accountEmail(msg.accountId) }}
-            </span>
-          </div>
-        </div>
-      </li>
+            <div class="w-1.5 shrink-0 flex justify-center pt-1.5">
+              <span
+                v-if="isUnread(msg)"
+                class="size-1.5 rounded-full bg-primary"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span
+                  class="truncate text-sm flex-1"
+                  :class="isUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
+                >{{ formatSender(msg) }}</span>
+                <span class="text-xs text-muted-foreground tabular-nums shrink-0">
+                  {{ formatDate(msg.internalDate) }}
+                </span>
+              </div>
+              <div
+                class="text-sm truncate mt-0.5"
+                :class="isUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
+              >
+                {{ msg.subject ?? t("noSubject") }}
+              </div>
+              <div
+                v-if="mailStore.isUnifiedView"
+                class="flex items-center gap-1.5 mt-1"
+              >
+                <span
+                  class="size-1.5 rounded-full shrink-0"
+                  :class="accountColor(msg.accountId)"
+                />
+                <span class="text-xs text-muted-foreground truncate">
+                  {{ accountEmail(msg.accountId) }}
+                </span>
+              </div>
+            </div>
+          </li>
+        </ShadcnContextMenuTrigger>
+        <ShadcnContextMenuContent>
+          <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
+            {{ t("contextRead") }}
+          </ShadcnContextMenuItem>
+          <ShadcnContextMenuItem @select="emit('reply', msg)">
+            {{ t("contextReply") }}
+          </ShadcnContextMenuItem>
+          <ShadcnContextMenuSeparator />
+          <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
+            {{ t("contextDelete") }}
+          </ShadcnContextMenuItem>
+        </ShadcnContextMenuContent>
+      </ShadcnContextMenu>
     </ul>
 
     <div v-else class="flex-1 grid place-items-center text-sm text-muted-foreground">
@@ -255,10 +289,16 @@ de:
   empty: Keine Nachrichten.
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
+  contextRead: Als gelesen markieren
+  contextReply: Antworten
+  contextDelete: Löschen
 en:
   noMailbox: No mailbox selected
   loading: Loading messages…
   empty: No messages.
   noSubject: (no subject)
   unknownSender: (unknown)
+  contextRead: Mark as read
+  contextReply: Reply
+  contextDelete: Delete
 </i18n>

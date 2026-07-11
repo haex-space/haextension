@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Reply, Trash2 } from "lucide-vue-next";
+
+const emit = defineEmits<{ reply: []; delete: [] }>();
+
 const { t } = useI18n();
 const mailStore = useMailStore();
 const uiStore = useUiStore();
@@ -38,9 +42,25 @@ const formatDate = (ts: number | undefined) => {
           <h1 class="text-xl font-semibold leading-snug">
             {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
           </h1>
-          <span class="text-xs text-muted-foreground shrink-0 mt-1">
-            {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
-          </span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-xs text-muted-foreground mt-1 mr-1">
+              {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
+            </span>
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Reply"
+              :aria-label="t('reply')"
+              @click="emit('reply')"
+            />
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Trash2"
+              :aria-label="t('delete')"
+              @click="emit('delete')"
+            />
+          </div>
         </div>
         <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
           <dt class="text-muted-foreground">{{ t("from") }}</dt>
@@ -101,6 +121,8 @@ de:
   emptyBody: (leer)
   attachments: "Anhänge ({count})"
   unnamed: (unbenannt)
+  reply: Antworten
+  delete: Löschen
 en:
   selectPrompt: Select a message.
   loading: Loading message…
@@ -110,4 +132,6 @@ en:
   emptyBody: (empty)
   attachments: "Attachments ({count})"
   unnamed: (unnamed)
+  reply: Reply
+  delete: Delete
 </i18n>
