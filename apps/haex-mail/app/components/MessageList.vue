@@ -143,30 +143,20 @@ const headerLabel = computed(() => {
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
 
-// --- Search (query lives in the store; this is just the UI toggle) ---
+// --- Search (query + isSearching live in the store; focus lives here) ---
 
-const isSearching = ref(false);
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const startSearch = async () => {
-  isSearching.value = true;
+  mailStore.isSearching = true;
   await nextTick();
   searchInputRef.value?.focus();
 };
 
 const closeSearch = () => {
-  isSearching.value = false;
+  mailStore.isSearching = false;
   mailStore.searchQuery = "";
 };
-
-watch(
-  [
-    () => mailStore.selectedMailboxName,
-    () => mailStore.selectedRole,
-    () => mailStore.selectedAccountId,
-  ],
-  () => closeSearch(),
-);
 
 // --- Sort (state + toggle live in the store) ---
 
@@ -278,12 +268,12 @@ const getAvatarColor = (email: string): string => {
       />
     </div>
 
-    <!-- Folder header with inline search + sort (all screen sizes). -->
+    <!-- Folder header with inline search + sort (desktop only; mobile handled in index.vue). -->
     <header
       v-else
-      class="h-12 border-b border-border flex items-center gap-0.5 px-1 shrink-0"
+      class="h-12 border-b border-border hidden md:flex items-center gap-0.5 px-1 shrink-0"
     >
-      <template v-if="!isSearching">
+      <template v-if="!mailStore.isSearching">
         <!-- Desktop-only sidebar toggle -->
         <ShadcnTooltip>
           <ShadcnTooltipTrigger as-child>
@@ -344,7 +334,7 @@ const getAvatarColor = (email: string): string => {
           size="icon-lg"
           :icon="X"
           :aria-label="t('closeSearch')"
-          @click="closeSearch"
+          @click="closeSearch()"
         />
         <input
           ref="searchInputRef"

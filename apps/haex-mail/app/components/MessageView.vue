@@ -43,34 +43,36 @@ const formatDate = (ts: number | undefined) => {
           <h1 v-if="props.showTitle !== false" class="text-xl font-semibold leading-snug">
             {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
           </h1>
-          <div class="flex items-center gap-1 shrink-0" :class="props.showTitle !== false ? '' : 'ml-auto'">
+          <div class="flex items-center gap-1 shrink-0 ml-auto">
             <span class="text-xs text-muted-foreground mt-1 mr-1">
               {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
             </span>
-            <ShadcnTooltip>
-              <ShadcnTooltipTrigger as-child>
-                <UiButton
-                  variant="ghost"
-                  size="icon-lg"
-                  :icon="Reply"
-                  :aria-label="t('reply')"
-                  @click="emit('reply')"
-                />
-              </ShadcnTooltipTrigger>
-              <ShadcnTooltipContent>{{ t("reply") }}</ShadcnTooltipContent>
-            </ShadcnTooltip>
-            <ShadcnTooltip>
-              <ShadcnTooltipTrigger as-child>
-                <UiButton
-                  variant="ghost"
-                  size="icon-lg"
-                  :icon="Trash2"
-                  :aria-label="t('delete')"
-                  @click="emit('delete')"
-                />
-              </ShadcnTooltipTrigger>
-              <ShadcnTooltipContent>{{ t("delete") }}</ShadcnTooltipContent>
-            </ShadcnTooltip>
+            <template v-if="props.showTitle !== false">
+              <ShadcnTooltip>
+                <ShadcnTooltipTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    size="icon-lg"
+                    :icon="Reply"
+                    :aria-label="t('reply')"
+                    @click="emit('reply')"
+                  />
+                </ShadcnTooltipTrigger>
+                <ShadcnTooltipContent>{{ t("reply") }}</ShadcnTooltipContent>
+              </ShadcnTooltip>
+              <ShadcnTooltip>
+                <ShadcnTooltipTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    size="icon-lg"
+                    :icon="Trash2"
+                    :aria-label="t('delete')"
+                    @click="emit('delete')"
+                  />
+                </ShadcnTooltipTrigger>
+                <ShadcnTooltipContent>{{ t("delete") }}</ShadcnTooltipContent>
+              </ShadcnTooltip>
+            </template>
           </div>
         </div>
         <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
