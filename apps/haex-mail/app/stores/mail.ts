@@ -18,6 +18,15 @@ export const ALL_ACCOUNTS_ID = "__all__";
 /** Field the message list can be sorted by (shared: list UI + keyboard nav). */
 export type MessageSortField = "date" | "subject" | "sender" | "flagged" | "read";
 
+/** Ordered sort options for the sort dropdown (shared between desktop and mobile). */
+export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
+  { field: "date", labelKey: "sortDate" },
+  { field: "subject", labelKey: "sortSubject" },
+  { field: "sender", labelKey: "sortSender" },
+  { field: "flagged", labelKey: "sortFlagged" },
+  { field: "read", labelKey: "sortRead" },
+];
+
 /**
  * Currently-selected account + mailbox + message. The mail UI is
  * driven by these three IDs — switching any of them triggers fetches.

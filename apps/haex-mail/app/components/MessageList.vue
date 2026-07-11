@@ -2,7 +2,7 @@
 import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { ArrowUpDown, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
-import { roleLabelKey, type MessageSortField } from "~/stores/mail";
+import { roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>();
 const emit = defineEmits<{ reply: [msg: SelectMessage]; fullscreen: [msg: SelectMessage]; toggleSidebar: [] }>();
@@ -159,14 +159,6 @@ const closeSearch = () => {
 };
 
 // --- Sort (state + toggle live in the store) ---
-
-const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
-  { field: "date", labelKey: "sortDate" },
-  { field: "subject", labelKey: "sortSubject" },
-  { field: "sender", labelKey: "sortSender" },
-  { field: "flagged", labelKey: "sortFlagged" },
-  { field: "read", labelKey: "sortRead" },
-];
 
 /** Stable per-account color for the unified view's row indicator. */
 const ACCOUNT_COLORS = [

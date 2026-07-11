@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, ArrowUpDown, ChevronDown, ChevronUp, Menu, Pencil, Reply, Search, Trash2, X } from "lucide-vue-next";
-import type { MessageSortField } from "~/stores/mail";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
 import type { SelectMessage } from "~/database/schemas";
 
 const { t } = useI18n();
@@ -15,14 +14,6 @@ const ui = useUiStore();
 
 const showCompose = ref(false);
 const showFullscreenMessage = ref(false);
-
-const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
-  { field: "date", labelKey: "sortDate" },
-  { field: "subject", labelKey: "sortSubject" },
-  { field: "sender", labelKey: "sortSender" },
-  { field: "flagged", labelKey: "sortFlagged" },
-  { field: "read", labelKey: "sortRead" },
-];
 
 const mobileSearchInputRef = ref<HTMLInputElement | null>(null);
 
