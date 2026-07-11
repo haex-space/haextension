@@ -3,6 +3,7 @@ import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
+import type { SelectMessage } from "~/database/schemas";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
@@ -12,6 +13,11 @@ const selectionStore = useSelectionStore();
 const ui = useUiStore();
 
 const showCompose = ref(false);
+const replyContext = ref<{
+  accountId: string;
+  to: string;
+  subject: string;
+} | null>(null);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
 const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
@@ -53,6 +59,61 @@ const onSheetCompose = () => {
   showCompose.value = true;
 };
 
+const buildReplyContext = (msg: SelectMessage) => {
+  const subject = msg.subject ?? "";
+  return {
+    accountId: msg.accountId,
+    to: msg.fromJson[0]?.email ?? "",
+    subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
+  };
+};
+
+const onReplyFromList = (msg: SelectMessage) => {
+  replyContext.value = buildReplyContext(msg);
+  showCompose.value = true;
+};
+
+const onReplyFromView = () => {
+  const row = mailStore.messageList.find(
+    (m) => m.id === mailStore.selectedMessageId,
+  );
+  if (!row) return;
+  onReplyFromList(row);
+};
+
+/** Next message to select once the rows in `idSet` are removed. */
+const findNextMessageId = (list: SelectMessage[], idSet: Set<string>) => {
+  const indices = list
+    .map((m, i) => (idSet.has(m.id) ? i : -1))
+    .filter((i) => i !== -1);
+  if (indices.length === 0) return null;
+  const after = list
+    .slice(Math.max(...indices) + 1)
+    .find((m) => !idSet.has(m.id));
+  if (after) return after.id;
+  const before = list
+    .slice(0, Math.min(...indices))
+    .reverse()
+    .find((m) => !idSet.has(m.id));
+  return before?.id ?? null;
+};
+
+const onDeleteFromView = async () => {
+  const id = mailStore.selectedMessageId;
+  if (!id) return;
+  const nextId = findNextMessageId(mailStore.messageList, new Set([id]));
+  await mailStore.bulkMoveToRoleAsync([id], "trash");
+  // bulkMoveToRoleAsync swallows failures (toast only) — don't navigate
+  // away while the message is in fact still in the list.
+  if (mailStore.messageList.some((m) => m.id === id)) return;
+  if (selectionStore.isSelected(id)) selectionStore.toggleSelection(id);
+  if (nextId) mailStore.selectMessage(nextId);
+};
+
+watch(showCompose, (v) => {
+  if (!v) replyContext.value = null;
+});
+
 // --- Selection keyboard shortcuts (haex-pass parity) ---
 // Guard against text inputs and the compose dialog, otherwise Ctrl+A
 // would hijack text selection.
@@ -81,11 +142,33 @@ onKeyStroke("Delete", async (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (!selectionStore.isSelectionMode) return;
   e.preventDefault();
-  await mailStore.bulkMoveToRoleAsync(
-    Array.from(selectionStore.selectedIds),
-    "trash",
-  );
+
+  const ids = Array.from(selectionStore.selectedIds);
+  await mailStore.bulkMoveToRoleAsync(ids, "trash");
   selectionStore.clearSelection();
+  // Do NOT auto-open the next message — stay in list view after bulk delete.
+});
+
+onKeyStroke("ArrowDown", (e) => {
+  if (isEditableTarget(e) || showCompose.value) return;
+  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
+  e.preventDefault();
+  const list = mailStore.messageList;
+  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
+  if (idx !== -1 && idx < list.length - 1) {
+    mailStore.selectMessage(list[idx + 1]!.id);
+  }
+});
+
+onKeyStroke("ArrowUp", (e) => {
+  if (isEditableTarget(e) || showCompose.value) return;
+  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
+  e.preventDefault();
+  const list = mailStore.messageList;
+  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
+  if (idx > 0) {
+    mailStore.selectMessage(list[idx - 1]!.id);
+  }
 });
 
 // A different folder/account means a different message set — selection
@@ -221,6 +304,24 @@ const onSetupComplete = async () => {
   showSetup.value = false;
   await accountsStore.loadAccountsAsync();
 };
+
+// --- Mobile selection toolbar handlers ---
+// Duplicated from MessageList because the toolbar renders in the page header
+// on mobile to avoid layout jump (the MessageList toolbar is desktop-only).
+
+const mobileBulkMarkReadAsync = async (add: boolean) => {
+  await mailStore.bulkSetFlagAsync(Array.from(selectionStore.selectedIds), "\\Seen", add);
+};
+
+const mobileBulkArchiveAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "archive");
+  selectionStore.clearSelection();
+};
+
+const mobileBulkDeleteAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "trash");
+  selectionStore.clearSelection();
+};
 </script>
 
 <template>
@@ -247,13 +348,24 @@ const onSetupComplete = async () => {
       class="h-full grid grid-cols-[260px_360px_1fr]"
     >
       <MailSidebar @compose="showCompose = true" />
-      <MessageList />
-      <MessageView />
+      <MessageList @reply="onReplyFromList" />
+      <MessageView @reply="onReplyFromView" @delete="onDeleteFromView" />
     </div>
 
     <!-- Mobile: single column, list ↔ detail drill-in, sidebar in a sheet -->
     <div v-else class="h-full flex flex-col">
-      <header class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
+      <!-- When in selection mode the toolbar replaces the normal header so
+           the list does not jump (MessageList's toolbar is desktop-only). -->
+      <MailSelectionToolbar
+        v-if="selectionStore.isSelectionMode && !mailStore.selectedMessageId"
+        :can-move="false"
+        @mark-read="mobileBulkMarkReadAsync(true)"
+        @mark-unread="mobileBulkMarkReadAsync(false)"
+        @archive="mobileBulkArchiveAsync"
+        @move="() => {}"
+        @delete="mobileBulkDeleteAsync"
+      />
+      <header v-else class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
         <template v-if="!mailStore.selectedMessageId">
           <UiButton
             variant="ghost"
@@ -283,8 +395,8 @@ const onSetupComplete = async () => {
         </template>
       </header>
 
-      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" />
-      <MessageView v-else class="flex-1 min-h-0" />
+      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" @reply="onReplyFromList" />
+      <MessageView v-else class="flex-1 min-h-0" @reply="onReplyFromView" @delete="onDeleteFromView" />
 
       <ShadcnSheet v-model:open="sheetOpen">
         <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
@@ -301,6 +413,7 @@ const onSetupComplete = async () => {
       v-if="haexVault.isReady && accountsStore.hasAccounts"
       v-model:open="showCompose"
       :account="currentAccount ?? undefined"
+      :reply-to="replyContext ?? undefined"
     />
   </div>
 </template>
