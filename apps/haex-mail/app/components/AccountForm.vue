@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ConnectionSecurity } from "@haex-space/vault-sdk";
+import { getErrorMessage } from "~/lib/utils";
 import type * as schema from "~/database/schemas";
 
 /**
@@ -96,10 +97,7 @@ const testConnectionAsync = async () => {
         ),
       };
     } catch (err) {
-      imapTestResult.value = {
-        status: "error",
-        message: err instanceof Error ? err.message : ((err as any)?.message ?? String(err)),
-      };
+      imapTestResult.value = { status: "error", message: getErrorMessage(err) };
       return;
     }
 
@@ -125,10 +123,7 @@ const testConnectionAsync = async () => {
         message: res.cleanedUp ? t("test.smtpCleaned") : t("test.smtpSent"),
       };
     } catch (err) {
-      smtpTestResult.value = {
-        status: "error",
-        message: err instanceof Error ? err.message : ((err as any)?.message ?? String(err)),
-      };
+      smtpTestResult.value = { status: "error", message: getErrorMessage(err) };
     }
   } finally {
     isTesting.value = false;
@@ -187,7 +182,7 @@ const submitAsync = async () => {
     }
     emit("saved");
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    error.value = getErrorMessage(err);
   } finally {
     isSubmitting.value = false;
   }

@@ -11,7 +11,8 @@
     "errors": {
       "credentials": "Zugangsdaten konnten nicht geladen werden",
       "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden"
-    }
+    },
+    "quoteHeader": "Am {date} schrieb {sender}:"
   },
   "accounts": {
     "errors": {

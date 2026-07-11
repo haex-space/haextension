@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
-import { ArrowLeft, ArrowUpDown, ChevronDown, ChevronUp, Menu, Pencil, Reply, Search, Trash2, X } from "lucide-vue-next";
+import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext } from "~/stores/mail";
+import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
 
 const { t } = useI18n();
@@ -10,23 +11,11 @@ const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
 const selectionStore = useSelectionStore();
+const bulkActions = useBulkMailActions();
 const ui = useUiStore();
 
 const showCompose = ref(false);
 const showFullscreenMessage = ref(false);
-
-const mobileSearchInputRef = ref<HTMLInputElement | null>(null);
-
-const startMobileSearch = async () => {
-  mailStore.isSearching = true;
-  await nextTick();
-  mobileSearchInputRef.value?.focus();
-};
-
-const closeMobileSearch = () => {
-  mailStore.isSearching = false;
-  mailStore.searchQuery = "";
-};
 
 // Sidebar collapse state for 3-column desktop view
 const sidebarPanelRef = ref<{ collapse: () => void; expand: () => void } | null>(null);
@@ -40,11 +29,7 @@ const toggleSidebar = () => {
   }
 };
 
-const replyContext = ref<{
-  accountId: string;
-  to: string;
-  subject: string;
-} | null>(null);
+const replyContext = ref<ReplyContext | null>(null);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
 const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
@@ -90,26 +75,17 @@ const onOpenFullscreen = () => {
   showFullscreenMessage.value = true;
 };
 
-const buildReplyContext = (msg: SelectMessage) => {
-  const subject = msg.subject ?? "";
-  return {
-    accountId: msg.accountId,
-    to: msg.fromJson[0]?.email ?? "",
-    subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
-  };
-};
-
-const onReplyFromList = (msg: SelectMessage) => {
-  replyContext.value = buildReplyContext(msg);
+const onReplyFromList = async (msg: SelectMessage) => {
+  replyContext.value = await mailStore.buildReplyContextAsync(msg);
   showCompose.value = true;
 };
 
-const onReplyFromView = () => {
+const onReplyFromView = async () => {
   const row = mailStore.messageList.find(
     (m) => m.id === mailStore.selectedMessageId,
   );
   if (!row) return;
-  onReplyFromList(row);
+  await onReplyFromList(row);
 };
 
 /** Next message to select once the rows in `idSet` are removed. */
@@ -132,7 +108,8 @@ const findNextMessageId = (list: SelectMessage[], idSet: Set<string>) => {
 const onDeleteFromView = async () => {
   const id = mailStore.selectedMessageId;
   if (!id) return;
-  const nextId = findNextMessageId(mailStore.messageList, new Set([id]));
+  // Follow the visible (filtered/sorted) order, not the raw list order.
+  const nextId = findNextMessageId(mailStore.filteredMessageList, new Set([id]));
   await mailStore.bulkMoveToRoleAsync([id], "trash");
   // bulkMoveToRoleAsync swallows failures (toast only) — don't navigate
   // away while the message is in fact still in the list.
@@ -219,7 +196,7 @@ onMounted(async () => {
   try {
     await haexVault.initializeAsync();
   } catch (err) {
-    initError.value = err instanceof Error ? err.message : String(err);
+    initError.value = getErrorMessage(err);
     console.error('[haex-mail] Initialization failed:', err);
     return;
   }
@@ -336,23 +313,6 @@ const onSetupComplete = async () => {
   await accountsStore.loadAccountsAsync();
 };
 
-// --- Mobile selection toolbar handlers ---
-// Duplicated from MessageList because the toolbar renders in the page header
-// on mobile to avoid layout jump (the MessageList toolbar is desktop-only).
-
-const mobileBulkMarkReadAsync = async (add: boolean) => {
-  await mailStore.bulkSetFlagAsync(Array.from(selectionStore.selectedIds), "\\Seen", add);
-};
-
-const mobileBulkArchiveAsync = async () => {
-  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "archive");
-  selectionStore.clearSelection();
-};
-
-const mobileBulkDeleteAsync = async () => {
-  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "trash");
-  selectionStore.clearSelection();
-};
 </script>
 
 <template>
@@ -459,36 +419,15 @@ const mobileBulkDeleteAsync = async () => {
       <MailSelectionToolbar
         v-if="selectionStore.isSelectionMode && !mailStore.selectedMessageId"
         :can-move="false"
-        @mark-read="mobileBulkMarkReadAsync(true)"
-        @mark-unread="mobileBulkMarkReadAsync(false)"
-        @archive="mobileBulkArchiveAsync"
+        @mark-read="bulkActions.markReadAsync(true)"
+        @mark-unread="bulkActions.markReadAsync(false)"
+        @archive="bulkActions.archiveAsync"
         @move="() => {}"
-        @delete="mobileBulkDeleteAsync"
+        @delete="bulkActions.deleteAsync"
       />
       <!-- Mobile search bar (replaces the normal header while searching) -->
       <header v-else-if="mailStore.isSearching && !mailStore.selectedMessageId" class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
-        <UiButton
-          variant="ghost"
-          size="icon-lg"
-          :icon="X"
-          :aria-label="t('closeSearch')"
-          @click="closeMobileSearch"
-        />
-        <input
-          ref="mobileSearchInputRef"
-          v-model="mailStore.searchQuery"
-          type="search"
-          class="flex-1 h-8 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
-          :placeholder="t('searchPlaceholder')"
-        >
-        <UiButton
-          v-if="mailStore.searchQuery"
-          variant="ghost"
-          size="icon-lg"
-          :icon="X"
-          :aria-label="t('clearSearch')"
-          @click="mailStore.searchQuery = ''"
-        />
+        <MailSearchBar />
       </header>
 
       <!-- Normal mobile header -->
@@ -533,36 +472,9 @@ const mobileBulkDeleteAsync = async () => {
             size="icon-lg"
             :icon="Search"
             :aria-label="t('search')"
-            @click="startMobileSearch"
+            @click="mailStore.isSearching = true"
           />
-          <ShadcnDropdownMenu>
-            <ShadcnDropdownMenuTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon-lg"
-                :icon="ArrowUpDown"
-                :aria-label="t('sort')"
-              />
-            </ShadcnDropdownMenuTrigger>
-            <ShadcnDropdownMenuContent align="end" class="w-44">
-              <ShadcnDropdownMenuItem
-                v-for="opt in SORT_OPTIONS"
-                :key="opt.field"
-                class="justify-between"
-                @click.prevent="mailStore.toggleSort(opt.field)"
-              >
-                <span>{{ t(opt.labelKey) }}</span>
-                <ChevronUp
-                  v-if="mailStore.sortField === opt.field && mailStore.sortDir === 'asc'"
-                  class="h-3.5 w-3.5 text-muted-foreground"
-                />
-                <ChevronDown
-                  v-else-if="mailStore.sortField === opt.field && mailStore.sortDir === 'desc'"
-                  class="h-3.5 w-3.5 text-muted-foreground"
-                />
-              </ShadcnDropdownMenuItem>
-            </ShadcnDropdownMenuContent>
-          </ShadcnDropdownMenu>
+          <MailSortMenu />
         </template>
       </header>
 
@@ -614,15 +526,6 @@ de:
   reply: Antworten
   delete: Löschen
   search: Suchen
-  sort: Sortieren
-  closeSearch: Suche schließen
-  clearSearch: Eingabe löschen
-  searchPlaceholder: Nachrichten durchsuchen…
-  sortDate: Datum
-  sortSubject: Betreff
-  sortSender: Absender
-  sortFlagged: Wichtigkeit
-  sortRead: Gelesen/Ungelesen
 en:
   loading: Loading…
   initError: Initialization failed
@@ -635,13 +538,4 @@ en:
   reply: Reply
   delete: Delete
   search: Search
-  sort: Sort
-  closeSearch: Close search
-  clearSearch: Clear input
-  searchPlaceholder: Search messages…
-  sortDate: Date
-  sortSubject: Subject
-  sortSender: Sender
-  sortFlagged: Importance
-  sortRead: Read/Unread
 </i18n>

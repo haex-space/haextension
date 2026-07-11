@@ -58,7 +58,19 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     );
   };
 
-  const initializeAsync = async () => {
+  // In-flight guard: pages call this on mount — a second call while the
+  // first is still running must not register migrations/watchers twice.
+  let initPromise: Promise<void> | null = null;
+
+  const initializeAsync = () => {
+    initPromise ??= doInitializeAsync().catch((err) => {
+      initPromise = null; // allow a retry after a failed init
+      throw err;
+    });
+    return initPromise;
+  };
+
+  const doInitializeAsync = async () => {
     if (isInitialized.value) return;
     const haexVault = getHaexVault();
 
