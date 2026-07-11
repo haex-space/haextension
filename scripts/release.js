@@ -53,20 +53,27 @@ function tagExists(tag) {
 
 // --- Pre-flight: fail before mutating anything ---
 
-// Releases are cut from main so tags always track the released history.
-// (0.1.10 was once tagged off a feature branch and never landed on main,
-// which is exactly the drift this guard prevents.)
-const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
-if (branch !== 'main') {
-  console.error(`Releases must be cut from 'main' (currently on '${branch}').`);
-  console.error(`Switch first:  git switch main`);
-  process.exit(1);
-}
-
 // A clean tree keeps the release commit minimal and rollback well-defined.
+// Check before any branch switch so we don't carry dirty state across.
 if (capture('git', ['status', '--porcelain'])) {
   console.error('Working tree is not clean — commit or stash changes before releasing.');
   process.exit(1);
+}
+
+// Releases are cut from main so tags always track the released history.
+// Auto-switch when the tree is clean; no data loss possible.
+const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+if (branch !== 'main') {
+  console.log(`Switching from '${branch}' to 'main'...`);
+  run('git', ['switch', 'main']);
+}
+run('git', ['pull', '--ff-only', 'origin', 'main']);
+
+// Releases must be pushed as haex-space (haexhub has no write access).
+const ghUser = capture('gh', ['api', 'user', '--jq', '.login']);
+if (ghUser !== 'haex-space') {
+  console.log(`Switching gh auth from '${ghUser || '(unknown)'}' to 'haex-space'...`);
+  run('gh', ['auth', 'switch', '--user', 'haex-space']);
 }
 
 // Read current version.
