@@ -118,7 +118,7 @@ const iconForRole = (role: string | null) => {
 
 <template>
   <aside class="border-r border-border flex flex-col bg-muted/30">
-    <div class="p-3">
+    <div class="hidden md:block p-3">
       <UiButton class="w-full" size="lg" :prepend-icon="Pencil" @click="$emit('compose')">
         {{ t("compose") }}
       </UiButton>
