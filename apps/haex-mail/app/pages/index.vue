@@ -129,7 +129,7 @@ onKeyStroke(["a", "A"], (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   if (isEditableTarget(e) || showCompose.value) return;
   e.preventDefault();
-  selectionStore.selectAll(mailStore.messageList.map((m) => m.id));
+  selectionStore.selectAll(mailStore.filteredMessageList.map((m) => m.id));
 });
 
 onKeyStroke("Escape", (e) => {
@@ -144,23 +144,19 @@ onKeyStroke("Delete", async (e) => {
   e.preventDefault();
 
   const ids = Array.from(selectionStore.selectedIds);
-  const nextId = findNextMessageId(mailStore.messageList, new Set(ids));
-
   await mailStore.bulkMoveToRoleAsync(ids, "trash");
   selectionStore.clearSelection();
-  if (nextId) {
-    mailStore.selectMessage(nextId);
-  }
+  // Do NOT auto-open the next message — stay in list view after bulk delete.
 });
 
 onKeyStroke("ArrowDown", (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
   e.preventDefault();
-  const list = mailStore.messageList;
+  const list = mailStore.filteredMessageList;
   const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
   if (idx !== -1 && idx < list.length - 1) {
-    mailStore.selectMessage(list[idx + 1].id);
+    mailStore.selectMessage(list[idx + 1]!.id);
   }
 });
 
@@ -168,10 +164,10 @@ onKeyStroke("ArrowUp", (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
   e.preventDefault();
-  const list = mailStore.messageList;
+  const list = mailStore.filteredMessageList;
   const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
   if (idx > 0) {
-    mailStore.selectMessage(list[idx - 1].id);
+    mailStore.selectMessage(list[idx - 1]!.id);
   }
 });
 
@@ -308,6 +304,24 @@ const onSetupComplete = async () => {
   showSetup.value = false;
   await accountsStore.loadAccountsAsync();
 };
+
+// --- Mobile selection toolbar handlers ---
+// Duplicated from MessageList because the toolbar renders in the page header
+// on mobile to avoid layout jump (the MessageList toolbar is desktop-only).
+
+const mobileBulkMarkReadAsync = async (add: boolean) => {
+  await mailStore.bulkSetFlagAsync(Array.from(selectionStore.selectedIds), "\\Seen", add);
+};
+
+const mobileBulkArchiveAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "archive");
+  selectionStore.clearSelection();
+};
+
+const mobileBulkDeleteAsync = async () => {
+  await mailStore.bulkMoveToRoleAsync(Array.from(selectionStore.selectedIds), "trash");
+  selectionStore.clearSelection();
+};
 </script>
 
 <template>
@@ -340,7 +354,18 @@ const onSetupComplete = async () => {
 
     <!-- Mobile: single column, list ↔ detail drill-in, sidebar in a sheet -->
     <div v-else class="h-full flex flex-col">
-      <header class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
+      <!-- When in selection mode the toolbar replaces the normal header so
+           the list does not jump (MessageList's toolbar is desktop-only). -->
+      <MailSelectionToolbar
+        v-if="selectionStore.isSelectionMode && !mailStore.selectedMessageId"
+        :can-move="false"
+        @mark-read="mobileBulkMarkReadAsync(true)"
+        @mark-unread="mobileBulkMarkReadAsync(false)"
+        @archive="mobileBulkArchiveAsync"
+        @move="() => {}"
+        @delete="mobileBulkDeleteAsync"
+      />
+      <header v-else class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
         <template v-if="!mailStore.selectedMessageId">
           <UiButton
             variant="ghost"

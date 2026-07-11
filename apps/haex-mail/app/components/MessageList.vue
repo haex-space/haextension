@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
+import { ArrowUpDown, ChevronDown, ChevronUp, Search, X } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
-import { roleLabelKey } from "~/stores/mail";
+import { roleLabelKey, type MessageSortField } from "~/stores/mail";
 
 const emit = defineEmits<{ reply: [msg: SelectMessage] }>();
 
@@ -79,7 +80,8 @@ const onContextDelete = async (msg: SelectMessage) => {
 };
 
 const rowClass = (msg: SelectMessage) => {
-  if (selectionStore.isSelected(msg.id)) return "bg-primary/10";
+  if (selectionStore.isSelected(msg.id))
+    return "bg-primary/20 ring-1 ring-inset ring-primary/30";
   if (mailStore.selectedMessageId === msg.id) return "bg-accent";
   return "";
 };
@@ -140,6 +142,41 @@ const headerLabel = computed(() => {
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
 
+// --- Search (query lives in the store; this is just the UI toggle) ---
+
+const isSearching = ref(false);
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
+const startSearch = async () => {
+  isSearching.value = true;
+  await nextTick();
+  searchInputRef.value?.focus();
+};
+
+const closeSearch = () => {
+  isSearching.value = false;
+  mailStore.searchQuery = "";
+};
+
+watch(
+  [
+    () => mailStore.selectedMailboxName,
+    () => mailStore.selectedRole,
+    () => mailStore.selectedAccountId,
+  ],
+  () => closeSearch(),
+);
+
+// --- Sort (state + toggle live in the store) ---
+
+const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
+  { field: "date", labelKey: "sortDate" },
+  { field: "subject", labelKey: "sortSubject" },
+  { field: "sender", labelKey: "sortSender" },
+  { field: "flagged", labelKey: "sortFlagged" },
+  { field: "read", labelKey: "sortRead" },
+];
+
 /** Stable per-account color for the unified view's row indicator. */
 const ACCOUNT_COLORS = [
   "bg-sky-500",
@@ -163,6 +200,8 @@ const formatSender = (msg: SelectMessage) => {
   return first.name ?? first.email;
 };
 
+const senderEmail = (msg: SelectMessage) => msg.fromJson[0]?.email ?? "";
+
 const formatDate = (ts: number | null) => {
   if (!ts) return "";
   const d = new Date(ts * 1000);
@@ -177,34 +216,140 @@ const formatDate = (ts: number | null) => {
   return d.toLocaleDateString();
 };
 
+// For non-today messages, provide the time as a second display line.
+const formatTime = (ts: number | null): string => {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  if (d.toDateString() === new Date().toDateString()) return "";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
 const isUnread = (msg: SelectMessage) => {
   // IMAP delivers \Seen as a flag; absence means unread.
   return !msg.flags.some((f) => f.toLowerCase().includes("seen"));
+};
+
+// --- Avatar ---
+
+const AVATAR_COLORS = [
+  "bg-sky-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-violet-500",
+  "bg-orange-500",
+  "bg-teal-500",
+  "bg-pink-500",
+];
+
+const getInitials = (name: string | undefined, email: string): string => {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
+    }
+    return (parts[0]?.[0] ?? "?").toUpperCase();
+  }
+  return (email[0] ?? "?").toUpperCase();
+};
+
+const getAvatarColor = (email: string): string => {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = (hash * 31 + email.charCodeAt(i)) & 0xffff;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]!;
 };
 </script>
 
 <template>
   <section class="md:border-r border-border flex flex-col">
-    <MailSelectionToolbar
-      v-if="selectionStore.isSelectionMode"
-      :can-move="!!moveContext"
-      @mark-read="onMarkReadAsync(true)"
-      @mark-unread="onMarkReadAsync(false)"
-      @archive="onArchiveAsync"
-      @move="showMoveDialog = true"
-      @delete="onDeleteAsync"
-    />
-    <!-- On mobile the page header already names the folder. -->
+    <!-- Desktop-only selection toolbar.
+         On mobile it lives in the page header (index.vue) to avoid layout jump. -->
+    <div v-if="selectionStore.isSelectionMode" class="hidden md:block shrink-0">
+      <MailSelectionToolbar
+        :can-move="!!moveContext"
+        @mark-read="onMarkReadAsync(true)"
+        @mark-unread="onMarkReadAsync(false)"
+        @archive="onArchiveAsync"
+        @move="showMoveDialog = true"
+        @delete="onDeleteAsync"
+      />
+    </div>
+
+    <!-- Desktop-only folder header with inline search + sort. -->
     <header
       v-else
-      class="h-12 border-b border-border hidden md:flex items-center px-4 text-sm font-medium"
+      class="h-12 border-b border-border hidden md:flex items-center gap-0.5 px-1 shrink-0"
     >
-      {{ headerLabel }}
-      <span v-if="mailStore.isLoadingMessages" class="ml-2 text-muted-foreground">…</span>
+      <template v-if="!isSearching">
+        <span class="flex-1 truncate pl-3 text-sm font-medium">{{ headerLabel }}</span>
+        <span v-if="mailStore.isLoadingMessages" class="text-muted-foreground text-sm pr-1">…</span>
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="Search"
+          :aria-label="t('search')"
+          @click="startSearch"
+        />
+        <ShadcnDropdownMenu>
+          <ShadcnDropdownMenuTrigger as-child>
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="ArrowUpDown"
+              :aria-label="t('sort')"
+            />
+          </ShadcnDropdownMenuTrigger>
+          <ShadcnDropdownMenuContent align="end" class="w-44">
+            <ShadcnDropdownMenuItem
+              v-for="opt in SORT_OPTIONS"
+              :key="opt.field"
+              class="justify-between"
+              @click.prevent="mailStore.toggleSort(opt.field)"
+            >
+              <span>{{ t(opt.labelKey) }}</span>
+              <ChevronUp
+                v-if="mailStore.sortField === opt.field && mailStore.sortDir === 'asc'"
+                class="h-3.5 w-3.5 text-muted-foreground"
+              />
+              <ChevronDown
+                v-else-if="mailStore.sortField === opt.field && mailStore.sortDir === 'desc'"
+                class="h-3.5 w-3.5 text-muted-foreground"
+              />
+            </ShadcnDropdownMenuItem>
+          </ShadcnDropdownMenuContent>
+        </ShadcnDropdownMenu>
+      </template>
+
+      <template v-else>
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="X"
+          :aria-label="t('closeSearch')"
+          @click="closeSearch"
+        />
+        <input
+          ref="searchInputRef"
+          v-model="mailStore.searchQuery"
+          type="search"
+          class="flex-1 h-8 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+          :placeholder="t('searchPlaceholder')"
+        >
+        <UiButton
+          v-if="mailStore.searchQuery"
+          variant="ghost"
+          size="icon-lg"
+          :icon="X"
+          :aria-label="t('clearSearch')"
+          @click="mailStore.searchQuery = ''"
+        />
+      </template>
     </header>
 
-    <ul v-if="mailStore.messageList.length > 0" class="flex-1 overflow-y-auto">
-      <ShadcnContextMenu v-for="msg in mailStore.messageList" :key="msg.id">
+    <ul v-if="mailStore.filteredMessageList.length > 0" class="flex-1 overflow-y-auto">
+      <ShadcnContextMenu v-for="msg in mailStore.filteredMessageList" :key="msg.id">
         <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
           <li
             :ref="(el) => setupLongPress(el, msg)"
@@ -215,21 +360,31 @@ const isUnread = (msg: SelectMessage) => {
             @keydown.enter="onActivateMessage(msg)"
             @keydown.space.prevent="onActivateMessage(msg)"
           >
-            <div class="w-1.5 shrink-0 flex justify-center pt-1.5">
-              <span
-                v-if="isUnread(msg)"
-                class="size-1.5 rounded-full bg-primary"
-              />
+            <!-- Sender avatar: colored circle with initials; ring when unread -->
+            <div class="shrink-0 pt-0.5">
+              <div
+                class="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white select-none leading-none"
+                :class="[
+                  getAvatarColor(senderEmail(msg)),
+                  isUnread(msg) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : '',
+                ]"
+              >
+                {{ getInitials(msg.fromJson[0]?.name, senderEmail(msg)) }}
+              </div>
             </div>
+
             <div class="flex-1 min-w-0">
-              <div class="flex items-baseline gap-2">
+              <div class="flex items-start gap-2">
                 <span
-                  class="truncate text-sm flex-1"
+                  class="truncate text-sm flex-1 leading-tight"
                   :class="isUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
                 >{{ formatSender(msg) }}</span>
-                <span class="text-xs text-muted-foreground tabular-nums shrink-0">
-                  {{ formatDate(msg.internalDate) }}
-                </span>
+                <div class="text-xs text-muted-foreground tabular-nums shrink-0 text-right leading-tight">
+                  <div>{{ formatDate(msg.internalDate) }}</div>
+                  <div v-if="formatTime(msg.internalDate)" class="mt-0.5 text-muted-foreground/70">
+                    {{ formatTime(msg.internalDate) }}
+                  </div>
+                </div>
               </div>
               <div
                 class="text-sm truncate mt-0.5"
@@ -269,6 +424,7 @@ const isUnread = (msg: SelectMessage) => {
 
     <div v-else class="flex-1 grid place-items-center text-sm text-muted-foreground">
       <p v-if="mailStore.isLoadingMessages">{{ t("loading") }}</p>
+      <p v-else-if="mailStore.searchQuery">{{ t("noResults") }}</p>
       <p v-else>{{ t("empty") }}</p>
     </div>
 
@@ -287,8 +443,19 @@ de:
   noMailbox: Kein Postfach gewählt
   loading: Lade Nachrichten…
   empty: Keine Nachrichten.
+  noResults: Keine Ergebnisse.
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
+  search: Suchen
+  sort: Sortieren
+  closeSearch: Suche schließen
+  clearSearch: Eingabe löschen
+  searchPlaceholder: Nachrichten durchsuchen…
+  sortDate: Datum
+  sortSubject: Betreff
+  sortSender: Absender
+  sortFlagged: Wichtigkeit
+  sortRead: Gelesen/Ungelesen
   contextRead: Als gelesen markieren
   contextReply: Antworten
   contextDelete: Löschen
@@ -296,8 +463,19 @@ en:
   noMailbox: No mailbox selected
   loading: Loading messages…
   empty: No messages.
+  noResults: No results.
   noSubject: (no subject)
   unknownSender: (unknown)
+  search: Search
+  sort: Sort
+  closeSearch: Close search
+  clearSearch: Clear input
+  searchPlaceholder: Search messages…
+  sortDate: Date
+  sortSubject: Subject
+  sortSender: Sender
+  sortFlagged: Importance
+  sortRead: Read/Unread
   contextRead: Mark as read
   contextReply: Reply
   contextDelete: Delete

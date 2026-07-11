@@ -15,6 +15,9 @@ import type { AccountWithCredentials } from "./accounts";
  */
 export const ALL_ACCOUNTS_ID = "__all__";
 
+/** Field the message list can be sorted by (shared: list UI + keyboard nav). */
+export type MessageSortField = "date" | "subject" | "sender" | "flagged" | "read";
+
 /**
  * Currently-selected account + mailbox + message. The mail UI is
  * driven by these three IDs — switching any of them triggers fetches.
@@ -40,6 +43,69 @@ export const useMailStore = defineStore("mail", () => {
   const isLoadingMailboxes = ref(false);
   const isLoadingMessages = ref(false);
   const isLoadingMessage = ref(false);
+
+  // --- Client-side search + sort ---
+  // Owned by the store so the visible order is shared: MessageList renders
+  // filteredMessageList and the page's keyboard nav / Ctrl+A consume it too.
+
+  const searchQuery = ref("");
+  const sortField = ref<MessageSortField>("date");
+  const sortDir = ref<"asc" | "desc">("desc");
+
+  const toggleSort = (field: MessageSortField) => {
+    if (sortField.value === field) {
+      sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+    } else {
+      sortField.value = field;
+      sortDir.value = "desc";
+    }
+  };
+
+  const senderText = (msg: schema.SelectMessage) =>
+    msg.fromJson[0]?.name ?? msg.fromJson[0]?.email ?? "";
+  const isUnread = (msg: schema.SelectMessage) =>
+    !msg.flags.some((f) => f.toLowerCase().includes("seen"));
+  const isFlagged = (msg: schema.SelectMessage) =>
+    msg.flags.some((f) => f.toLowerCase().includes("flagged"));
+
+  const filteredMessageList = computed(() => {
+    let list = messageList.value;
+
+    if (searchQuery.value) {
+      const q = searchQuery.value.toLowerCase();
+      list = list.filter(
+        (msg) =>
+          senderText(msg).toLowerCase().includes(q) ||
+          (msg.subject ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    // Default order from DB is date/desc — skip the sort copy in that case.
+    if (sortField.value === "date" && sortDir.value === "desc") return list;
+
+    const dir = sortDir.value === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField.value) {
+        case "date":
+          cmp = (a.internalDate ?? 0) - (b.internalDate ?? 0);
+          break;
+        case "subject":
+          cmp = (a.subject ?? "").localeCompare(b.subject ?? "");
+          break;
+        case "sender":
+          cmp = senderText(a).localeCompare(senderText(b));
+          break;
+        case "flagged":
+          cmp = (isFlagged(b) ? 1 : 0) - (isFlagged(a) ? 1 : 0);
+          break;
+        case "read":
+          cmp = (isUnread(b) ? 1 : 0) - (isUnread(a) ? 1 : 0);
+          break;
+      }
+      return cmp * dir;
+    });
+  });
 
   const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
     if (!haexVault.orm) return;
@@ -637,6 +703,11 @@ export const useMailStore = defineStore("mail", () => {
     isUnifiedView,
     mailboxes,
     messageList,
+    filteredMessageList,
+    searchQuery,
+    sortField,
+    sortDir,
+    toggleSort,
     messageBody,
     isLoadingMailboxes,
     isLoadingMessages,
