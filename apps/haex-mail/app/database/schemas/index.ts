@@ -136,4 +136,13 @@ export interface AttachmentJson {
   isInline: boolean;
 }
 
-export type MailboxRole = "inbox" | "sent" | "drafts" | "trash" | "junk" | "archive";
+/** All standardized mailbox roles — single source for the type and role sets. */
+export const MAILBOX_ROLES = [
+  "inbox",
+  "sent",
+  "drafts",
+  "trash",
+  "junk",
+  "archive",
+] as const;
+export type MailboxRole = (typeof MAILBOX_ROLES)[number];

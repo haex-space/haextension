@@ -14,6 +14,37 @@ import type {
  */
 const HAEX_MAIL_TAG = "haex-mail";
 
+/** keyValues managed by haex-mail on its password items. */
+const MANAGED_KEYS = [
+  "imapHost",
+  "imapPort",
+  "imapSecurity",
+  "smtpHost",
+  "smtpPort",
+  "smtpSecurity",
+];
+
+/** The managed keyValues for a password item (create + update). */
+const buildManagedKeyValues = (input: {
+  imapHost: string;
+  imapPort: number;
+  imapSecurity: ConnectionSecurity;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecurity?: ConnectionSecurity;
+}) => [
+  { key: "imapHost", value: input.imapHost },
+  { key: "imapPort", value: String(input.imapPort) },
+  { key: "imapSecurity", value: input.imapSecurity },
+  ...(input.smtpHost
+    ? [
+        { key: "smtpHost", value: input.smtpHost },
+        { key: "smtpPort", value: String(input.smtpPort ?? 465) },
+        { key: "smtpSecurity", value: input.smtpSecurity ?? "tls" },
+      ]
+    : []),
+];
+
 /**
  * Account-with-credentials view — combines local cache (host/port) with
  * the password item fetched from the core passwords vault. Returned by
@@ -69,18 +100,7 @@ export const useAccountsStore = defineStore("accounts", () => {
       username: input.email,
       password: input.password,
       tags: [HAEX_MAIL_TAG],
-      keyValues: [
-        { key: "imapHost", value: input.imapHost },
-        { key: "imapPort", value: String(input.imapPort) },
-        { key: "imapSecurity", value: input.imapSecurity },
-        ...(input.smtpHost
-          ? [
-              { key: "smtpHost", value: input.smtpHost },
-              { key: "smtpPort", value: String(input.smtpPort ?? 465) },
-              { key: "smtpSecurity", value: input.smtpSecurity ?? "tls" },
-            ]
-          : []),
-      ],
+      keyValues: buildManagedKeyValues(input),
     });
 
     // 2. Save the local cache row referencing the password item.
@@ -102,16 +122,6 @@ export const useAccountsStore = defineStore("accounts", () => {
     await loadAccountsAsync();
     return id;
   };
-
-  /** keyValues managed by haex-mail on its password items. */
-  const MANAGED_KEYS = [
-    "imapHost",
-    "imapPort",
-    "imapSecurity",
-    "smtpHost",
-    "smtpPort",
-    "smtpSecurity",
-  ];
 
   /**
    * Update an existing account: sync the password item in the core
@@ -153,16 +163,7 @@ export const useAccountsStore = defineStore("accounts", () => {
         : [...current.tags, HAEX_MAIL_TAG],
       keyValues: [
         ...foreignKeyValues.map((kv) => ({ key: kv.key, value: kv.value })),
-        { key: "imapHost", value: input.imapHost },
-        { key: "imapPort", value: String(input.imapPort) },
-        { key: "imapSecurity", value: input.imapSecurity },
-        ...(input.smtpHost
-          ? [
-              { key: "smtpHost", value: input.smtpHost },
-              { key: "smtpPort", value: String(input.smtpPort ?? 465) },
-              { key: "smtpSecurity", value: input.smtpSecurity ?? "tls" },
-            ]
-          : []),
+        ...buildManagedKeyValues(input),
       ],
     });
 

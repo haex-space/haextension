@@ -83,7 +83,7 @@ const executeDeleteAsync = async () => {
             <p class="text-sm font-medium">{{ t("display.htmlFormat") }}</p>
             <p class="text-xs text-muted-foreground">{{ t("display.htmlFormatDescription") }}</p>
           </div>
-          <ShadcnSwitch v-model:checked="htmlFormatEnabled" />
+          <ShadcnSwitch v-model="htmlFormatEnabled" />
         </div>
       </section>
 

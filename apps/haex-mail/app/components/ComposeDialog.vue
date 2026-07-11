@@ -2,7 +2,9 @@
 import { X } from "lucide-vue-next";
 import { toast } from "vue-sonner";
 import type { OutgoingMessage } from "@haex-space/vault-sdk";
+import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
+import type { ReplyContext } from "~/stores/mail";
 
 const open = defineModel<boolean>("open", { default: false });
 
@@ -12,7 +14,7 @@ const open = defineModel<boolean>("open", { default: false });
  */
 const props = defineProps<{
   account?: AccountWithCredentials;
-  replyTo?: { accountId: string; to: string; subject: string };
+  replyTo?: ReplyContext;
 }>();
 
 const { t } = useI18n();
@@ -58,6 +60,8 @@ const applyReplyTo = () => {
   if (!props.replyTo) return;
   to.value = props.replyTo.to;
   subject.value = props.replyTo.subject;
+  // Quoted original (cursor stays at the top, before the quote).
+  if (props.replyTo.body) body.value = props.replyTo.body;
   // Unified view: reply from the account the message was received on.
   if (!props.account) fromAccountId.value = props.replyTo.accountId;
 };
@@ -116,11 +120,14 @@ const sendAsync = async () => {
       bcc: bcc.value ? parseAddresses(bcc.value) : [],
       subject: subject.value,
       bodyText: body.value || undefined,
+      // Threading headers so replies land in the original conversation.
+      inReplyTo: props.replyTo?.inReplyTo,
+      references: props.replyTo?.references,
     };
     await haexVault.client.mail.sendMessageAsync(account.smtp, message);
     open.value = false;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    error.value = getErrorMessage(err);
   } finally {
     isSending.value = false;
   }

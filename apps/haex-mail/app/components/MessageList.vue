@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
-import { ArrowUpDown, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-vue-next";
+import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
-import { roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
+import { isMessageUnread, roleLabelKey } from "~/stores/mail";
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>();
 const emit = defineEmits<{ reply: [msg: SelectMessage]; fullscreen: [msg: SelectMessage]; toggleSidebar: [] }>();
@@ -17,10 +17,15 @@ const selectionStore = useSelectionStore();
 
 const longPressedHook = ref(false);
 
+// The inline :ref callback re-runs on every list re-render — guard so a
+// row's long-press handler is only registered once per element.
+const longPressWired = new WeakSet<HTMLElement>();
+
 const setupLongPress = (el: unknown, msg: SelectMessage) => {
   const element = el as HTMLElement | { $el?: HTMLElement } | null;
   const target = element instanceof HTMLElement ? element : element?.$el;
-  if (!target) return;
+  if (!target || longPressWired.has(target)) return;
+  longPressWired.add(target);
   onLongPress(
     target,
     () => {
@@ -87,23 +92,9 @@ const rowClass = (msg: SelectMessage) => {
   return "";
 };
 
-// --- Bulk actions ---
+// --- Bulk actions (shared with the mobile toolbar in index.vue) ---
 
-const selectedIds = () => Array.from(selectionStore.selectedIds);
-
-const onMarkReadAsync = async (add: boolean) => {
-  await mailStore.bulkSetFlagAsync(selectedIds(), "\\Seen", add);
-};
-
-const onArchiveAsync = async () => {
-  await mailStore.bulkMoveToRoleAsync(selectedIds(), "archive");
-  selectionStore.clearSelection();
-};
-
-const onDeleteAsync = async () => {
-  await mailStore.bulkMoveToRoleAsync(selectedIds(), "trash");
-  selectionStore.clearSelection();
-};
+const bulkActions = useBulkMailActions();
 
 /**
  * Move target context: only defined when the whole selection lives in
@@ -130,11 +121,6 @@ watch(moveContext, (ctx) => {
   if (!ctx) showMoveDialog.value = false;
 });
 
-const onMoveTargetAsync = async (mailboxName: string) => {
-  await mailStore.bulkMoveToMailboxAsync(selectedIds(), mailboxName);
-  selectionStore.clearSelection();
-};
-
 const headerLabel = computed(() => {
   if (mailStore.isUnifiedView) {
     const labelKey = roleLabelKey(mailStore.selectedRole);
@@ -142,23 +128,6 @@ const headerLabel = computed(() => {
   }
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
-
-// --- Search (query + isSearching live in the store; focus lives here) ---
-
-const searchInputRef = ref<HTMLInputElement | null>(null);
-
-const startSearch = async () => {
-  mailStore.isSearching = true;
-  await nextTick();
-  searchInputRef.value?.focus();
-};
-
-const closeSearch = () => {
-  mailStore.isSearching = false;
-  mailStore.searchQuery = "";
-};
-
-// --- Sort (state + toggle live in the store) ---
 
 /** Stable per-account color for the unified view's row indicator. */
 const ACCOUNT_COLORS = [
@@ -180,7 +149,7 @@ const accountEmail = (accountId: string) =>
 const formatSender = (msg: SelectMessage) => {
   const first = msg.fromJson[0];
   if (!first) return t("unknownSender");
-  return first.name ?? first.email;
+  return first.name || first.email;
 };
 
 const senderEmail = (msg: SelectMessage) => msg.fromJson[0]?.email ?? "";
@@ -205,11 +174,6 @@ const formatTime = (ts: number | null): string => {
   const d = new Date(ts * 1000);
   if (d.toDateString() === new Date().toDateString()) return "";
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-
-const isUnread = (msg: SelectMessage) => {
-  // IMAP delivers \Seen as a flag; absence means unread.
-  return !msg.flags.some((f) => f.toLowerCase().includes("seen"));
 };
 
 // --- Avatar ---
@@ -252,11 +216,11 @@ const getAvatarColor = (email: string): string => {
     <div v-if="selectionStore.isSelectionMode" class="hidden md:block shrink-0">
       <MailSelectionToolbar
         :can-move="!!moveContext"
-        @mark-read="onMarkReadAsync(true)"
-        @mark-unread="onMarkReadAsync(false)"
-        @archive="onArchiveAsync"
+        @mark-read="bulkActions.markReadAsync(true)"
+        @mark-unread="bulkActions.markReadAsync(false)"
+        @archive="bulkActions.archiveAsync"
         @move="showMoveDialog = true"
-        @delete="onDeleteAsync"
+        @delete="bulkActions.deleteAsync"
       />
     </div>
 
@@ -288,62 +252,12 @@ const getAvatarColor = (email: string): string => {
           size="icon-lg"
           :icon="Search"
           :aria-label="t('search')"
-          @click="startSearch"
+          @click="mailStore.isSearching = true"
         />
-        <ShadcnDropdownMenu>
-          <ShadcnDropdownMenuTrigger as-child>
-            <UiButton
-              variant="ghost"
-              size="icon-lg"
-              :icon="ArrowUpDown"
-              :aria-label="t('sort')"
-            />
-          </ShadcnDropdownMenuTrigger>
-          <ShadcnDropdownMenuContent align="end" class="w-44">
-            <ShadcnDropdownMenuItem
-              v-for="opt in SORT_OPTIONS"
-              :key="opt.field"
-              class="justify-between"
-              @click.prevent="mailStore.toggleSort(opt.field)"
-            >
-              <span>{{ t(opt.labelKey) }}</span>
-              <ChevronUp
-                v-if="mailStore.sortField === opt.field && mailStore.sortDir === 'asc'"
-                class="h-3.5 w-3.5 text-muted-foreground"
-              />
-              <ChevronDown
-                v-else-if="mailStore.sortField === opt.field && mailStore.sortDir === 'desc'"
-                class="h-3.5 w-3.5 text-muted-foreground"
-              />
-            </ShadcnDropdownMenuItem>
-          </ShadcnDropdownMenuContent>
-        </ShadcnDropdownMenu>
+        <MailSortMenu />
       </template>
 
-      <template v-else>
-        <UiButton
-          variant="ghost"
-          size="icon-lg"
-          :icon="X"
-          :aria-label="t('closeSearch')"
-          @click="closeSearch()"
-        />
-        <input
-          ref="searchInputRef"
-          v-model="mailStore.searchQuery"
-          type="search"
-          class="flex-1 h-8 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
-          :placeholder="t('searchPlaceholder')"
-        >
-        <UiButton
-          v-if="mailStore.searchQuery"
-          variant="ghost"
-          size="icon-lg"
-          :icon="X"
-          :aria-label="t('clearSearch')"
-          @click="mailStore.searchQuery = ''"
-        />
-      </template>
+      <MailSearchBar v-else />
     </header>
 
     <ul v-if="mailStore.filteredMessageList.length > 0" class="flex-1 overflow-y-auto">
@@ -365,7 +279,7 @@ const getAvatarColor = (email: string): string => {
                 class="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white select-none leading-none"
                 :class="[
                   getAvatarColor(senderEmail(msg)),
-                  isUnread(msg) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : '',
+                  isMessageUnread(msg) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : '',
                 ]"
               >
                 {{ getInitials(msg.fromJson[0]?.name, senderEmail(msg)) }}
@@ -376,7 +290,7 @@ const getAvatarColor = (email: string): string => {
               <div class="flex items-start gap-2">
                 <span
                   class="truncate text-sm flex-1 leading-tight"
-                  :class="isUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
+                  :class="isMessageUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
                 >{{ formatSender(msg) }}</span>
                 <div class="text-xs text-muted-foreground tabular-nums shrink-0 text-right leading-tight">
                   <div>{{ formatDate(msg.internalDate) }}</div>
@@ -387,7 +301,7 @@ const getAvatarColor = (email: string): string => {
               </div>
               <div
                 class="text-sm truncate mt-0.5"
-                :class="isUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
+                :class="isMessageUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
               >
                 {{ msg.subject ?? t("noSubject") }}
               </div>
@@ -432,7 +346,7 @@ const getAvatarColor = (email: string): string => {
       v-model:open="showMoveDialog"
       :account-id="moveContext.accountId"
       :exclude-mailbox-name="moveContext.mailboxName"
-      @select="onMoveTargetAsync"
+      @select="bulkActions.moveToMailboxAsync"
     />
   </section>
 </template>
@@ -448,15 +362,6 @@ de:
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
   search: Suchen
-  sort: Sortieren
-  closeSearch: Suche schließen
-  clearSearch: Eingabe löschen
-  searchPlaceholder: Nachrichten durchsuchen…
-  sortDate: Datum
-  sortSubject: Betreff
-  sortSender: Absender
-  sortFlagged: Wichtigkeit
-  sortRead: Gelesen/Ungelesen
   contextRead: Als gelesen markieren
   contextReply: Antworten
   contextDelete: Löschen
@@ -470,15 +375,6 @@ en:
   noSubject: (no subject)
   unknownSender: (unknown)
   search: Search
-  sort: Sort
-  closeSearch: Close search
-  clearSearch: Clear input
-  searchPlaceholder: Search messages…
-  sortDate: Date
-  sortSubject: Subject
-  sortSender: Sender
-  sortFlagged: Importance
-  sortRead: Read/Unread
   contextRead: Mark as read
   contextReply: Reply
   contextDelete: Delete

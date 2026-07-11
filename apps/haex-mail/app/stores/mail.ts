@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { getErrorMessage } from "~/lib/utils";
 import type {
   MailMessage,
   MailboxInfo,
@@ -26,6 +27,25 @@ export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
   { field: "flagged", labelKey: "sortFlagged" },
   { field: "read", labelKey: "sortRead" },
 ];
+
+/**
+ * Prefill for the compose dialog when replying. `inReplyTo`/`references`
+ * carry the RFC 5322 threading headers, `body` the quoted original.
+ */
+export interface ReplyContext {
+  accountId: string;
+  to: string;
+  subject: string;
+  inReplyTo?: string;
+  references?: string[];
+  body?: string;
+}
+
+/** Read/flagged state from cached IMAP flags (shared: store sort + list UI). */
+export const isMessageUnread = (msg: schema.SelectMessage) =>
+  !msg.flags.some((f) => f.toLowerCase().includes("seen"));
+export const isMessageFlagged = (msg: schema.SelectMessage) =>
+  msg.flags.some((f) => f.toLowerCase().includes("flagged"));
 
 /**
  * Currently-selected account + mailbox + message. The mail UI is
@@ -72,11 +92,7 @@ export const useMailStore = defineStore("mail", () => {
   };
 
   const senderText = (msg: schema.SelectMessage) =>
-    msg.fromJson[0]?.name ?? msg.fromJson[0]?.email ?? "";
-  const isUnread = (msg: schema.SelectMessage) =>
-    !msg.flags.some((f) => f.toLowerCase().includes("seen"));
-  const isFlagged = (msg: schema.SelectMessage) =>
-    msg.flags.some((f) => f.toLowerCase().includes("flagged"));
+    msg.fromJson[0]?.name || msg.fromJson[0]?.email || "";
 
   const filteredMessageList = computed(() => {
     let list = messageList.value;
@@ -93,6 +109,8 @@ export const useMailStore = defineStore("mail", () => {
     // Default order from DB is date/desc — skip the sort copy in that case.
     if (sortField.value === "date" && sortDir.value === "desc") return list;
 
+    // Every comparator is ascending-style; `dir` flips it. "desc" on
+    // flagged/read therefore means flagged/unread first.
     const dir = sortDir.value === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
       let cmp = 0;
@@ -107,10 +125,10 @@ export const useMailStore = defineStore("mail", () => {
           cmp = senderText(a).localeCompare(senderText(b));
           break;
         case "flagged":
-          cmp = (isFlagged(b) ? 1 : 0) - (isFlagged(a) ? 1 : 0);
+          cmp = (isMessageFlagged(a) ? 1 : 0) - (isMessageFlagged(b) ? 1 : 0);
           break;
         case "read":
-          cmp = (isUnread(b) ? 1 : 0) - (isUnread(a) ? 1 : 0);
+          cmp = (isMessageUnread(a) ? 1 : 0) - (isMessageUnread(b) ? 1 : 0);
           break;
       }
       return cmp * dir;
@@ -144,32 +162,32 @@ export const useMailStore = defineStore("mail", () => {
 
   const syncMailboxesAsync = async (accountId: string, remote: MailboxInfo[]) => {
     if (!haexVault.orm) return;
+    const existing = await haexVault.orm
+      .select()
+      .from(schema.mailboxes)
+      .where(eq(schema.mailboxes.accountId, accountId));
+    const existingById = new Map(existing.map((m) => [m.id, m]));
+
     for (const m of remote) {
       const id = `${accountId}::${m.name}`;
-      const role = inferRole(m.name, m.flags);
-      const existing = await haexVault.orm
-        .select()
-        .from(schema.mailboxes)
-        .where(eq(schema.mailboxes.id, id))
-        .limit(1);
+      const values = {
+        delimiter: m.delimiter ?? null,
+        role: inferRole(m.name, m.flags),
+        unseen: m.unseen ?? 0,
+        exists: m.exists ?? 0,
+        uidValidity: m.uidValidity ?? null,
+        uidNext: m.uidNext ?? null,
+      };
 
-      if (existing.length === 0) {
-        await haexVault.orm.insert(schema.mailboxes).values({
-          id,
-          accountId,
-          name: m.name,
-          delimiter: m.delimiter ?? null,
-          role,
-          unseen: m.unseen ?? 0,
-          exists: m.exists ?? 0,
-          uidValidity: m.uidValidity ?? null,
-          uidNext: m.uidNext ?? null,
-        });
+      const prev = existingById.get(id);
+      if (!prev) {
+        await haexVault.orm
+          .insert(schema.mailboxes)
+          .values({ id, accountId, name: m.name, ...values });
       } else {
         // UIDs are only unique per uidValidity generation — when the
         // server resets it, cached messages and bodies are stale and a
         // recycled UID would otherwise serve the wrong cached body.
-        const prev = existing[0]!;
         if (
           prev.uidValidity != null &&
           m.uidValidity != null &&
@@ -179,14 +197,7 @@ export const useMailStore = defineStore("mail", () => {
         }
         await haexVault.orm
           .update(schema.mailboxes)
-          .set({
-            delimiter: m.delimiter ?? null,
-            role,
-            unseen: m.unseen ?? 0,
-            exists: m.exists ?? 0,
-            uidValidity: m.uidValidity ?? null,
-            uidNext: m.uidNext ?? null,
-          })
+          .set(values)
           .where(eq(schema.mailboxes.id, id));
       }
     }
@@ -231,10 +242,6 @@ export const useMailStore = defineStore("mail", () => {
         mailboxName,
         { type: "latest", count },
       );
-
-      // Reverse so newest is first in the list.
-      envelopes.sort((a, b) => (b.internalDate ?? 0) - (a.internalDate ?? 0));
-
       await persistEnvelopesAsync(account.account.id, mailboxName, envelopes);
       await loadMessagesAsync(account.account.id, mailboxName);
     } finally {
@@ -251,40 +258,33 @@ export const useMailStore = defineStore("mail", () => {
     for (const env of envelopes) {
       const id = `${accountId}::${mailboxName}::${env.uid}`;
       const threadKey = env.references[0] ?? env.inReplyTo ?? env.messageId ?? id;
+      const flags = env.flags.map((f) => f.replace(/^\\/, ""));
 
-      const existing = await haexVault.orm
-        .select()
-        .from(schema.messages)
-        .where(eq(schema.messages.id, id))
-        .limit(1);
-
-      const row = {
-        id,
-        accountId,
-        mailboxName,
-        uid: env.uid,
-        threadKey,
-        flags: env.flags.map((f) => f.replace(/^\\/, "")),
-        internalDate: env.internalDate ?? null,
-        subject: env.subject ?? null,
-        fromJson: env.from,
-        toJson: env.to,
-        ccJson: env.cc,
-        messageId: env.messageId ?? null,
-        inReplyTo: env.inReplyTo ?? null,
-        references: env.references,
-        size: env.size ?? null,
-      };
-
-      if (existing.length === 0) {
-        await haexVault.orm.insert(schema.messages).values(row);
-      } else {
-        // Flags can change between fetches (e.g. \Seen); update them.
-        await haexVault.orm
-          .update(schema.messages)
-          .set({ flags: env.flags.map((f) => f.replace(/^\\/, "")) })
-          .where(eq(schema.messages.id, id));
-      }
+      // Envelope data is immutable per UID — on an existing row only the
+      // flags can change between fetches (e.g. \Seen).
+      await haexVault.orm
+        .insert(schema.messages)
+        .values({
+          id,
+          accountId,
+          mailboxName,
+          uid: env.uid,
+          threadKey,
+          flags,
+          internalDate: env.internalDate ?? null,
+          subject: env.subject ?? null,
+          fromJson: env.from,
+          toJson: env.to,
+          ccJson: env.cc,
+          messageId: env.messageId ?? null,
+          inReplyTo: env.inReplyTo ?? null,
+          references: env.references,
+          size: env.size ?? null,
+        })
+        .onConflictDoUpdate({
+          target: schema.messages.id,
+          set: { flags },
+        });
     }
   };
 
@@ -424,6 +424,52 @@ export const useMailStore = defineStore("mail", () => {
   };
 
   /**
+   * Prefill for replying to a message: recipient, subject, RFC 5322
+   * threading headers (In-Reply-To, References = original references +
+   * its Message-ID) and — when a plain-text body is cached — the quoted
+   * original.
+   */
+  const buildReplyContextAsync = async (
+    msg: schema.SelectMessage,
+  ): Promise<ReplyContext> => {
+    const subject = msg.subject ?? "";
+
+    let body: string | undefined;
+    if (haexVault.orm) {
+      const cached = await haexVault.orm
+        .select({ bodyText: schema.messageBodies.bodyText })
+        .from(schema.messageBodies)
+        .where(eq(schema.messageBodies.messageId, msg.id))
+        .limit(1);
+      const text = cached[0]?.bodyText;
+      if (text) {
+        const date = msg.internalDate
+          ? new Date(msg.internalDate * 1000).toLocaleString()
+          : "";
+        const header = $i18n.t("mail.quoteHeader", {
+          date,
+          sender: senderText(msg),
+        });
+        const quoted = text.split("\n").map((line) => `> ${line}`).join("\n");
+        body = `\n\n${header}\n${quoted}`;
+      }
+    }
+
+    const references = [
+      ...msg.references,
+      ...(msg.messageId ? [msg.messageId] : []),
+    ];
+    return {
+      accountId: msg.accountId,
+      to: msg.fromJson[0]?.email ?? "",
+      subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
+      inReplyTo: msg.messageId ?? undefined,
+      references: references.length > 0 ? references : undefined,
+      body,
+    };
+  };
+
+  /**
    * Best-effort: mark a message \Seen on the server and mirror it into
    * the local cache. Accepts flags in wire ("\Seen") or bare ("Seen")
    * format. Callers fire-and-forget so rendering never waits on the
@@ -492,6 +538,10 @@ export const useMailStore = defineStore("mail", () => {
         console.warn("[haex-mail] failed to cache message body", err),
       );
       void markSeenAsync(message, msg.envelope.flags);
+    } catch (err) {
+      // Callers fire-and-forget (watcher) — surface the failure here.
+      console.warn("[haex-mail] failed to load message body", err);
+      if (isCurrent()) toast.error(getErrorMessage(err));
     } finally {
       if (seq === loadMessageSeq) isLoadingMessage.value = false;
     }
@@ -510,7 +560,19 @@ export const useMailStore = defineStore("mail", () => {
     const bare = flag.replace(/^\\/, "");
     for (const id of ids) {
       const row = messageList.value.find((m) => m.id === id);
-      const current = row?.flags ?? [];
+      // Not in the visible list (e.g. folder switched while a body load
+      // was in flight) — read the cached row instead; starting from []
+      // would clobber the stored flags.
+      let current = row?.flags;
+      if (!current) {
+        const cached = await haexVault.orm
+          .select({ flags: schema.messages.flags })
+          .from(schema.messages)
+          .where(eq(schema.messages.id, id))
+          .limit(1);
+        if (cached.length === 0) continue;
+        current = cached[0]!.flags;
+      }
       const next = add
         ? current.includes(bare)
           ? current
@@ -564,11 +626,7 @@ export const useMailStore = defineStore("mail", () => {
     );
     if (failed) {
       console.warn("[haex-mail] bulk action failed", failed.reason);
-      toast.error(
-        failed.reason instanceof Error
-          ? failed.reason.message
-          : String(failed.reason),
-      );
+      toast.error(getErrorMessage(failed.reason));
     }
   };
 
@@ -736,6 +794,7 @@ export const useMailStore = defineStore("mail", () => {
     loadUnifiedMessagesAsync,
     refreshUnifiedAsync,
     loadMessageBodyAsync,
+    buildReplyContextAsync,
     updateLocalFlagsAsync,
     bulkSetFlagAsync,
     bulkMoveToRoleAsync,
@@ -753,14 +812,7 @@ export const useMailStore = defineStore("mail", () => {
  * \Trash, \Junk, \Archive) are most reliable; fall back to common
  * folder names when the server doesn't advertise them.
  */
-const ROLE_LABEL_KEYS = new Set([
-  "inbox",
-  "sent",
-  "drafts",
-  "trash",
-  "junk",
-  "archive",
-]);
+const ROLE_LABEL_KEYS = new Set<string>(schema.MAILBOX_ROLES);
 
 /**
  * i18n key for a standardized mailbox role's UI label (global messages,
@@ -770,7 +822,7 @@ export function roleLabelKey(role: string | null | undefined): string | null {
   return role && ROLE_LABEL_KEYS.has(role) ? `mail.roles.${role}` : null;
 }
 
-export function inferRole(name: string, flags: string[]): string | null {
+export function inferRole(name: string, flags: string[]): schema.MailboxRole | null {
   const flagSet = new Set(flags.map((f) => f.toLowerCase()));
   if (flagSet.has("\\inbox") || name.toUpperCase() === "INBOX") return "inbox";
   if (flagSet.has("\\sent")) return "sent";

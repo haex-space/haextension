@@ -150,7 +150,7 @@ const iconForRole = (role: string | null) => {
       </ShadcnSelectContent>
     </ShadcnSelect>
 
-    <Separator />
+    <ShadcnSeparator />
 
     <nav class="flex-1 overflow-y-auto p-2 space-y-0.5">
       <button

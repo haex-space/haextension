@@ -11,7 +11,8 @@
     "errors": {
       "credentials": "Failed to load credentials",
       "noFolderForRole": "No {folder} folder found for this account"
-    }
+    },
+    "quoteHeader": "On {date}, {sender} wrote:"
   },
   "accounts": {
     "errors": {
