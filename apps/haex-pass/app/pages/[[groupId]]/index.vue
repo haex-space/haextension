@@ -238,6 +238,7 @@ watch(groupItems, () => loadItemTagsAsync(), { immediate: true });
 // Initialize tag store
 onMounted(async () => {
   await tagStore.syncTagsAsync();
+  await tagStore.syncItemTagLinksAsync();
 });
 
 const onToggleTag = async (item: IPasswordMenuItem, tagId: string) => {

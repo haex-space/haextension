@@ -7,6 +7,12 @@ const router = useRouter();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
+const uiStore = useUiStore();
+
+const htmlFormatEnabled = computed({
+  get: () => uiStore.mailFormat === "html",
+  set: (val: boolean) => { uiStore.mailFormat = val ? "html" : "text"; },
+});
 
 onMounted(async () => {
   await haexVault.initializeAsync();
@@ -68,6 +74,19 @@ const executeDeleteAsync = async () => {
     </header>
 
     <div class="flex-1 overflow-y-auto p-6 max-w-lg mx-auto w-full space-y-8">
+      <section class="space-y-4">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          {{ t("display.title") }}
+        </h2>
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-muted">
+          <div>
+            <p class="text-sm font-medium">{{ t("display.htmlFormat") }}</p>
+            <p class="text-xs text-muted-foreground">{{ t("display.htmlFormatDescription") }}</p>
+          </div>
+          <ShadcnSwitch v-model:checked="htmlFormatEnabled" />
+        </div>
+      </section>
+
       <section class="space-y-4">
         <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           {{ t("accounts.title") }}
@@ -170,6 +189,10 @@ const executeDeleteAsync = async () => {
 de:
   title: Einstellungen
   back: Zurück
+  display:
+    title: Anzeige
+    htmlFormat: HTML-Darstellung
+    htmlFormatDescription: Mails als HTML anzeigen (Standard ist reiner Text)
   accounts:
     title: Mail-Konten
     empty: Noch keine Konten eingerichtet.
@@ -186,6 +209,10 @@ de:
 en:
   title: Settings
   back: Back
+  display:
+    title: Display
+    htmlFormat: HTML rendering
+    htmlFormatDescription: Show mails as HTML (default is plain text)
   accounts:
     title: Mail Accounts
     empty: No accounts configured yet.

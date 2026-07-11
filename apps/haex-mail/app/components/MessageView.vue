@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { Reply, Trash2 } from "lucide-vue-next";
+
+const emit = defineEmits<{ reply: []; delete: [] }>();
+
 const { t } = useI18n();
 const mailStore = useMailStore();
+const uiStore = useUiStore();
 
 const formatAddresses = (
   addrs: { name?: string; email: string }[] | undefined,
@@ -32,28 +37,41 @@ const formatDate = (ts: number | undefined) => {
     </div>
 
     <div v-else-if="mailStore.messageBody" class="p-6 max-w-4xl mx-auto">
-      <header class="space-y-1 pb-4 border-b border-border">
-        <h1 class="text-xl font-semibold">
-          {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
-        </h1>
-        <div class="text-sm text-muted-foreground">
-          <strong class="text-foreground">{{ t("from") }}:</strong>
-          {{ formatAddresses(mailStore.messageBody.envelope.from) }}
+      <header class="pb-4 border-b border-border space-y-3">
+        <div class="flex items-start justify-between gap-4">
+          <h1 class="text-xl font-semibold leading-snug">
+            {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
+          </h1>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-xs text-muted-foreground mt-1 mr-1">
+              {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
+            </span>
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Reply"
+              :aria-label="t('reply')"
+              @click="emit('reply')"
+            />
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Trash2"
+              :aria-label="t('delete')"
+              @click="emit('delete')"
+            />
+          </div>
         </div>
-        <div class="text-sm text-muted-foreground">
-          <strong class="text-foreground">{{ t("to") }}:</strong>
-          {{ formatAddresses(mailStore.messageBody.envelope.to) }}
-        </div>
-        <div
-          v-if="mailStore.messageBody.envelope.cc?.length"
-          class="text-sm text-muted-foreground"
-        >
-          <strong class="text-foreground">Cc:</strong>
-          {{ formatAddresses(mailStore.messageBody.envelope.cc) }}
-        </div>
-        <div class="text-xs text-muted-foreground">
-          {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
-        </div>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt class="text-muted-foreground">{{ t("from") }}</dt>
+          <dd>{{ formatAddresses(mailStore.messageBody.envelope.from) }}</dd>
+          <dt class="text-muted-foreground">{{ t("to") }}</dt>
+          <dd>{{ formatAddresses(mailStore.messageBody.envelope.to) }}</dd>
+          <template v-if="mailStore.messageBody.envelope.cc?.length">
+            <dt class="text-muted-foreground">Cc</dt>
+            <dd>{{ formatAddresses(mailStore.messageBody.envelope.cc) }}</dd>
+          </template>
+        </dl>
       </header>
 
       <!-- HTML content runs inside an iframe with sandbox flags so
@@ -61,7 +79,7 @@ const formatDate = (ts: number | undefined) => {
            the extension origin. The vault still proxied the raw bytes
            via IMAP — we don't fetch arbitrary remote URLs here. -->
       <iframe
-        v-if="mailStore.messageBody.bodyHtml"
+        v-if="uiStore.mailFormat === 'html' && mailStore.messageBody.bodyHtml"
         :srcdoc="mailStore.messageBody.bodyHtml"
         sandbox=""
         class="w-full h-[60vh] mt-4 border border-border rounded"
@@ -103,6 +121,8 @@ de:
   emptyBody: (leer)
   attachments: "Anhänge ({count})"
   unnamed: (unbenannt)
+  reply: Antworten
+  delete: Löschen
 en:
   selectPrompt: Select a message.
   loading: Loading message…
@@ -112,4 +132,6 @@ en:
   emptyBody: (empty)
   attachments: "Attachments ({count})"
   unnamed: (unnamed)
+  reply: Reply
+  delete: Delete
 </i18n>

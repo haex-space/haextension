@@ -129,7 +129,7 @@ onKeyStroke(["a", "A"], (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   if (isEditableTarget(e) || showCompose.value) return;
   e.preventDefault();
-  selectionStore.selectAll(mailStore.messageList.map((m) => m.id));
+  selectionStore.selectAll(mailStore.filteredMessageList.map((m) => m.id));
 });
 
 onKeyStroke("Escape", (e) => {
@@ -153,7 +153,7 @@ onKeyStroke("ArrowDown", (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
   e.preventDefault();
-  const list = mailStore.messageList;
+  const list = mailStore.filteredMessageList;
   const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
   if (idx !== -1 && idx < list.length - 1) {
     mailStore.selectMessage(list[idx + 1]!.id);
@@ -164,7 +164,7 @@ onKeyStroke("ArrowUp", (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
   if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
   e.preventDefault();
-  const list = mailStore.messageList;
+  const list = mailStore.filteredMessageList;
   const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
   if (idx > 0) {
     mailStore.selectMessage(list[idx - 1]!.id);

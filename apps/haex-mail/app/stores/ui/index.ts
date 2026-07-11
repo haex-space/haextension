@@ -1,4 +1,4 @@
-import { breakpointsTailwind, useBreakpoints, watchImmediate } from "@vueuse/core";
+import { breakpointsTailwind, useBreakpoints, useLocalStorage, watchImmediate } from "@vueuse/core";
 import type { ApplicationContext } from "@haex-space/vault-sdk";
 
 export const useUiStore = defineStore("ui", () => {
@@ -14,9 +14,12 @@ export const useUiStore = defineStore("ui", () => {
     colorMode.preference = currentThemeName.value;
   });
 
+  const mailFormat = useLocalStorage<"text" | "html">("haex-mail:mailFormat", "text");
+
   return {
     context,
     currentThemeName,
     isMediumScreen,
+    mailFormat,
   };
 });

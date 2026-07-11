@@ -33,7 +33,14 @@ const showCc = ref(false);
 const showBcc = ref(false);
 
 const isDirty = computed(
-  () => !!(to.value.trim() || subject.value.trim() || body.value.trim()),
+  () =>
+    !!(
+      to.value.trim() ||
+      cc.value.trim() ||
+      bcc.value.trim() ||
+      subject.value.trim() ||
+      body.value.trim()
+    ),
 );
 
 const reset = () => {

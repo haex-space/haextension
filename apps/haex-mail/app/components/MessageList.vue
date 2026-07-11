@@ -1,12 +1,10 @@
 <script setup lang="ts">
-<<<<<<< Updated upstream
-import { onLongPress } from "@vueuse/core";
-=======
 import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { ArrowUpDown, ChevronDown, ChevronUp, Search, X } from "lucide-vue-next";
->>>>>>> Stashed changes
 import type { SelectMessage } from "~/database/schemas";
-import { roleLabelKey } from "~/stores/mail";
+import { roleLabelKey, type MessageSortField } from "~/stores/mail";
+
+const emit = defineEmits<{ reply: [msg: SelectMessage] }>();
 
 const { t } = useI18n();
 const mailStore = useMailStore();
@@ -47,12 +45,38 @@ const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
     return;
   }
 
+  if (event.shiftKey && !selectionStore.isSelectionMode) {
+    selectionStore.selectItem(msg.id);
+    return;
+  }
+
   if (event.ctrlKey || event.metaKey || selectionStore.isSelectionMode) {
     selectionStore.toggleSelection(msg.id);
     return;
   }
 
   mailStore.selectMessage(msg.id);
+};
+
+const onActivateMessage = (msg: SelectMessage) => {
+  if (selectionStore.isSelectionMode) {
+    selectionStore.toggleSelection(msg.id);
+    return;
+  }
+  mailStore.selectMessage(msg.id);
+};
+
+// --- Context menu actions ---
+
+// On touch, long-press already enters selection mode; reka's built-in
+// long-press-to-open would fire on the same hold, so the context menu
+// stays a fine-pointer (mouse) affordance.
+const isCoarsePointer = useMediaQuery("(pointer: coarse)");
+
+const onContextDelete = async (msg: SelectMessage) => {
+  await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
+  // The row is gone — a stale selection id would keep selection mode on.
+  if (selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
 };
 
 const rowClass = (msg: SelectMessage) => {
@@ -118,10 +142,9 @@ const headerLabel = computed(() => {
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
 
-// --- Search ---
+// --- Search (query lives in the store; this is just the UI toggle) ---
 
 const isSearching = ref(false);
-const searchQuery = ref("");
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const startSearch = async () => {
@@ -132,7 +155,7 @@ const startSearch = async () => {
 
 const closeSearch = () => {
   isSearching.value = false;
-  searchQuery.value = "";
+  mailStore.searchQuery = "";
 };
 
 watch(
@@ -144,73 +167,15 @@ watch(
   () => closeSearch(),
 );
 
-// --- Sort ---
+// --- Sort (state + toggle live in the store) ---
 
-type SortField = "date" | "subject" | "sender" | "flagged" | "read";
-
-const sortField = ref<SortField>("date");
-const sortDir = ref<"asc" | "desc">("desc");
-
-const SORT_OPTIONS: { field: SortField; labelKey: string }[] = [
+const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
   { field: "date", labelKey: "sortDate" },
   { field: "subject", labelKey: "sortSubject" },
   { field: "sender", labelKey: "sortSender" },
   { field: "flagged", labelKey: "sortFlagged" },
   { field: "read", labelKey: "sortRead" },
 ];
-
-const toggleSort = (field: SortField) => {
-  if (sortField.value === field) {
-    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
-  } else {
-    sortField.value = field;
-    sortDir.value = "desc";
-  }
-};
-
-// --- Filtered + sorted message list ---
-
-const filteredAndSortedMessages = computed(() => {
-  let list = mailStore.messageList;
-
-  if (searchQuery.value) {
-    const q = searchQuery.value.toLowerCase();
-    list = list.filter((msg) => {
-      const sender = formatSender(msg).toLowerCase();
-      const subject = (msg.subject ?? "").toLowerCase();
-      return sender.includes(q) || subject.includes(q);
-    });
-  }
-
-  // Default order from DB is date/desc — skip sort copy in that case.
-  if (sortField.value === "date" && sortDir.value === "desc") return list;
-
-  const sorted = [...list];
-  const dir = sortDir.value === "asc" ? 1 : -1;
-
-  sorted.sort((a, b) => {
-    let cmp = 0;
-    switch (sortField.value) {
-      case "date":
-        cmp = (a.internalDate ?? 0) - (b.internalDate ?? 0);
-        break;
-      case "subject":
-        cmp = (a.subject ?? "").localeCompare(b.subject ?? "");
-        break;
-      case "sender":
-        cmp = formatSender(a).localeCompare(formatSender(b));
-        break;
-      case "flagged":
-        cmp = (isFlagged(b) ? 1 : 0) - (isFlagged(a) ? 1 : 0);
-        break;
-      case "read":
-        cmp = (isUnread(b) ? 1 : 0) - (isUnread(a) ? 1 : 0);
-        break;
-    }
-    return cmp * dir;
-  });
-  return sorted;
-});
 
 /** Stable per-account color for the unified view's row indicator. */
 const ACCOUNT_COLORS = [
@@ -263,9 +228,6 @@ const isUnread = (msg: SelectMessage) => {
   // IMAP delivers \Seen as a flag; absence means unread.
   return !msg.flags.some((f) => f.toLowerCase().includes("seen"));
 };
-
-const isFlagged = (msg: SelectMessage) =>
-  msg.flags.some((f) => f.toLowerCase().includes("flagged"));
 
 // --- Avatar ---
 
@@ -344,15 +306,15 @@ const getAvatarColor = (email: string): string => {
               v-for="opt in SORT_OPTIONS"
               :key="opt.field"
               class="justify-between"
-              @click.prevent="toggleSort(opt.field)"
+              @click.prevent="mailStore.toggleSort(opt.field)"
             >
               <span>{{ t(opt.labelKey) }}</span>
               <ChevronUp
-                v-if="sortField === opt.field && sortDir === 'asc'"
+                v-if="mailStore.sortField === opt.field && mailStore.sortDir === 'asc'"
                 class="h-3.5 w-3.5 text-muted-foreground"
               />
               <ChevronDown
-                v-else-if="sortField === opt.field && sortDir === 'desc'"
+                v-else-if="mailStore.sortField === opt.field && mailStore.sortDir === 'desc'"
                 class="h-3.5 w-3.5 text-muted-foreground"
               />
             </ShadcnDropdownMenuItem>
@@ -370,57 +332,24 @@ const getAvatarColor = (email: string): string => {
         />
         <input
           ref="searchInputRef"
-          v-model="searchQuery"
+          v-model="mailStore.searchQuery"
           type="search"
           class="flex-1 h-8 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
           :placeholder="t('searchPlaceholder')"
-        />
+        >
         <UiButton
-          v-if="searchQuery"
+          v-if="mailStore.searchQuery"
           variant="ghost"
           size="icon-lg"
           :icon="X"
           :aria-label="t('clearSearch')"
-          @click="searchQuery = ''"
+          @click="mailStore.searchQuery = ''"
         />
       </template>
     </header>
 
-<<<<<<< Updated upstream
-    <ul v-if="mailStore.messageList.length > 0" class="flex-1 overflow-y-auto">
-      <li
-        v-for="msg in mailStore.messageList"
-        :key="msg.id"
-        :ref="(el) => setupLongPress(el, msg)"
-        class="border-b border-border px-4 py-3 cursor-pointer hover:bg-accent/50 select-none"
-        :class="[rowClass(msg), { 'font-semibold': isUnread(msg) }]"
-        @click="onClickMessage(msg, $event)"
-      >
-        <div class="flex items-baseline gap-2">
-          <span class="truncate text-sm flex-1">{{ formatSender(msg) }}</span>
-          <span class="text-xs text-muted-foreground tabular-nums shrink-0">
-            {{ formatDate(msg.internalDate) }}
-          </span>
-        </div>
-        <div class="text-sm truncate mt-0.5">
-          {{ msg.subject ?? t("noSubject") }}
-        </div>
-        <div
-          v-if="mailStore.isUnifiedView"
-          class="flex items-center gap-1.5 mt-1"
-        >
-          <span
-            class="size-2 rounded-full shrink-0"
-            :class="accountColor(msg.accountId)"
-          />
-          <span class="text-xs font-normal text-muted-foreground truncate">
-            {{ accountEmail(msg.accountId) }}
-          </span>
-        </div>
-      </li>
-=======
-    <ul v-if="filteredAndSortedMessages.length > 0" class="flex-1 overflow-y-auto">
-      <ShadcnContextMenu v-for="msg in filteredAndSortedMessages" :key="msg.id">
+    <ul v-if="mailStore.filteredMessageList.length > 0" class="flex-1 overflow-y-auto">
+      <ShadcnContextMenu v-for="msg in mailStore.filteredMessageList" :key="msg.id">
         <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
           <li
             :ref="(el) => setupLongPress(el, msg)"
@@ -491,12 +420,11 @@ const getAvatarColor = (email: string): string => {
           </ShadcnContextMenuItem>
         </ShadcnContextMenuContent>
       </ShadcnContextMenu>
->>>>>>> Stashed changes
     </ul>
 
     <div v-else class="flex-1 grid place-items-center text-sm text-muted-foreground">
       <p v-if="mailStore.isLoadingMessages">{{ t("loading") }}</p>
-      <p v-else-if="searchQuery">{{ t("noResults") }}</p>
+      <p v-else-if="mailStore.searchQuery">{{ t("noResults") }}</p>
       <p v-else>{{ t("empty") }}</p>
     </div>
 
@@ -518,8 +446,6 @@ de:
   noResults: Keine Ergebnisse.
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
-<<<<<<< Updated upstream
-=======
   search: Suchen
   sort: Sortieren
   closeSearch: Suche schließen
@@ -533,7 +459,6 @@ de:
   contextRead: Als gelesen markieren
   contextReply: Antworten
   contextDelete: Löschen
->>>>>>> Stashed changes
 en:
   noMailbox: No mailbox selected
   loading: Loading messages…
@@ -541,8 +466,6 @@ en:
   noResults: No results.
   noSubject: (no subject)
   unknownSender: (unknown)
-<<<<<<< Updated upstream
-=======
   search: Search
   sort: Sort
   closeSearch: Close search
@@ -556,5 +479,4 @@ en:
   contextRead: Mark as read
   contextReply: Reply
   contextDelete: Delete
->>>>>>> Stashed changes
 </i18n>
