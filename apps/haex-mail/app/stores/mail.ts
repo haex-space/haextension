@@ -444,7 +444,7 @@ export const useMailStore = defineStore("mail", () => {
       const text = cached[0]?.bodyText;
       if (text) {
         const date = msg.internalDate
-          ? new Date(msg.internalDate * 1000).toLocaleString()
+          ? new Date(msg.internalDate * 1000).toLocaleString($i18n.locale.value)
           : "";
         const header = $i18n.t("mail.quoteHeader", {
           date,
