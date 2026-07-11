@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
-import { ArrowUpDown, ChevronDown, ChevronUp, Search, X } from "lucide-vue-next";
+import { ArrowUpDown, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
 import { roleLabelKey, type MessageSortField } from "~/stores/mail";
 
-const emit = defineEmits<{ reply: [msg: SelectMessage] }>();
+const props = defineProps<{ sidebarCollapsed?: boolean }>();
+const emit = defineEmits<{ reply: [msg: SelectMessage]; fullscreen: [msg: SelectMessage]; toggleSidebar: [] }>();
 
 const { t } = useI18n();
 const mailStore = useMailStore();
@@ -277,13 +278,28 @@ const getAvatarColor = (email: string): string => {
       />
     </div>
 
-    <!-- Desktop-only folder header with inline search + sort. -->
+    <!-- Folder header with inline search + sort (all screen sizes). -->
     <header
       v-else
-      class="h-12 border-b border-border hidden md:flex items-center gap-0.5 px-1 shrink-0"
+      class="h-12 border-b border-border flex items-center gap-0.5 px-1 shrink-0"
     >
       <template v-if="!isSearching">
-        <span class="flex-1 truncate pl-3 text-sm font-medium">{{ headerLabel }}</span>
+        <!-- Desktop-only sidebar toggle -->
+        <ShadcnTooltip>
+          <ShadcnTooltipTrigger as-child>
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="props.sidebarCollapsed ? PanelLeftOpen : PanelLeftClose"
+              :aria-label="props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar')"
+              class="hidden md:flex shrink-0"
+              @click="emit('toggleSidebar')"
+            />
+          </ShadcnTooltipTrigger>
+          <ShadcnTooltipContent>{{ props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar') }}</ShadcnTooltipContent>
+        </ShadcnTooltip>
+        <span class="hidden md:block flex-1 truncate pl-1 text-sm font-medium">{{ headerLabel }}</span>
+        <span class="flex-1 md:hidden" />
         <span v-if="mailStore.isLoadingMessages" class="text-muted-foreground text-sm pr-1">…</span>
         <UiButton
           variant="ghost"
@@ -357,6 +373,7 @@ const getAvatarColor = (email: string): string => {
             class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             :class="rowClass(msg)"
             @click="onClickMessage(msg, $event)"
+            @dblclick="emit('fullscreen', msg)"
             @keydown.enter="onActivateMessage(msg)"
             @keydown.space.prevent="onActivateMessage(msg)"
           >
@@ -440,6 +457,8 @@ const getAvatarColor = (email: string): string => {
 
 <i18n lang="yaml">
 de:
+  closeSidebar: Seitenleiste schließen
+  openSidebar: Seitenleiste öffnen
   noMailbox: Kein Postfach gewählt
   loading: Lade Nachrichten…
   empty: Keine Nachrichten.
@@ -460,6 +479,8 @@ de:
   contextReply: Antworten
   contextDelete: Löschen
 en:
+  closeSidebar: Close sidebar
+  openSidebar: Open sidebar
   noMailbox: No mailbox selected
   loading: Loading messages…
   empty: No messages.

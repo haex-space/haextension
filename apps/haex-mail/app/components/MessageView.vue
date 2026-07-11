@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Reply, Trash2 } from "lucide-vue-next";
 
+const props = defineProps<{ showTitle?: boolean }>();
 const emit = defineEmits<{ reply: []; delete: [] }>();
 
 const { t } = useI18n();
@@ -39,27 +40,37 @@ const formatDate = (ts: number | undefined) => {
     <div v-else-if="mailStore.messageBody" class="p-6 max-w-4xl mx-auto">
       <header class="pb-4 border-b border-border space-y-3">
         <div class="flex items-start justify-between gap-4">
-          <h1 class="text-xl font-semibold leading-snug">
+          <h1 v-if="props.showTitle !== false" class="text-xl font-semibold leading-snug">
             {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
           </h1>
-          <div class="flex items-center gap-1 shrink-0">
+          <div class="flex items-center gap-1 shrink-0" :class="props.showTitle !== false ? '' : 'ml-auto'">
             <span class="text-xs text-muted-foreground mt-1 mr-1">
               {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
             </span>
-            <UiButton
-              variant="ghost"
-              size="icon-lg"
-              :icon="Reply"
-              :aria-label="t('reply')"
-              @click="emit('reply')"
-            />
-            <UiButton
-              variant="ghost"
-              size="icon-lg"
-              :icon="Trash2"
-              :aria-label="t('delete')"
-              @click="emit('delete')"
-            />
+            <ShadcnTooltip>
+              <ShadcnTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon-lg"
+                  :icon="Reply"
+                  :aria-label="t('reply')"
+                  @click="emit('reply')"
+                />
+              </ShadcnTooltipTrigger>
+              <ShadcnTooltipContent>{{ t("reply") }}</ShadcnTooltipContent>
+            </ShadcnTooltip>
+            <ShadcnTooltip>
+              <ShadcnTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon-lg"
+                  :icon="Trash2"
+                  :aria-label="t('delete')"
+                  @click="emit('delete')"
+                />
+              </ShadcnTooltipTrigger>
+              <ShadcnTooltipContent>{{ t("delete") }}</ShadcnTooltipContent>
+            </ShadcnTooltip>
           </div>
         </div>
         <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">

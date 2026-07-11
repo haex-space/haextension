@@ -13,6 +13,20 @@ const selectionStore = useSelectionStore();
 const ui = useUiStore();
 
 const showCompose = ref(false);
+const showFullscreenMessage = ref(false);
+
+// Sidebar collapse state for 3-column desktop view
+const sidebarPanelRef = ref<{ collapse: () => void; expand: () => void } | null>(null);
+const sidebarCollapsed = ref(false);
+
+const toggleSidebar = () => {
+  if (sidebarCollapsed.value) {
+    sidebarPanelRef.value?.expand();
+  } else {
+    sidebarPanelRef.value?.collapse();
+  }
+};
+
 const replyContext = ref<{
   accountId: string;
   to: string;
@@ -57,6 +71,10 @@ watch(
 const onSheetCompose = () => {
   sheetOpen.value = false;
   showCompose.value = true;
+};
+
+const onOpenFullscreen = () => {
+  showFullscreenMessage.value = true;
 };
 
 const buildReplyContext = (msg: SelectMessage) => {
@@ -342,14 +360,69 @@ const mobileBulkDeleteAsync = async () => {
       @complete="onSetupComplete"
     />
 
-    <!-- Desktop: 3 columns -->
-    <div
-      v-else-if="ui.isMediumScreen"
-      class="h-full grid grid-cols-[260px_360px_1fr]"
-    >
-      <MailSidebar @compose="showCompose = true" />
-      <MessageList @reply="onReplyFromList" />
-      <MessageView @reply="onReplyFromView" @delete="onDeleteFromView" />
+    <!-- Desktop: 3 resizable columns -->
+    <div v-else-if="ui.isMediumScreen" class="h-full flex">
+      <ShadcnResizablePanelGroup
+        id="mail-columns"
+        direction="horizontal"
+        class="h-full"
+        auto-save-id="haex-mail:column-sizes"
+      >
+        <ShadcnResizablePanel
+          id="sidebar-panel"
+          ref="sidebarPanelRef"
+          :default-size="22"
+          :min-size="15"
+          :collapsible="true"
+          :collapsed-size="0"
+          @collapse="sidebarCollapsed = true"
+          @expand="sidebarCollapsed = false"
+        >
+          <MailSidebar class="h-full" @compose="showCompose = true" />
+        </ShadcnResizablePanel>
+
+        <ShadcnResizableHandle :with-handle="true" />
+
+        <ShadcnResizablePanel id="list-panel" :default-size="30" :min-size="20">
+          <MessageList
+            :sidebar-collapsed="sidebarCollapsed"
+            @reply="onReplyFromList"
+            @fullscreen="onOpenFullscreen"
+            @toggle-sidebar="toggleSidebar"
+          />
+        </ShadcnResizablePanel>
+
+        <ShadcnResizableHandle :with-handle="true" />
+
+        <ShadcnResizablePanel id="view-panel" :default-size="48" :min-size="20">
+          <MessageView @reply="onReplyFromView" @delete="onDeleteFromView" />
+        </ShadcnResizablePanel>
+      </ShadcnResizablePanelGroup>
+
+      <!-- Fullscreen message overlay (dblclick) -->
+      <Transition name="fade">
+        <div
+          v-if="showFullscreenMessage && mailStore.messageBody"
+          class="fixed inset-0 z-50 bg-background flex flex-col"
+        >
+          <header class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="ArrowLeft"
+              :aria-label="t('back')"
+              @click="showFullscreenMessage = false"
+            />
+            <span class="flex-1 truncate font-medium">{{ mailStore.messageBody.envelope.subject ?? t('noSubject') }}</span>
+          </header>
+          <MessageView
+            class="flex-1 min-h-0"
+            :show-title="false"
+            @reply="onReplyFromView(); showFullscreenMessage = false"
+            @delete="onDeleteFromView(); showFullscreenMessage = false"
+          />
+        </div>
+      </Transition>
     </div>
 
     <!-- Mobile: single column, list ↔ detail drill-in, sidebar in a sheet -->
@@ -375,13 +448,6 @@ const mobileBulkDeleteAsync = async () => {
             @click="sheetOpen = true"
           />
           <span class="flex-1 truncate font-medium">{{ mobileTitle }}</span>
-          <UiButton
-            variant="ghost"
-            size="icon-lg"
-            :icon="Pencil"
-            :aria-label="t('compose')"
-            @click="showCompose = true"
-          />
         </template>
         <template v-else>
           <UiButton
@@ -396,7 +462,7 @@ const mobileBulkDeleteAsync = async () => {
       </header>
 
       <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" @reply="onReplyFromList" />
-      <MessageView v-else class="flex-1 min-h-0" @reply="onReplyFromView" @delete="onDeleteFromView" />
+      <MessageView v-else class="flex-1 min-h-0" :show-title="false" @reply="onReplyFromView" @delete="onDeleteFromView" />
 
       <ShadcnSheet v-model:open="sheetOpen">
         <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
@@ -408,6 +474,16 @@ const mobileBulkDeleteAsync = async () => {
         </ShadcnSheetContent>
       </ShadcnSheet>
     </div>
+
+    <!-- FAB: compose button (mobile-only, desktop uses sidebar button) -->
+    <button
+      v-if="haexVault.isReady && accountsStore.hasAccounts && !showCompose"
+      class="fixed bottom-6 right-6 z-40 md:hidden flex items-center justify-center size-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+      :aria-label="t('compose')"
+      @click="showCompose = true"
+    >
+      <Pencil class="size-5" />
+    </button>
 
     <ComposeDialog
       v-if="haexVault.isReady && accountsStore.hasAccounts"
