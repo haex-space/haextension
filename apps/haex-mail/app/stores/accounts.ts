@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import { inferRole } from "./mail";
 import type {
@@ -409,6 +409,25 @@ export const useAccountsStore = defineStore("accounts", () => {
     } catch (err) {
       console.warn("[haex-mail] failed to delete password item", err);
     }
+
+    // Drop all cached mail data — bodies contain full message content
+    // and must not outlive the account in the vault DB. Scoped via
+    // subquery: an id list could exceed SQLite's bind-parameter limit.
+    await haexVault.orm.delete(schema.messageBodies).where(
+      inArray(
+        schema.messageBodies.messageId,
+        haexVault.orm
+          .select({ id: schema.messages.id })
+          .from(schema.messages)
+          .where(eq(schema.messages.accountId, accountId)),
+      ),
+    );
+    await haexVault.orm
+      .delete(schema.messages)
+      .where(eq(schema.messages.accountId, accountId));
+    await haexVault.orm
+      .delete(schema.mailboxes)
+      .where(eq(schema.mailboxes.accountId, accountId));
 
     await haexVault.orm
       .delete(schema.accounts)

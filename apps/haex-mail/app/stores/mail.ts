@@ -90,6 +90,17 @@ export const useMailStore = defineStore("mail", () => {
           uidNext: m.uidNext ?? null,
         });
       } else {
+        // UIDs are only unique per uidValidity generation — when the
+        // server resets it, cached messages and bodies are stale and a
+        // recycled UID would otherwise serve the wrong cached body.
+        const prev = existing[0]!;
+        if (
+          prev.uidValidity != null &&
+          m.uidValidity != null &&
+          prev.uidValidity !== m.uidValidity
+        ) {
+          await invalidateMailboxCacheAsync(accountId, m.name);
+        }
         await haexVault.orm
           .update(schema.mailboxes)
           .set({
@@ -103,6 +114,32 @@ export const useMailStore = defineStore("mail", () => {
           .where(eq(schema.mailboxes.id, id));
       }
     }
+  };
+
+  /** Drop cached messages + bodies of one mailbox (uidValidity reset). */
+  const invalidateMailboxCacheAsync = async (
+    accountId: string,
+    mailboxName: string,
+  ) => {
+    if (!haexVault.orm) return;
+    const scope = and(
+      eq(schema.messages.accountId, accountId),
+      eq(schema.messages.mailboxName, mailboxName),
+    );
+    // Bodies first, scoped via subquery (an id list could exceed
+    // SQLite's bind-parameter limit) — it needs the message rows still
+    // present. An interrupted run leaves messages without bodies,
+    // which simply re-fetch on demand.
+    await haexVault.orm.delete(schema.messageBodies).where(
+      inArray(
+        schema.messageBodies.messageId,
+        haexVault.orm
+          .select({ id: schema.messages.id })
+          .from(schema.messages)
+          .where(scope),
+      ),
+    );
+    await haexVault.orm.delete(schema.messages).where(scope);
   };
 
   const refreshMessagesAsync = async (
@@ -266,10 +303,105 @@ export const useMailStore = defineStore("mail", () => {
     }
   };
 
+  const persistMessageBodyAsync = async (messageId: string, msg: MailMessage) => {
+    if (!haexVault.orm) return;
+    const attachmentsJson: schema.AttachmentJson[] = msg.attachments.map((a) => ({
+      partIndex: a.partIndex,
+      filename: a.filename,
+      contentType: a.contentType,
+      size: a.size,
+      contentId: a.contentId,
+      isInline: a.isInline,
+    }));
+    await haexVault.orm
+      .insert(schema.messageBodies)
+      .values({
+        messageId,
+        bodyText: msg.bodyText ?? null,
+        bodyHtml: msg.bodyHtml ?? null,
+        attachmentsJson,
+      })
+      .onConflictDoNothing();
+  };
+
+  const buildMailMessage = (
+    message: schema.SelectMessage,
+    body: schema.SelectMessageBody,
+  ): MailMessage => {
+    return {
+      envelope: {
+        uid: message.uid,
+        flags: message.flags,
+        internalDate: message.internalDate ?? undefined,
+        subject: message.subject ?? undefined,
+        from: message.fromJson,
+        to: message.toJson,
+        cc: message.ccJson,
+        messageId: message.messageId ?? undefined,
+        inReplyTo: message.inReplyTo ?? undefined,
+        references: message.references,
+      },
+      bodyText: body.bodyText ?? undefined,
+      bodyHtml: body.bodyHtml ?? undefined,
+      attachments: body.attachmentsJson,
+    };
+  };
+
+  /**
+   * Best-effort: mark a message \Seen on the server and mirror it into
+   * the local cache. Accepts flags in wire ("\Seen") or bare ("Seen")
+   * format. Callers fire-and-forget so rendering never waits on the
+   * IMAP round-trip (offline reads would otherwise hang on it).
+   */
+  const markSeenAsync = async (
+    message: schema.SelectMessage,
+    flags: string[],
+  ) => {
+    if (flags.some((f) => f.replace(/^\\/, "") === "Seen")) return;
+    try {
+      const account = await accountsStore.getCredentialsCachedAsync(
+        message.accountId,
+      );
+      if (!account) return;
+      await haexVault.client.mail.setFlagsAsync(
+        account.imap,
+        message.mailboxName,
+        [message.uid],
+        ["\\Seen"],
+        true,
+      );
+      await updateLocalFlagsAsync([message.id], "\\Seen", true);
+    } catch (err) {
+      console.warn("[haex-mail] failed to set \\Seen flag", err);
+    }
+  };
+
+  /** Monotonic token so an outdated load can't overwrite a newer one. */
+  let loadMessageSeq = 0;
+
   const loadMessageBodyAsync = async (message: schema.SelectMessage) => {
+    const seq = ++loadMessageSeq;
+    const isCurrent = () =>
+      seq === loadMessageSeq && selectedMessageId.value === message.id;
     isLoadingMessage.value = true;
     messageBody.value = null;
     try {
+      // Check local cache first — allows offline reading.
+      if (haexVault.orm) {
+        const cached = await haexVault.orm
+          .select()
+          .from(schema.messageBodies)
+          .where(eq(schema.messageBodies.messageId, message.id))
+          .limit(1);
+        if (cached.length > 0) {
+          if (isCurrent()) {
+            messageBody.value = buildMailMessage(message, cached[0]!);
+          }
+          void markSeenAsync(message, message.flags);
+          return;
+        }
+      }
+
       const account = await accountsStore.getCredentialsCachedAsync(
         message.accountId,
       );
@@ -279,24 +411,13 @@ export const useMailStore = defineStore("mail", () => {
         message.mailboxName,
         message.uid,
       );
-      messageBody.value = msg;
-      // Mark as \Seen if not already. Best-effort.
-      if (!msg.envelope.flags.includes("Seen")) {
-        try {
-          await haexVault.client.mail.setFlagsAsync(
-            account.imap,
-            message.mailboxName,
-            [message.uid],
-            ["\\Seen"],
-            true,
-          );
-          await updateLocalFlagsAsync([message.id], "\\Seen", true);
-        } catch (err) {
-          console.warn("[haex-mail] failed to set \\Seen flag", err);
-        }
-      }
+      if (isCurrent()) messageBody.value = msg;
+      persistMessageBodyAsync(message.id, msg).catch((err) =>
+        console.warn("[haex-mail] failed to cache message body", err),
+      );
+      void markSeenAsync(message, msg.envelope.flags);
     } finally {
-      isLoadingMessage.value = false;
+      if (seq === loadMessageSeq) isLoadingMessage.value = false;
     }
   };
 
@@ -408,9 +529,15 @@ export const useMailStore = defineStore("mail", () => {
       destinationName,
       g.rows.map((r) => r.uid),
     );
+    // Messages first — an interrupted run then leaves at worst orphaned
+    // body rows, never ghost list entries whose UIDs are already moved.
+    const ids = g.rows.map((r) => r.id);
     await haexVault.orm
       .delete(schema.messages)
-      .where(inArray(schema.messages.id, g.rows.map((r) => r.id)));
+      .where(inArray(schema.messages.id, ids));
+    await haexVault.orm
+      .delete(schema.messageBodies)
+      .where(inArray(schema.messageBodies.messageId, ids));
   };
 
   /** Delete (role "trash") or archive (role "archive") messages. */
