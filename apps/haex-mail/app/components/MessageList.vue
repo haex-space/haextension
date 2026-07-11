@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onLongPress } from "@vueuse/core";
+import { onLongPress, useMediaQuery } from "@vueuse/core";
 import type { SelectMessage } from "~/database/schemas";
 import { roleLabelKey } from "~/stores/mail";
 
@@ -44,7 +44,7 @@ const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
     return;
   }
 
-  if (event.shiftKey) {
+  if (event.shiftKey && !selectionStore.isSelectionMode) {
     selectionStore.selectItem(msg.id);
     return;
   }
@@ -67,16 +67,15 @@ const onActivateMessage = (msg: SelectMessage) => {
 
 // --- Context menu actions ---
 
-const onContextRead = async (msg: SelectMessage) => {
-  await mailStore.bulkSetFlagAsync([msg.id], "\\Seen", true);
-};
-
-const onContextReply = (msg: SelectMessage) => {
-  emit("reply", msg);
-};
+// On touch, long-press already enters selection mode; reka's built-in
+// long-press-to-open would fire on the same hold, so the context menu
+// stays a fine-pointer (mouse) affordance.
+const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
 const onContextDelete = async (msg: SelectMessage) => {
   await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
+  // The row is gone — a stale selection id would keep selection mode on.
+  if (selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
 };
 
 const rowClass = (msg: SelectMessage) => {
@@ -206,7 +205,7 @@ const isUnread = (msg: SelectMessage) => {
 
     <ul v-if="mailStore.messageList.length > 0" class="flex-1 overflow-y-auto">
       <ShadcnContextMenu v-for="msg in mailStore.messageList" :key="msg.id">
-        <ShadcnContextMenuTrigger as-child>
+        <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
           <li
             :ref="(el) => setupLongPress(el, msg)"
             tabindex="0"
@@ -254,10 +253,10 @@ const isUnread = (msg: SelectMessage) => {
           </li>
         </ShadcnContextMenuTrigger>
         <ShadcnContextMenuContent>
-          <ShadcnContextMenuItem @select="onContextRead(msg)">
+          <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
             {{ t("contextRead") }}
           </ShadcnContextMenuItem>
-          <ShadcnContextMenuItem @select="onContextReply(msg)">
+          <ShadcnContextMenuItem @select="emit('reply', msg)">
             {{ t("contextReply") }}
           </ShadcnContextMenuItem>
           <ShadcnContextMenuSeparator />
@@ -281,7 +280,6 @@ const isUnread = (msg: SelectMessage) => {
       @select="onMoveTargetAsync"
     />
   </section>
-
 </template>
 
 <i18n lang="yaml">

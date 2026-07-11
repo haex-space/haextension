@@ -13,7 +13,11 @@ const selectionStore = useSelectionStore();
 const ui = useUiStore();
 
 const showCompose = ref(false);
-const replyContext = ref<{ to: string; subject: string } | null>(null);
+const replyContext = ref<{
+  accountId: string;
+  to: string;
+  subject: string;
+} | null>(null);
 const showSetup = ref(false);
 const currentAccount = shallowRef<AccountWithCredentials | null>(null);
 const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
@@ -55,36 +59,55 @@ const onSheetCompose = () => {
   showCompose.value = true;
 };
 
-const buildReplyContext = (from: { name?: string; email: string } | undefined, subject: string | null | undefined) => {
+const buildReplyContext = (msg: SelectMessage) => {
+  const subject = msg.subject ?? "";
   return {
-    to: from?.email ?? "",
-    subject: (subject ?? "").startsWith("Re:") ? (subject ?? "") : `Re: ${subject ?? ""}`,
+    accountId: msg.accountId,
+    to: msg.fromJson[0]?.email ?? "",
+    subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
   };
 };
 
 const onReplyFromList = (msg: SelectMessage) => {
-  replyContext.value = buildReplyContext(msg.fromJson[0], msg.subject);
+  replyContext.value = buildReplyContext(msg);
   showCompose.value = true;
 };
 
 const onReplyFromView = () => {
-  const env = mailStore.messageBody?.envelope;
-  if (!env) return;
-  replyContext.value = buildReplyContext(env.from?.[0], env.subject);
-  showCompose.value = true;
+  const row = mailStore.messageList.find(
+    (m) => m.id === mailStore.selectedMessageId,
+  );
+  if (!row) return;
+  onReplyFromList(row);
+};
+
+/** Next message to select once the rows in `idSet` are removed. */
+const findNextMessageId = (list: SelectMessage[], idSet: Set<string>) => {
+  const indices = list
+    .map((m, i) => (idSet.has(m.id) ? i : -1))
+    .filter((i) => i !== -1);
+  if (indices.length === 0) return null;
+  const after = list
+    .slice(Math.max(...indices) + 1)
+    .find((m) => !idSet.has(m.id));
+  if (after) return after.id;
+  const before = list
+    .slice(0, Math.min(...indices))
+    .reverse()
+    .find((m) => !idSet.has(m.id));
+  return before?.id ?? null;
 };
 
 const onDeleteFromView = async () => {
   const id = mailStore.selectedMessageId;
   if (!id) return;
-  const list = mailStore.messageList;
-  const idSet = new Set([id]);
-  const idx = list.findIndex((m) => m.id === id);
-  const next = list.slice(idx + 1).find((m) => !idSet.has(m.id))
-    ?? list.slice(0, idx).reverse().find((m) => !idSet.has(m.id))
-    ?? null;
+  const nextId = findNextMessageId(mailStore.messageList, new Set([id]));
   await mailStore.bulkMoveToRoleAsync([id], "trash");
-  if (next) mailStore.selectMessage(next.id);
+  // bulkMoveToRoleAsync swallows failures (toast only) — don't navigate
+  // away while the message is in fact still in the list.
+  if (mailStore.messageList.some((m) => m.id === id)) return;
+  if (selectionStore.isSelected(id)) selectionStore.toggleSelection(id);
+  if (nextId) mailStore.selectMessage(nextId);
 };
 
 watch(showCompose, (v) => {
@@ -121,26 +144,7 @@ onKeyStroke("Delete", async (e) => {
   e.preventDefault();
 
   const ids = Array.from(selectionStore.selectedIds);
-  const list = mailStore.messageList;
-  const idSet = new Set(ids);
-
-  // Find the next message to select after deletion
-  const selectedIndices = list
-    .map((m, i) => (idSet.has(m.id) ? i : -1))
-    .filter((i) => i !== -1);
-
-  let nextId: string | null = null;
-  if (selectedIndices.length > 0) {
-    const maxIdx = Math.max(...selectedIndices);
-    const afterCandidate = list.slice(maxIdx + 1).find((m) => !idSet.has(m.id));
-    if (afterCandidate) {
-      nextId = afterCandidate.id;
-    } else {
-      const minIdx = Math.min(...selectedIndices);
-      const beforeCandidate = list.slice(0, minIdx).reverse().find((m) => !idSet.has(m.id));
-      if (beforeCandidate) nextId = beforeCandidate.id;
-    }
-  }
+  const nextId = findNextMessageId(mailStore.messageList, new Set(ids));
 
   await mailStore.bulkMoveToRoleAsync(ids, "trash");
   selectionStore.clearSelection();

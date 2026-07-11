@@ -11,7 +11,7 @@ const open = defineModel<boolean>("open", { default: false });
  */
 const props = defineProps<{
   account?: AccountWithCredentials;
-  replyTo?: { to: string; subject: string };
+  replyTo?: { accountId: string; to: string; subject: string };
 }>();
 
 const { t } = useI18n();
@@ -34,17 +34,30 @@ const reset = () => {
   error.value = null;
 };
 
+const applyReplyTo = () => {
+  if (!props.replyTo) return;
+  to.value = props.replyTo.to;
+  subject.value = props.replyTo.subject;
+  // Unified view: reply from the account the message was received on.
+  if (!props.account) fromAccountId.value = props.replyTo.accountId;
+};
+
 watch(open, (v) => {
   if (!v) {
     reset();
     return;
   }
   fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
-  if (props.replyTo) {
-    to.value = props.replyTo.to;
-    subject.value = props.replyTo.subject;
-  }
+  applyReplyTo();
 });
+
+// Reply triggered while the dialog is already open must still prefill.
+watch(
+  () => props.replyTo,
+  () => {
+    if (open.value) applyReplyTo();
+  },
+);
 
 const parseAddresses = (input: string) => {
   return input
