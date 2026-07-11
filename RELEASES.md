@@ -11,3 +11,4 @@
 | 0.1.7 | 2026-07-10 | [haex-mail-0.1.7.xt](./haex-mail-0.1.7.xt) |
 | 0.1.8 | 2026-07-10 | [haex-mail-0.1.8.xt](./haex-mail-0.1.8.xt) |
 | 0.1.9 | 2026-07-10 | [haex-mail-0.1.9.xt](./haex-mail-0.1.9.xt) |
+| 0.1.10 | 2026-07-11 | [haex-mail-0.1.10.xt](./haex-mail-0.1.10.xt) |
