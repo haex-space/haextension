@@ -411,19 +411,17 @@ export const useAccountsStore = defineStore("accounts", () => {
     }
 
     // Drop all cached mail data — bodies contain full message content
-    // and must not outlive the account in the vault DB.
-    const staleMessages = await haexVault.orm
-      .select({ id: schema.messages.id })
-      .from(schema.messages)
-      .where(eq(schema.messages.accountId, accountId));
-    if (staleMessages.length > 0) {
-      await haexVault.orm.delete(schema.messageBodies).where(
-        inArray(
-          schema.messageBodies.messageId,
-          staleMessages.map((r) => r.id),
-        ),
-      );
-    }
+    // and must not outlive the account in the vault DB. Scoped via
+    // subquery: an id list could exceed SQLite's bind-parameter limit.
+    await haexVault.orm.delete(schema.messageBodies).where(
+      inArray(
+        schema.messageBodies.messageId,
+        haexVault.orm
+          .select({ id: schema.messages.id })
+          .from(schema.messages)
+          .where(eq(schema.messages.accountId, accountId)),
+      ),
+    );
     await haexVault.orm
       .delete(schema.messages)
       .where(eq(schema.messages.accountId, accountId));

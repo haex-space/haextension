@@ -122,23 +122,24 @@ export const useMailStore = defineStore("mail", () => {
     mailboxName: string,
   ) => {
     if (!haexVault.orm) return;
-    const stale = await haexVault.orm
-      .select({ id: schema.messages.id })
-      .from(schema.messages)
-      .where(
-        and(
-          eq(schema.messages.accountId, accountId),
-          eq(schema.messages.mailboxName, mailboxName),
-        ),
-      );
-    if (stale.length === 0) return;
-    const ids = stale.map((r) => r.id);
-    await haexVault.orm
-      .delete(schema.messages)
-      .where(inArray(schema.messages.id, ids));
-    await haexVault.orm
-      .delete(schema.messageBodies)
-      .where(inArray(schema.messageBodies.messageId, ids));
+    const scope = and(
+      eq(schema.messages.accountId, accountId),
+      eq(schema.messages.mailboxName, mailboxName),
+    );
+    // Bodies first, scoped via subquery (an id list could exceed
+    // SQLite's bind-parameter limit) — it needs the message rows still
+    // present. An interrupted run leaves messages without bodies,
+    // which simply re-fetch on demand.
+    await haexVault.orm.delete(schema.messageBodies).where(
+      inArray(
+        schema.messageBodies.messageId,
+        haexVault.orm
+          .select({ id: schema.messages.id })
+          .from(schema.messages)
+          .where(scope),
+      ),
+    );
+    await haexVault.orm.delete(schema.messages).where(scope);
   };
 
   const refreshMessagesAsync = async (
