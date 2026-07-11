@@ -237,6 +237,7 @@ export const useMailStore = defineStore("mail", () => {
     if (!haexVault.orm) return;
     isLoadingMessages.value = true;
     try {
+      await loadMessagesAsync(account.account.id, mailboxName);
       const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
         account.imap,
         mailboxName,
@@ -338,6 +339,8 @@ export const useMailStore = defineStore("mail", () => {
     isLoadingMailboxes.value = true;
     isLoadingMessages.value = true;
     try {
+      await loadMailboxesAsync();
+      await loadUnifiedMessagesAsync(role);
       const results = await Promise.allSettled(
         accounts.map(async (acc) => {
           const remote = await haexVault.client.mail.listMailboxesAsync(
@@ -758,12 +761,12 @@ export const useMailStore = defineStore("mail", () => {
     searchQuery.value = "";
   };
 
-  // Auto-select the first account when the list loads.
+  // Default to the unified view when no account is selected yet.
   watch(
     () => accountsStore.accounts,
     (list) => {
       if (!selectedAccountId.value && list.length > 0) {
-        selectedAccountId.value = list[0]!.id;
+        selectedAccountId.value = ALL_ACCOUNTS_ID;
       }
     },
     { immediate: true },
