@@ -2,7 +2,7 @@
 import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { ArrowUpDown, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
-import { roleLabelKey, type MessageSortField } from "~/stores/mail";
+import { roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>();
 const emit = defineEmits<{ reply: [msg: SelectMessage]; fullscreen: [msg: SelectMessage]; toggleSidebar: [] }>();
@@ -143,40 +143,22 @@ const headerLabel = computed(() => {
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
 
-// --- Search (query lives in the store; this is just the UI toggle) ---
+// --- Search (query + isSearching live in the store; focus lives here) ---
 
-const isSearching = ref(false);
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const startSearch = async () => {
-  isSearching.value = true;
+  mailStore.isSearching = true;
   await nextTick();
   searchInputRef.value?.focus();
 };
 
 const closeSearch = () => {
-  isSearching.value = false;
+  mailStore.isSearching = false;
   mailStore.searchQuery = "";
 };
 
-watch(
-  [
-    () => mailStore.selectedMailboxName,
-    () => mailStore.selectedRole,
-    () => mailStore.selectedAccountId,
-  ],
-  () => closeSearch(),
-);
-
 // --- Sort (state + toggle live in the store) ---
-
-const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
-  { field: "date", labelKey: "sortDate" },
-  { field: "subject", labelKey: "sortSubject" },
-  { field: "sender", labelKey: "sortSender" },
-  { field: "flagged", labelKey: "sortFlagged" },
-  { field: "read", labelKey: "sortRead" },
-];
 
 /** Stable per-account color for the unified view's row indicator. */
 const ACCOUNT_COLORS = [
@@ -278,12 +260,12 @@ const getAvatarColor = (email: string): string => {
       />
     </div>
 
-    <!-- Folder header with inline search + sort (all screen sizes). -->
+    <!-- Folder header with inline search + sort (desktop only; mobile handled in index.vue). -->
     <header
       v-else
-      class="h-12 border-b border-border flex items-center gap-0.5 px-1 shrink-0"
+      class="h-12 border-b border-border hidden md:flex items-center gap-0.5 px-1 shrink-0"
     >
-      <template v-if="!isSearching">
+      <template v-if="!mailStore.isSearching">
         <!-- Desktop-only sidebar toggle -->
         <ShadcnTooltip>
           <ShadcnTooltipTrigger as-child>
@@ -344,7 +326,7 @@ const getAvatarColor = (email: string): string => {
           size="icon-lg"
           :icon="X"
           :aria-label="t('closeSearch')"
-          @click="closeSearch"
+          @click="closeSearch()"
         />
         <input
           ref="searchInputRef"

@@ -18,6 +18,15 @@ export const ALL_ACCOUNTS_ID = "__all__";
 /** Field the message list can be sorted by (shared: list UI + keyboard nav). */
 export type MessageSortField = "date" | "subject" | "sender" | "flagged" | "read";
 
+/** Ordered sort options for the sort dropdown (shared between desktop and mobile). */
+export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
+  { field: "date", labelKey: "sortDate" },
+  { field: "subject", labelKey: "sortSubject" },
+  { field: "sender", labelKey: "sortSender" },
+  { field: "flagged", labelKey: "sortFlagged" },
+  { field: "read", labelKey: "sortRead" },
+];
+
 /**
  * Currently-selected account + mailbox + message. The mail UI is
  * driven by these three IDs — switching any of them triggers fetches.
@@ -49,6 +58,7 @@ export const useMailStore = defineStore("mail", () => {
   // filteredMessageList and the page's keyboard nav / Ctrl+A consume it too.
 
   const searchQuery = ref("");
+  const isSearching = ref(false);
   const sortField = ref<MessageSortField>("date");
   const sortDir = ref<"asc" | "desc">("desc");
 
@@ -659,6 +669,8 @@ export const useMailStore = defineStore("mail", () => {
     selectedRole.value = null;
     selectedMessageId.value = null;
     messageBody.value = null;
+    isSearching.value = false;
+    searchQuery.value = "";
   };
 
   /** Unified-view counterpart to selectMailbox — selects by role. */
@@ -667,6 +679,8 @@ export const useMailStore = defineStore("mail", () => {
     selectedMailboxName.value = null;
     selectedMessageId.value = null;
     messageBody.value = null;
+    isSearching.value = false;
+    searchQuery.value = "";
   };
 
   const selectMessage = (id: string | null) => {
@@ -682,6 +696,8 @@ export const useMailStore = defineStore("mail", () => {
     mailboxes.value = [];
     messageList.value = [];
     messageBody.value = null;
+    isSearching.value = false;
+    searchQuery.value = "";
   };
 
   // Auto-select the first account when the list loads.
@@ -705,6 +721,7 @@ export const useMailStore = defineStore("mail", () => {
     messageList,
     filteredMessageList,
     searchQuery,
+    isSearching,
     sortField,
     sortDir,
     toggleSort,

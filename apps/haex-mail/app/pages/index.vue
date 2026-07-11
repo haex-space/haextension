@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
-import { ArrowLeft, Menu, Pencil } from "lucide-vue-next";
+import { ArrowLeft, ArrowUpDown, ChevronDown, ChevronUp, Menu, Pencil, Reply, Search, Trash2, X } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey, SORT_OPTIONS } from "~/stores/mail";
 import type { SelectMessage } from "~/database/schemas";
 
 const { t } = useI18n();
@@ -14,6 +14,19 @@ const ui = useUiStore();
 
 const showCompose = ref(false);
 const showFullscreenMessage = ref(false);
+
+const mobileSearchInputRef = ref<HTMLInputElement | null>(null);
+
+const startMobileSearch = async () => {
+  mailStore.isSearching = true;
+  await nextTick();
+  mobileSearchInputRef.value?.focus();
+};
+
+const closeMobileSearch = () => {
+  mailStore.isSearching = false;
+  mailStore.searchQuery = "";
+};
 
 // Sidebar collapse state for 3-column desktop view
 const sidebarPanelRef = ref<{ collapse: () => void; expand: () => void } | null>(null);
@@ -414,6 +427,20 @@ const mobileBulkDeleteAsync = async () => {
               @click="showFullscreenMessage = false"
             />
             <span class="flex-1 truncate font-medium">{{ mailStore.messageBody.envelope.subject ?? t('noSubject') }}</span>
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Reply"
+              :aria-label="t('reply')"
+              @click="onReplyFromView(); showFullscreenMessage = false"
+            />
+            <UiButton
+              variant="ghost"
+              size="icon-lg"
+              :icon="Trash2"
+              :aria-label="t('delete')"
+              @click="onDeleteFromView(); showFullscreenMessage = false"
+            />
           </header>
           <MessageView
             class="flex-1 min-h-0"
@@ -438,18 +465,36 @@ const mobileBulkDeleteAsync = async () => {
         @move="() => {}"
         @delete="mobileBulkDeleteAsync"
       />
+      <!-- Mobile search bar (replaces the normal header while searching) -->
+      <header v-else-if="mailStore.isSearching && !mailStore.selectedMessageId" class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="X"
+          :aria-label="t('closeSearch')"
+          @click="closeMobileSearch"
+        />
+        <input
+          ref="mobileSearchInputRef"
+          v-model="mailStore.searchQuery"
+          type="search"
+          class="flex-1 h-8 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+          :placeholder="t('searchPlaceholder')"
+        >
+        <UiButton
+          v-if="mailStore.searchQuery"
+          variant="ghost"
+          size="icon-lg"
+          :icon="X"
+          :aria-label="t('clearSearch')"
+          @click="mailStore.searchQuery = ''"
+        />
+      </header>
+
+      <!-- Normal mobile header -->
       <header v-else class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
-        <template v-if="!mailStore.selectedMessageId">
-          <UiButton
-            variant="ghost"
-            size="icon-lg"
-            :icon="Menu"
-            :aria-label="t('menu')"
-            @click="sheetOpen = true"
-          />
-          <span class="flex-1 truncate font-medium">{{ mobileTitle }}</span>
-        </template>
-        <template v-else>
+        <!-- Message detail: back + subject + reply + delete -->
+        <template v-if="mailStore.selectedMessageId">
           <UiButton
             variant="ghost"
             size="icon-lg"
@@ -458,6 +503,66 @@ const mobileBulkDeleteAsync = async () => {
             @click="mailStore.selectMessage(null)"
           />
           <span class="flex-1 truncate font-medium">{{ mobileMessageTitle }}</span>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Reply"
+            :aria-label="t('reply')"
+            @click="onReplyFromView"
+          />
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Trash2"
+            :aria-label="t('delete')"
+            @click="onDeleteFromView"
+          />
+        </template>
+        <!-- Folder list: menu + title + search + sort -->
+        <template v-else>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Menu"
+            :aria-label="t('menu')"
+            @click="sheetOpen = true"
+          />
+          <span class="flex-1 truncate font-medium">{{ mobileTitle }}</span>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="Search"
+            :aria-label="t('search')"
+            @click="startMobileSearch"
+          />
+          <ShadcnDropdownMenu>
+            <ShadcnDropdownMenuTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-lg"
+                :icon="ArrowUpDown"
+                :aria-label="t('sort')"
+              />
+            </ShadcnDropdownMenuTrigger>
+            <ShadcnDropdownMenuContent align="end" class="w-44">
+              <ShadcnDropdownMenuItem
+                v-for="opt in SORT_OPTIONS"
+                :key="opt.field"
+                class="justify-between"
+                @click.prevent="mailStore.toggleSort(opt.field)"
+              >
+                <span>{{ t(opt.labelKey) }}</span>
+                <ChevronUp
+                  v-if="mailStore.sortField === opt.field && mailStore.sortDir === 'asc'"
+                  class="h-3.5 w-3.5 text-muted-foreground"
+                />
+                <ChevronDown
+                  v-else-if="mailStore.sortField === opt.field && mailStore.sortDir === 'desc'"
+                  class="h-3.5 w-3.5 text-muted-foreground"
+                />
+              </ShadcnDropdownMenuItem>
+            </ShadcnDropdownMenuContent>
+          </ShadcnDropdownMenu>
         </template>
       </header>
 
@@ -465,12 +570,14 @@ const mobileBulkDeleteAsync = async () => {
       <MessageView v-else class="flex-1 min-h-0" :show-title="false" @reply="onReplyFromView" @delete="onDeleteFromView" />
 
       <ShadcnSheet v-model:open="sheetOpen">
-        <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0">
-          <ShadcnSheetTitle class="sr-only">{{ t("menu") }}</ShadcnSheetTitle>
+        <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0 gap-0">
+          <div class="h-14 shrink-0 flex items-center px-4 border-b border-border">
+            <ShadcnSheetTitle class="text-base font-semibold">Mail</ShadcnSheetTitle>
+          </div>
           <ShadcnSheetDescription class="sr-only">
             {{ t("menuDescription") }}
           </ShadcnSheetDescription>
-          <MailSidebar class="h-full" @compose="onSheetCompose" />
+          <MailSidebar class="flex-1 min-h-0" @compose="onSheetCompose" />
         </ShadcnSheetContent>
       </ShadcnSheet>
     </div>
@@ -504,6 +611,18 @@ de:
   back: Zurück
   allAccounts: Alle Konten
   noSubject: (kein Betreff)
+  reply: Antworten
+  delete: Löschen
+  search: Suchen
+  sort: Sortieren
+  closeSearch: Suche schließen
+  clearSearch: Eingabe löschen
+  searchPlaceholder: Nachrichten durchsuchen…
+  sortDate: Datum
+  sortSubject: Betreff
+  sortSender: Absender
+  sortFlagged: Wichtigkeit
+  sortRead: Gelesen/Ungelesen
 en:
   loading: Loading…
   initError: Initialization failed
@@ -513,4 +632,16 @@ en:
   back: Back
   allAccounts: All accounts
   noSubject: (no subject)
+  reply: Reply
+  delete: Delete
+  search: Search
+  sort: Sort
+  closeSearch: Close search
+  clearSearch: Clear input
+  searchPlaceholder: Search messages…
+  sortDate: Date
+  sortSubject: Subject
+  sortSender: Sender
+  sortFlagged: Importance
+  sortRead: Read/Unread
 </i18n>
