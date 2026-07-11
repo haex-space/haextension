@@ -210,7 +210,7 @@ const getAvatarColor = (email: string): string => {
 </script>
 
 <template>
-  <section class="md:border-r border-border flex flex-col">
+  <section class="h-full md:border-r border-border flex flex-col">
     <!-- Desktop-only selection toolbar.
          On mobile it lives in the page header (index.vue) to avoid layout jump. -->
     <div v-if="selectionStore.isSelectionMode" class="hidden md:block shrink-0">
