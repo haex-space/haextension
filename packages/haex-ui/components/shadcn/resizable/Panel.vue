@@ -16,8 +16,6 @@ defineExpose({
   expand: () => panelRef.value?.expand(),
   getSize: () => panelRef.value?.getSize(),
   resize: (size: number) => panelRef.value?.resize(size),
-  isCollapsed: () => panelRef.value?.isCollapsed(),
-  isExpanded: () => panelRef.value?.isExpanded(),
 })
 </script>
 
