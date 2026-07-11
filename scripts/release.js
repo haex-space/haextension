@@ -36,7 +36,40 @@ function run(cmd, args) {
   return execFileSync(cmd, args, { stdio: 'inherit', cwd: repoRoot });
 }
 
-// Read and bump package.json
+/** Run a command capturing stdout; returns trimmed output ('' on failure). */
+function capture(cmd, args) {
+  try {
+    return execFileSync(cmd, args, { cwd: repoRoot, encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** True if the tag exists locally or on origin. */
+function tagExists(tag) {
+  if (capture('git', ['tag', '--list', tag])) return true;
+  return capture('git', ['ls-remote', '--tags', 'origin', tag]) !== '';
+}
+
+// --- Pre-flight: fail before mutating anything ---
+
+// Releases are cut from main so tags always track the released history.
+// (0.1.10 was once tagged off a feature branch and never landed on main,
+// which is exactly the drift this guard prevents.)
+const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+if (branch !== 'main') {
+  console.error(`Releases must be cut from 'main' (currently on '${branch}').`);
+  console.error(`Switch first:  git switch main`);
+  process.exit(1);
+}
+
+// A clean tree keeps the release commit minimal and rollback well-defined.
+if (capture('git', ['status', '--porcelain'])) {
+  console.error('Working tree is not clean — commit or stash changes before releasing.');
+  process.exit(1);
+}
+
+// Read current version.
 const packageJsonPath = join(repoRoot, 'apps', extensionName, 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
 const currentVersion = packageJson.version;
@@ -46,15 +79,27 @@ if (!currentVersion) {
   process.exit(1);
 }
 
-const newVersion = bumpVersion(currentVersion, versionType);
+// Compute the next version, skipping any already-tagged ones. This absorbs
+// versions released from elsewhere (e.g. a tag pushed off another branch)
+// so `patch` always advances to the next *free* version instead of colliding.
+let newVersion = bumpVersion(currentVersion, versionType);
+while (tagExists(`${extensionName}-v${newVersion}`)) {
+  console.warn(`! Tag ${extensionName}-v${newVersion} already exists — skipping to next patch.`);
+  newVersion = bumpVersion(newVersion, 'patch');
+}
+
+const tagName = `${extensionName}-v${newVersion}`;
 console.log(`${extensionName}: ${currentVersion} -> ${newVersion}`);
 
-// Update package.json
+// --- Mutate: bump, commit, tag, push. Roll back on any failure. ---
+
+const manifestPath = join(repoRoot, 'apps', extensionName, 'haextension', 'manifest.json');
+
+// Update package.json.
 packageJson.version = newVersion;
 writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 
-// Update manifest.json if it exists
-const manifestPath = join(repoRoot, 'apps', extensionName, 'haextension', 'manifest.json');
+// Update manifest.json if it carries a version.
 if (existsSync(manifestPath)) {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   if (manifest.version) {
@@ -63,16 +108,32 @@ if (existsSync(manifestPath)) {
   }
 }
 
-// Commit, tag, push
-const tagName = `${extensionName}-v${newVersion}`;
-
-run('git', ['add', `apps/${extensionName}/package.json`]);
-if (existsSync(manifestPath)) {
-  run('git', ['add', `apps/${extensionName}/haextension/manifest.json`]);
+let committed = false;
+let tagged = false;
+try {
+  run('git', ['add', `apps/${extensionName}/package.json`]);
+  if (existsSync(manifestPath)) {
+    run('git', ['add', `apps/${extensionName}/haextension/manifest.json`]);
+  }
+  run('git', ['commit', '-m', `chore(${extensionName}): bump version to ${newVersion}`]);
+  committed = true;
+  run('git', ['tag', tagName]);
+  tagged = true;
+  // Atomic so the commit and tag land together (or neither does).
+  run('git', ['push', '--atomic', 'origin', 'main', tagName]);
+} catch (err) {
+  console.error(`\n✖ Release failed — rolling back local changes so nothing dangles.`);
+  if (tagged) capture('git', ['tag', '-d', tagName]);
+  if (committed) {
+    capture('git', ['reset', '--hard', 'HEAD~1']);
+  } else {
+    capture('git', ['checkout', '--', `apps/${extensionName}/package.json`]);
+    if (existsSync(manifestPath)) {
+      capture('git', ['checkout', '--', `apps/${extensionName}/haextension/manifest.json`]);
+    }
+  }
+  console.error(String(err.message || err));
+  process.exit(1);
 }
-run('git', ['commit', '-m', `chore(${extensionName}): bump version to ${newVersion}`]);
-run('git', ['tag', tagName]);
-run('git', ['push']);
-run('git', ['push', 'origin', tagName]);
 
 console.log(`\nTag ${tagName} pushed — CI will build, sign, and release.`);
