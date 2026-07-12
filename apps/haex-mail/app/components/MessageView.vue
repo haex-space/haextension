@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onKeyStroke } from "@vueuse/core";
 import { Download, Loader2, Reply, Trash2, X } from "lucide-vue-next";
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
@@ -53,8 +54,13 @@ type ViewerState =
 const viewer = ref<ViewerState | null>(null);
 // partIndex currently being fetched (drives the per-row spinner).
 const busyPart = ref<number | null>(null);
+// Bumped whenever a viewer is closed/invalidated; an in-flight open request
+// that resolves after its token is stale is discarded so it can't assign a
+// viewer (and leak a blob URL) after cleanup.
+let viewSeq = 0;
 
 const closeViewer = () => {
+  viewSeq++;
   // Blob URLs (pdf) must be revoked; data URLs (image) need no cleanup.
   if (viewer.value?.kind === "pdf") URL.revokeObjectURL(viewer.value.url);
   viewer.value = null;
@@ -69,9 +75,13 @@ const saveAttachmentAsync = async (att: AttachmentJson, b64: string) => {
 const openAttachmentAsync = async (att: AttachmentJson) => {
   const row = currentRow.value;
   if (!row || busyPart.value !== null) return;
+  const seq = ++viewSeq;
   busyPart.value = att.partIndex;
   try {
     const b64 = await mailStore.fetchAttachmentBase64Async(row, att.partIndex);
+    // The message changed or the component unmounted while fetching — drop
+    // this result rather than opening a stale viewer / leaking a blob URL.
+    if (seq !== viewSeq) return;
     if (att.contentType.startsWith("image/")) {
       viewer.value = {
         kind: "image",
@@ -120,6 +130,13 @@ watch(() => mailStore.selectedMessageId, closeViewer);
 // Unmounting (route change, fullscreen overlay teardown) must still revoke
 // any live blob URL — the watcher above won't fire on unmount.
 onBeforeUnmount(closeViewer);
+// Keyboard dismiss for the viewer overlay (matches the app's onKeyStroke
+// convention; the plain fixed overlay has no built-in Escape handling).
+onKeyStroke("Escape", (e) => {
+  if (!viewer.value) return;
+  e.preventDefault();
+  closeViewer();
+});
 </script>
 
 <template>
