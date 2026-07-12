@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
+import { Paperclip, X } from "lucide-vue-next";
 import { toast } from "vue-sonner";
-import type { OutgoingMessage } from "@haex-space/vault-sdk";
+import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import type { ReplyContext } from "~/stores/mail";
@@ -27,6 +27,7 @@ const cc = ref("");
 const bcc = ref("");
 const subject = ref("");
 const body = ref("");
+const attachments = ref<OutgoingAttachment[]>([]);
 const fromAccountId = ref<string | null>(null);
 const isSending = ref(false);
 const isSavingDraft = ref(false);
@@ -41,9 +42,20 @@ const isDirty = computed(
       cc.value.trim() ||
       bcc.value.trim() ||
       subject.value.trim() ||
-      body.value.trim()
+      body.value.trim() ||
+      attachments.value.length
     ),
 );
+
+/** Approximate decoded byte size of a base64 payload (for display). */
+const attachmentBytes = (data: string) => Math.floor((data.length * 3) / 4);
+
+const formatSize = (bytes: number) =>
+  bytes < 1024 ? `${bytes} B` : `${Math.round(bytes / 1024)} KB`;
+
+const removeAttachment = (index: number) => {
+  attachments.value.splice(index, 1);
+};
 
 const reset = () => {
   to.value = "";
@@ -51,6 +63,7 @@ const reset = () => {
   bcc.value = "";
   subject.value = "";
   body.value = "";
+  attachments.value = [];
   showCc.value = false;
   showBcc.value = false;
   error.value = null;
@@ -59,6 +72,13 @@ const reset = () => {
 const applyReplyTo = () => {
   if (!props.replyTo) return;
   to.value = props.replyTo.to;
+  if (props.replyTo.cc) {
+    cc.value = props.replyTo.cc;
+    showCc.value = true;
+  }
+  attachments.value = props.replyTo.attachments
+    ? [...props.replyTo.attachments]
+    : [];
   subject.value = props.replyTo.subject;
   // Quoted original (cursor stays at the top, before the quote).
   if (props.replyTo.body) body.value = props.replyTo.body;
@@ -120,6 +140,7 @@ const sendAsync = async () => {
       bcc: bcc.value ? parseAddresses(bcc.value) : [],
       subject: subject.value,
       bodyText: body.value || undefined,
+      attachments: attachments.value.length ? attachments.value : undefined,
       // Threading headers so replies land in the original conversation.
       inReplyTo: props.replyTo?.inReplyTo,
       references: props.replyTo?.references,
@@ -148,6 +169,7 @@ const saveDraftAsync = async () => {
     bcc: bcc.value,
     subject: subject.value,
     body: body.value,
+    attachments: attachments.value.slice(),
   };
 
   isSavingDraft.value = true;
@@ -167,6 +189,7 @@ const saveDraftAsync = async () => {
       bcc: snap.bcc ? parseAddresses(snap.bcc) : [],
       subject: snap.subject || t("noSubject"),
       bodyText: snap.body || undefined,
+      attachments: snap.attachments.length ? snap.attachments : undefined,
     };
     const rfc822 = await haexVault.client.mail.buildRfc822Async(
       account.imap.host,
@@ -267,6 +290,26 @@ const discardAsync = () => {
           <UiInput v-if="showBcc" v-model="bcc" :placeholder="t('bccPlaceholder')" />
 
           <UiInput v-model="subject" :placeholder="t('subjectPlaceholder')" />
+
+          <ul v-if="attachments.length" class="flex flex-wrap gap-2 pt-1">
+            <li
+              v-for="(att, i) in attachments"
+              :key="i"
+              class="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 pl-2 pr-1 py-1 text-xs"
+            >
+              <Paperclip class="size-3.5 shrink-0 text-muted-foreground" />
+              <span class="truncate max-w-48">{{ att.filename }}</span>
+              <span class="text-muted-foreground">({{ formatSize(attachmentBytes(att.data)) }})</span>
+              <button
+                type="button"
+                class="ml-0.5 rounded p-0.5 hover:bg-accent"
+                :aria-label="t('removeAttachment')"
+                @click="removeAttachment(i)"
+              >
+                <X class="size-3.5" />
+              </button>
+            </li>
+          </ul>
         </div>
 
         <textarea
@@ -312,6 +355,7 @@ de:
   bodyPlaceholder: Nachricht schreiben…
   discard: Verwerfen
   send: Senden
+  removeAttachment: Anhang entfernen
   draftSaved: Entwurf gespeichert
   noSubject: (kein Betreff)
   errors:
@@ -329,6 +373,7 @@ en:
   bodyPlaceholder: Write a message…
   discard: Discard
   send: Send
+  removeAttachment: Remove attachment
   draftSaved: Draft saved
   noSubject: (no subject)
   errors:

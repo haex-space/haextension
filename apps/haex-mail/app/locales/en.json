@@ -12,7 +12,13 @@
       "credentials": "Failed to load credentials",
       "noFolderForRole": "No {folder} folder found for this account"
     },
-    "quoteHeader": "On {date}, {sender} wrote:"
+    "quoteHeader": "On {date}, {sender} wrote:",
+    "forwardAttachmentsFailed": "{count} attachment(s) could not be loaded and are missing from the forward.",
+    "forwardHeader": "---------- Forwarded message ----------",
+    "forwardFrom": "From",
+    "forwardDate": "Date",
+    "forwardSubject": "Subject",
+    "forwardTo": "To"
   },
   "accounts": {
     "errors": {
