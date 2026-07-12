@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Loader2, Reply, Trash2 } from "lucide-vue-next";
+import { ChevronRight, Download, Loader2, Reply, Trash2 } from "lucide-vue-next";
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
 import { getErrorMessage } from "~/lib/utils";
@@ -219,13 +219,17 @@ onBeforeUnmount(closeViewer);
         class="whitespace-pre-wrap font-sans text-sm mt-4"
       >{{ mailStore.messageBody.bodyText ?? t("emptyBody") }}</pre>
 
-      <div
+      <details
         v-if="mailStore.messageBody.attachments.length > 0"
-        class="mt-6 pt-4 border-t border-border"
+        class="group mt-6 pt-4 border-t border-border"
+        open
       >
-        <h2 class="text-sm font-medium mb-2">
+        <summary
+          class="flex items-center gap-1.5 cursor-pointer select-none list-none text-sm font-medium mb-2 [&::-webkit-details-marker]:hidden"
+        >
+          <ChevronRight class="size-4 shrink-0 transition-transform group-open:rotate-90" />
           {{ t("attachments", { count: mailStore.messageBody.attachments.length }) }}
-        </h2>
+        </summary>
         <ul class="space-y-1.5 text-sm">
           <li
             v-for="att in mailStore.messageBody.attachments"
@@ -260,7 +264,7 @@ onBeforeUnmount(closeViewer);
             </button>
           </li>
         </ul>
-      </div>
+      </details>
     </div>
 
     <!-- Inline attachment viewer (image / pdf / text). UiDrawerModal gives a
@@ -280,12 +284,13 @@ onBeforeUnmount(closeViewer);
             :src="viewer.url"
             :alt="viewer.filename"
             class="max-w-full max-h-full object-contain"
-          />
-          <iframe
+          >
+          <embed
             v-else-if="viewer?.kind === 'pdf'"
             :src="viewer.url"
+            type="application/pdf"
             class="w-full h-full border-0 bg-white"
-          />
+          >
           <pre
             v-else-if="viewer?.kind === 'text'"
             class="w-full h-full self-start whitespace-pre-wrap font-mono text-sm p-4"

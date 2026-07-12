@@ -548,9 +548,10 @@ const onSetupComplete = async () => {
       </ShadcnSheet>
     </div>
 
-    <!-- FAB: compose button (mobile-only, desktop uses sidebar button) -->
+    <!-- FAB: compose button (mobile-only, desktop uses sidebar button).
+         Hidden while a message is open so it doesn't cover the mail view. -->
     <button
-      v-if="haexVault.isReady && accountsStore.hasAccounts && !showCompose"
+      v-if="haexVault.isReady && accountsStore.hasAccounts && !showCompose && !mailStore.selectedMessageId"
       class="fixed bottom-6 right-6 z-40 md:hidden flex items-center justify-center size-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
       :aria-label="t('compose')"
       @click="showCompose = true"
