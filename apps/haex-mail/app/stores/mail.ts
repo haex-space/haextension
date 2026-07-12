@@ -244,6 +244,7 @@ export const useMailStore = defineStore("mail", () => {
         { type: "latest", count },
       );
       await persistEnvelopesAsync(account.account.id, mailboxName, envelopes);
+      await purgeDeletedMessagesAsync(account, mailboxName, new Set(envelopes.map((e) => e.uid)));
       await loadMessagesAsync(account.account.id, mailboxName);
     } finally {
       isLoadingMessages.value = false;
@@ -286,6 +287,56 @@ export const useMailStore = defineStore("mail", () => {
           target: schema.messages.id,
           set: { flags },
         });
+    }
+  };
+
+  /**
+   * Remove cached messages that no longer exist on the server.
+   * After a "latest" fetch we know which UIDs exist in that window, but older
+   * cached UIDs could have been expunged from another client. We verify them
+   * via a single uidList round-trip and delete any the server doesn't return.
+   */
+  const purgeDeletedMessagesAsync = async (
+    account: AccountWithCredentials,
+    mailboxName: string,
+    confirmedUids: Set<number>,
+  ) => {
+    if (!haexVault.orm) return;
+    const cached = await haexVault.orm
+      .select({ uid: schema.messages.uid, id: schema.messages.id })
+      .from(schema.messages)
+      .where(
+        and(
+          eq(schema.messages.accountId, account.account.id),
+          eq(schema.messages.mailboxName, mailboxName),
+        ),
+      );
+
+    const unverified = cached.filter((r) => !confirmedUids.has(r.uid));
+    if (!unverified.length) return;
+
+    const stillPresent = await haexVault.client.mail.fetchEnvelopesAsync(
+      account.imap,
+      mailboxName,
+      { type: "uidList", uids: unverified.map((r) => r.uid) },
+    );
+    await persistEnvelopesAsync(account.account.id, mailboxName, stillPresent);
+
+    const presentUids = new Set(stillPresent.map((e) => e.uid));
+    const toDelete = unverified.filter((r) => !presentUids.has(r.uid)).map((r) => r.id);
+    if (!toDelete.length) return;
+
+    // Batch deletes to stay within SQLite's bind-parameter limit (same
+    // rationale as the subquery approach in invalidateMailboxCacheAsync).
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+      const batch = toDelete.slice(i, i + BATCH_SIZE);
+      await haexVault.orm
+        .delete(schema.messageBodies)
+        .where(inArray(schema.messageBodies.messageId, batch));
+      await haexVault.orm
+        .delete(schema.messages)
+        .where(inArray(schema.messages.id, batch));
     }
   };
 
@@ -358,6 +409,7 @@ export const useMailStore = defineStore("mail", () => {
             { type: "latest", count },
           );
           await persistEnvelopesAsync(acc.account.id, roleName, envelopes);
+          await purgeDeletedMessagesAsync(acc, roleName, new Set(envelopes.map((e) => e.uid)));
         }),
       );
       results.forEach((r, i) => {

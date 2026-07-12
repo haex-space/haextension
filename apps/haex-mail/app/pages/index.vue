@@ -298,6 +298,18 @@ watch(
   },
 );
 
+const onRefresh = async () => {
+  if (mailStore.isUnifiedView) {
+    if (mailStore.selectedRole) {
+      await mailStore.refreshUnifiedAsync(mailStore.selectedRole, unifiedAccounts.value);
+    }
+  } else {
+    if (currentAccount.value && mailStore.selectedMailboxName) {
+      await mailStore.refreshMessagesAsync(currentAccount.value, mailStore.selectedMailboxName);
+    }
+  }
+};
+
 watch(
   () => mailStore.selectedMessageId,
   async (id) => {
@@ -351,7 +363,7 @@ const onSetupComplete = async () => {
           @collapse="sidebarCollapsed = true"
           @expand="sidebarCollapsed = false"
         >
-          <MailSidebar class="h-full" @compose="showCompose = true" />
+          <MailSidebar class="h-full" @compose="showCompose = true" @refresh="onRefresh" />
         </ShadcnResizablePanel>
 
         <ShadcnResizableHandle :with-handle="true" />
@@ -489,7 +501,7 @@ const onSetupComplete = async () => {
           <ShadcnSheetDescription class="sr-only">
             {{ t("menuDescription") }}
           </ShadcnSheetDescription>
-          <MailSidebar class="flex-1 min-h-0" @compose="onSheetCompose" />
+          <MailSidebar class="flex-1 min-h-0" @compose="onSheetCompose" @refresh="onRefresh" />
         </ShadcnSheetContent>
       </ShadcnSheet>
     </div>
