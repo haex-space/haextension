@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
-import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-vue-next";
+import { PanelLeftClose, PanelLeftOpen, Paperclip, Search } from "lucide-vue-next";
 import type { SelectMessage } from "~/database/schemas";
 import { isMessageUnread, roleLabelKey } from "~/stores/mail";
 
@@ -306,10 +306,16 @@ const getAvatarColor = (email: string): string => {
                 </div>
               </div>
               <div
-                class="text-sm truncate mt-0.5"
+                class="flex items-center gap-1 text-sm mt-0.5"
                 :class="isMessageUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
               >
-                {{ msg.subject ?? t("noSubject") }}
+                <span class="truncate">{{ msg.subject ?? t("noSubject") }}</span>
+                <Paperclip
+                  v-if="msg.hasAttachments"
+                  class="size-3.5 shrink-0 text-muted-foreground"
+                  role="img"
+                  :aria-label="t('hasAttachments')"
+                />
               </div>
               <div
                 v-if="mailStore.isUnifiedView"
@@ -373,6 +379,7 @@ de:
   noResults: Keine Ergebnisse.
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
+  hasAttachments: Hat Anhänge
   search: Suchen
   contextRead: Als gelesen markieren
   contextReply: Antworten
@@ -388,6 +395,7 @@ en:
   noResults: No results.
   noSubject: (no subject)
   unknownSender: (unknown)
+  hasAttachments: Has attachments
   search: Search
   contextRead: Mark as read
   contextReply: Reply

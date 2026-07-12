@@ -96,6 +96,8 @@ export const messages = sqliteTable(tableName("messages"), {
   inReplyTo: text("in_reply_to"),
   references: text({ mode: "json" }).$type<string[]>().notNull().default([]),
   size: integer(),
+  /** Whether the message has any non-primary-body MIME part (from BODYSTRUCTURE). */
+  hasAttachments: integer("has_attachments", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 });
 export type InsertMessage = typeof messages.$inferInsert;
