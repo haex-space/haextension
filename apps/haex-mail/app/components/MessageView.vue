@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { onKeyStroke } from "@vueuse/core";
-import { Download, Loader2, Reply, Trash2, X } from "lucide-vue-next";
+import { Download, Loader2, Reply, Trash2 } from "lucide-vue-next";
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
 import { getErrorMessage } from "~/lib/utils";
@@ -125,18 +124,17 @@ const downloadAttachmentAsync = async (att: AttachmentJson) => {
   }
 };
 
+// Dialog open-state binding: the primitive drives close via Escape,
+// outside-click and its built-in close button — all route through here.
+const onViewerOpenChange = (open: boolean) => {
+  if (!open) closeViewer();
+};
+
 // A different message unmounts the current attachments — drop any viewer.
 watch(() => mailStore.selectedMessageId, closeViewer);
 // Unmounting (route change, fullscreen overlay teardown) must still revoke
 // any live blob URL — the watcher above won't fire on unmount.
 onBeforeUnmount(closeViewer);
-// Keyboard dismiss for the viewer overlay (matches the app's onKeyStroke
-// convention; the plain fixed overlay has no built-in Escape handling).
-onKeyStroke("Escape", (e) => {
-  if (!viewer.value) return;
-  e.preventDefault();
-  closeViewer();
-});
 </script>
 
 <template>
@@ -265,41 +263,36 @@ onKeyStroke("Escape", (e) => {
       </div>
     </div>
 
-    <!-- Inline attachment viewer (image / pdf / text) -->
-    <Transition name="fade">
-      <div
-        v-if="viewer"
-        class="fixed inset-0 z-50 bg-background flex flex-col"
-      >
-        <header class="h-14 shrink-0 border-b border-border flex items-center gap-2 px-3">
-          <span class="flex-1 truncate font-medium">{{ viewer.filename || t("attachment") }}</span>
-          <UiButton
-            variant="ghost"
-            size="icon-lg"
-            :icon="X"
-            :aria-label="t('close')"
-            @click="closeViewer"
-          />
-        </header>
-        <div class="flex-1 min-h-0 overflow-auto grid place-items-center bg-muted/30 p-4">
+    <!-- Inline attachment viewer (image / pdf / text). UiDrawerModal gives a
+         responsive drawer/dialog with focus trap/restore, Escape and
+         outside-click dismissal handled by the underlying primitive. -->
+    <UiDrawerModal
+      :open="!!viewer"
+      :title="viewer?.filename || t('attachment')"
+      :description="t('attachment')"
+      content-class="w-full max-w-[calc(100%-2rem)] sm:max-w-5xl h-[85vh]"
+      @update:open="onViewerOpenChange"
+    >
+      <template #content>
+        <div class="h-full overflow-auto grid place-items-center bg-muted/30">
           <img
-            v-if="viewer.kind === 'image'"
+            v-if="viewer?.kind === 'image'"
             :src="viewer.url"
             :alt="viewer.filename"
             class="max-w-full max-h-full object-contain"
           />
           <iframe
-            v-else-if="viewer.kind === 'pdf'"
+            v-else-if="viewer?.kind === 'pdf'"
             :src="viewer.url"
             class="w-full h-full border-0 bg-white"
           />
           <pre
-            v-else
-            class="w-full h-full self-start whitespace-pre-wrap font-mono text-sm"
+            v-else-if="viewer?.kind === 'text'"
+            class="w-full h-full self-start whitespace-pre-wrap font-mono text-sm p-4"
           >{{ viewer.text }}</pre>
         </div>
-      </div>
-    </Transition>
+      </template>
+    </UiDrawerModal>
   </article>
 </template>
 
@@ -316,7 +309,6 @@ de:
   unnamed: (unbenannt)
   openAttachment: Anhang öffnen
   downloadAttachment: Anhang herunterladen
-  close: Schließen
   reply: Antworten
   delete: Löschen
 en:
@@ -331,7 +323,6 @@ en:
   unnamed: (unnamed)
   openAttachment: Open attachment
   downloadAttachment: Download attachment
-  close: Close
   reply: Reply
   delete: Delete
 </i18n>
