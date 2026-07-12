@@ -290,6 +290,7 @@ export const useMailStore = defineStore("mail", () => {
           inReplyTo: env.inReplyTo ?? null,
           references: env.references,
           size: env.size ?? null,
+          hasAttachments: env.hasAttachments,
         })
         .onConflictDoNothing();
       await haexVault.orm
@@ -480,6 +481,7 @@ export const useMailStore = defineStore("mail", () => {
         messageId: message.messageId ?? undefined,
         inReplyTo: message.inReplyTo ?? undefined,
         references: message.references,
+        hasAttachments: message.hasAttachments,
       },
       bodyText: body.bodyText ?? undefined,
       bodyHtml: body.bodyHtml ?? undefined,
