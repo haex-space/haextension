@@ -326,12 +326,18 @@ export const useMailStore = defineStore("mail", () => {
     const toDelete = unverified.filter((r) => !presentUids.has(r.uid)).map((r) => r.id);
     if (!toDelete.length) return;
 
-    await haexVault.orm
-      .delete(schema.messageBodies)
-      .where(inArray(schema.messageBodies.messageId, toDelete));
-    await haexVault.orm
-      .delete(schema.messages)
-      .where(inArray(schema.messages.id, toDelete));
+    // Batch deletes to stay within SQLite's bind-parameter limit (same
+    // rationale as the subquery approach in invalidateMailboxCacheAsync).
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+      const batch = toDelete.slice(i, i + BATCH_SIZE);
+      await haexVault.orm
+        .delete(schema.messageBodies)
+        .where(inArray(schema.messageBodies.messageId, batch));
+      await haexVault.orm
+        .delete(schema.messages)
+        .where(inArray(schema.messages.id, batch));
+    }
   };
 
   const loadMessagesAsync = async (accountId: string, mailboxName: string) => {
