@@ -272,6 +272,9 @@ export const useMailStore = defineStore("mail", () => {
       // Envelope fields are immutable per UID — only flags change between
       // fetches (e.g. \Seen added by another client). Insert the row if it
       // is new, then always update flags so they stay in sync regardless.
+      // hasAttachments rides along on that same update: rows cached before
+      // this field existed default to false and would otherwise never
+      // self-correct on a later refresh of the same UID.
       await haexVault.orm
         .insert(schema.messages)
         .values({
@@ -295,7 +298,7 @@ export const useMailStore = defineStore("mail", () => {
         .onConflictDoNothing();
       await haexVault.orm
         .update(schema.messages)
-        .set({ flags })
+        .set({ flags, hasAttachments: env.hasAttachments })
         .where(eq(schema.messages.id, id));
     }
   };
