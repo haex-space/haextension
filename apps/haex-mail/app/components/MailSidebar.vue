@@ -9,11 +9,12 @@ import {
   Folder,
   Pencil,
   Settings,
+  RefreshCw,
 } from "lucide-vue-next";
 import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
 import type { MailboxRole } from "~/database/schemas";
 
-defineEmits<{ compose: [] }>();
+defineEmits<{ compose: []; refresh: [] }>();
 
 const { t } = useI18n();
 const router = useRouter();
@@ -173,7 +174,20 @@ const iconForRole = (role: string | null) => {
       </button>
     </nav>
 
-    <div class="p-2 border-t border-border">
+    <div class="p-2 border-t border-border space-y-0.5">
+      <UiButton
+        variant="ghost"
+        size="lg"
+        class="w-full justify-start"
+        :disabled="mailStore.isLoadingMessages || mailStore.isLoadingMailboxes"
+        @click="$emit('refresh')"
+      >
+        <RefreshCw
+          class="size-4 mr-2 shrink-0"
+          :class="{ 'animate-spin': mailStore.isLoadingMessages || mailStore.isLoadingMailboxes }"
+        />
+        {{ t("refresh") }}
+      </UiButton>
       <UiButton
         variant="ghost"
         size="lg"
@@ -192,10 +206,12 @@ de:
   compose: Neue Nachricht
   chooseAccount: Konto wählen
   allAccounts: Alle Konten
+  refresh: Aktualisieren
   settings: Einstellungen
 en:
   compose: New message
   chooseAccount: Choose account
   allAccounts: All accounts
+  refresh: Refresh
   settings: Settings
 </i18n>
