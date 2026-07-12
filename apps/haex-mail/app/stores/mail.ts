@@ -6,6 +6,7 @@ import type {
   MailMessage,
   MailboxInfo,
   MessageEnvelope,
+  OutgoingAttachment,
 } from "@haex-space/vault-sdk";
 import type { AccountWithCredentials } from "./accounts";
 
@@ -40,6 +41,8 @@ export interface ReplyContext {
   inReplyTo?: string;
   references?: string[];
   body?: string;
+  /** Original attachments carried over when forwarding. */
+  attachments?: OutgoingAttachment[];
 }
 
 /** How the compose dialog is prefilled from an existing message. */
@@ -488,6 +491,58 @@ export const useMailStore = defineStore("mail", () => {
     addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
 
   /**
+   * Attachment metadata for a message — from the local body cache when
+   * available, otherwise a one-off full fetch (which also populates the
+   * cache). Bytes are never included here; fetch them by `partIndex`.
+   */
+  const getAttachmentsMetaAsync = async (
+    msg: schema.SelectMessage,
+  ): Promise<schema.AttachmentJson[]> => {
+    if (haexVault.orm) {
+      const rows = await haexVault.orm
+        .select({ attachmentsJson: schema.messageBodies.attachmentsJson })
+        .from(schema.messageBodies)
+        .where(eq(schema.messageBodies.messageId, msg.id))
+        .limit(1);
+      if (rows.length > 0) return rows[0]!.attachmentsJson;
+    }
+    const account = await accountsStore.getCredentialsCachedAsync(msg.accountId);
+    if (!account) return [];
+    const full = await haexVault.client.mail.fetchMessageAsync(
+      account.imap,
+      msg.mailboxName,
+      msg.uid,
+    );
+    await persistMessageBodyAsync(msg.id, full).catch(() => {});
+    return full.attachments.map((a) => ({
+      partIndex: a.partIndex,
+      filename: a.filename,
+      contentType: a.contentType,
+      size: a.size,
+      contentId: a.contentId,
+      isInline: a.isInline,
+    }));
+  };
+
+  /**
+   * Fetch a single attachment's raw bytes (base64) by `partIndex`. Used
+   * for opening/downloading and for re-attaching when forwarding.
+   */
+  const fetchAttachmentBase64Async = async (
+    msg: schema.SelectMessage,
+    partIndex: number,
+  ): Promise<string> => {
+    const account = await accountsStore.getCredentialsCachedAsync(msg.accountId);
+    if (!account) throw new Error($i18n.t("mail.errors.credentials"));
+    return haexVault.client.mail.fetchAttachmentAsync(
+      account.imap,
+      msg.mailboxName,
+      msg.uid,
+      partIndex,
+    );
+  };
+
+  /**
    * Prefill for replying to / forwarding a message.
    *
    * - `reply` (default): recipient = sender, quoted original, RFC 5322
@@ -526,11 +581,27 @@ export const useMailStore = defineStore("mail", () => {
         `${$i18n.t("mail.forwardSubject")}: ${subject}`,
         `${$i18n.t("mail.forwardTo")}: ${formatAddressList(msg.toJson)}`,
       ];
+      // Carry the original attachments over. Fetched sequentially — a
+      // forward has a handful at most; failures drop that one attachment.
+      const metas = await getAttachmentsMetaAsync(msg);
+      const attachments: OutgoingAttachment[] = [];
+      for (const a of metas) {
+        try {
+          attachments.push({
+            filename: a.filename ?? `attachment-${a.partIndex}`,
+            contentType: a.contentType,
+            data: await fetchAttachmentBase64Async(msg, a.partIndex),
+          });
+        } catch (err) {
+          console.warn("[haex-mail] failed to fetch attachment for forward", err);
+        }
+      }
       return {
         accountId: msg.accountId,
         to: "",
         subject: /^fwd?:/i.test(subject) ? subject : `Fwd: ${subject}`,
         body: `\n\n${headerLines.join("\n")}\n\n${text ?? ""}`,
+        attachments: attachments.length > 0 ? attachments : undefined,
       };
     }
 
@@ -904,6 +975,8 @@ export const useMailStore = defineStore("mail", () => {
     refreshUnifiedAsync,
     loadMessageBodyAsync,
     buildReplyContextAsync,
+    getAttachmentsMetaAsync,
+    fetchAttachmentBase64Async,
     updateLocalFlagsAsync,
     bulkSetFlagAsync,
     bulkMoveToRoleAsync,

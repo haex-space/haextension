@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { Reply, Trash2 } from "lucide-vue-next";
+import { Download, Loader2, Reply, Trash2, X } from "lucide-vue-next";
+import { toast } from "vue-sonner";
+import type { AttachmentJson } from "~/database/schemas";
+import { getErrorMessage } from "~/lib/utils";
 
 const props = defineProps<{ showTitle?: boolean }>();
 const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>();
@@ -7,6 +10,7 @@ const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>()
 const { t } = useI18n();
 const mailStore = useMailStore();
 const uiStore = useUiStore();
+const haexVault = useHaexVaultStore();
 
 const formatAddresses = (
   addrs: { name?: string; email: string }[] | undefined,
@@ -19,6 +23,100 @@ const formatDate = (ts: number | undefined) => {
   if (!ts) return "";
   return new Date(ts * 1000).toLocaleString();
 };
+
+// --- Attachments: open (inline pdf/image/txt) or download ---
+
+/** The list row backing the open message — needed to fetch bytes by uid. */
+const currentRow = computed(
+  () =>
+    mailStore.messageList.find((m) => m.id === mailStore.selectedMessageId) ??
+    null,
+);
+
+const base64ToBytes = (b64: string) => {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+
+const canViewInline = (contentType: string) =>
+  contentType.startsWith("image/") ||
+  contentType === "application/pdf" ||
+  contentType.startsWith("text/");
+
+type ViewerState =
+  | { kind: "image"; url: string; filename: string }
+  | { kind: "pdf"; url: string; filename: string }
+  | { kind: "text"; text: string; filename: string };
+
+const viewer = ref<ViewerState | null>(null);
+// partIndex currently being fetched (drives the per-row spinner).
+const busyPart = ref<number | null>(null);
+
+const closeViewer = () => {
+  // Blob URLs (pdf) must be revoked; data URLs (image) need no cleanup.
+  if (viewer.value?.kind === "pdf") URL.revokeObjectURL(viewer.value.url);
+  viewer.value = null;
+};
+
+const saveAttachmentAsync = async (att: AttachmentJson, b64: string) => {
+  await haexVault.client.filesystem.saveFileAsync(base64ToBytes(b64), {
+    defaultPath: att.filename ?? `attachment-${att.partIndex}`,
+  });
+};
+
+const openAttachmentAsync = async (att: AttachmentJson) => {
+  const row = currentRow.value;
+  if (!row || busyPart.value !== null) return;
+  busyPart.value = att.partIndex;
+  try {
+    const b64 = await mailStore.fetchAttachmentBase64Async(row, att.partIndex);
+    if (att.contentType.startsWith("image/")) {
+      viewer.value = {
+        kind: "image",
+        url: `data:${att.contentType};base64,${b64}`,
+        filename: att.filename ?? "",
+      };
+    } else if (att.contentType === "application/pdf") {
+      const blob = new Blob([base64ToBytes(b64)], { type: "application/pdf" });
+      viewer.value = {
+        kind: "pdf",
+        url: URL.createObjectURL(blob),
+        filename: att.filename ?? "",
+      };
+    } else if (att.contentType.startsWith("text/")) {
+      viewer.value = {
+        kind: "text",
+        text: new TextDecoder().decode(base64ToBytes(b64)),
+        filename: att.filename ?? "",
+      };
+    } else {
+      await saveAttachmentAsync(att, b64);
+    }
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  } finally {
+    busyPart.value = null;
+  }
+};
+
+const downloadAttachmentAsync = async (att: AttachmentJson) => {
+  const row = currentRow.value;
+  if (!row || busyPart.value !== null) return;
+  busyPart.value = att.partIndex;
+  try {
+    const b64 = await mailStore.fetchAttachmentBase64Async(row, att.partIndex);
+    await saveAttachmentAsync(att, b64);
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  } finally {
+    busyPart.value = null;
+  }
+};
+
+// A different message unmounts the current attachments — drop any viewer.
+watch(() => mailStore.selectedMessageId, closeViewer);
 </script>
 
 <template>
@@ -110,18 +208,78 @@ const formatDate = (ts: number | undefined) => {
         <h2 class="text-sm font-medium mb-2">
           {{ t("attachments", { count: mailStore.messageBody.attachments.length }) }}
         </h2>
-        <ul class="space-y-1 text-sm">
+        <ul class="space-y-1.5 text-sm">
           <li
             v-for="att in mailStore.messageBody.attachments"
             :key="att.partIndex"
-            class="text-muted-foreground"
+            class="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5"
           >
-            {{ att.filename ?? t("unnamed") }} —
-            {{ att.contentType }} ({{ Math.round(att.size / 1024) }} KB)
+            <button
+              type="button"
+              class="flex-1 min-w-0 flex items-baseline gap-1.5 text-left hover:underline disabled:no-underline disabled:opacity-60"
+              :disabled="busyPart !== null"
+              :title="canViewInline(att.contentType) ? t('openAttachment') : t('downloadAttachment')"
+              @click="openAttachmentAsync(att)"
+            >
+              <span class="truncate font-medium">{{ att.filename ?? t("unnamed") }}</span>
+              <span class="shrink-0 text-xs text-muted-foreground">
+                {{ att.contentType }} ({{ Math.round(att.size / 1024) }} KB)
+              </span>
+            </button>
+            <Loader2
+              v-if="busyPart === att.partIndex"
+              class="size-4 shrink-0 animate-spin text-muted-foreground"
+            />
+            <button
+              v-else
+              type="button"
+              class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60"
+              :disabled="busyPart !== null"
+              :aria-label="t('downloadAttachment')"
+              @click="downloadAttachmentAsync(att)"
+            >
+              <Download class="size-4" />
+            </button>
           </li>
         </ul>
       </div>
     </div>
+
+    <!-- Inline attachment viewer (image / pdf / text) -->
+    <Transition name="fade">
+      <div
+        v-if="viewer"
+        class="fixed inset-0 z-50 bg-background flex flex-col"
+      >
+        <header class="h-14 shrink-0 border-b border-border flex items-center gap-2 px-3">
+          <span class="flex-1 truncate font-medium">{{ viewer.filename || t("attachment") }}</span>
+          <UiButton
+            variant="ghost"
+            size="icon-lg"
+            :icon="X"
+            :aria-label="t('close')"
+            @click="closeViewer"
+          />
+        </header>
+        <div class="flex-1 min-h-0 overflow-auto grid place-items-center bg-muted/30 p-4">
+          <img
+            v-if="viewer.kind === 'image'"
+            :src="viewer.url"
+            :alt="viewer.filename"
+            class="max-w-full max-h-full object-contain"
+          />
+          <iframe
+            v-else-if="viewer.kind === 'pdf'"
+            :src="viewer.url"
+            class="w-full h-full border-0 bg-white"
+          />
+          <pre
+            v-else
+            class="w-full h-full self-start whitespace-pre-wrap font-mono text-sm"
+          >{{ viewer.text }}</pre>
+        </div>
+      </div>
+    </Transition>
   </article>
 </template>
 
@@ -134,7 +292,11 @@ de:
   to: An
   emptyBody: (leer)
   attachments: "Anhänge ({count})"
+  attachment: Anhang
   unnamed: (unbenannt)
+  openAttachment: Anhang öffnen
+  downloadAttachment: Anhang herunterladen
+  close: Schließen
   reply: Antworten
   delete: Löschen
 en:
@@ -145,7 +307,11 @@ en:
   to: To
   emptyBody: (empty)
   attachments: "Attachments ({count})"
+  attachment: Attachment
   unnamed: (unnamed)
+  openAttachment: Open attachment
+  downloadAttachment: Download attachment
+  close: Close
   reply: Reply
   delete: Delete
 </i18n>
