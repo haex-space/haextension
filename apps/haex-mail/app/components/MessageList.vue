@@ -313,6 +313,7 @@ const getAvatarColor = (email: string): string => {
                 <Paperclip
                   v-if="msg.hasAttachments"
                   class="size-3.5 shrink-0 text-muted-foreground"
+                  role="img"
                   :aria-label="t('hasAttachments')"
                 />
               </div>
