@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "lucide-vue-next";
+import { toast } from "vue-sonner";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from "~/stores/mail";
 import { getErrorMessage } from "~/lib/utils";
@@ -76,8 +77,14 @@ const onOpenFullscreen = () => {
 };
 
 const onComposeFromList = async (msg: SelectMessage, mode: ReplyMode) => {
-  replyContext.value = await mailStore.buildReplyContextAsync(msg, mode);
-  showCompose.value = true;
+  // Forwarding fetches attachment bytes over IMAP, which can fail — surface
+  // it instead of leaving the compose dialog silently unopened.
+  try {
+    replyContext.value = await mailStore.buildReplyContextAsync(msg, mode);
+    showCompose.value = true;
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  }
 };
 
 const onReplyFromList = (msg: SelectMessage) => onComposeFromList(msg, "reply");

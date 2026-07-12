@@ -117,6 +117,9 @@ const downloadAttachmentAsync = async (att: AttachmentJson) => {
 
 // A different message unmounts the current attachments — drop any viewer.
 watch(() => mailStore.selectedMessageId, closeViewer);
+// Unmounting (route change, fullscreen overlay teardown) must still revoke
+// any live blob URL — the watcher above won't fire on unmount.
+onBeforeUnmount(closeViewer);
 </script>
 
 <template>

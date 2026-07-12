@@ -13,6 +13,7 @@
       "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden"
     },
     "quoteHeader": "Am {date} schrieb {sender}:",
+    "forwardAttachmentsFailed": "{count} Anhang/Anhänge konnten nicht geladen werden und fehlen in der Weiterleitung.",
     "forwardHeader": "---------- Weitergeleitete Nachricht ----------",
     "forwardFrom": "Von",
     "forwardDate": "Datum",

@@ -582,9 +582,12 @@ export const useMailStore = defineStore("mail", () => {
         `${$i18n.t("mail.forwardTo")}: ${formatAddressList(msg.toJson)}`,
       ];
       // Carry the original attachments over. Fetched sequentially — a
-      // forward has a handful at most; failures drop that one attachment.
+      // forward has a handful at most. A per-attachment failure drops only
+      // that one, but we warn the user so a forward is never silently
+      // missing files.
       const metas = await getAttachmentsMetaAsync(msg);
       const attachments: OutgoingAttachment[] = [];
+      let failedAttachments = 0;
       for (const a of metas) {
         try {
           attachments.push({
@@ -593,8 +596,14 @@ export const useMailStore = defineStore("mail", () => {
             data: await fetchAttachmentBase64Async(msg, a.partIndex),
           });
         } catch (err) {
+          failedAttachments++;
           console.warn("[haex-mail] failed to fetch attachment for forward", err);
         }
+      }
+      if (failedAttachments > 0) {
+        toast.error(
+          $i18n.t("mail.forwardAttachmentsFailed", { count: failedAttachments }),
+        );
       }
       return {
         accountId: msg.accountId,
