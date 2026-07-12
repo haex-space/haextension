@@ -491,37 +491,50 @@ export const useMailStore = defineStore("mail", () => {
     addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
 
   /**
-   * Attachment metadata for a message — from the local body cache when
-   * available, otherwise a one-off full fetch (which also populates the
-   * cache). Bytes are never included here; fetch them by `partIndex`.
+   * The original body text + attachment metadata for a message — from the
+   * local cache when available, otherwise a one-off full fetch (which also
+   * populates the cache). Attachment bytes are never included here; fetch
+   * them by `partIndex`. Used by forward, which needs both the quoted body
+   * and the attachments even for a message that was never opened.
    */
-  const getAttachmentsMetaAsync = async (
+  const getBodyContextAsync = async (
     msg: schema.SelectMessage,
-  ): Promise<schema.AttachmentJson[]> => {
+  ): Promise<{ bodyText?: string; attachments: schema.AttachmentJson[] }> => {
     if (haexVault.orm) {
       const rows = await haexVault.orm
-        .select({ attachmentsJson: schema.messageBodies.attachmentsJson })
+        .select({
+          bodyText: schema.messageBodies.bodyText,
+          attachmentsJson: schema.messageBodies.attachmentsJson,
+        })
         .from(schema.messageBodies)
         .where(eq(schema.messageBodies.messageId, msg.id))
         .limit(1);
-      if (rows.length > 0) return rows[0]!.attachmentsJson;
+      if (rows.length > 0) {
+        return {
+          bodyText: rows[0]!.bodyText ?? undefined,
+          attachments: rows[0]!.attachmentsJson,
+        };
+      }
     }
     const account = await accountsStore.getCredentialsCachedAsync(msg.accountId);
-    if (!account) return [];
+    if (!account) return { attachments: [] };
     const full = await haexVault.client.mail.fetchMessageAsync(
       account.imap,
       msg.mailboxName,
       msg.uid,
     );
     await persistMessageBodyAsync(msg.id, full).catch(() => {});
-    return full.attachments.map((a) => ({
-      partIndex: a.partIndex,
-      filename: a.filename,
-      contentType: a.contentType,
-      size: a.size,
-      contentId: a.contentId,
-      isInline: a.isInline,
-    }));
+    return {
+      bodyText: full.bodyText,
+      attachments: full.attachments.map((a) => ({
+        partIndex: a.partIndex,
+        filename: a.filename,
+        contentType: a.contentType,
+        size: a.size,
+        contentId: a.contentId,
+        isInline: a.isInline,
+      })),
+    };
   };
 
   /**
@@ -559,21 +572,15 @@ export const useMailStore = defineStore("mail", () => {
   ): Promise<ReplyContext> => {
     const subject = msg.subject ?? "";
 
-    let text: string | undefined;
-    if (haexVault.orm) {
-      const cached = await haexVault.orm
-        .select({ bodyText: schema.messageBodies.bodyText })
-        .from(schema.messageBodies)
-        .where(eq(schema.messageBodies.messageId, msg.id))
-        .limit(1);
-      text = cached[0]?.bodyText ?? undefined;
-    }
-
     const date = msg.internalDate
       ? new Date(msg.internalDate * 1000).toLocaleString($i18n.locale.value)
       : "";
 
     if (mode === "forward") {
+      // Forward needs the original body + attachments even for a message
+      // that was never opened (list context menu) — fetch the full message
+      // once when it isn't cached and reuse it for both.
+      const { bodyText, attachments: metas } = await getBodyContextAsync(msg);
       const headerLines = [
         $i18n.t("mail.forwardHeader"),
         `${$i18n.t("mail.forwardFrom")}: ${formatAddressList(msg.fromJson)}`,
@@ -585,7 +592,6 @@ export const useMailStore = defineStore("mail", () => {
       // forward has a handful at most. A per-attachment failure drops only
       // that one, but we warn the user so a forward is never silently
       // missing files.
-      const metas = await getAttachmentsMetaAsync(msg);
       const attachments: OutgoingAttachment[] = [];
       let failedAttachments = 0;
       for (const a of metas) {
@@ -609,9 +615,21 @@ export const useMailStore = defineStore("mail", () => {
         accountId: msg.accountId,
         to: "",
         subject: /^fwd?:/i.test(subject) ? subject : `Fwd: ${subject}`,
-        body: `\n\n${headerLines.join("\n")}\n\n${text ?? ""}`,
+        body: `\n\n${headerLines.join("\n")}\n\n${bodyText ?? ""}`,
         attachments: attachments.length > 0 ? attachments : undefined,
       };
+    }
+
+    // reply / reply-all: quote the cached body only (stays instant, no
+    // network — an empty quote is acceptable when replying).
+    let text: string | undefined;
+    if (haexVault.orm) {
+      const cached = await haexVault.orm
+        .select({ bodyText: schema.messageBodies.bodyText })
+        .from(schema.messageBodies)
+        .where(eq(schema.messageBodies.messageId, msg.id))
+        .limit(1);
+      text = cached[0]?.bodyText ?? undefined;
     }
 
     let body: string | undefined;
@@ -984,7 +1002,6 @@ export const useMailStore = defineStore("mail", () => {
     refreshUnifiedAsync,
     loadMessageBodyAsync,
     buildReplyContextAsync,
-    getAttachmentsMetaAsync,
     fetchAttachmentBase64Async,
     updateLocalFlagsAsync,
     bulkSetFlagAsync,
