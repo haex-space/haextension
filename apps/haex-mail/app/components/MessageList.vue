@@ -5,7 +5,13 @@ import type { SelectMessage } from "~/database/schemas";
 import { isMessageUnread, roleLabelKey } from "~/stores/mail";
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>();
-const emit = defineEmits<{ reply: [msg: SelectMessage]; fullscreen: [msg: SelectMessage]; toggleSidebar: [] }>();
+const emit = defineEmits<{
+  reply: [msg: SelectMessage];
+  replyAll: [msg: SelectMessage];
+  forward: [msg: SelectMessage];
+  fullscreen: [msg: SelectMessage];
+  toggleSidebar: [];
+}>();
 
 const { t } = useI18n();
 const mailStore = useMailStore();
@@ -327,6 +333,12 @@ const getAvatarColor = (email: string): string => {
           <ShadcnContextMenuItem @select="emit('reply', msg)">
             {{ t("contextReply") }}
           </ShadcnContextMenuItem>
+          <ShadcnContextMenuItem @select="emit('replyAll', msg)">
+            {{ t("contextReplyAll") }}
+          </ShadcnContextMenuItem>
+          <ShadcnContextMenuItem @select="emit('forward', msg)">
+            {{ t("contextForward") }}
+          </ShadcnContextMenuItem>
           <ShadcnContextMenuSeparator />
           <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
             {{ t("contextDelete") }}
@@ -364,6 +376,8 @@ de:
   search: Suchen
   contextRead: Als gelesen markieren
   contextReply: Antworten
+  contextReplyAll: Allen antworten
+  contextForward: Weiterleiten
   contextDelete: Löschen
 en:
   closeSidebar: Close sidebar
@@ -377,5 +391,7 @@ en:
   search: Search
   contextRead: Mark as read
   contextReply: Reply
+  contextReplyAll: Reply all
+  contextForward: Forward
   contextDelete: Delete
 </i18n>

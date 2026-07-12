@@ -12,7 +12,12 @@
       "credentials": "Zugangsdaten konnten nicht geladen werden",
       "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden"
     },
-    "quoteHeader": "Am {date} schrieb {sender}:"
+    "quoteHeader": "Am {date} schrieb {sender}:",
+    "forwardHeader": "---------- Weitergeleitete Nachricht ----------",
+    "forwardFrom": "Von",
+    "forwardDate": "Datum",
+    "forwardSubject": "Betreff",
+    "forwardTo": "An"
   },
   "accounts": {
     "errors": {

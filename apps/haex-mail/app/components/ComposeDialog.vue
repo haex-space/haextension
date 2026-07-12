@@ -59,6 +59,10 @@ const reset = () => {
 const applyReplyTo = () => {
   if (!props.replyTo) return;
   to.value = props.replyTo.to;
+  if (props.replyTo.cc) {
+    cc.value = props.replyTo.cc;
+    showCc.value = true;
+  }
   subject.value = props.replyTo.subject;
   // Quoted original (cursor stays at the top, before the quote).
   if (props.replyTo.body) body.value = props.replyTo.body;

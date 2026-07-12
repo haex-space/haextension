@@ -35,11 +35,15 @@ export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
 export interface ReplyContext {
   accountId: string;
   to: string;
+  cc?: string;
   subject: string;
   inReplyTo?: string;
   references?: string[];
   body?: string;
 }
+
+/** How the compose dialog is prefilled from an existing message. */
+export type ReplyMode = "reply" | "reply-all" | "forward";
 
 /** Read/flagged state from cached IMAP flags (shared: store sort + list UI). */
 export const isMessageUnread = (msg: schema.SelectMessage) =>
@@ -262,8 +266,9 @@ export const useMailStore = defineStore("mail", () => {
       const threadKey = env.references[0] ?? env.inReplyTo ?? env.messageId ?? id;
       const flags = env.flags.map((f) => f.replace(/^\\/, ""));
 
-      // Envelope data is immutable per UID — on an existing row only the
-      // flags can change between fetches (e.g. \Seen).
+      // Envelope fields are immutable per UID — only flags change between
+      // fetches (e.g. \Seen added by another client). Insert the row if it
+      // is new, then always update flags so they stay in sync regardless.
       await haexVault.orm
         .insert(schema.messages)
         .values({
@@ -283,10 +288,11 @@ export const useMailStore = defineStore("mail", () => {
           references: env.references,
           size: env.size ?? null,
         })
-        .onConflictDoUpdate({
-          target: schema.messages.id,
-          set: { flags },
-        });
+        .onConflictDoNothing();
+      await haexVault.orm
+        .update(schema.messages)
+        .set({ flags })
+        .where(eq(schema.messages.id, id));
     }
   };
 
@@ -478,36 +484,83 @@ export const useMailStore = defineStore("mail", () => {
     };
   };
 
+  const formatAddressList = (addrs: schema.MailAddressJson[]) =>
+    addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
+
   /**
-   * Prefill for replying to a message: recipient, subject, RFC 5322
-   * threading headers (In-Reply-To, References = original references +
-   * its Message-ID) and — when a plain-text body is cached — the quoted
-   * original.
+   * Prefill for replying to / forwarding a message.
+   *
+   * - `reply` (default): recipient = sender, quoted original, RFC 5322
+   *   threading headers (In-Reply-To, References = original references +
+   *   its Message-ID).
+   * - `reply-all`: as reply, but every other original recipient (To + Cc,
+   *   minus the sender and our own address) lands in Cc.
+   * - `forward`: empty recipient, `Fwd:` subject, the original quoted under
+   *   a forwarded header, and no threading headers (starts a new thread).
    */
   const buildReplyContextAsync = async (
     msg: schema.SelectMessage,
+    mode: ReplyMode = "reply",
   ): Promise<ReplyContext> => {
     const subject = msg.subject ?? "";
 
-    let body: string | undefined;
+    let text: string | undefined;
     if (haexVault.orm) {
       const cached = await haexVault.orm
         .select({ bodyText: schema.messageBodies.bodyText })
         .from(schema.messageBodies)
         .where(eq(schema.messageBodies.messageId, msg.id))
         .limit(1);
-      const text = cached[0]?.bodyText;
-      if (text) {
-        const date = msg.internalDate
-          ? new Date(msg.internalDate * 1000).toLocaleString($i18n.locale.value)
-          : "";
-        const header = $i18n.t("mail.quoteHeader", {
-          date,
-          sender: senderText(msg),
-        });
-        const quoted = text.split("\n").map((line) => `> ${line}`).join("\n");
-        body = `\n\n${header}\n${quoted}`;
+      text = cached[0]?.bodyText ?? undefined;
+    }
+
+    const date = msg.internalDate
+      ? new Date(msg.internalDate * 1000).toLocaleString($i18n.locale.value)
+      : "";
+
+    if (mode === "forward") {
+      const headerLines = [
+        $i18n.t("mail.forwardHeader"),
+        `${$i18n.t("mail.forwardFrom")}: ${formatAddressList(msg.fromJson)}`,
+        `${$i18n.t("mail.forwardDate")}: ${date}`,
+        `${$i18n.t("mail.forwardSubject")}: ${subject}`,
+        `${$i18n.t("mail.forwardTo")}: ${formatAddressList(msg.toJson)}`,
+      ];
+      return {
+        accountId: msg.accountId,
+        to: "",
+        subject: /^fwd?:/i.test(subject) ? subject : `Fwd: ${subject}`,
+        body: `\n\n${headerLines.join("\n")}\n\n${text ?? ""}`,
+      };
+    }
+
+    let body: string | undefined;
+    if (text) {
+      const header = $i18n.t("mail.quoteHeader", {
+        date,
+        sender: senderText(msg),
+      });
+      const quoted = text.split("\n").map((line) => `> ${line}`).join("\n");
+      body = `\n\n${header}\n${quoted}`;
+    }
+
+    const to = msg.fromJson[0]?.email ?? "";
+
+    let cc: string | undefined;
+    if (mode === "reply-all") {
+      const ownEmail = accountsStore.accounts
+        .find((a) => a.id === msg.accountId)
+        ?.email.toLowerCase();
+      const seen = new Set<string>([to.toLowerCase()]);
+      if (ownEmail) seen.add(ownEmail);
+      const others: string[] = [];
+      for (const addr of [...msg.toJson, ...msg.ccJson]) {
+        const key = addr.email.toLowerCase();
+        if (!addr.email || seen.has(key)) continue;
+        seen.add(key);
+        others.push(addr.email);
       }
+      cc = others.length > 0 ? others.join(", ") : undefined;
     }
 
     const references = [
@@ -516,7 +569,8 @@ export const useMailStore = defineStore("mail", () => {
     ];
     return {
       accountId: msg.accountId,
-      to: msg.fromJson[0]?.email ?? "",
+      to,
+      cc,
       subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
       inReplyTo: msg.messageId ?? undefined,
       references: references.length > 0 ? references : undefined,

@@ -2,7 +2,7 @@
 import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "lucide-vue-next";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from "~/stores/mail";
 import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
 
@@ -75,18 +75,22 @@ const onOpenFullscreen = () => {
   showFullscreenMessage.value = true;
 };
 
-const onReplyFromList = async (msg: SelectMessage) => {
-  replyContext.value = await mailStore.buildReplyContextAsync(msg);
+const onComposeFromList = async (msg: SelectMessage, mode: ReplyMode) => {
+  replyContext.value = await mailStore.buildReplyContextAsync(msg, mode);
   showCompose.value = true;
 };
 
-const onReplyFromView = async () => {
+const onReplyFromList = (msg: SelectMessage) => onComposeFromList(msg, "reply");
+
+const onComposeFromView = async (mode: ReplyMode) => {
   const row = mailStore.messageList.find(
     (m) => m.id === mailStore.selectedMessageId,
   );
   if (!row) return;
-  await onReplyFromList(row);
+  await onComposeFromList(row, mode);
 };
+
+const onReplyFromView = () => onComposeFromView("reply");
 
 /** Next message to select once the rows in `idSet` are removed. */
 const findNextMessageId = (list: SelectMessage[], idSet: Set<string>) => {
@@ -372,6 +376,8 @@ const onSetupComplete = async () => {
           <MessageList
             :sidebar-collapsed="sidebarCollapsed"
             @reply="onReplyFromList"
+            @reply-all="onComposeFromList($event, 'reply-all')"
+            @forward="onComposeFromList($event, 'forward')"
             @fullscreen="onOpenFullscreen"
             @toggle-sidebar="toggleSidebar"
           />
@@ -380,7 +386,12 @@ const onSetupComplete = async () => {
         <ShadcnResizableHandle :with-handle="true" />
 
         <ShadcnResizablePanel id="view-panel" :default-size="48" :min-size="20">
-          <MessageView @reply="onReplyFromView" @delete="onDeleteFromView" />
+          <MessageView
+            @reply="onReplyFromView"
+            @reply-all="onComposeFromView('reply-all')"
+            @forward="onComposeFromView('forward')"
+            @delete="onDeleteFromView"
+          />
         </ShadcnResizablePanel>
       </ShadcnResizablePanelGroup>
 
@@ -406,6 +417,10 @@ const onSetupComplete = async () => {
               :aria-label="t('reply')"
               @click="onReplyFromView(); showFullscreenMessage = false"
             />
+            <MailMoreMenu
+              @reply-all="onComposeFromView('reply-all'); showFullscreenMessage = false"
+              @forward="onComposeFromView('forward'); showFullscreenMessage = false"
+            />
             <UiButton
               variant="ghost"
               size="icon-lg"
@@ -418,6 +433,8 @@ const onSetupComplete = async () => {
             class="flex-1 min-h-0"
             :show-title="false"
             @reply="onReplyFromView(); showFullscreenMessage = false"
+            @reply-all="onComposeFromView('reply-all'); showFullscreenMessage = false"
+            @forward="onComposeFromView('forward'); showFullscreenMessage = false"
             @delete="onDeleteFromView(); showFullscreenMessage = false"
           />
         </div>
@@ -461,6 +478,10 @@ const onSetupComplete = async () => {
             :aria-label="t('reply')"
             @click="onReplyFromView"
           />
+          <MailMoreMenu
+            @reply-all="onComposeFromView('reply-all')"
+            @forward="onComposeFromView('forward')"
+          />
           <UiButton
             variant="ghost"
             size="icon-lg"
@@ -490,8 +511,22 @@ const onSetupComplete = async () => {
         </template>
       </header>
 
-      <MessageList v-if="!mailStore.selectedMessageId" class="flex-1 min-h-0" @reply="onReplyFromList" />
-      <MessageView v-else class="flex-1 min-h-0" :show-title="false" @reply="onReplyFromView" @delete="onDeleteFromView" />
+      <MessageList
+        v-if="!mailStore.selectedMessageId"
+        class="flex-1 min-h-0"
+        @reply="onReplyFromList"
+        @reply-all="onComposeFromList($event, 'reply-all')"
+        @forward="onComposeFromList($event, 'forward')"
+      />
+      <MessageView
+        v-else
+        class="flex-1 min-h-0"
+        :show-title="false"
+        @reply="onReplyFromView"
+        @reply-all="onComposeFromView('reply-all')"
+        @forward="onComposeFromView('forward')"
+        @delete="onDeleteFromView"
+      />
 
       <ShadcnSheet v-model:open="sheetOpen">
         <ShadcnSheetContent side="left" class="w-[85%] max-w-sm p-0 gap-0">

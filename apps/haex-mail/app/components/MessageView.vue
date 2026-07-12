@@ -2,7 +2,7 @@
 import { Reply, Trash2 } from "lucide-vue-next";
 
 const props = defineProps<{ showTitle?: boolean }>();
-const emit = defineEmits<{ reply: []; delete: [] }>();
+const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>();
 
 const { t } = useI18n();
 const mailStore = useMailStore();
@@ -60,6 +60,7 @@ const formatDate = (ts: number | undefined) => {
                 </ShadcnTooltipTrigger>
                 <ShadcnTooltipContent>{{ t("reply") }}</ShadcnTooltipContent>
               </ShadcnTooltip>
+              <MailMoreMenu @reply-all="emit('replyAll')" @forward="emit('forward')" />
               <ShadcnTooltip>
                 <ShadcnTooltipTrigger as-child>
                   <UiButton
