@@ -727,10 +727,14 @@ export const useMailStore = defineStore("mail", () => {
     const row = messageList.value.find((m) => m.id === messageId);
     if (row) row.hasAttachments = hasAttachments;
     if (!haexVault.orm) return;
-    await haexVault.orm
-      .update(schema.messages)
-      .set({ hasAttachments })
-      .where(eq(schema.messages.id, messageId));
+    try {
+      await haexVault.orm
+        .update(schema.messages)
+        .set({ hasAttachments })
+        .where(eq(schema.messages.id, messageId));
+    } catch (err) {
+      console.warn("[haex-mail] failed to sync hasAttachments", err);
+    }
   };
 
   const loadMessageBodyAsync = async (message: schema.SelectMessage) => {
