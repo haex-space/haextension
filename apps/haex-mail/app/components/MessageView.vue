@@ -40,10 +40,38 @@ const base64ToBytes = (b64: string) => {
   return bytes;
 };
 
-const canViewInline = (contentType: string) =>
-  contentType.startsWith("image/") ||
-  contentType === "application/pdf" ||
-  contentType.startsWith("text/");
+// Many servers label attachments as a generic octet-stream and leave the
+// real type implicit in the filename extension. Recover it so PDFs/images
+// show a meaningful type and can be viewed inline instead of only saved.
+const GENERIC_TYPES = new Set(["application/octet-stream", "binary/octet-stream", ""]);
+const EXT_TO_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+  txt: "text/plain",
+  log: "text/plain",
+  csv: "text/csv",
+  md: "text/markdown",
+};
+const effectiveType = (att: AttachmentJson) => {
+  if (!GENERIC_TYPES.has(att.contentType.toLowerCase())) return att.contentType;
+  const ext = att.filename?.split(".").pop()?.toLowerCase();
+  return (ext && EXT_TO_TYPE[ext]) || att.contentType;
+};
+
+const canViewInline = (att: AttachmentJson) => {
+  const type = effectiveType(att);
+  return (
+    type.startsWith("image/") ||
+    type === "application/pdf" ||
+    type.startsWith("text/")
+  );
+};
 
 type ViewerState =
   | { kind: "image"; url: string; filename: string }
@@ -81,20 +109,21 @@ const openAttachmentAsync = async (att: AttachmentJson) => {
     // The message changed or the component unmounted while fetching — drop
     // this result rather than opening a stale viewer / leaking a blob URL.
     if (seq !== viewSeq) return;
-    if (att.contentType.startsWith("image/")) {
+    const type = effectiveType(att);
+    if (type.startsWith("image/")) {
       viewer.value = {
         kind: "image",
-        url: `data:${att.contentType};base64,${b64}`,
+        url: `data:${type};base64,${b64}`,
         filename: att.filename ?? "",
       };
-    } else if (att.contentType === "application/pdf") {
+    } else if (type === "application/pdf") {
       const blob = new Blob([base64ToBytes(b64)], { type: "application/pdf" });
       viewer.value = {
         kind: "pdf",
         url: URL.createObjectURL(blob),
         filename: att.filename ?? "",
       };
-    } else if (att.contentType.startsWith("text/")) {
+    } else if (type.startsWith("text/")) {
       viewer.value = {
         kind: "text",
         text: new TextDecoder().decode(base64ToBytes(b64)),
@@ -240,12 +269,12 @@ onBeforeUnmount(closeViewer);
               type="button"
               class="flex-1 min-w-0 flex items-baseline gap-1.5 text-left hover:underline disabled:no-underline disabled:opacity-60"
               :disabled="busyPart !== null"
-              :title="canViewInline(att.contentType) ? t('openAttachment') : t('downloadAttachment')"
+              :title="canViewInline(att) ? t('openAttachment') : t('downloadAttachment')"
               @click="openAttachmentAsync(att)"
             >
               <span class="truncate font-medium">{{ att.filename ?? t("unnamed") }}</span>
               <span class="shrink-0 text-xs text-muted-foreground">
-                {{ att.contentType }} ({{ Math.round(att.size / 1024) }} KB)
+                {{ effectiveType(att) }} ({{ Math.round(att.size / 1024) }} KB)
               </span>
             </button>
             <Loader2
