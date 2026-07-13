@@ -713,6 +713,30 @@ export const useMailStore = defineStore("mail", () => {
   /** Monotonic token so an outdated load can't overwrite a newer one. */
   let loadMessageSeq = 0;
 
+  /**
+   * Self-heal the list indicator: the full message is authoritative about
+   * whether it has attachments, whereas the envelope-derived flag can be
+   * stale (cached before the field existed, or the message dropped out of
+   * the refreshed "latest" window). Reconcile the DB row and the in-memory
+   * list entry so the paperclip appears without a server re-fetch.
+   */
+  const syncHasAttachmentsAsync = async (
+    messageId: string,
+    hasAttachments: boolean,
+  ) => {
+    const row = messageList.value.find((m) => m.id === messageId);
+    if (row) row.hasAttachments = hasAttachments;
+    if (!haexVault.orm) return;
+    try {
+      await haexVault.orm
+        .update(schema.messages)
+        .set({ hasAttachments })
+        .where(eq(schema.messages.id, messageId));
+    } catch (err) {
+      console.warn("[haex-mail] failed to sync hasAttachments", err);
+    }
+  };
+
   const loadMessageBodyAsync = async (message: schema.SelectMessage) => {
     const seq = ++loadMessageSeq;
     const isCurrent = () =>
@@ -731,6 +755,10 @@ export const useMailStore = defineStore("mail", () => {
           if (isCurrent()) {
             messageBody.value = buildMailMessage(message, cached[0]!);
           }
+          void syncHasAttachmentsAsync(
+            message.id,
+            cached[0]!.attachmentsJson.length > 0,
+          );
           void markSeenAsync(message, message.flags);
           return;
         }
@@ -749,6 +777,7 @@ export const useMailStore = defineStore("mail", () => {
       persistMessageBodyAsync(message.id, msg).catch((err) =>
         console.warn("[haex-mail] failed to cache message body", err),
       );
+      void syncHasAttachmentsAsync(message.id, msg.attachments.length > 0);
       void markSeenAsync(message, msg.envelope.flags);
     } catch (err) {
       // Callers fire-and-forget (watcher) — surface the failure here.
