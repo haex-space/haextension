@@ -10,8 +10,9 @@ const AVATAR_COLORS = [
 ];
 
 export const getAvatarInitials = (name: string | undefined, email: string): string => {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
+  const trimmedName = name?.trim();
+  if (trimmedName) {
+    const parts = trimmedName.split(/\s+/);
     if (parts.length >= 2) {
       return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
     }

@@ -123,6 +123,9 @@ const mailFrame = useTemplateRef<HTMLIFrameElement>("mailFrame");
 // height) so the mail body scrolls together with the rest of the message
 // view instead of in its own independent scrollbox.
 const iframeHeight = ref<number | null>(null);
+// Clamp so a malicious message can't force scrollHeight to an enormous value
+// and blow up the layout; the iframe falls back to its own scrollbar past this.
+const MAX_IFRAME_HEIGHT = 20000;
 const onFrameMessage = (event: MessageEvent) => {
   if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
   const data = event.data as {
@@ -131,7 +134,7 @@ const onFrameMessage = (event: MessageEvent) => {
   };
   if (typeof data?.haexMailOpenUrl === "string") openUrlAsync(data.haexMailOpenUrl);
   if (typeof data?.haexMailContentHeight === "number") {
-    iframeHeight.value = data.haexMailContentHeight;
+    iframeHeight.value = Math.min(data.haexMailContentHeight, MAX_IFRAME_HEIGHT);
   }
 };
 onMounted(() => window.addEventListener("message", onFrameMessage));
