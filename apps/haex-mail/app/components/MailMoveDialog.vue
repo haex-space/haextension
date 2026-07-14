@@ -14,8 +14,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [mailboxName: string] }>();
 
-// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
-const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
+const { t } = useI18n();
+// mail.roles.* lives only in the global messages (plugins/i18n-messages.ts); look it
+// up on the global scope so the local <i18n> block doesn't fall back and warn.
+const { t: tRole } = useI18n({ useScope: "global" });
 const haexVault = useHaexVaultStore();
 const folders = ref<schema.SelectMailbox[]>([]);
 
@@ -50,7 +52,7 @@ const onSelect = (mailboxName: string) => {
           @click="onSelect(folder.name)"
         >
           <span class="truncate">
-            {{ folder.name === "INBOX" ? t("mail.roles.inbox") : folder.name }}
+            {{ folder.name === "INBOX" ? tRole("mail.roles.inbox") : folder.name }}
           </span>
         </UiButton>
         <p v-if="folders.length === 0" class="text-sm text-muted-foreground">

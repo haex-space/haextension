@@ -14,8 +14,10 @@ const emit = defineEmits<{
   toggleSidebar: [];
 }>();
 
-// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
-const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
+const { t } = useI18n();
+// mail.roles.* lives only in the global messages (plugins/i18n-messages.ts); look it
+// up on the global scope so the local <i18n> block doesn't fall back and warn.
+const { t: tRole } = useI18n({ useScope: "global" });
 const mailStore = useMailStore();
 const accountsStore = useAccountsStore();
 const selectionStore = useSelectionStore();
@@ -132,7 +134,7 @@ watch(moveContext, (ctx) => {
 const headerLabel = computed(() => {
   if (mailStore.isUnifiedView) {
     const labelKey = roleLabelKey(mailStore.selectedRole);
-    return labelKey ? t(labelKey) : t("noMailbox");
+    return labelKey ? tRole(labelKey) : t("noMailbox");
   }
   return mailStore.selectedMailboxName ?? t("noMailbox");
 });
