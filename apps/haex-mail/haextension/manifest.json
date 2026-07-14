@@ -13,10 +13,7 @@
       { "target": "*", "operation": "readWrite" }
     ],
     "shell": [],
-    "web": [
-      { "target": "*", "operation": "open" },
-      { "target": "*", "operation": "fetch" }
-    ]
+    "web": []
   },
   "icon": "haextension/haex-mail-logo.png",
   "singleInstance": true,
