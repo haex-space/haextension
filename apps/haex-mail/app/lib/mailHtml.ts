@@ -147,6 +147,16 @@ export const stripExternalHtml = (
       }
     }
   });
+  // <style> blocks (e.g. `background:url(...)` in newsletters) carry remote
+  // refs the per-element style attribute pass above never sees.
+  doc.querySelectorAll("style").forEach((el) => {
+    const css = el.textContent ?? "";
+    const stripped = css.replace(STYLE_URL_RE, "none");
+    if (stripped !== css) {
+      hasExternal = true;
+      el.textContent = stripped;
+    }
+  });
   return { html: wrapEmailHtml(doc.body?.innerHTML ?? ""), hasExternal };
 };
 
@@ -170,6 +180,9 @@ export const inlineExternalHtml = async (
       for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
     const style = el.getAttribute("style");
     if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(m[1]!);
+  });
+  doc.querySelectorAll("style").forEach((el) => {
+    for (const m of (el.textContent ?? "").matchAll(STYLE_URL_RE)) urls.add(m[1]!);
   });
 
   const resolved = new Map<string, string>();
@@ -217,6 +230,13 @@ export const inlineExternalHtml = async (
         ),
       );
     }
+  });
+  doc.querySelectorAll("style").forEach((el) => {
+    el.textContent = (el.textContent ?? "").replace(
+      STYLE_URL_RE,
+      (whole, url: string) =>
+        resolved.has(url) ? `url("${resolved.get(url)}")` : "none",
+    );
   });
   return wrapEmailHtml(doc.body?.innerHTML ?? "");
 };

@@ -185,7 +185,7 @@ const openAttachmentAsync = async (att: AttachmentJson) => {
   try {
     const b64 = await mailStore.fetchAttachmentBase64Async(row, att.partIndex);
     // The message changed or the component unmounted while fetching — drop
-    // this result rather than opening a stale viewer / leaking a blob URL.
+    // this result rather than opening a stale viewer.
     if (seq !== viewSeq) return;
     const type = effectiveType(att);
     if (type.startsWith("image/")) {
@@ -241,9 +241,13 @@ watch(() => mailStore.selectedMessageId, () => {
   closeViewer();
   remoteApproved.value = false;
   inlinedHtml.value = null;
+  // Clear a stale in-flight load so the new message's banner isn't stuck in
+  // the loading state (its result is discarded by the id guard anyway).
+  isLoadingRemote.value = false;
 });
-// Unmounting (route change, fullscreen overlay teardown) must still revoke
-// any live blob URL — the watcher above won't fire on unmount.
+// Unmounting (route change, fullscreen overlay teardown) must still invalidate
+// any in-flight open so it can't assign a viewer after teardown — the watcher
+// above won't fire on unmount.
 onBeforeUnmount(closeViewer);
 </script>
 
