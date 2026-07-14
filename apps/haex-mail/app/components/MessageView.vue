@@ -3,6 +3,12 @@ import { ChevronRight, Download, Loader2, Reply, Trash2 } from "lucide-vue-next"
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
 import { getErrorMessage } from "~/lib/utils";
+import {
+  htmlToText,
+  inlineExternalHtml,
+  linkifyText,
+  stripExternalHtml,
+} from "~/lib/mailHtml";
 
 const props = defineProps<{ showTitle?: boolean }>();
 const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>();
@@ -64,18 +70,11 @@ const effectiveType = (att: AttachmentJson) => {
   return (ext && EXT_TO_TYPE[ext]) || att.contentType;
 };
 
-const canViewInline = (att: AttachmentJson) => {
-  const type = effectiveType(att);
-  return (
-    type.startsWith("image/") ||
-    type === "application/pdf" ||
-    type.startsWith("text/")
-  );
-};
-
+// image and text render inline; pdf and everything else are handed to the
+// host to open with the system's default app (the sandboxed webview can't
+// embed them).
 type ViewerState =
   | { kind: "image"; url: string; filename: string }
-  | { kind: "pdf"; url: string; filename: string }
   | { kind: "text"; text: string; filename: string };
 
 const viewer = ref<ViewerState | null>(null);
@@ -83,14 +82,88 @@ const viewer = ref<ViewerState | null>(null);
 const busyPart = ref<number | null>(null);
 // Bumped whenever a viewer is closed/invalidated; an in-flight open request
 // that resolves after its token is stale is discarded so it can't assign a
-// viewer (and leak a blob URL) after cleanup.
+// viewer after cleanup.
 let viewSeq = 0;
 
 const closeViewer = () => {
   viewSeq++;
-  // Blob URLs (pdf) must be revoked; data URLs (image) need no cleanup.
-  if (viewer.value?.kind === "pdf") URL.revokeObjectURL(viewer.value.url);
   viewer.value = null;
+};
+
+// --- Body rendering ---
+
+const openUrlAsync = async (url: string) => {
+  try {
+    await haexVault.client.web.openAsync(url);
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  }
+};
+
+// The HTML iframe's bridge script posts link clicks here (it can't open a
+// browser itself — nested sandbox). Only act on messages from our own frame.
+const mailFrame = useTemplateRef<HTMLIFrameElement>("mailFrame");
+const onFrameMessage = (event: MessageEvent) => {
+  if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
+  const url = (event.data as { haexMailOpenUrl?: unknown })?.haexMailOpenUrl;
+  if (typeof url === "string") openUrlAsync(url);
+};
+onMounted(() => window.addEventListener("message", onFrameMessage));
+onBeforeUnmount(() => window.removeEventListener("message", onFrameMessage));
+
+// Text view: prefer the sender's text/plain part; fall back to a
+// link-preserving rendering of the HTML so URLs aren't lost. Bare URLs are
+// then made clickable.
+const textParts = computed(() => {
+  const body = mailStore.messageBody;
+  if (!body) return [];
+  const raw = body.bodyText?.trim()
+    ? body.bodyText
+    : body.bodyHtml
+      ? htmlToText(body.bodyHtml)
+      : "";
+  return linkifyText(raw || t("emptyBody"));
+});
+
+// HTML view: external resources are stripped by default (blocked by the vault
+// CSP anyway) and can be loaded on demand through the host.
+const remoteApproved = ref(false);
+const inlinedHtml = ref<string | null>(null);
+const isLoadingRemote = ref(false);
+
+const strippedHtml = computed(() => {
+  const html = mailStore.messageBody?.bodyHtml;
+  return html ? stripExternalHtml(html) : { html: "", hasExternal: false };
+});
+
+const iframeSrcdoc = computed(() =>
+  remoteApproved.value && inlinedHtml.value != null
+    ? inlinedHtml.value
+    : strippedHtml.value.html,
+);
+
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
+const loadExternalAsync = async () => {
+  const html = mailStore.messageBody?.bodyHtml;
+  if (!html || isLoadingRemote.value) return;
+  isLoadingRemote.value = true;
+  try {
+    inlinedHtml.value = await inlineExternalHtml(html, async (url) =>
+      blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
+    );
+    remoteApproved.value = true;
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  } finally {
+    isLoadingRemote.value = false;
+  }
 };
 
 const saveAttachmentAsync = async (att: AttachmentJson, b64: string) => {
@@ -116,13 +189,6 @@ const openAttachmentAsync = async (att: AttachmentJson) => {
         url: `data:${type};base64,${b64}`,
         filename: att.filename ?? "",
       };
-    } else if (type === "application/pdf") {
-      const blob = new Blob([base64ToBytes(b64)], { type: "application/pdf" });
-      viewer.value = {
-        kind: "pdf",
-        url: URL.createObjectURL(blob),
-        filename: att.filename ?? "",
-      };
     } else if (type.startsWith("text/")) {
       viewer.value = {
         kind: "text",
@@ -130,7 +196,12 @@ const openAttachmentAsync = async (att: AttachmentJson) => {
         filename: att.filename ?? "",
       };
     } else {
-      await saveAttachmentAsync(att, b64);
+      // pdf and everything else: let the host open it with the system's
+      // default application — the sandboxed webview can't embed it.
+      await haexVault.client.filesystem.openFileAsync(base64ToBytes(b64), {
+        fileName: att.filename ?? `attachment-${att.partIndex}`,
+        mimeType: type,
+      });
     }
   } catch (err) {
     toast.error(getErrorMessage(err));
@@ -159,8 +230,13 @@ const onViewerOpenChange = (open: boolean) => {
   if (!open) closeViewer();
 };
 
-// A different message unmounts the current attachments — drop any viewer.
-watch(() => mailStore.selectedMessageId, closeViewer);
+// A different message unmounts the current attachments — drop any viewer and
+// reset the per-message "load external content" approval.
+watch(() => mailStore.selectedMessageId, () => {
+  closeViewer();
+  remoteApproved.value = false;
+  inlinedHtml.value = null;
+});
 // Unmounting (route change, fullscreen overlay teardown) must still revoke
 // any live blob URL — the watcher above won't fire on unmount.
 onBeforeUnmount(closeViewer);
@@ -193,31 +269,23 @@ onBeforeUnmount(closeViewer);
               {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
             </span>
             <template v-if="props.showTitle !== false">
-              <ShadcnTooltip>
-                <ShadcnTooltipTrigger as-child>
-                  <UiButton
-                    variant="ghost"
-                    size="icon-lg"
-                    :icon="Reply"
-                    :aria-label="t('reply')"
-                    @click="emit('reply')"
-                  />
-                </ShadcnTooltipTrigger>
-                <ShadcnTooltipContent>{{ t("reply") }}</ShadcnTooltipContent>
-              </ShadcnTooltip>
+              <UiButton
+                variant="ghost"
+                size="icon-lg"
+                :icon="Reply"
+                :tooltip="t('reply')"
+                :aria-label="t('reply')"
+                @click="emit('reply')"
+              />
               <MailMoreMenu @reply-all="emit('replyAll')" @forward="emit('forward')" />
-              <ShadcnTooltip>
-                <ShadcnTooltipTrigger as-child>
-                  <UiButton
-                    variant="ghost"
-                    size="icon-lg"
-                    :icon="Trash2"
-                    :aria-label="t('delete')"
-                    @click="emit('delete')"
-                  />
-                </ShadcnTooltipTrigger>
-                <ShadcnTooltipContent>{{ t("delete") }}</ShadcnTooltipContent>
-              </ShadcnTooltip>
+              <UiButton
+                variant="ghost"
+                size="icon-lg"
+                :icon="Trash2"
+                :tooltip="t('delete')"
+                :aria-label="t('delete')"
+                @click="emit('delete')"
+              />
             </template>
           </div>
         </div>
@@ -233,20 +301,50 @@ onBeforeUnmount(closeViewer);
         </dl>
       </header>
 
-      <!-- HTML content runs inside an iframe with sandbox flags so
-           remote scripts and tracking pixels don't execute against
-           the extension origin. The vault still proxied the raw bytes
-           via IMAP — we don't fetch arbitrary remote URLs here. -->
-      <iframe
+      <!-- HTML content runs inside an iframe that is an opaque origin (no
+           allow-same-origin) so email content can't reach the app/vault, and
+           the vault CSP blocks all network. The email HTML is hardened
+           (scripts/handlers stripped); the only script that runs is our
+           injected bridge that forwards link clicks to the host, which opens
+           them in the system browser. External resources are stripped by
+           default and loaded on demand via the banner. -->
+      <div
         v-if="uiStore.mailFormat === 'html' && mailStore.messageBody.bodyHtml"
-        :srcdoc="mailStore.messageBody.bodyHtml"
-        sandbox=""
-        class="w-full h-[60vh] mt-4 border border-border rounded"
-      />
-      <pre
+        class="mt-4"
+      >
+        <div
+          v-if="strippedHtml.hasExternal && !remoteApproved"
+          class="flex items-center justify-between gap-3 rounded-t border border-b-0 border-border bg-muted px-3 py-2 text-sm"
+        >
+          <span class="text-muted-foreground">{{ t("externalBlocked") }}</span>
+          <UiButton
+            variant="secondary"
+            size="sm"
+            :loading="isLoadingRemote"
+            @click="loadExternalAsync"
+          >
+            {{ t("loadExternal") }}
+          </UiButton>
+        </div>
+        <iframe
+          ref="mailFrame"
+          :srcdoc="iframeSrcdoc"
+          sandbox="allow-scripts"
+          :class="[
+            'w-full h-[60vh] border border-border',
+            strippedHtml.hasExternal && !remoteApproved ? 'rounded-b' : 'rounded',
+          ]"
+        />
+      </div>
+      <div
         v-else
-        class="whitespace-pre-wrap font-sans text-sm mt-4"
-      >{{ mailStore.messageBody.bodyText ?? t("emptyBody") }}</pre>
+        class="whitespace-pre-wrap wrap-break-word font-sans text-sm mt-4"
+      ><template v-for="(part, i) in textParts" :key="i"><a
+        v-if="'url' in part"
+        href="#"
+        class="text-primary underline underline-offset-2"
+        @click.prevent="openUrlAsync(part.url)"
+      >{{ part.text }}</a><template v-else>{{ part.text }}</template></template></div>
 
       <details
         v-if="mailStore.messageBody.attachments.length > 0"
@@ -269,7 +367,7 @@ onBeforeUnmount(closeViewer);
               type="button"
               class="flex-1 min-w-0 flex items-baseline gap-1.5 text-left hover:underline disabled:no-underline disabled:opacity-60"
               :disabled="busyPart !== null"
-              :title="canViewInline(att) ? t('openAttachment') : t('downloadAttachment')"
+              :title="t('openAttachment')"
               @click="openAttachmentAsync(att)"
             >
               <span class="truncate font-medium">{{ att.filename ?? t("unnamed") }}</span>
@@ -296,7 +394,7 @@ onBeforeUnmount(closeViewer);
       </details>
     </div>
 
-    <!-- Inline attachment viewer (image / pdf / text). UiDrawerModal gives a
+    <!-- Inline attachment viewer (image / text). UiDrawerModal gives a
          responsive drawer/dialog with focus trap/restore, Escape and
          outside-click dismissal handled by the underlying primitive. -->
     <UiDrawerModal
@@ -313,12 +411,6 @@ onBeforeUnmount(closeViewer);
             :src="viewer.url"
             :alt="viewer.filename"
             class="max-w-full max-h-full object-contain"
-          >
-          <embed
-            v-else-if="viewer?.kind === 'pdf'"
-            :src="viewer.url"
-            type="application/pdf"
-            class="w-full h-full border-0 bg-white"
           >
           <pre
             v-else-if="viewer?.kind === 'text'"
@@ -338,6 +430,8 @@ de:
   from: Von
   to: An
   emptyBody: (leer)
+  externalBlocked: Externe Inhalte (z. B. Bilder) wurden blockiert.
+  loadExternal: Inhalte laden
   attachments: "Anhänge ({count})"
   attachment: Anhang
   unnamed: (unbenannt)
@@ -352,6 +446,8 @@ en:
   from: From
   to: To
   emptyBody: (empty)
+  externalBlocked: External content (e.g. images) was blocked.
+  loadExternal: Load content
   attachments: "Attachments ({count})"
   attachment: Attachment
   unnamed: (unnamed)
