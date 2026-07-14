@@ -7,8 +7,10 @@ import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from
 import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
 
-// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
-const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
+const { t } = useI18n();
+// mail.roles.* lives only in the global messages (plugins/i18n-messages.ts); look it
+// up on the global scope so the local <i18n> block doesn't fall back and warn.
+const { t: tRole } = useI18n({ useScope: "global" });
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
@@ -43,11 +45,11 @@ const sheetOpen = ref(false);
 const mobileTitle = computed(() => {
   if (mailStore.isUnifiedView) {
     const labelKey = roleLabelKey(mailStore.selectedRole);
-    return labelKey ? t(labelKey) : t("allAccounts");
+    return labelKey ? tRole(labelKey) : t("allAccounts");
   }
   if (mailStore.selectedMailboxName) {
     return mailStore.selectedMailboxName === "INBOX"
-      ? t("mail.roles.inbox")
+      ? tRole("mail.roles.inbox")
       : mailStore.selectedMailboxName;
   }
   return "haex-mail";

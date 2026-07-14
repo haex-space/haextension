@@ -31,7 +31,9 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
   const deniedPermission = ref<PermissionDeniedError | null>(null);
 
   const { currentThemeName, context } = storeToRefs(useUiStore());
-  const { defaultLocale, locales, setLocale } = useI18n();
+  // Global scope: a store must not bind to a component's local <i18n> scope
+  // (triggers vue-i18n's "Duplicate useI18n calling by local scope" warning).
+  const { defaultLocale, locales, setLocale } = useI18n({ useScope: "global" });
 
   const getHaexVault = () => {
     const haexVault = nuxtApp.$haexVault;

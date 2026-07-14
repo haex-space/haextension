@@ -16,8 +16,10 @@ import type { MailboxRole } from "~/database/schemas";
 
 defineEmits<{ compose: []; refresh: [] }>();
 
-// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
-const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
+const { t } = useI18n();
+// mail.roles.* lives only in the global messages (plugins/i18n-messages.ts); look it
+// up on the global scope so the local <i18n> block doesn't fall back and warn.
+const { t: tRole } = useI18n({ useScope: "global" });
 const router = useRouter();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
@@ -58,7 +60,7 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
         {
           id: `role::${role}`,
           name: "",
-          displayName: labelKey ? t(labelKey) : role,
+          displayName: labelKey ? tRole(labelKey) : role,
           role,
           unseen: boxes.reduce((sum, m) => sum + (m.unseen ?? 0), 0),
         },
@@ -69,7 +71,7 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
   const rows: MailboxRow[] = mailStore.mailboxes.map((m) => ({
     id: m.id,
     name: m.name,
-    displayName: m.name === "INBOX" ? t("mail.roles.inbox") : m.name,
+    displayName: m.name === "INBOX" ? tRole("mail.roles.inbox") : m.name,
     role: m.role,
     unseen: m.unseen ?? 0,
   }));
