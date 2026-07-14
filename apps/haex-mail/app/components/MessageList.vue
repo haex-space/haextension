@@ -14,7 +14,8 @@ const emit = defineEmits<{
   toggleSidebar: [];
 }>();
 
-const { t } = useI18n();
+// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
+const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
 const mailStore = useMailStore();
 const accountsStore = useAccountsStore();
 const selectionStore = useSelectionStore();

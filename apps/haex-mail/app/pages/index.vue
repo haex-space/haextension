@@ -7,7 +7,8 @@ import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from
 import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
 
-const { t } = useI18n();
+// mail.roles.* intentionally lives only in the global messages (plugins/i18n-messages.ts)
+const { t } = useI18n({ missingWarn: false, fallbackWarn: false });
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
