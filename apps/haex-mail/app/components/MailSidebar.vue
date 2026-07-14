@@ -193,9 +193,9 @@ const iconForRole = (role: string | null) => {
         variant="ghost"
         size="lg"
         class="w-full justify-start"
-        :prepend-icon="Settings"
         @click="router.push('/settings')"
       >
+        <Settings class="size-4 mr-2 shrink-0" />
         {{ t("settings") }}
       </UiButton>
     </div>
