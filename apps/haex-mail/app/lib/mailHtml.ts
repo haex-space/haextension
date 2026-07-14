@@ -50,8 +50,12 @@ export const htmlToText = (bodyHtml: string): string => {
 
 // External resource references we neutralise / inline. Protocol-relative
 // (`//host/…`) counts as remote too — mail clients resolve it against https.
-const REMOTE_ATTRS = ["src", "background", "poster"] as const;
-const STYLE_URL_RE = /url\(\s*['"]?((?:https?:)?\/\/[^'")]+)['"]?\s*\)/gi;
+const REMOTE_ATTRS = ["src", "background", "poster", "xlink:href"] as const;
+// Matches both `url(...)` and a bare `@import "…"` (no `url()` wrapper); the
+// URL is in group 1 for the former, group 3 for the latter.
+const STYLE_URL_RE =
+  /url\(\s*['"]?((?:https?:)?\/\/[^'")]+)['"]?\s*\)|(?<=@import\s)(['"])((?:https?:)?\/\/[^'"]+)\2/gi;
+const styleMatchUrl = (m: RegExpMatchArray): string => (m[1] ?? m[3])!;
 const isExternalUrl = (url: string | null | undefined): url is string =>
   !!url && /^(?:https?:)?\/\//i.test(url.trim());
 
@@ -77,12 +81,18 @@ const parseSrcset = (
 // opaque origin). Forwards link clicks to the host app so it can open them in
 // the system browser — the extension is itself nested in a sandbox without
 // `allow-popups`, so `target="_blank"` / `window.open` would be blocked.
+// Also reports the document's content height so the host can size the iframe
+// to fit it exactly — otherwise the mail body scrolls in its own box instead
+// of together with the rest of the message view.
 const LINK_BRIDGE =
   `<script>(function(){addEventListener("click",function(e){` +
   `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
   `var h=a.getAttribute("href")||"";` +
   `if(/^https?:\\/\\//i.test(h)){e.preventDefault();` +
-  `parent.postMessage({haexMailOpenUrl:h},"*");}},true);})();<\/script>`;
+  `parent.postMessage({haexMailOpenUrl:h},"*");}},true);` +
+  `function reportHeight(){parent.postMessage({haexMailContentHeight:document.documentElement.scrollHeight},"*");}` +
+  `new ResizeObserver(reportHeight).observe(document.body);` +
+  `reportHeight();})();<\/script>`;
 
 /** Neutralise active content before the body renders in a script-enabled
  *  iframe: strip script-bearing elements, inline event handlers and
@@ -90,7 +100,9 @@ const LINK_BRIDGE =
  *  (no `allow-same-origin`) and the vault CSP blocks network regardless. */
 const hardenDoc = (doc: Document) => {
   doc
-    .querySelectorAll("script, noscript, iframe, object, embed, link, meta[http-equiv]")
+    .querySelectorAll(
+      "script, noscript, iframe, object, embed, link, meta[http-equiv], base",
+    )
     .forEach((el) => el.remove());
   doc.querySelectorAll("*").forEach((el) => {
     for (const attr of [...el.attributes]) {
@@ -179,10 +191,11 @@ export const inlineExternalHtml = async (
     if (srcset)
       for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
     const style = el.getAttribute("style");
-    if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(m[1]!);
+    if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(styleMatchUrl(m));
   });
   doc.querySelectorAll("style").forEach((el) => {
-    for (const m of (el.textContent ?? "").matchAll(STYLE_URL_RE)) urls.add(m[1]!);
+    for (const m of (el.textContent ?? "").matchAll(STYLE_URL_RE))
+      urls.add(styleMatchUrl(m));
   });
 
   const resolved = new Map<string, string>();
@@ -225,17 +238,20 @@ export const inlineExternalHtml = async (
     if (style) {
       el.setAttribute(
         "style",
-        style.replace(STYLE_URL_RE, (whole, url: string) =>
-          resolved.has(url) ? `url("${resolved.get(url)}")` : "none",
-        ),
+        style.replace(STYLE_URL_RE, (whole, g1: string, g2: string, g3: string) => {
+          const url = g1 ?? g3;
+          return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
+        }),
       );
     }
   });
   doc.querySelectorAll("style").forEach((el) => {
     el.textContent = (el.textContent ?? "").replace(
       STYLE_URL_RE,
-      (whole, url: string) =>
-        resolved.has(url) ? `url("${resolved.get(url)}")` : "none",
+      (whole, g1: string, g2: string, g3: string) => {
+        const url = g1 ?? g3;
+        return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
+      },
     );
   });
   return wrapEmailHtml(doc.body?.innerHTML ?? "");

@@ -2,6 +2,7 @@
 import { ChevronRight, Download, Loader2, Reply, Trash2 } from "lucide-vue-next";
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
+import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
 import { getErrorMessage } from "~/lib/utils";
 import {
   htmlToText,
@@ -10,10 +11,10 @@ import {
   stripExternalHtml,
 } from "~/lib/mailHtml";
 
-const props = defineProps<{ showTitle?: boolean }>();
+const props = defineProps<{ showActions?: boolean }>();
 const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const mailStore = useMailStore();
 const uiStore = useUiStore();
 const haexVault = useHaexVaultStore();
@@ -25,10 +26,24 @@ const formatAddresses = (
   return addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
 };
 
-const formatDate = (ts: number | undefined) => {
+const formatDateLine = (ts: number | undefined) => {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleString();
+  return new Date(ts * 1000).toLocaleDateString(locale.value, {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 };
+
+const formatTimeLine = (ts: number | undefined) => {
+  if (!ts) return "";
+  return new Date(ts * 1000).toLocaleTimeString(locale.value, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const primarySender = computed(() => mailStore.messageBody?.envelope.from?.[0]);
 
 // --- Attachments: open (inline pdf/image/txt) or download ---
 
@@ -100,13 +115,27 @@ const openUrlAsync = async (url: string) => {
   }
 };
 
-// The HTML iframe's bridge script posts link clicks here (it can't open a
-// browser itself — nested sandbox). Only act on messages from our own frame.
+// The HTML iframe's bridge script posts link clicks and its content height
+// here (it can't open a browser itself — nested sandbox). Only act on
+// messages from our own frame.
 const mailFrame = useTemplateRef<HTMLIFrameElement>("mailFrame");
+// The iframe is sized to its own content (rather than a fixed viewport
+// height) so the mail body scrolls together with the rest of the message
+// view instead of in its own independent scrollbox.
+const iframeHeight = ref<number | null>(null);
+// Clamp so a malicious message can't force scrollHeight to an enormous value
+// and blow up the layout; the iframe falls back to its own scrollbar past this.
+const MAX_IFRAME_HEIGHT = 20000;
 const onFrameMessage = (event: MessageEvent) => {
   if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
-  const url = (event.data as { haexMailOpenUrl?: unknown })?.haexMailOpenUrl;
-  if (typeof url === "string") openUrlAsync(url);
+  const data = event.data as {
+    haexMailOpenUrl?: unknown;
+    haexMailContentHeight?: unknown;
+  };
+  if (typeof data?.haexMailOpenUrl === "string") openUrlAsync(data.haexMailOpenUrl);
+  if (typeof data?.haexMailContentHeight === "number") {
+    iframeHeight.value = Math.min(data.haexMailContentHeight, MAX_IFRAME_HEIGHT);
+  }
 };
 onMounted(() => window.addEventListener("message", onFrameMessage));
 onBeforeUnmount(() => window.removeEventListener("message", onFrameMessage));
@@ -244,6 +273,9 @@ watch(() => mailStore.selectedMessageId, () => {
   // Clear a stale in-flight load so the new message's banner isn't stuck in
   // the loading state (its result is discarded by the id guard anyway).
   isLoadingRemote.value = false;
+  // The old message's reported height would otherwise flash briefly before
+  // the new iframe's own report arrives.
+  iframeHeight.value = null;
 });
 // Unmounting (route change, fullscreen overlay teardown) must still invalidate
 // any in-flight open so it can't assign a viewer after teardown — the watcher
@@ -252,156 +284,170 @@ onBeforeUnmount(closeViewer);
 </script>
 
 <template>
-  <article class="overflow-y-auto">
+  <article class="h-full flex flex-col">
     <div
       v-if="!mailStore.messageBody && !mailStore.isLoadingMessage"
-      class="h-full grid place-items-center text-sm text-muted-foreground"
+      class="flex-1 grid place-items-center text-sm text-muted-foreground"
     >
       <p>{{ t("selectPrompt") }}</p>
     </div>
 
     <div
       v-else-if="mailStore.isLoadingMessage"
-      class="h-full grid place-items-center text-sm text-muted-foreground"
+      class="flex-1 grid place-items-center text-sm text-muted-foreground"
     >
       <p>{{ t("loading") }}</p>
     </div>
 
-    <div v-else-if="mailStore.messageBody" class="p-6 max-w-4xl mx-auto">
-      <header class="pb-4 border-b border-border space-y-3">
-        <div class="flex items-start justify-between gap-4">
-          <h1 v-if="props.showTitle !== false" class="text-xl font-semibold leading-snug">
-            {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
-          </h1>
-          <div class="flex items-center gap-1 shrink-0 ml-auto">
-            <span class="text-xs text-muted-foreground mt-1 mr-1">
-              {{ formatDate(mailStore.messageBody.envelope.internalDate) }}
-            </span>
-            <template v-if="props.showTitle !== false">
-              <UiButton
-                variant="ghost"
-                size="icon-lg"
-                :icon="Reply"
-                :tooltip="t('reply')"
-                :aria-label="t('reply')"
-                @click="emit('reply')"
-              />
-              <MailMoreMenu @reply-all="emit('replyAll')" @forward="emit('forward')" />
-              <UiButton
-                variant="ghost"
-                size="icon-lg"
-                :icon="Trash2"
-                :tooltip="t('delete')"
-                :aria-label="t('delete')"
-                @click="emit('delete')"
-              />
-            </template>
-          </div>
-        </div>
-        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt class="text-muted-foreground">{{ t("from") }}</dt>
-          <dd>{{ formatAddresses(mailStore.messageBody.envelope.from) }}</dd>
-          <dt class="text-muted-foreground">{{ t("to") }}</dt>
-          <dd>{{ formatAddresses(mailStore.messageBody.envelope.to) }}</dd>
-          <template v-if="mailStore.messageBody.envelope.cc?.length">
-            <dt class="text-muted-foreground">Cc</dt>
-            <dd>{{ formatAddresses(mailStore.messageBody.envelope.cc) }}</dd>
-          </template>
-        </dl>
+    <template v-else-if="mailStore.messageBody">
+      <!-- Fixed action bar: only rendered when MessageView provides its own
+           chrome (desktop 3-column layout). In mobile/fullscreen the page
+           already renders an equivalent fixed header above this component. -->
+      <header
+        v-if="props.showActions !== false"
+        class="h-12 shrink-0 border-b border-border flex items-center gap-1 px-2"
+      >
+        <span class="flex-1" />
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="Reply"
+          :tooltip="t('reply')"
+          :aria-label="t('reply')"
+          @click="emit('reply')"
+        />
+        <MailMoreMenu @reply-all="emit('replyAll')" @forward="emit('forward')" />
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="Trash2"
+          :tooltip="t('delete')"
+          :aria-label="t('delete')"
+          @click="emit('delete')"
+        />
       </header>
 
-      <!-- HTML content runs inside an iframe that is an opaque origin (no
-           allow-same-origin) so email content can't reach the app/vault, and
-           the vault CSP blocks all network. The email HTML is hardened
-           (scripts/handlers stripped); the only script that runs is our
-           injected bridge that forwards link clicks to the host, which opens
-           them in the system browser. External resources are stripped by
-           default and loaded on demand via the banner. -->
-      <div
-        v-if="uiStore.mailFormat === 'html' && mailStore.messageBody.bodyHtml"
-        class="mt-4"
-      >
-        <div
-          v-if="strippedHtml.hasExternal && !remoteApproved"
-          class="flex items-center justify-between gap-3 rounded-t border border-b-0 border-border bg-muted px-3 py-2 text-sm"
-        >
-          <span class="text-muted-foreground">{{ t("externalBlocked") }}</span>
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :loading="isLoadingRemote"
-            @click="loadExternalAsync"
+      <div class="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        <h1 class="text-xl font-semibold leading-snug mb-3">
+          {{ mailStore.messageBody.envelope.subject ?? t("noSubject") }}
+        </h1>
+        <div class="flex items-start gap-3 pb-4 border-b border-border">
+          <div
+            class="shrink-0 size-14 rounded-full flex items-center justify-center text-base font-bold text-white select-none leading-none"
+            :class="getAvatarColor(primarySender?.email ?? '')"
           >
-            {{ t("loadExternal") }}
-          </UiButton>
+            {{ getAvatarInitials(primarySender?.name, primarySender?.email ?? '') }}
+          </div>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm flex-1 min-w-0">
+            <dt class="text-muted-foreground">{{ t("from") }}</dt>
+            <dd>{{ formatAddresses(mailStore.messageBody.envelope.from) }}</dd>
+            <dt class="text-muted-foreground">{{ t("to") }}</dt>
+            <dd>{{ formatAddresses(mailStore.messageBody.envelope.to) }}</dd>
+            <template v-if="mailStore.messageBody.envelope.cc?.length">
+              <dt class="text-muted-foreground">Cc</dt>
+              <dd>{{ formatAddresses(mailStore.messageBody.envelope.cc) }}</dd>
+            </template>
+          </dl>
+          <div class="shrink-0 text-sm text-muted-foreground text-right leading-snug">
+            <div>{{ formatDateLine(mailStore.messageBody.envelope.internalDate) }}</div>
+            <div>{{ formatTimeLine(mailStore.messageBody.envelope.internalDate) }}</div>
+          </div>
         </div>
-        <iframe
-          ref="mailFrame"
-          :srcdoc="iframeSrcdoc"
-          sandbox="allow-scripts"
-          :class="[
-            'w-full h-[60vh] border border-border',
-            strippedHtml.hasExternal && !remoteApproved ? 'rounded-b' : 'rounded',
-          ]"
-        />
-      </div>
-      <div
-        v-else
-        class="whitespace-pre-wrap wrap-break-word font-sans text-sm mt-4"
-      ><template v-for="(part, i) in textParts" :key="i"><a
-        v-if="'url' in part"
-        href="#"
-        class="text-primary underline underline-offset-2"
-        @click.prevent="openUrlAsync(part.url)"
-      >{{ part.text }}</a><template v-else>{{ part.text }}</template></template></div>
 
-      <details
-        v-if="mailStore.messageBody.attachments.length > 0"
-        class="group mt-6 pt-4 border-t border-border"
-        open
-      >
-        <summary
-          class="flex items-center gap-1.5 cursor-pointer select-none list-none text-sm font-medium mb-2 [&::-webkit-details-marker]:hidden"
+        <!-- HTML content runs inside an iframe that is an opaque origin (no
+             allow-same-origin) so email content can't reach the app/vault, and
+             the vault CSP blocks all network. The email HTML is hardened
+             (scripts/handlers stripped); the only script that runs is our
+             injected bridge that forwards link clicks to the host, which opens
+             them in the system browser. External resources are stripped by
+             default and loaded on demand via the banner. -->
+        <div
+          v-if="uiStore.mailFormat === 'html' && mailStore.messageBody.bodyHtml"
+          class="mt-4"
         >
-          <ChevronRight class="size-4 shrink-0 transition-transform group-open:rotate-90" />
-          {{ t("attachments", { count: mailStore.messageBody.attachments.length }) }}
-        </summary>
-        <ul class="space-y-1.5 text-sm">
-          <li
-            v-for="att in mailStore.messageBody.attachments"
-            :key="att.partIndex"
-            class="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5"
+          <div
+            v-if="strippedHtml.hasExternal && !remoteApproved"
+            class="flex items-center justify-between gap-3 rounded-t border border-b-0 border-border bg-muted px-3 py-2 text-sm"
           >
-            <button
-              type="button"
-              class="flex-1 min-w-0 flex items-baseline gap-1.5 text-left hover:underline disabled:no-underline disabled:opacity-60"
-              :disabled="busyPart !== null"
-              :title="t('openAttachment')"
-              @click="openAttachmentAsync(att)"
+            <span class="text-muted-foreground">{{ t("externalBlocked") }}</span>
+            <UiButton
+              variant="secondary"
+              size="sm"
+              :loading="isLoadingRemote"
+              @click="loadExternalAsync"
             >
-              <span class="truncate font-medium">{{ att.filename ?? t("unnamed") }}</span>
-              <span class="shrink-0 text-xs text-muted-foreground">
-                {{ effectiveType(att) }} ({{ Math.round(att.size / 1024) }} KB)
-              </span>
-            </button>
-            <Loader2
-              v-if="busyPart === att.partIndex"
-              class="size-4 shrink-0 animate-spin text-muted-foreground"
-            />
-            <button
-              v-else
-              type="button"
-              class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60"
-              :disabled="busyPart !== null"
-              :aria-label="t('downloadAttachment')"
-              @click="downloadAttachmentAsync(att)"
+              {{ t("loadExternal") }}
+            </UiButton>
+          </div>
+          <iframe
+            ref="mailFrame"
+            :srcdoc="iframeSrcdoc"
+            sandbox="allow-scripts"
+            :style="{ height: `${iframeHeight ?? 200}px` }"
+            :class="[
+              'w-full border border-border',
+              strippedHtml.hasExternal && !remoteApproved ? 'rounded-b' : 'rounded',
+            ]"
+          />
+        </div>
+        <div
+          v-else
+          class="whitespace-pre-wrap wrap-break-word font-sans text-sm mt-4"
+        ><template v-for="(part, i) in textParts" :key="i"><a
+          v-if="'url' in part"
+          href="#"
+          class="text-primary underline underline-offset-2"
+          @click.prevent="openUrlAsync(part.url)"
+        >{{ part.text }}</a><template v-else>{{ part.text }}</template></template></div>
+
+        <details
+          v-if="mailStore.messageBody.attachments.length > 0"
+          class="group mt-6 pt-4 border-t border-border"
+          open
+        >
+          <summary
+            class="flex items-center gap-1.5 cursor-pointer select-none list-none text-sm font-medium mb-2 [&::-webkit-details-marker]:hidden"
+          >
+            <ChevronRight class="size-4 shrink-0 transition-transform group-open:rotate-90" />
+            {{ t("attachments", { count: mailStore.messageBody.attachments.length }) }}
+          </summary>
+          <ul class="space-y-1.5 text-sm">
+            <li
+              v-for="att in mailStore.messageBody.attachments"
+              :key="att.partIndex"
+              class="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5"
             >
-              <Download class="size-4" />
-            </button>
-          </li>
-        </ul>
-      </details>
-    </div>
+              <button
+                type="button"
+                class="flex-1 min-w-0 flex items-baseline gap-1.5 text-left hover:underline disabled:no-underline disabled:opacity-60"
+                :disabled="busyPart !== null"
+                :title="t('openAttachment')"
+                @click="openAttachmentAsync(att)"
+              >
+                <span class="truncate font-medium">{{ att.filename ?? t("unnamed") }}</span>
+                <span class="shrink-0 text-xs text-muted-foreground">
+                  {{ effectiveType(att) }} ({{ Math.round(att.size / 1024) }} KB)
+                </span>
+              </button>
+              <Loader2
+                v-if="busyPart === att.partIndex"
+                class="size-4 shrink-0 animate-spin text-muted-foreground"
+              />
+              <button
+                v-else
+                type="button"
+                class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60"
+                :disabled="busyPart !== null"
+                :aria-label="t('downloadAttachment')"
+                @click="downloadAttachmentAsync(att)"
+              >
+                <Download class="size-4" />
+              </button>
+            </li>
+          </ul>
+        </details>
+      </div>
+    </template>
 
     <!-- Inline attachment viewer (image / text). UiDrawerModal gives a
          responsive drawer/dialog with focus trap/restore, Escape and
