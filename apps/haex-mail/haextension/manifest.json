@@ -13,7 +13,9 @@
       { "target": "*", "operation": "readWrite" }
     ],
     "shell": [],
-    "web": []
+    "web": [
+      { "target": "*" }
+    ]
   },
   "icon": "haextension/haex-mail-logo.png",
   "singleInstance": true,
