@@ -237,19 +237,15 @@ const getAvatarColor = (email: string): string => {
     >
       <template v-if="!mailStore.isSearching">
         <!-- Desktop-only sidebar toggle -->
-        <ShadcnTooltip>
-          <ShadcnTooltipTrigger as-child>
-            <UiButton
-              variant="ghost"
-              size="icon-lg"
-              :icon="props.sidebarCollapsed ? PanelLeftOpen : PanelLeftClose"
-              :aria-label="props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar')"
-              class="hidden md:flex shrink-0"
-              @click="emit('toggleSidebar')"
-            />
-          </ShadcnTooltipTrigger>
-          <ShadcnTooltipContent>{{ props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar') }}</ShadcnTooltipContent>
-        </ShadcnTooltip>
+        <UiButton
+          variant="ghost"
+          size="icon-lg"
+          :icon="props.sidebarCollapsed ? PanelLeftOpen : PanelLeftClose"
+          :tooltip="props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar')"
+          :aria-label="props.sidebarCollapsed ? t('openSidebar') : t('closeSidebar')"
+          class="hidden md:flex shrink-0"
+          @click="emit('toggleSidebar')"
+        />
         <span class="hidden md:block flex-1 truncate pl-1 text-sm font-medium">{{ headerLabel }}</span>
         <span class="flex-1 md:hidden" />
         <span v-if="mailStore.isLoadingMessages" class="text-muted-foreground text-sm pr-1">…</span>
