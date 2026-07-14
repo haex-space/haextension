@@ -52,13 +52,6 @@ const mobileTitle = computed(() => {
   return "haex-mail";
 });
 
-const mobileMessageTitle = computed(() => {
-  const row = mailStore.messageList.find(
-    (m) => m.id === mailStore.selectedMessageId,
-  );
-  return row?.subject ?? t("noSubject");
-});
-
 // Picking a folder (or role) in the sheet navigates — close it.
 watch(
   [() => mailStore.selectedMailboxName, () => mailStore.selectedRole],
@@ -416,7 +409,7 @@ const onSetupComplete = async () => {
               :aria-label="t('back')"
               @click="showFullscreenMessage = false"
             />
-            <span class="flex-1 truncate font-medium">{{ mailStore.messageBody.envelope.subject ?? t('noSubject') }}</span>
+            <span class="flex-1" />
             <UiButton
               variant="ghost"
               size="icon-lg"
@@ -438,7 +431,7 @@ const onSetupComplete = async () => {
           </header>
           <MessageView
             class="flex-1 min-h-0"
-            :show-title="false"
+            :show-actions="false"
             @reply="onReplyFromView(); showFullscreenMessage = false"
             @reply-all="onComposeFromView('reply-all'); showFullscreenMessage = false"
             @forward="onComposeFromView('forward'); showFullscreenMessage = false"
@@ -468,7 +461,7 @@ const onSetupComplete = async () => {
 
       <!-- Normal mobile header -->
       <header v-else class="h-14 shrink-0 border-b border-border flex items-center gap-1 px-2">
-        <!-- Message detail: back + subject + reply + delete -->
+        <!-- Message detail: back + reply + delete -->
         <template v-if="mailStore.selectedMessageId">
           <UiButton
             variant="ghost"
@@ -477,7 +470,7 @@ const onSetupComplete = async () => {
             :aria-label="t('back')"
             @click="mailStore.selectMessage(null)"
           />
-          <span class="flex-1 truncate font-medium">{{ mobileMessageTitle }}</span>
+          <span class="flex-1" />
           <UiButton
             variant="ghost"
             size="icon-lg"
@@ -528,7 +521,7 @@ const onSetupComplete = async () => {
       <MessageView
         v-else
         class="flex-1 min-h-0"
-        :show-title="false"
+        :show-actions="false"
         @reply="onReplyFromView"
         @reply-all="onComposeFromView('reply-all')"
         @forward="onComposeFromView('forward')"
@@ -577,7 +570,6 @@ de:
   compose: Neue Nachricht
   back: Zurück
   allAccounts: Alle Konten
-  noSubject: (kein Betreff)
   reply: Antworten
   delete: Löschen
   search: Suchen
@@ -589,7 +581,6 @@ en:
   compose: New message
   back: Back
   allAccounts: All accounts
-  noSubject: (no subject)
   reply: Reply
   delete: Delete
   search: Search

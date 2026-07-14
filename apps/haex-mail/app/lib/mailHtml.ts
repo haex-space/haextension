@@ -77,12 +77,18 @@ const parseSrcset = (
 // opaque origin). Forwards link clicks to the host app so it can open them in
 // the system browser — the extension is itself nested in a sandbox without
 // `allow-popups`, so `target="_blank"` / `window.open` would be blocked.
+// Also reports the document's content height so the host can size the iframe
+// to fit it exactly — otherwise the mail body scrolls in its own box instead
+// of together with the rest of the message view.
 const LINK_BRIDGE =
   `<script>(function(){addEventListener("click",function(e){` +
   `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
   `var h=a.getAttribute("href")||"";` +
   `if(/^https?:\\/\\//i.test(h)){e.preventDefault();` +
-  `parent.postMessage({haexMailOpenUrl:h},"*");}},true);})();<\/script>`;
+  `parent.postMessage({haexMailOpenUrl:h},"*");}},true);` +
+  `function reportHeight(){parent.postMessage({haexMailContentHeight:document.documentElement.scrollHeight},"*");}` +
+  `new ResizeObserver(reportHeight).observe(document.body);` +
+  `reportHeight();})();<\/script>`;
 
 /** Neutralise active content before the body renders in a script-enabled
  *  iframe: strip script-bearing elements, inline event handlers and
