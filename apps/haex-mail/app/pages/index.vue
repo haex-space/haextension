@@ -342,13 +342,13 @@ const onSetupComplete = async () => {
   <div class="h-full">
     <div v-if="initError" class="h-full grid place-items-center p-8">
       <div class="max-w-xl space-y-3 text-center">
-        <p class="font-semibold text-destructive">{{ $t("initError") }}</p>
+        <p class="font-semibold text-destructive">{{ t("initError") }}</p>
         <pre class="text-xs text-left bg-muted rounded p-3 overflow-auto whitespace-pre-wrap break-all">{{ initError }}</pre>
       </div>
     </div>
 
     <div v-else-if="!haexVault.isReady" class="h-full grid place-items-center text-muted-foreground">
-      <p>{{ $t("loading") }}</p>
+      <p>{{ t("loading") }}</p>
     </div>
 
     <AccountSetupWizard
