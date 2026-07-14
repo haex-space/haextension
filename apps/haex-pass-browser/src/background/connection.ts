@@ -19,7 +19,10 @@ import {
   toHex,
 } from './crypto'
 
-const PROTOCOL_VERSION = 1
+// Protocol v2: the vault requires clients to declare their requested
+// permissions in the handshake (`ClientInfo.permissions`); v1 handshakes are
+// rejected with PERMISSIONS_DECLARATION_REQUIRED.
+const PROTOCOL_VERSION = 2
 const CLIENT_NAME = 'haex-pass Browser Extension'
 const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
 // 25 s is comfortably below the typical 30 s MV3 service-worker idle timeout
@@ -48,6 +51,23 @@ interface PendingRequest {
 interface RequestedExtension {
   name: string
   extensionPublicKey: string // Public key of the haex-vault extension (from its manifest)
+  // Declared action names the client wants to call on this extension
+  // (protocol v2), or ['*'] for all actions.
+  actions?: string[]
+}
+
+// One declared core permission (mirrors the vault manifest's PermissionEntry).
+interface CorePermissionEntry {
+  target: string
+  operation?: string
+}
+
+// Declared core permissions (protocol v2) — mirrors the vault's
+// ClientPermissions shape ({ core: ExtensionPermissions }).
+interface ClientPermissions {
+  core: {
+    passwords?: CorePermissionEntry[]
+  }
 }
 
 interface ClientInfo {
@@ -55,6 +75,7 @@ interface ClientInfo {
   clientName: string
   publicKey: string // Public key of this client (browser extension) for E2E encryption
   requestedExtensions?: RequestedExtension[]
+  permissions?: ClientPermissions
 }
 
 interface HandshakeRequest {
@@ -430,6 +451,15 @@ class VaultConnectionManager {
         requestedExtensions: [
           { name: CORE_TARGET_NAME, extensionPublicKey: CORE_TARGET_PUBLIC_KEY },
         ],
+        // Protocol v2: declare the core permissions this client needs up
+        // front. haex-pass needs full passwords access — read for
+        // autofill/TOTP/passkeys, write for saving credentials. The user
+        // still has to approve this grant in the authorization dialog.
+        permissions: {
+          core: {
+            passwords: [{ target: '*', operation: 'readWrite' }],
+          },
+        },
       },
     }
 
