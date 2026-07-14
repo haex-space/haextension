@@ -152,12 +152,17 @@ const blobToDataUrl = (blob: Blob) =>
 
 const loadExternalAsync = async () => {
   const html = mailStore.messageBody?.bodyHtml;
+  const messageId = mailStore.selectedMessageId;
   if (!html || isLoadingRemote.value) return;
   isLoadingRemote.value = true;
   try {
-    inlinedHtml.value = await inlineExternalHtml(html, async (url) =>
+    const inlined = await inlineExternalHtml(html, async (url) =>
       blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
     );
+    // The message switched mid-fetch — discard so the old body's approved
+    // external content can't bleed into the newly selected message.
+    if (mailStore.selectedMessageId !== messageId) return;
+    inlinedHtml.value = inlined;
     remoteApproved.value = true;
   } catch (err) {
     toast.error(getErrorMessage(err));

@@ -48,11 +48,30 @@ export const htmlToText = (bodyHtml: string): string => {
     .trim();
 };
 
-// External resource references we neutralise / inline.
+// External resource references we neutralise / inline. Protocol-relative
+// (`//host/…`) counts as remote too — mail clients resolve it against https.
 const REMOTE_ATTRS = ["src", "background", "poster"] as const;
-const STYLE_URL_RE = /url\(\s*['"]?(https?:\/\/[^'")]+)['"]?\s*\)/gi;
-const isExternalUrl = (url: string | null): url is string =>
-  !!url && /^https?:\/\//i.test(url);
+const STYLE_URL_RE = /url\(\s*['"]?((?:https?:)?\/\/[^'")]+)['"]?\s*\)/gi;
+const isExternalUrl = (url: string | null | undefined): url is string =>
+  !!url && /^(?:https?:)?\/\//i.test(url.trim());
+
+// Protocol-relative URLs have no scheme; assume https when fetching them.
+const toFetchUrl = (url: string): string =>
+  url.startsWith("//") ? `https:${url}` : url;
+
+// srcset is a comma-separated list of "<url> <descriptor>?" candidates; the
+// first whitespace-delimited token of each candidate is the URL.
+const parseSrcset = (
+  srcset: string,
+): { url: string; descriptor: string }[] =>
+  srcset
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => {
+      const [url, ...rest] = c.split(/\s+/);
+      return { url: url ?? "", descriptor: rest.join(" ") };
+    });
 
 // Injected into the iframe (which runs with `allow-scripts` but stays an
 // opaque origin). Forwards link clicks to the host app so it can open them in
@@ -77,8 +96,11 @@ const hardenDoc = (doc: Document) => {
     for (const attr of [...el.attributes]) {
       if (attr.name.toLowerCase().startsWith("on")) el.removeAttribute(attr.name);
     }
-    const href = el.getAttribute("href");
-    if (href && /^\s*javascript:/i.test(href)) el.removeAttribute("href");
+    // Cover both plain `href` and SVG's namespaced `xlink:href`.
+    for (const attr of ["href", "xlink:href"]) {
+      const v = el.getAttribute(attr);
+      if (v && /^\s*javascript:/i.test(v)) el.removeAttribute(attr);
+    }
   });
 };
 
@@ -111,6 +133,11 @@ export const stripExternalHtml = (
         el.removeAttribute(attr);
       }
     }
+    const srcset = el.getAttribute("srcset");
+    if (srcset && parseSrcset(srcset).some((c) => isExternalUrl(c.url))) {
+      hasExternal = true;
+      el.removeAttribute("srcset");
+    }
     const style = el.getAttribute("style");
     if (style) {
       const stripped = style.replace(STYLE_URL_RE, "none");
@@ -138,6 +165,9 @@ export const inlineExternalHtml = async (
       const v = el.getAttribute(attr);
       if (isExternalUrl(v)) urls.add(v);
     }
+    const srcset = el.getAttribute("srcset");
+    if (srcset)
+      for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
     const style = el.getAttribute("style");
     if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(m[1]!);
   });
@@ -146,7 +176,7 @@ export const inlineExternalHtml = async (
   await Promise.all(
     [...urls].map(async (url) => {
       try {
-        resolved.set(url, await toDataUrl(url));
+        resolved.set(url, await toDataUrl(toFetchUrl(url)));
       } catch {
         // Unreachable/blocked resource — leave it stripped below.
       }
@@ -160,6 +190,23 @@ export const inlineExternalHtml = async (
         if (resolved.has(v)) el.setAttribute(attr, resolved.get(v)!);
         else el.removeAttribute(attr);
       }
+    }
+    const srcset = el.getAttribute("srcset");
+    if (srcset) {
+      // base64 data: URLs carry no whitespace, so a ", " join stays a valid
+      // srcset; candidates that failed to resolve are dropped.
+      const rebuilt = parseSrcset(srcset)
+        .map((c) => {
+          if (!isExternalUrl(c.url))
+            return c.descriptor ? `${c.url} ${c.descriptor}` : c.url;
+          const data = resolved.get(c.url);
+          if (!data) return null;
+          return c.descriptor ? `${data} ${c.descriptor}` : data;
+        })
+        .filter((c): c is string => c != null)
+        .join(", ");
+      if (rebuilt) el.setAttribute("srcset", rebuilt);
+      else el.removeAttribute("srcset");
     }
     const style = el.getAttribute("style");
     if (style) {
