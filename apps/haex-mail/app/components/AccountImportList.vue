@@ -41,8 +41,12 @@ const importSelectedAsync = async () => {
     error.value = getErrorMessage(err);
     // Refresh so accounts imported before the failure don't linger as
     // selected, still-listed entries.
-    items.value = await accountsStore.listImportableVaultAccountsAsync();
-    selected.value.clear();
+    try {
+      items.value = await accountsStore.listImportableVaultAccountsAsync();
+      selected.value.clear();
+    } catch {
+      // Keep the stale list — the import error above is already shown.
+    }
   } finally {
     isImporting.value = false;
   }
@@ -75,8 +79,6 @@ const importSelectedAsync = async () => {
         </label>
       </div>
 
-      <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
-
       <div class="flex justify-end">
         <UiButton
           size="lg"
@@ -89,7 +91,9 @@ const importSelectedAsync = async () => {
       </div>
     </template>
 
-    <p v-else class="text-sm text-muted-foreground">{{ t("empty") }}</p>
+    <p v-else-if="!error" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
+
+    <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
   </div>
 </template>
 

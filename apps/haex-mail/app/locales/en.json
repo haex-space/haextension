@@ -24,7 +24,7 @@
     "errors": {
       "accountNotFound": "Account not found",
       "passwordMissing": "Password missing",
-      "importIncomplete": "This vault entry is missing IMAP settings and can't be imported"
+      "importIncomplete": "This vault entry is missing its email address or IMAP settings and can't be imported"
     },
     "testMail": {
       "subject": "haex-mail connection test {token}",

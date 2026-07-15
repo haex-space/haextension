@@ -152,15 +152,17 @@ export const useAccountsStore = defineStore("accounts", () => {
         .filter((entry) => !!entry.key)
         .map((entry) => [entry.key as string, entry.value]),
     );
-    if (!kv.imapHost) {
+    // IMAP login needs both the username (email) and the managed
+    // connection settings — anything less yields a broken account.
+    if (!item.username || !kv.imapHost) {
       throw new Error($i18n.t("accounts.errors.importIncomplete"));
     }
 
     const id = crypto.randomUUID();
     await haexVault.orm.insert(schema.accounts).values({
       id,
-      displayName: item.title || item.username || item.id,
-      email: item.username ?? "",
+      displayName: item.title || item.username,
+      email: item.username,
       imapHost: kv.imapHost,
       imapPort: kv.imapPort ? Number(kv.imapPort) : 993,
       imapSecurity: (kv.imapSecurity as ConnectionSecurity) ?? "tls",
