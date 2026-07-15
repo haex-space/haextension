@@ -18,7 +18,7 @@ const { t } = useI18n();
         </p>
       </header>
 
-      <AccountForm @saved="emit('complete')" />
+      <AccountCreateTabs @saved="emit('complete')" />
     </div>
   </div>
 </template>

@@ -5,6 +5,7 @@ import type {
   ConnectionSecurity,
   ImapConfig,
   PasswordItemFull,
+  PasswordItemSummary,
   SmtpConfig,
 } from "@haex-space/vault-sdk";
 
@@ -116,6 +117,57 @@ export const useAccountsStore = defineStore("accounts", () => {
       smtpPort: input.smtpPort ?? null,
       smtpSecurity: input.smtpSecurity ?? null,
       passwordItemId,
+      sortOrder: accounts.value.length,
+    });
+
+    await loadAccountsAsync();
+    return id;
+  };
+
+  /**
+   * Password items in the core vault (tag-scoped to `haex-mail`) that
+   * aren't linked to a local account yet — e.g. left over from a
+   * previous install. Offered to the user as an import option instead
+   * of re-entering everything by hand.
+   */
+  const listImportableVaultAccountsAsync = async (): Promise<
+    PasswordItemSummary[]
+  > => {
+    const linkedIds = new Set(accounts.value.map((a) => a.passwordItemId));
+    const items = await haexVault.client.passwords.listAsync();
+    return items.filter((item) => !linkedIds.has(item.id));
+  };
+
+  /**
+   * Import an existing vault password item as a local account, reusing
+   * its id (no new password item is created). Requires the item to
+   * carry the managed IMAP keyValues written by `createAccountAsync`.
+   */
+  const importAccountAsync = async (passwordItemId: string) => {
+    if (!haexVault.orm) throw new Error("ORM not initialized");
+
+    const item = await haexVault.client.passwords.readAsync(passwordItemId);
+    const kv = Object.fromEntries(
+      item.keyValues
+        .filter((entry) => !!entry.key)
+        .map((entry) => [entry.key as string, entry.value]),
+    );
+    if (!kv.imapHost) {
+      throw new Error($i18n.t("accounts.errors.importIncomplete"));
+    }
+
+    const id = crypto.randomUUID();
+    await haexVault.orm.insert(schema.accounts).values({
+      id,
+      displayName: item.title || item.username || item.id,
+      email: item.username ?? "",
+      imapHost: kv.imapHost,
+      imapPort: kv.imapPort ? Number(kv.imapPort) : 993,
+      imapSecurity: (kv.imapSecurity as ConnectionSecurity) ?? "tls",
+      smtpHost: kv.smtpHost ?? null,
+      smtpPort: kv.smtpPort ? Number(kv.smtpPort) : null,
+      smtpSecurity: (kv.smtpSecurity as ConnectionSecurity) ?? null,
+      passwordItemId: item.id,
       sortOrder: accounts.value.length,
     });
 
@@ -445,6 +497,8 @@ export const useAccountsStore = defineStore("accounts", () => {
     isLoading,
     loadAccountsAsync,
     createAccountAsync,
+    listImportableVaultAccountsAsync,
+    importAccountAsync,
     updateAccountAsync,
     loadAccountWithCredentialsAsync,
     getCredentialsCachedAsync,
