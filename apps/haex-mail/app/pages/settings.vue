@@ -150,10 +150,12 @@ const executeDeleteAsync = async () => {
       <template #content>
         <div class="p-4">
           <AccountForm
-            :key="editAccount?.id ?? 'new'"
-            :account="editAccount ?? undefined"
+            v-if="editAccount"
+            :key="editAccount.id"
+            :account="editAccount"
             @saved="onSaved"
           />
+          <AccountCreateTabs v-else @saved="onSaved" />
         </div>
       </template>
     </UiDrawerModal>

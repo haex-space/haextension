@@ -23,7 +23,8 @@
   "accounts": {
     "errors": {
       "accountNotFound": "Konto nicht gefunden",
-      "passwordMissing": "Passwort fehlt"
+      "passwordMissing": "Passwort fehlt",
+      "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden"
     },
     "testMail": {
       "subject": "haex-mail Verbindungstest {token}",
