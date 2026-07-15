@@ -67,6 +67,7 @@ const importSelectedAsync = async () => {
         >
           <ShadcnCheckbox
             :model-value="selected.has(item.id)"
+            class="border-muted-foreground/50"
             @update:model-value="toggle(item.id)"
           />
           <Mail class="w-4 h-4 shrink-0 text-muted-foreground" />
