@@ -74,14 +74,19 @@ const fileToBase64 = (file: File) =>
 const onFilesPicked = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   const files = Array.from(target.files ?? []);
-  for (const file of files) {
-    attachments.value.push({
-      filename: file.name,
-      contentType: file.type || "application/octet-stream",
-      data: await fileToBase64(file),
-    });
+  try {
+    for (const file of files) {
+      attachments.value.push({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        data: await fileToBase64(file),
+      });
+    }
+  } catch (err) {
+    error.value = getErrorMessage(err);
+  } finally {
+    target.value = "";
   }
-  target.value = "";
 };
 
 const reset = () => {
