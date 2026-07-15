@@ -11,7 +11,12 @@ import {
   stripExternalHtml,
 } from "~/lib/mailHtml";
 
-const props = defineProps<{ showActions?: boolean }>();
+// Vue casts an absent optional boolean prop to `false` unless a default is
+// given, so without this the desktop 3-column view (which passes no
+// show-actions attribute at all) would also suppress its own header.
+const props = withDefaults(defineProps<{ showActions?: boolean }>(), {
+  showActions: true,
+});
 const emit = defineEmits<{ reply: []; replyAll: []; forward: []; delete: [] }>();
 
 const { t, locale } = useI18n();
