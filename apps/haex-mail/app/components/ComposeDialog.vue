@@ -57,6 +57,33 @@ const removeAttachment = (index: number) => {
   attachments.value.splice(index, 1);
 };
 
+const fileInput = ref<HTMLInputElement>();
+
+/** Reads a File as base64 (no `data:` URL prefix — SDK expects raw base64). */
+const fileToBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+const onFilesPicked = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const files = Array.from(target.files ?? []);
+  for (const file of files) {
+    attachments.value.push({
+      filename: file.name,
+      contentType: file.type || "application/octet-stream",
+      data: await fileToBase64(file),
+    });
+  }
+  target.value = "";
+};
+
 const reset = () => {
   to.value = "";
   cc.value = "";
@@ -266,8 +293,8 @@ const discardAsync = () => {
 
           <UiInput v-model="to" :placeholder="t('toPlaceholder')" required />
 
-          <!-- Cc / Bcc toggles -->
-          <div v-if="!showCc || !showBcc" class="flex gap-3">
+          <!-- Cc / Bcc toggles / attachments -->
+          <div class="flex items-center gap-3">
             <button
               v-if="!showCc"
               type="button"
@@ -284,6 +311,21 @@ const discardAsync = () => {
             >
               + Bcc
             </button>
+            <button
+              type="button"
+              class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              @click="fileInput?.click()"
+            >
+              <Paperclip class="size-3.5" />
+              {{ t("addAttachment") }}
+            </button>
+            <input
+              ref="fileInput"
+              type="file"
+              multiple
+              class="hidden"
+              @change="onFilesPicked"
+            />
           </div>
 
           <UiInput v-if="showCc" v-model="cc" :placeholder="t('ccPlaceholder')" />
@@ -355,6 +397,7 @@ de:
   bodyPlaceholder: Nachricht schreiben…
   discard: Verwerfen
   send: Senden
+  addAttachment: Anhang hinzufügen
   removeAttachment: Anhang entfernen
   draftSaved: Entwurf gespeichert
   noSubject: (kein Betreff)
@@ -373,6 +416,7 @@ en:
   bodyPlaceholder: Write a message…
   discard: Discard
   send: Send
+  addAttachment: Add attachment
   removeAttachment: Remove attachment
   draftSaved: Draft saved
   noSubject: (no subject)
