@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "ext:dev": "haex dev",
     "package": "haex sign .output/public",
-    "build:release": "pnpm build && pnpm package"
+    "build:release": "pnpm build && pnpm package",
+    "test": "vitest run"
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^3.5.0",
@@ -40,6 +41,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "vitest": "^3.2.3"
   }
 }
