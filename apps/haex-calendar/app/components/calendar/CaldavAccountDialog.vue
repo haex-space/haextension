@@ -51,6 +51,7 @@
             >
               <ShadcnCheckbox
                 :model-value="selectedPaths.has(cal.path)"
+                class="border-muted-foreground/50"
                 @update:model-value="toggleCalendar(cal.path)"
               />
               <span
