@@ -61,8 +61,21 @@ const onClickMessage = (msg: SelectMessage, event: MouseEvent) => {
     return;
   }
 
-  if (event.shiftKey && !selectionStore.isSelectionMode) {
-    selectionStore.selectItem(msg.id);
+  if (event.shiftKey) {
+    // Range-select from the anchor (the last item explicitly selected, or
+    // the currently open message if nothing is selected yet) through the
+    // clicked row.
+    const anchorId = selectionStore.lastSelectedId ?? mailStore.selectedMessageId;
+    const list = mailStore.filteredMessageList;
+    const anchorIndex = anchorId ? list.findIndex((m) => m.id === anchorId) : -1;
+    const clickedIndex = list.findIndex((m) => m.id === msg.id);
+    if (anchorIndex === -1 || clickedIndex === -1) {
+      selectionStore.selectItem(msg.id);
+      return;
+    }
+    const [start, end] =
+      anchorIndex < clickedIndex ? [anchorIndex, clickedIndex] : [clickedIndex, anchorIndex];
+    selectionStore.selectRange(list.slice(start, end + 1).map((m) => m.id));
     return;
   }
 

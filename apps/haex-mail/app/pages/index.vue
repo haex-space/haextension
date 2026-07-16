@@ -155,13 +155,28 @@ onKeyStroke("Escape", (e) => {
 
 onKeyStroke("Delete", async (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
-  if (!selectionStore.isSelectionMode) return;
-  e.preventDefault();
 
-  const ids = Array.from(selectionStore.selectedIds);
-  await mailStore.bulkMoveToRoleAsync(ids, "trash");
-  selectionStore.clearSelection();
-  // Do NOT auto-open the next message — stay in list view after bulk delete.
+  if (selectionStore.isSelectionMode) {
+    e.preventDefault();
+    const ids = Array.from(selectionStore.selectedIds);
+    // Deleting the open message clears it (and the fullscreen v-if with it) —
+    // drop the overlay flag too so the next opened mail doesn't go fullscreen.
+    if (mailStore.selectedMessageId && selectionStore.isSelected(mailStore.selectedMessageId)) {
+      showFullscreenMessage.value = false;
+    }
+    await mailStore.bulkMoveToRoleAsync(ids, "trash");
+    selectionStore.clearSelection();
+    // Do NOT auto-open the next message — stay in list view after bulk delete.
+    return;
+  }
+
+  // No explicit selection, but a message is open for reading — delete it.
+  if (!mailStore.selectedMessageId) return;
+  e.preventDefault();
+  // Match the fullscreen delete button — otherwise the overlay's flag stays
+  // set and the next opened message would pop up in fullscreen again.
+  showFullscreenMessage.value = false;
+  await onDeleteFromView();
 });
 
 onKeyStroke("ArrowDown", (e) => {
