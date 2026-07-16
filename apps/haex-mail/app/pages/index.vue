@@ -168,6 +168,9 @@ onKeyStroke("Delete", async (e) => {
   // No explicit selection, but a message is open for reading — delete it.
   if (!mailStore.selectedMessageId) return;
   e.preventDefault();
+  // Match the fullscreen delete button — otherwise the overlay's flag stays
+  // set and the next opened message would pop up in fullscreen again.
+  showFullscreenMessage.value = false;
   await onDeleteFromView();
 });
 

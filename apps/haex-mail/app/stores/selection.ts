@@ -13,6 +13,10 @@ export const useSelectionStore = defineStore("selection", () => {
   // to the selection (not cleared on removal, so a range can be extended).
   const lastSelectedId = ref<string | null>(null);
 
+  // Ids added by the most recent shift-click range. The next shift-click
+  // from the same anchor replaces them, so the range can shrink again.
+  let rangeIds = new Set<string>();
+
   const selectedCount = computed(() => selectedIds.value.size);
 
   const isSelected = (id: string) => selectedIds.value.has(id);
@@ -23,6 +27,7 @@ export const useSelectionStore = defineStore("selection", () => {
     } else {
       selectedIds.value.add(id);
       lastSelectedId.value = id;
+      rangeIds = new Set();
     }
     if (selectedIds.value.size === 0) {
       isSelectionMode.value = false;
@@ -33,12 +38,14 @@ export const useSelectionStore = defineStore("selection", () => {
     selectedIds.value.add(id);
     isSelectionMode.value = true;
     lastSelectedId.value = id;
+    rangeIds = new Set();
   };
 
   const clearSelection = () => {
     selectedIds.value.clear();
     isSelectionMode.value = false;
     lastSelectedId.value = null;
+    rangeIds = new Set();
   };
 
   const selectAll = (ids: string[]) => {
@@ -48,10 +55,16 @@ export const useSelectionStore = defineStore("selection", () => {
     }
   };
 
-  // Like selectAll, but leaves the anchor untouched so repeated shift-clicks
-  // keep extending/shrinking the range from the same starting point.
+  // Replace the previous shift-click range with the new one (anchor stays
+  // untouched), so repeated shift-clicks extend or shrink from the same
+  // starting point.
   const selectRange = (ids: string[]) => {
+    const next = new Set(ids);
+    rangeIds.forEach((id) => {
+      if (!next.has(id)) selectedIds.value.delete(id);
+    });
     ids.forEach((id) => selectedIds.value.add(id));
+    rangeIds = next;
     if (selectedIds.value.size > 0) {
       isSelectionMode.value = true;
     }
