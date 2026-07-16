@@ -155,13 +155,20 @@ onKeyStroke("Escape", (e) => {
 
 onKeyStroke("Delete", async (e) => {
   if (isEditableTarget(e) || showCompose.value) return;
-  if (!selectionStore.isSelectionMode) return;
-  e.preventDefault();
 
-  const ids = Array.from(selectionStore.selectedIds);
-  await mailStore.bulkMoveToRoleAsync(ids, "trash");
-  selectionStore.clearSelection();
-  // Do NOT auto-open the next message — stay in list view after bulk delete.
+  if (selectionStore.isSelectionMode) {
+    e.preventDefault();
+    const ids = Array.from(selectionStore.selectedIds);
+    await mailStore.bulkMoveToRoleAsync(ids, "trash");
+    selectionStore.clearSelection();
+    // Do NOT auto-open the next message — stay in list view after bulk delete.
+    return;
+  }
+
+  // No explicit selection, but a message is open for reading — delete it.
+  if (!mailStore.selectedMessageId) return;
+  e.preventDefault();
+  await onDeleteFromView();
 });
 
 onKeyStroke("ArrowDown", (e) => {
