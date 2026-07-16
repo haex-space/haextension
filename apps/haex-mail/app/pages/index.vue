@@ -159,6 +159,11 @@ onKeyStroke("Delete", async (e) => {
   if (selectionStore.isSelectionMode) {
     e.preventDefault();
     const ids = Array.from(selectionStore.selectedIds);
+    // Deleting the open message clears it (and the fullscreen v-if with it) —
+    // drop the overlay flag too so the next opened mail doesn't go fullscreen.
+    if (mailStore.selectedMessageId && selectionStore.isSelected(mailStore.selectedMessageId)) {
+      showFullscreenMessage.value = false;
+    }
     await mailStore.bulkMoveToRoleAsync(ids, "trash");
     selectionStore.clearSelection();
     // Do NOT auto-open the next message — stay in list view after bulk delete.
