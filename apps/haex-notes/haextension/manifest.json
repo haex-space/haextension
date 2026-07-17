@@ -10,7 +10,7 @@
       }
     ],
     "shell": [],
-    "web": []
+    "http": []
   },
   "icon": "haextension/haex-notes-logo.png",
   "singleInstance": true,

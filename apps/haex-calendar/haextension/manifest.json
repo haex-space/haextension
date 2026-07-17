@@ -6,7 +6,7 @@
     "database": [],
     "filesystem": [],
     "shell": [],
-    "web": [],
+    "http": [],
     "passwords": [
       {
         "target": "haex-calendar",
