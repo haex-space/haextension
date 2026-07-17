@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^3.5.0",
+    "@haex-space/vault-sdk": "^3.6.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
     "@nuxtjs/i18n": "^10.2.1",
