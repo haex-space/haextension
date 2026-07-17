@@ -7,7 +7,8 @@
     ],
     "mail": [
       { "target": "*", "operation": "fetch" },
-      { "target": "*", "operation": "send" }
+      { "target": "*", "operation": "send" },
+      { "target": "*", "operation": "poll" }
     ],
     "filesystem": [
       { "target": "*", "operation": "readWrite" }
