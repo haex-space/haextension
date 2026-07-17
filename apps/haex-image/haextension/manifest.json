@@ -14,7 +14,7 @@
       }
     ],
     "shell": [],
-    "web": []
+    "http": []
   },
   "icon": "haextension/haex-image-logo.png",
   "singleInstance": true,

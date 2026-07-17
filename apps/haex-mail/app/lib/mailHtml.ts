@@ -83,13 +83,18 @@ const parseSrcset = (
 // `allow-popups`, so `target="_blank"` / `window.open` would be blocked.
 // Also reports the document's content height so the host can size the iframe
 // to fit it exactly — otherwise the mail body scrolls in its own box instead
-// of together with the rest of the message view.
+// of together with the rest of the message view. Also forwards the Delete key
+// so the host's "delete open message" shortcut still fires when focus is
+// inside the iframe's own document (keydown there never reaches the host
+// window — cross-frame events don't bubble across a frame boundary).
 const LINK_BRIDGE =
   `<script>(function(){addEventListener("click",function(e){` +
   `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
   `var h=a.getAttribute("href")||"";` +
   `if(/^https?:\\/\\//i.test(h)){e.preventDefault();` +
   `parent.postMessage({haexMailOpenUrl:h},"*");}},true);` +
+  `addEventListener("keydown",function(e){` +
+  `if(e.key==="Delete")parent.postMessage({haexMailKeydown:e.key},"*");},true);` +
   `function reportHeight(){parent.postMessage({haexMailContentHeight:document.documentElement.scrollHeight},"*");}` +
   `new ResizeObserver(reportHeight).observe(document.body);` +
   `reportHeight();})();<\/script>`;

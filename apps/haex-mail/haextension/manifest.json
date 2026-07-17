@@ -14,7 +14,7 @@
       { "target": "*", "operation": "readWrite" }
     ],
     "shell": [],
-    "web": [
+    "http": [
       { "target": "*" }
     ]
   },

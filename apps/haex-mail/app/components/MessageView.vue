@@ -136,11 +136,16 @@ const onFrameMessage = (event: MessageEvent) => {
   const data = event.data as {
     haexMailOpenUrl?: unknown;
     haexMailContentHeight?: unknown;
+    haexMailKeydown?: unknown;
   };
   if (typeof data?.haexMailOpenUrl === "string") openUrlAsync(data.haexMailOpenUrl);
   if (typeof data?.haexMailContentHeight === "number") {
     iframeHeight.value = Math.min(data.haexMailContentHeight, MAX_IFRAME_HEIGHT);
   }
+  // Focus inside the iframe means keydown never reaches the host window, so
+  // the page-level Delete shortcut can't see it — invoke the same "delete
+  // open message" action the parent already wires to the trash button.
+  if (data?.haexMailKeydown === "Delete") emit("delete");
 };
 onMounted(() => window.addEventListener("message", onFrameMessage));
 onBeforeUnmount(() => window.removeEventListener("message", onFrameMessage));

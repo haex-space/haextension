@@ -5,7 +5,7 @@
     "database": [],
     "filesystem": [],
     "shell": [],
-    "web": []
+    "http": []
   },
   "icon": "haextension/haex-game-unicorn-logo.png",
   "singleInstance": true,

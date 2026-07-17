@@ -10,7 +10,7 @@
       }
     ],
     "shell": [],
-    "web": []
+    "http": []
   },
   "icon": "haextension/haex-draw-logo.png",
   "singleInstance": true,
