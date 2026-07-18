@@ -131,12 +131,16 @@ const iframeHeight = ref<number | null>(null);
 // Clamp so a malicious message can't force scrollHeight to an enormous value
 // and blow up the layout; the iframe falls back to its own scrollbar past this.
 const MAX_IFRAME_HEIGHT = 20000;
+// The real target of the link currently hovered, shown in a browser-style
+// status line — the visible label and the actual href can differ.
+const hoveredUrl = ref<string | null>(null);
 const onFrameMessage = (event: MessageEvent) => {
   if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
   const data = event.data as {
     haexMailOpenUrl?: unknown;
     haexMailContentHeight?: unknown;
     haexMailKeydown?: unknown;
+    haexMailHoverUrl?: unknown;
   };
   if (typeof data?.haexMailOpenUrl === "string") openUrlAsync(data.haexMailOpenUrl);
   if (typeof data?.haexMailContentHeight === "number") {
@@ -146,6 +150,9 @@ const onFrameMessage = (event: MessageEvent) => {
   // the page-level Delete shortcut can't see it — invoke the same "delete
   // open message" action the parent already wires to the trash button.
   if (data?.haexMailKeydown === "Delete") emit("delete");
+  if ("haexMailHoverUrl" in data) {
+    hoveredUrl.value = typeof data.haexMailHoverUrl === "string" ? data.haexMailHoverUrl : null;
+  }
 };
 onMounted(() => window.addEventListener("message", onFrameMessage));
 onBeforeUnmount(() => window.removeEventListener("message", onFrameMessage));
@@ -286,6 +293,7 @@ watch(() => mailStore.selectedMessageId, () => {
   // The old message's reported height would otherwise flash briefly before
   // the new iframe's own report arrives.
   iframeHeight.value = null;
+  hoveredUrl.value = null;
 });
 // Unmounting (route change, fullscreen overlay teardown) must still invalidate
 // any in-flight open so it can't assign a viewer after teardown — the watcher
@@ -294,7 +302,7 @@ onBeforeUnmount(closeViewer);
 </script>
 
 <template>
-  <article class="h-full flex flex-col">
+  <article class="h-full flex flex-col relative">
     <div
       v-if="!mailStore.messageBody && !mailStore.isLoadingMessage"
       class="flex-1 grid place-items-center text-sm text-muted-foreground"
@@ -408,6 +416,8 @@ onBeforeUnmount(closeViewer);
           href="#"
           class="text-primary underline underline-offset-2"
           @click.prevent="openUrlAsync(part.url)"
+          @mouseenter="hoveredUrl = part.url"
+          @mouseleave="hoveredUrl = null"
         >{{ part.text }}</a><template v-else>{{ part.text }}</template></template></div>
 
         <details
@@ -456,6 +466,17 @@ onBeforeUnmount(closeViewer);
             </li>
           </ul>
         </details>
+      </div>
+
+      <!-- Browser-style status line: shows the real target of the currently
+           hovered link, since the visible label and the actual href can
+           differ (phishing-relevant). Overlaid, not part of layout flow, so
+           it doesn't shift or scroll with the content. -->
+      <div
+        v-if="hoveredUrl"
+        class="absolute bottom-0 left-0 z-10 max-w-[70%] truncate rounded-tr border border-l-0 border-b-0 border-border bg-popover px-2 py-1 text-xs text-muted-foreground shadow-sm pointer-events-none"
+      >
+        {{ hoveredUrl }}
       </div>
     </template>
 
