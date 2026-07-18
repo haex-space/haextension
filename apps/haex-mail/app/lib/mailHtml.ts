@@ -86,7 +86,9 @@ const parseSrcset = (
 // of together with the rest of the message view. Also forwards the Delete key
 // so the host's "delete open message" shortcut still fires when focus is
 // inside the iframe's own document (keydown there never reaches the host
-// window — cross-frame events don't bubble across a frame boundary).
+// window — cross-frame events don't bubble across a frame boundary). Also
+// forwards link hover so the host can show the real target URL in a
+// browser-style status line (label text and actual href can differ).
 const LINK_BRIDGE =
   `<script>(function(){addEventListener("click",function(e){` +
   `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
@@ -95,6 +97,13 @@ const LINK_BRIDGE =
   `parent.postMessage({haexMailOpenUrl:h},"*");}},true);` +
   `addEventListener("keydown",function(e){` +
   `if(e.key==="Delete")parent.postMessage({haexMailKeydown:e.key},"*");},true);` +
+  `addEventListener("mouseover",function(e){` +
+  `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
+  `parent.postMessage({haexMailHoverUrl:a.getAttribute("href")||""},"*");},true);` +
+  `addEventListener("mouseout",function(e){` +
+  `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
+  `var to=e.relatedTarget;if(to&&a.contains(to))return;` +
+  `parent.postMessage({haexMailHoverUrl:null},"*");},true);` +
   `function reportHeight(){parent.postMessage({haexMailContentHeight:document.documentElement.scrollHeight},"*");}` +
   `new ResizeObserver(reportHeight).observe(document.body);` +
   `reportHeight();})();<\/script>`;
