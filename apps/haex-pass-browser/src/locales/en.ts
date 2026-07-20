@@ -119,4 +119,48 @@ export default {
     invalidMessage: 'Invalid message received',
     unknown: 'Unknown error',
   },
+  onboarding: {
+    title: 'Set up bookmark sync',
+    waitingForVault: 'Connecting to HaexVault...',
+    pendingApproval: 'Waiting for approval in HaexVault...',
+    collectionsLoadError: 'Could not load bookmark collections.',
+    retry: 'Retry',
+    permissionDenied: 'Bookmark permission was denied. You can try again.',
+    later: {
+      label: 'Not now',
+      description: 'Skip bookmark sync for now. You can turn it on later from the extension options.',
+    },
+    create: {
+      label: 'Create a new collection',
+      description: 'Your current browser bookmarks become the starting content of the new collection — nothing is deleted.',
+      nameLabel: 'Collection name',
+      namePlaceholder: 'e.g. Private, Work, Project X',
+      submit: 'Create and save my bookmarks',
+    },
+    activate: {
+      label: 'Load an existing collection',
+      description: 'Choose a collection already stored in the vault.',
+      replaceWarning: 'The bookmarks currently shown in this browser will be replaced by "{name}".',
+      submit: 'Load and replace',
+      bookmarkCount: '{count} bookmarks',
+      devices: 'Devices: {devices}',
+    },
+    deviceLabel: {
+      label: 'Device label',
+      description: 'Helps you tell devices apart when switching collections later.',
+    },
+    error: {
+      generic: 'Something went wrong. Please try again.',
+    },
+    done: {
+      disabled: 'Bookmark sync stays off. You can enable it anytime from the extension options.',
+      create: 'Your bookmarks are being saved to the new collection. You can close this tab.',
+      activate: 'The selected collection is being loaded. You can close this tab.',
+    },
+    validation: {
+      tooShort: 'This field cannot be empty.',
+      tooLong: 'This value is too long.',
+      invalidChars: 'This value contains characters that are not allowed.',
+    },
+  },
 }

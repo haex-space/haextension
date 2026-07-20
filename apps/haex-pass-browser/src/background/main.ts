@@ -1,6 +1,10 @@
+import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { vaultConnection } from './connection'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
+import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
+import { listCollections } from '~/bookmarks/vaultClient'
+import { defaultDisabledState, saveState } from '~/bookmarks/storage'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -23,8 +27,15 @@ vaultConnection.onStateChange((state) => {
   })
 })
 
-browser.runtime.onInstalled.addListener((): void => {
+browser.runtime.onInstalled.addListener((details): void => {
   console.log('[haex-pass] Extension installed')
+
+  // Bookmark onboarding runs once per fresh install, never on update.
+  if (details.reason === 'install') {
+    browser.tabs.create({ url: browser.runtime.getURL('dist/onboarding/index.html') }).catch((err) => {
+      console.error('[haex-pass] Failed to open onboarding page:', err)
+    })
+  }
 })
 
 // Handle messages from extension pages (options, popup) via browser.runtime.sendMessage
@@ -85,6 +96,26 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
         return { success: false, error: haexResponse.error || 'Unknown error' }
       })
       .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_LIST_COLLECTIONS) {
+    return listCollections()
+      .then(collections => ({ success: true, data: { collections } }))
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_ONBOARDING_DECISION) {
+    const decision = (message as OnboardingDecisionMessage).decision
+    if (decision === 'disabled') {
+      return saveState({
+        ...defaultDisabledState(),
+        settings: { schemaVersion: 1, mode: 'disabled', dismissedAt: new Date().toISOString() },
+      })
+        .then(() => ({ success: true }))
+        .catch(err => ({ success: false, error: String(err) }))
+    }
+    // 'create'/'activate' hand off to the sync service (native seed/activate) — wired in a later step.
+    return Promise.resolve({ success: false, error: 'Bookmark sync activation is not available yet.' })
   }
 
   return undefined

@@ -119,4 +119,48 @@ export default {
     invalidMessage: 'Ungültige Nachricht empfangen',
     unknown: 'Unbekannter Fehler',
   },
+  onboarding: {
+    title: 'Lesezeichen-Sync einrichten',
+    waitingForVault: 'Verbinde mit HaexVault...',
+    pendingApproval: 'Warte auf Genehmigung in HaexVault...',
+    collectionsLoadError: 'Sammlungen konnten nicht geladen werden.',
+    retry: 'Erneut versuchen',
+    permissionDenied: 'Die Lesezeichen-Berechtigung wurde abgelehnt. Du kannst es erneut versuchen.',
+    later: {
+      label: 'Nicht jetzt',
+      description: 'Lesezeichen-Sync vorerst überspringen. Du kannst ihn später in den Einstellungen aktivieren.',
+    },
+    create: {
+      label: 'Neue Sammlung anlegen',
+      description: 'Deine aktuellen Browser-Lesezeichen werden zum Startinhalt der neuen Sammlung — nichts wird gelöscht.',
+      nameLabel: 'Name der Sammlung',
+      namePlaceholder: 'z.B. Privat, Arbeit, Projekt X',
+      submit: 'Anlegen und Lesezeichen speichern',
+    },
+    activate: {
+      label: 'Bestehende Sammlung laden',
+      description: 'Wähle eine bereits im Vault gespeicherte Sammlung.',
+      replaceWarning: 'Die aktuell angezeigten Lesezeichen werden durch "{name}" ersetzt.',
+      submit: 'Laden und ersetzen',
+      bookmarkCount: '{count} Lesezeichen',
+      devices: 'Geräte: {devices}',
+    },
+    deviceLabel: {
+      label: 'Gerätelabel',
+      description: 'Hilft dir, Geräte beim späteren Umschalten zu unterscheiden.',
+    },
+    error: {
+      generic: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
+    },
+    done: {
+      disabled: 'Lesezeichen-Sync bleibt aus. Du kannst ihn jederzeit in den Einstellungen aktivieren.',
+      create: 'Deine Lesezeichen werden in der neuen Sammlung gespeichert. Du kannst diesen Tab schließen.',
+      activate: 'Die gewählte Sammlung wird geladen. Du kannst diesen Tab schließen.',
+    },
+    validation: {
+      tooShort: 'Dieses Feld darf nicht leer sein.',
+      tooLong: 'Dieser Wert ist zu lang.',
+      invalidChars: 'Dieser Wert enthält nicht erlaubte Zeichen.',
+    },
+  },
 }
