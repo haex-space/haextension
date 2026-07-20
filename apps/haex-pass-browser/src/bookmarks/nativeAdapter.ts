@@ -21,6 +21,7 @@ import { addBinding, buildBindingMaps, removeBindingByHaexId } from './storage'
 export interface NativeBookmarkNode {
   id: string
   parentId?: string
+  index?: number
   title: string
   url?: string
   type?: 'bookmark' | 'folder' | 'separator'
@@ -75,7 +76,7 @@ function isUnmodifiable(node: NativeBookmarkNode): boolean {
   return node.unmodifiable !== undefined
 }
 
-function nativeKind(node: NativeBookmarkNode): BookmarkNodeKind {
+export function nativeKind(node: NativeBookmarkNode): BookmarkNodeKind {
   if (node.type === 'separator')
     return 'separator'
   if (node.url !== undefined)

@@ -5,6 +5,7 @@ import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import { ExternalConnectionState } from '@haex-space/vault-sdk'
 import { validateTrimmedText } from '~/bookmarks/model'
 import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
+import { detectBrowserFamily } from '~/bookmarks/realEnvironment'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 import { useI18n } from '~/locales'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
@@ -40,27 +41,6 @@ const selectedCollection = computed(() =>
 )
 
 const isPaired = computed(() => connectionState.value === ExternalConnectionState.PAIRED)
-
-async function detectBrowserFamily(): Promise<BrowserFamily> {
-  const getBrowserInfo = (browser.runtime as unknown as { getBrowserInfo?: () => Promise<{ name: string }> }).getBrowserInfo
-  if (typeof getBrowserInfo === 'function') {
-    try {
-      const info = await getBrowserInfo()
-      if (/firefox/i.test(info.name))
-        return 'firefox'
-    } catch {
-      // fall through to UA sniffing
-    }
-  }
-  const ua = navigator.userAgent
-  if (/firefox/i.test(ua))
-    return 'firefox'
-  if (/edg\//i.test(ua))
-    return 'edge'
-  if (/chrome|chromium/i.test(ua))
-    return 'chromium'
-  return 'other'
-}
 
 function detectOsLabel(): string {
   const ua = navigator.userAgent

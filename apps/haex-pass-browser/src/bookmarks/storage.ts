@@ -64,6 +64,9 @@ export interface BookmarkSyncState {
   pendingOps: PendingBrowserOperation[]
   pendingDeletionReview: PendingDeletionReview | null
   ownCollectionMissing: boolean
+  /** Local mutations buffered since the last successful push, keyed by id (dedup on insert). */
+  pendingUpserts: BookmarkNodeRow[]
+  pendingDeleteIds: string[]
 }
 
 export function defaultDisabledState(): BookmarkSyncState {
@@ -75,6 +78,8 @@ export function defaultDisabledState(): BookmarkSyncState {
     pendingOps: [],
     pendingDeletionReview: null,
     ownCollectionMissing: false,
+    pendingUpserts: [],
+    pendingDeleteIds: [],
   }
 }
 
@@ -109,7 +114,29 @@ function isValidState(value: unknown): value is BookmarkSyncState {
     return false
   if (!Array.isArray(value.snapshot) || !Array.isArray(value.bindings) || !Array.isArray(value.pendingOps))
     return false
+  if (!Array.isArray(value.pendingUpserts) || !Array.isArray(value.pendingDeleteIds))
+    return false
   return true
+}
+
+// ---------------------------------------------------------------------------
+// Local mutation buffer — pure helpers, dedup by id on insert.
+// ---------------------------------------------------------------------------
+
+export function bufferUpsert(state: BookmarkSyncState, row: BookmarkNodeRow): BookmarkSyncState {
+  return {
+    ...state,
+    pendingUpserts: [...state.pendingUpserts.filter(r => r.id !== row.id), row],
+    pendingDeleteIds: state.pendingDeleteIds.filter(id => id !== row.id),
+  }
+}
+
+export function bufferDelete(state: BookmarkSyncState, haexId: string): BookmarkSyncState {
+  return {
+    ...state,
+    pendingUpserts: state.pendingUpserts.filter(r => r.id !== haexId),
+    pendingDeleteIds: state.pendingDeleteIds.includes(haexId) ? state.pendingDeleteIds : [...state.pendingDeleteIds, haexId],
+  }
 }
 
 /**
