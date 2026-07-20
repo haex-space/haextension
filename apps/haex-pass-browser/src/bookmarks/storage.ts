@@ -7,7 +7,7 @@
 // of silently falling back to an empty state — silently discarding a dirty
 // snapshot would be a data-loss bug (see plan 002 STOP conditions).
 
-import type { BookmarkNodeRow, BrowserFamily } from './model'
+import type { BookmarkNodeKind, BookmarkNodeRow, BrowserFamily } from './model'
 
 const STORAGE_KEY = 'haex-pass-bookmark-sync-state'
 const SCHEMA_VERSION = 1
@@ -46,13 +46,15 @@ export interface PendingBrowserOperation {
   browserId: string | null
   parentBrowserId: string | null
   beforeChildIds: string[]
-  expected: { title: string, url: string | null, index: number }
+  expected: { title: string, url: string | null, index: number, kind?: BookmarkNodeKind }
 }
 
 export interface PendingDeletionReview {
   deletedHaexIds: string[]
   mappedNodeCountBefore: number
   createdAt: string
+  /** Set by `confirmPendingDeletions`; lets `doSyncOnce` apply this exact diff once instead of re-quarantining it. */
+  approved: boolean
 }
 
 export interface BookmarkSyncState {

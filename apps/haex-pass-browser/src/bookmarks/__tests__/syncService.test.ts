@@ -551,6 +551,57 @@ describe('bulk-delete protection', () => {
     expect(state.pendingDeletionReview).not.toBeNull()
     expect(state.pendingDeletionReview?.deletedHaexIds).toHaveLength(30)
   })
+
+  async function setupQuarantinedBulkDelete() {
+    const vault = new FakeVault()
+    const a = createDevice(vault, 100)
+    const rows: BookmarkNodeRow[] = [
+      { id: 'root-toolbar', collectionId: '', parentId: null, rootKind: 'toolbar', kind: 'folder', title: null, url: null, position: 0 },
+    ]
+    for (let i = 0; i < 30; i++) {
+      rows.push({ id: `n${i}`, collectionId: '', parentId: 'root-toolbar', rootKind: null, kind: 'bookmark', title: `B${i}`, url: `https://b${i}.example`, position: i })
+    }
+    const collectionId = await vault.createCollection('Privat')
+    rows.forEach(r => (r.collectionId = collectionId))
+    await vault.upsertNodes(collectionId, rows)
+
+    await a.service.completeOnboardingActivate({ collectionId, collectionName: 'Privat', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+    await a.service.runSyncOnce() // settle onto the full snapshot
+
+    await vault.deleteNodes(collectionId, rows.slice(1).map(r => r.id)) // delete all 30 bookmarks at once
+    await a.service.runSyncOnce() // quarantined
+
+    return { vault, a, collectionId, rows }
+  }
+
+  it('confirming applies the quarantined diff instead of re-quarantining it forever', async () => {
+    const { a } = await setupQuarantinedBulkDelete()
+
+    await a.service.confirmPendingDeletions()
+    await a.service.runSyncOnce()
+
+    const state = storageState(a)
+    expect(state.pendingDeletionReview).toBeNull()
+    const tree = await a.env.getTree()
+    const toolbar = tree[0].children!.find(c => c.id === '1')!
+    expect(toolbar.children ?? []).toHaveLength(0) // the 30 bookmarks are now removed natively too
+
+    // A further sync pass must not re-detect and re-quarantine the (now converged) state.
+    await a.service.runSyncOnce()
+    expect(storageState(a).pendingDeletionReview).toBeNull()
+  })
+
+  it('rejecting pushes the deleted nodes back to the vault and clears the review', async () => {
+    const { vault, a, collectionId, rows } = await setupQuarantinedBulkDelete()
+    const upsertSpy = vi.spyOn(vault, 'upsertNodes')
+
+    await a.service.rejectPendingDeletions()
+
+    expect(storageState(a).pendingDeletionReview).toBeNull()
+    const [pushedCollectionId, pushedNodes] = upsertSpy.mock.calls.at(-1)!
+    expect(pushedCollectionId).toBe(collectionId)
+    expect(pushedNodes.map((n: BookmarkNodeRow) => n.id).sort()).toEqual(rows.slice(1).map(r => r.id).sort())
+  })
 })
 
 describe('oWN_COLLECTION_MISSING', () => {

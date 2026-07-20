@@ -156,6 +156,7 @@ export default {
     pendingApproval: 'Warte auf Genehmigung in HaexVault...',
     collectionsLoadError: 'Sammlungen konnten nicht geladen werden.',
     retry: 'Erneut versuchen',
+    back: 'Zurück',
     permissionDenied: 'Die Lesezeichen-Berechtigung wurde abgelehnt. Du kannst es erneut versuchen.',
     later: {
       label: 'Nicht jetzt',

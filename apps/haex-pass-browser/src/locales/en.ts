@@ -156,6 +156,7 @@ export default {
     pendingApproval: 'Waiting for approval in HaexVault...',
     collectionsLoadError: 'Could not load bookmark collections.',
     retry: 'Retry',
+    back: 'Back',
     permissionDenied: 'Bookmark permission was denied. You can try again.',
     later: {
       label: 'Not now',

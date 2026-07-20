@@ -172,8 +172,9 @@ export function buildForest(rows: BookmarkNodeRow[], orphanFallbackParentId: str
     const node = nodeById.get(row.id)!
     const parentId = effectiveParent.get(row.id) ?? null
     if (parentId === null || parentId === orphanFallbackParentId) {
-      if (parentId === orphanFallbackParentId && orphanFallbackParentId !== null) {
-        nodeById.get(orphanFallbackParentId)?.children.push(node)
+      const fallbackParent = orphanFallbackParentId !== null ? nodeById.get(orphanFallbackParentId) : undefined
+      if (parentId === orphanFallbackParentId && fallbackParent) {
+        fallbackParent.children.push(node)
       } else {
         roots.push(node)
       }

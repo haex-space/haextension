@@ -573,9 +573,13 @@ onMounted(async () => {
                   <li
                     v-for="collection in otherBookmarkCollections"
                     :key="collection.id"
+                    role="button"
+                    tabindex="0"
                     class="rounded-md border px-2 py-1.5 text-sm cursor-pointer"
                     :class="{ 'ring-2 ring-primary': bookmarkSwitchTargetId === collection.id }"
                     @click="bookmarkSwitchTargetId = collection.id"
+                    @keydown.enter="bookmarkSwitchTargetId = collection.id"
+                    @keydown.space.prevent="bookmarkSwitchTargetId = collection.id"
                   >
                     {{ collection.name }} ({{ collection.bookmarkCount }})
                   </li>

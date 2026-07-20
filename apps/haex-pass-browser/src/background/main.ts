@@ -63,7 +63,7 @@ vaultConnection.onStateChange((state) => {
 })
 
 browser.runtime.onInstalled.addListener((details): void => {
-  console.log('[haex-pass] Extension installed')
+  console.warn('[haex-pass] Extension installed')
 
   // Bookmark onboarding runs once per fresh install, never on update.
   if (details.reason === 'install') {

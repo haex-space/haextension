@@ -114,7 +114,7 @@ async function journaledCreate(
     browserId: null,
     parentBrowserId,
     beforeChildIds,
-    expected: { title: details.title, url: details.url ?? null, index: details.index },
+    expected: { title: details.title, url: details.url ?? null, index: details.index, kind: details.kind },
   }
   await journal.appendPending(op)
   const created = await api.create({ ...details, parentId: parentBrowserId })
@@ -390,7 +390,7 @@ export async function recoverJournal(
           title: op.expected.title,
           url: op.expected.url ?? undefined,
           index: op.expected.index,
-          kind: op.expected.url !== null ? 'bookmark' : 'folder',
+          kind: op.expected.kind ?? (op.expected.url !== null ? 'bookmark' : 'folder'),
         })
         bindings = addBinding(bindings, { haexId: op.haexId, browserId: created.id, bindingType: 'node' })
       } else if (matches.length === 1) {

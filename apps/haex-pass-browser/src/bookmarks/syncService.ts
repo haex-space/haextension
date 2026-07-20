@@ -98,6 +98,13 @@ function isBulkDelete(removedCount: number, mappedNodeCountBefore: number): bool
   return removedCount >= BULK_DELETE_MIN_ABSOLUTE && ratio >= BULK_DELETE_MIN_RATIO
 }
 
+function sameIdSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length)
+    return false
+  const setA = new Set(a)
+  return b.every(id => setA.has(id))
+}
+
 export class BookmarkSyncService {
   private readonly deps: SyncServiceDeps
   private mutexLocked = false
@@ -168,15 +175,16 @@ export class BookmarkSyncService {
     try {
       return await fn()
     } finally {
-      this.applyGuardActive = false
       // Final reconcile: nothing legitimate runs while the guard is up, so
       // anything an event handler buffered during this window was
       // necessarily self-generated — drop it rather than pushing it as a
-      // real local edit.
+      // real local edit. Keep the guard active until this write lands, so a
+      // real native edit can't load stale state and get clobbered by it.
       const result = await this.deps.storage.loadState()
       if (result.ok && (result.state.pendingUpserts.length > 0 || result.state.pendingDeleteIds.length > 0)) {
         await this.deps.storage.saveState({ ...result.state, pendingUpserts: [], pendingDeleteIds: [] })
       }
+      this.applyGuardActive = false
     }
   }
 
@@ -263,15 +271,19 @@ export class BookmarkSyncService {
       return
     }
 
-    // 5. Bulk-delete protection — halt *before* touching the native tree.
+    // 5. Bulk-delete protection — halt *before* touching the native tree,
+    // unless this exact diff was already approved via confirmPendingDeletions.
     const mappedNodeCountBefore = state.bindings.filter(b => b.bindingType === 'node').length
-    if (isBulkDelete(diff.removes.length, mappedNodeCountBefore)) {
+    const removedIds = diff.removes.map(r => r.id)
+    const approved = state.pendingDeletionReview?.approved && sameIdSet(state.pendingDeletionReview.deletedHaexIds, removedIds)
+    if (isBulkDelete(diff.removes.length, mappedNodeCountBefore) && !approved) {
       state = {
         ...state,
         pendingDeletionReview: {
-          deletedHaexIds: diff.removes.map(r => r.id),
+          deletedHaexIds: removedIds,
           mappedNodeCountBefore,
           createdAt: this.deps.now(),
+          approved: false,
         },
       }
       await this.deps.storage.saveState(state)
@@ -281,7 +293,7 @@ export class BookmarkSyncService {
     // 6. Apply the diff to the native tree, guarded against feedback loops.
     const applied = await this.runGuarded(() => applyDiff(this.deps.api, journal, state.bindings, diff))
     settings = { ...settings, dirty: false, lastSyncAt: this.deps.now(), lastError: null }
-    state = { ...state, bindings: applied.bindings, snapshot: nodes, settings }
+    state = { ...state, bindings: applied.bindings, snapshot: nodes, settings, pendingDeletionReview: null }
     await this.deps.storage.saveState(state)
     await this.deps.vault.upsertDevice({
       collectionId,
@@ -496,19 +508,36 @@ export class BookmarkSyncService {
     }
   }
 
+  /** Approves the quarantined diff so the next sync pass applies it instead of re-quarantining it. */
   async confirmPendingDeletions(): Promise<void> {
     const result = await this.deps.storage.loadState()
     if (!result.ok || !result.state.pendingDeletionReview)
       return
-    const state = { ...result.state, pendingDeletionReview: null }
+    const state = {
+      ...result.state,
+      pendingDeletionReview: { ...result.state.pendingDeletionReview, approved: true },
+    }
     await this.deps.storage.saveState(state)
     this.scheduleSync(0)
   }
 
+  /** Pushes the quarantined nodes back to the vault to undo the remote bulk delete, leaving the local tree untouched. */
   async rejectPendingDeletions(): Promise<void> {
-    // Leave the quarantine in place — do nothing but let the caller know
-    // there's still a review pending; nothing to persist here since we
-    // simply don't clear `pendingDeletionReview`.
+    const result = await this.deps.storage.loadState()
+    if (!result.ok || !result.state.pendingDeletionReview || result.state.settings.mode !== 'active')
+      return
+    const { collectionId } = result.state.settings
+    const { deletedHaexIds } = result.state.pendingDeletionReview
+    const restoredNodes = result.state.snapshot.filter(n => deletedHaexIds.includes(n.id))
+    try {
+      if (restoredNodes.length > 0)
+        await this.deps.vault.upsertNodes(collectionId, restoredNodes)
+      await this.deps.storage.saveState({ ...result.state, pendingDeletionReview: null })
+      this.scheduleSync(0)
+    } catch (err) {
+      const settings = { ...result.state.settings, lastError: String(err) }
+      await this.deps.storage.saveState({ ...result.state, settings })
+    }
   }
 
   // -------------------------------------------------------------------------

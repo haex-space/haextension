@@ -350,7 +350,7 @@ async function handleActivateSubmit() {
               >
                 {{ t('onboarding.create.submit') }}
               </button>
-              <button class="px-4 py-2 rounded-md border text-sm" @click="mode = 'choose'">
+              <button class="px-4 py-2 rounded-md border text-sm" :aria-label="t('onboarding.back')" @click="mode = 'choose'">
                 ←
               </button>
             </div>
@@ -362,9 +362,13 @@ async function handleActivateSubmit() {
               <li
                 v-for="collection in collections"
                 :key="collection.id"
+                role="button"
+                tabindex="0"
                 class="rounded-md border px-3 py-2 text-sm cursor-pointer"
                 :class="{ 'ring-2 ring-primary': selectedCollectionId === collection.id }"
                 @click="selectedCollectionId = collection.id"
+                @keydown.enter="selectedCollectionId = collection.id"
+                @keydown.space.prevent="selectedCollectionId = collection.id"
               >
                 <div class="font-medium">
                   {{ collection.name }}
@@ -407,7 +411,7 @@ async function handleActivateSubmit() {
               </button>
             </template>
 
-            <button class="px-4 py-2 rounded-md border text-sm" @click="mode = 'choose'">
+            <button class="px-4 py-2 rounded-md border text-sm" :aria-label="t('onboarding.back')" @click="mode = 'choose'">
               ←
             </button>
           </div>
