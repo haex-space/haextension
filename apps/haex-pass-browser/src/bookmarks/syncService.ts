@@ -8,13 +8,14 @@
 // column-wise LWW + tombstones) and a fake bookmark tree — no `browser`
 // global required.
 
-import type { BookmarkCollectionSummary, DeviceUpsertPayload } from './vaultClient'
-import type { NativeBookmarkNode, NativeBookmarksApi } from './nativeAdapter'
+import type { BookmarkStatus } from './messages'
 import type { BookmarkNodeRow, BrowserFamily } from './model'
+import type { NativeBookmarkNode, NativeBookmarksApi } from './nativeAdapter'
 import type { BookmarkSyncState, LoadResult } from './storage'
+import type { BookmarkCollectionSummary, DeviceUpsertPayload } from './vaultClient'
 import { diffForests, isDiffEmpty, rootKindForNativeId } from './model'
 import { activateCollection, applyDiff, nativeKind, recoverJournal, seedCollectionFromNative } from './nativeAdapter'
-import { addBinding, buildBindingMaps, bufferDelete, bufferUpsert, removeBindingByHaexId } from './storage'
+import { addBinding, bufferDelete, bufferUpsert, buildBindingMaps, removeBindingByHaexId } from './storage'
 
 export const BOOKMARK_SYNC_ALARM_NAME = 'haex-pass-bookmark-sync'
 const ALARM_PERIOD_MINUTES = 5
@@ -123,11 +124,11 @@ export class BookmarkSyncService {
     if (this.listenersRegistered)
       return
     this.listenersRegistered = true
-    this.deps.events.onCreated((id, node) => { void this.handleCreated(id, node) })
-    this.deps.events.onChanged((id, changes) => { void this.handleChanged(id, changes) })
-    this.deps.events.onMoved((id, info) => { void this.handleMoved(id, info) })
-    this.deps.events.onRemoved((id, info) => { void this.handleRemoved(id, info) })
-    this.deps.events.onPermissionRemoved((permissions) => { void this.handlePermissionRemoved(permissions) })
+    this.deps.events.onCreated((id, node) => void this.handleCreated(id, node))
+    this.deps.events.onChanged((id, changes) => void this.handleChanged(id, changes))
+    this.deps.events.onMoved((id, info) => void this.handleMoved(id, info))
+    this.deps.events.onRemoved((id, info) => void this.handleRemoved(id, info))
+    this.deps.events.onPermissionRemoved(permissions => void this.handlePermissionRemoved(permissions))
     this.deps.alarms.create(BOOKMARK_SYNC_ALARM_NAME, { periodInMinutes: ALARM_PERIOD_MINUTES })
     this.deps.alarms.onAlarm((alarm) => {
       if (alarm.name === BOOKMARK_SYNC_ALARM_NAME)
@@ -467,6 +468,34 @@ export class BookmarkSyncService {
     }
   }
 
+  /** Reduced status for Options/Popup — never includes url/title-bearing snapshot/binding data. */
+  async getStatus(): Promise<BookmarkStatus | null> {
+    const result = await this.deps.storage.loadState()
+    if (!result.ok)
+      return null
+    const { settings } = result.state
+    if (settings.mode === 'disabled')
+      return { mode: 'disabled' }
+    return {
+      mode: 'active',
+      collectionId: settings.collectionId,
+      collectionName: settings.collectionName,
+      replicaId: settings.replicaId,
+      browserFamily: settings.browserFamily,
+      deviceLabel: settings.deviceLabel,
+      dirty: settings.dirty,
+      lastSyncAt: settings.lastSyncAt,
+      lastError: settings.lastError,
+      ownCollectionMissing: result.state.ownCollectionMissing,
+      pendingDeletionReview: result.state.pendingDeletionReview
+        ? {
+            deletedCount: result.state.pendingDeletionReview.deletedHaexIds.length,
+            mappedNodeCountBefore: result.state.pendingDeletionReview.mappedNodeCountBefore,
+          }
+        : null,
+    }
+  }
+
   async confirmPendingDeletions(): Promise<void> {
     const result = await this.deps.storage.loadState()
     if (!result.ok || !result.state.pendingDeletionReview)
@@ -639,18 +668,30 @@ export class BookmarkSyncService {
   private async handlePermissionRemoved(permissions: { permissions?: string[] }): Promise<void> {
     if (!permissions.permissions?.includes('bookmarks'))
       return
+    await this.disableSync()
+  }
+
+  /**
+   * Turns sync off: clears the alarm and any pending debounce timer, and
+   * flips settings to `disabled`. Used both for the onboarding "later"/
+   * Options "disable sync" decision and for a revoked bookmarks permission.
+   * Native event listeners stay registered but every handler no-ops as soon
+   * as it re-reads `mode !== 'active'`, so this is safe even though they
+   * aren't individually torn down.
+   */
+  async disableSync(): Promise<void> {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer)
       this.debounceTimer = null
     }
     await this.deps.alarms.clear(BOOKMARK_SYNC_ALARM_NAME)
     const result = await this.deps.storage.loadState()
-    if (result.ok && result.state.settings.mode === 'active') {
-      await this.deps.storage.saveState({
-        ...result.state,
-        settings: { schemaVersion: 1, mode: 'disabled', dismissedAt: this.deps.now() },
-      })
-    }
+    if (!result.ok)
+      return
+    await this.deps.storage.saveState({
+      ...result.state,
+      settings: { schemaVersion: 1, mode: 'disabled', dismissedAt: this.deps.now() },
+    })
   }
 
   /** Exposed for tests/diagnostics — not part of the public sync contract. */

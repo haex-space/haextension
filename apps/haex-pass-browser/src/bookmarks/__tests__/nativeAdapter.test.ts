@@ -4,6 +4,9 @@ import type { BookmarkIdBinding, PendingBrowserOperation } from '../storage'
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
 
+import { diffForests } from '../model'
+import { activateCollection, applyDiff, recoverJournal, seedCollectionFromNative } from '../nativeAdapter'
+
 // nativeAdapter.ts imports storage.ts, which auto-imports the real
 // `webextension-polyfill` (it references `browser.storage.local`) — that
 // module throws immediately outside an actual extension context, so it must
@@ -12,9 +15,6 @@ vi.mock('webextension-polyfill', () => {
   const fake = createFakeBrowser()
   return { default: fake, ...fake }
 })
-
-import { diffForests } from '../model'
-import { activateCollection, applyDiff, recoverJournal, seedCollectionFromNative } from '../nativeAdapter'
 
 /** Recursive lookup — `chromiumTree()` nests the real roots under a synthetic id "0". */
 function findInTree(nodes: NativeBookmarkNode[], id: string): NativeBookmarkNode | undefined {

@@ -29,3 +29,24 @@ export interface BackgroundAckResponse {
   success: boolean
   error?: string
 }
+
+/**
+ * Reduced status for Options/Popup — deliberately excludes the full
+ * snapshot/bindings (which carry url/title for every node); only counts and
+ * settings-level fields cross the messaging boundary.
+ */
+export type BookmarkStatus
+  = | { mode: 'disabled' }
+    | {
+      mode: 'active'
+      collectionId: string
+      collectionName: string
+      replicaId: string
+      browserFamily: BrowserFamily
+      deviceLabel: string
+      dirty: boolean
+      lastSyncAt: string | null
+      lastError: string | null
+      ownCollectionMissing: boolean
+      pendingDeletionReview: { deletedCount: number, mappedNodeCountBefore: number } | null
+    }

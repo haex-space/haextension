@@ -1,19 +1,20 @@
 import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import { onMessage, sendMessage } from 'webext-bridge/background'
-import { vaultConnection } from './connection'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import {
   BOOKMARKS_CONFIRM_DELETIONS,
+  BOOKMARKS_GET_STATUS,
   BOOKMARKS_LIST_COLLECTIONS,
   BOOKMARKS_ONBOARDING_DECISION,
   BOOKMARKS_REJECT_DELETIONS,
   BOOKMARKS_SWITCH_COLLECTION,
   BOOKMARKS_SYNC_NOW,
 } from '~/bookmarks/messages'
-import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice, upsertNodes } from '~/bookmarks/vaultClient'
-import { defaultDisabledState, loadState, saveState } from '~/bookmarks/storage'
-import { BookmarkSyncService } from '~/bookmarks/syncService'
 import { createRealAlarmsApi, createRealBookmarkEvents, createRealNativeBookmarksApi, detectBrowserFamily } from '~/bookmarks/realEnvironment'
+import { loadState, saveState } from '~/bookmarks/storage'
+import { BookmarkSyncService } from '~/bookmarks/syncService'
+import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice, upsertNodes } from '~/bookmarks/vaultClient'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
+import { vaultConnection } from './connection'
 
 let bookmarkSyncServicePromise: Promise<BookmarkSyncService> | null = null
 
@@ -141,11 +142,11 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
   if (message.type === BOOKMARKS_ONBOARDING_DECISION) {
     const decisionMsg = message as OnboardingDecisionMessage
     if (decisionMsg.decision === 'disabled') {
-      return saveState({
-        ...defaultDisabledState(),
-        settings: { schemaVersion: 1, mode: 'disabled', dismissedAt: new Date().toISOString() },
-      })
-        .then(() => ({ success: true }))
+      return getBookmarkSyncService()
+        .then(async (service) => {
+          await service.disableSync()
+          return { success: true }
+        })
         .catch(err => ({ success: false, error: String(err) }))
     }
     return getBookmarkSyncService().then((service) => {
@@ -202,6 +203,15 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
       .catch(err => ({ success: false, error: String(err) }))
   }
 
+  if (message.type === BOOKMARKS_GET_STATUS) {
+    return getBookmarkSyncService()
+      .then(async (service) => {
+        const status = await service.getStatus()
+        return { success: true, data: { status } }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
   return undefined
 })
 
@@ -214,8 +224,7 @@ onMessage('connect', async () => {
   try {
     await vaultConnection.connect()
     return { success: true }
-  }
-  catch (err) {
+  } catch (err) {
     return { success: false, error: String(err) }
   }
 })
@@ -245,8 +254,7 @@ onMessage('get-items', async (message) => {
     const result = await vaultConnection.getItems(url, fields)
     console.log('[haex-pass] get-items result:', result)
     return { success: true, data: result }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] get-items error:', err)
     return { success: false, error: String(err) }
   }
@@ -257,8 +265,7 @@ onMessage('fill-field', async (message) => {
   try {
     await sendMessage('fill-field', { fieldId, value }, { context: 'content-script', tabId })
     return { success: true }
-  }
-  catch (err) {
+  } catch (err) {
     return { success: false, error: String(err) }
   }
 })
@@ -269,8 +276,7 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // Notify content script that page is ready
     try {
       await sendMessage('page-loaded', { url: tab.url }, { context: 'content-script', tabId })
-    }
-    catch {
+    } catch {
       // Content script may not be loaded yet
     }
   }
@@ -305,8 +311,7 @@ onMessage('passkey-create', async (message) => {
       return { success: true, data: haexResponse.data }
     }
     return { success: false, error: haexResponse.error || 'Unknown error' }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] passkey-create error:', err)
     return { success: false, error: String(err) }
   }
@@ -336,8 +341,7 @@ onMessage('passkey-get', async (message) => {
       return { success: true, data: haexResponse.data }
     }
     return { success: false, error: haexResponse.error || 'Unknown error' }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] passkey-get error:', err)
     return { success: false, error: String(err) }
   }

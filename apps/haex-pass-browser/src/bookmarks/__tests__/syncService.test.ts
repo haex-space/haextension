@@ -1,10 +1,13 @@
 import type { BookmarkNodeRow } from '../model'
-import type { AlarmsApi, BookmarkEvents, SyncServiceDeps } from '../syncService'
 import type { NativeBookmarkNode, NativeBookmarksApi } from '../nativeAdapter'
-import type { BookmarkCollectionSummary, DeviceUpsertPayload } from '../vaultClient'
 import type { BookmarkSyncState, LoadResult } from '../storage'
+import type { AlarmsApi, BookmarkEvents, SyncServiceDeps } from '../syncService'
+import type { BookmarkCollectionSummary, DeviceUpsertPayload } from '../vaultClient'
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
+
+import { defaultDisabledState } from '../storage'
+import { BookmarkSyncService } from '../syncService'
 
 // syncService.ts -> nativeAdapter.ts -> storage.ts auto-imports the real
 // `webextension-polyfill`, which throws outside an extension context.
@@ -12,9 +15,6 @@ vi.mock('webextension-polyfill', () => {
   const fake = createFakeBrowser()
   return { default: fake, ...fake }
 })
-
-import { BookmarkSyncService } from '../syncService'
-import { defaultDisabledState } from '../storage'
 
 // ---------------------------------------------------------------------------
 // Fake vault: in-memory collections with column-wise LWW + tombstones.
@@ -253,7 +253,10 @@ class FakeDeviceEnvironment implements NativeBookmarksApi {
   alarms(): AlarmsApi {
     return {
       create: () => { this.alarmCreated = true },
-      clear: async () => { this.alarmCleared = true; return true },
+      clear: async () => {
+        this.alarmCleared = true
+        return true
+      },
       onAlarm: cb => this.alarmListeners.push(cb),
     }
   }
@@ -301,7 +304,7 @@ function createDevice(vault: FakeVault, startId: number) {
 }
 
 describe('onboarding create + activate', () => {
-  it('A creates a collection from existing bookmarks — nothing deleted, everything uploaded', async () => {
+  it('a creates a collection from existing bookmarks — nothing deleted, everything uploaded', async () => {
     const vault = new FakeVault()
     const a = createDevice(vault, 100)
     await a.env.create({ parentId: '1', title: 'Existing', url: 'https://existing.example', index: 0, kind: 'bookmark' })
@@ -324,7 +327,7 @@ describe('onboarding create + activate', () => {
     expect(toolbar.children!.some(c => c.url === 'https://existing.example')).toBe(true)
   })
 
-  it('B activates the collection — replaces Bs native bookmarks with As content', async () => {
+  it('b activates the collection — replaces Bs native bookmarks with As content', async () => {
     const vault = new FakeVault()
     const a = createDevice(vault, 100)
     await a.env.create({ parentId: '1', title: 'FromA', url: 'https://from-a.example', index: 0, kind: 'bookmark' })
@@ -367,7 +370,7 @@ describe('ongoing sync between two devices', () => {
     return { vault, a, b, collectionId }
   }
 
-  it('A add/rename/move mirrors to B after both sync', async () => {
+  it('a add/rename/move mirrors to B after both sync', async () => {
     const { a, b } = await setupPairedDevices()
 
     const newId = await a.env.userCreate('1', 'New', 'https://new.example', 0)
@@ -386,7 +389,7 @@ describe('ongoing sync between two devices', () => {
     expect(bToolbar.children!.find(c => c.url === 'https://new.example')!.title).toBe('Renamed')
   })
 
-  it('B delete removes the link on A after both sync', async () => {
+  it('b delete removes the link on A after both sync', async () => {
     const { a, b } = await setupPairedDevices()
     await a.env.userCreate('1', 'ToDelete', 'https://to-delete.example', 0)
     await a.service.runSyncOnce()
@@ -488,7 +491,7 @@ describe('switching collections', () => {
 
     // Simulate the vault being unreachable for the flush attempt.
     const originalUpsert = vault.upsertNodes
-    vault.upsertNodes = async () => { throw new Error('offline') }
+    vault.upsertNodes = async () => Promise.reject(new Error('offline'))
 
     const arbeitId = await vault.createCollection('Arbeit')
     const result = await a.service.switchCollection({ collectionId: arbeitId, collectionName: 'Arbeit' })
@@ -550,7 +553,7 @@ describe('bulk-delete protection', () => {
   })
 })
 
-describe('OWN_COLLECTION_MISSING', () => {
+describe('oWN_COLLECTION_MISSING', () => {
   it('flags ownCollectionMissing instead of auto-recreating when the collection disappears', async () => {
     const vault = new FakeVault()
     const a = createDevice(vault, 100)

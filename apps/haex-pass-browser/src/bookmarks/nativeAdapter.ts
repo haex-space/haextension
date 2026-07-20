@@ -13,8 +13,8 @@
 // quarantine instead of risking a duplicate), for `remove` by checking
 // whether the native id is already gone.
 
-import type { BookmarkIdBinding, PendingBrowserOperation } from './storage'
 import type { BookmarkNodeKind, BookmarkNodeRow, BrowserFamily, ForestDiff } from './model'
+import type { BookmarkIdBinding, PendingBrowserOperation } from './storage'
 import { buildForest, nativeRootIdsForFamily, resolveNativeRootId } from './model'
 import { addBinding, buildBindingMaps, removeBindingByHaexId } from './storage'
 

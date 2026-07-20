@@ -4,9 +4,8 @@
 // existing password/passkey wrappers in `background/connection.ts`, plus
 // defensive response validation. Never logs url/title/publicKey.
 
-import type { BrowserFamily } from './model'
+import type { BookmarkNodeRow, BrowserFamily } from './model'
 import { vaultConnection } from '~/background/connection'
-import type { BookmarkNodeRow } from './model'
 
 const REQUEST_TIMEOUT_MS = 30000
 

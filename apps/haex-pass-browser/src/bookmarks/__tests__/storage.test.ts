@@ -1,11 +1,10 @@
+// This import order is deliberate, not alphabetical: `createFakeBrowser`
+// must be imported before `webextension-polyfill` — the mock factory below
+// references it, and module init runs in import-declaration order (the
+// textual position of `vi.mock` itself doesn't matter).
+/* eslint-disable perfectionist/sort-imports */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
-
-vi.mock('webextension-polyfill', () => {
-  const fake = createFakeBrowser()
-  return { default: fake, ...fake }
-})
-
 import browser from 'webextension-polyfill'
 import {
   addBinding,
@@ -15,6 +14,12 @@ import {
   loadState,
   saveState,
 } from '../storage'
+/* eslint-enable perfectionist/sort-imports */
+
+vi.mock('webextension-polyfill', () => {
+  const fake = createFakeBrowser()
+  return { default: fake, ...fake }
+})
 
 const fake = browser as unknown as ReturnType<typeof createFakeBrowser>
 

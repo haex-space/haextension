@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { BrowserFamily } from '~/bookmarks/model'
 import type { BackgroundAckResponse, OnboardingDecisionMessage } from '~/bookmarks/messages'
+import type { BrowserFamily } from '~/bookmarks/model'
 import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import { ExternalConnectionState } from '@haex-space/vault-sdk'
-import { validateTrimmedText } from '~/bookmarks/model'
 import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
+import { validateTrimmedText } from '~/bookmarks/model'
 import { detectBrowserFamily } from '~/bookmarks/realEnvironment'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 import { useI18n } from '~/locales'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()

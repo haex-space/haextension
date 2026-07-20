@@ -1,18 +1,23 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { ExternalConnectionState } from '@haex-space/vault-sdk'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// This import order is deliberate, not alphabetical: `createFakeBrowser`
+// must come first — `~/locales` and other imports below transitively
+// auto-import 'webextension-polyfill', and module init runs in
+// import-declaration order, not the (irrelevant) position of `vi.mock`.
+/* eslint-disable perfectionist/sort-imports */
 import { createFakeBrowser } from '~/tests/webextensionMock'
+import { ExternalConnectionState } from '@haex-space/vault-sdk'
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
+import { i18n } from '~/locales'
+import { MSG_CONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
+import browser from 'webextension-polyfill'
+import Onboarding from './Onboarding.vue'
+/* eslint-enable perfectionist/sort-imports */
 
 vi.mock('webextension-polyfill', () => {
   const fake = createFakeBrowser()
   return { default: fake, ...fake }
 })
-
-import browser from 'webextension-polyfill'
-import { i18n } from '~/locales'
-import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
-import { MSG_CONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
-import Onboarding from './Onboarding.vue'
 
 const fake = browser as unknown as ReturnType<typeof createFakeBrowser>
 

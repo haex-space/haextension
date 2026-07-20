@@ -299,6 +299,7 @@ export function isDiffEmpty(diff: ForestDiff): boolean {
 
 // U+0000-U+001F except tab/LF/CR, which are normalizable whitespace.
 const FORBIDDEN_CONTROL_CHARS = new RegExp(
+  // eslint-disable-next-line regexp/no-obscure-range -- built from charCodes, not literal chars
   `[${String.fromCharCode(0)}-${String.fromCharCode(8)}${String.fromCharCode(11)}${String.fromCharCode(12)}${String.fromCharCode(14)}-${String.fromCharCode(31)}]`,
 )
 
