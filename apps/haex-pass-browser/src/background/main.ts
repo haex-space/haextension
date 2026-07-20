@@ -1,6 +1,45 @@
+import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import { onMessage, sendMessage } from 'webext-bridge/background'
+import {
+  BOOKMARKS_CONFIRM_DELETIONS,
+  BOOKMARKS_GET_STATUS,
+  BOOKMARKS_LIST_COLLECTIONS,
+  BOOKMARKS_ONBOARDING_DECISION,
+  BOOKMARKS_REJECT_DELETIONS,
+  BOOKMARKS_SWITCH_COLLECTION,
+  BOOKMARKS_SYNC_NOW,
+} from '~/bookmarks/messages'
+import { createRealAlarmsApi, createRealBookmarkEvents, createRealNativeBookmarksApi, detectBrowserFamily } from '~/bookmarks/realEnvironment'
+import { loadState, saveState } from '~/bookmarks/storage'
+import { BookmarkSyncService } from '~/bookmarks/syncService'
+import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice, upsertNodes } from '~/bookmarks/vaultClient'
+import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import { vaultConnection } from './connection'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
+
+let bookmarkSyncServicePromise: Promise<BookmarkSyncService> | null = null
+
+async function getBookmarkSyncService(): Promise<BookmarkSyncService> {
+  if (!bookmarkSyncServicePromise) {
+    bookmarkSyncServicePromise = (async () => {
+      const browserFamily = await detectBrowserFamily()
+      const service = new BookmarkSyncService({
+        api: createRealNativeBookmarksApi(browserFamily),
+        events: createRealBookmarkEvents(),
+        alarms: createRealAlarmsApi(),
+        storage: { loadState, saveState },
+        vault: { listCollections, createCollection, listNodes, upsertNodes, deleteNodes, upsertDevice },
+        now: () => new Date().toISOString(),
+      })
+      await service.start()
+      return service
+    })()
+  }
+  return bookmarkSyncServicePromise
+}
+
+// Bring the sync service up (and, if a collection is already active, resume
+// listening + run an initial sync pass) as soon as the service worker starts.
+void getBookmarkSyncService()
 
 // only on dev mode
 if (import.meta.hot) {
@@ -23,8 +62,15 @@ vaultConnection.onStateChange((state) => {
   })
 })
 
-browser.runtime.onInstalled.addListener((): void => {
-  console.log('[haex-pass] Extension installed')
+browser.runtime.onInstalled.addListener((details): void => {
+  console.warn('[haex-pass] Extension installed')
+
+  // Bookmark onboarding runs once per fresh install, never on update.
+  if (details.reason === 'install') {
+    browser.tabs.create({ url: browser.runtime.getURL('dist/onboarding/index.html') }).catch((err) => {
+      console.error('[haex-pass] Failed to open onboarding page:', err)
+    })
+  }
 })
 
 // Handle messages from extension pages (options, popup) via browser.runtime.sendMessage
@@ -87,6 +133,85 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
       .catch(err => ({ success: false, error: String(err) }))
   }
 
+  if (message.type === BOOKMARKS_LIST_COLLECTIONS) {
+    return listCollections()
+      .then(collections => ({ success: true, data: { collections } }))
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_ONBOARDING_DECISION) {
+    const decisionMsg = message as OnboardingDecisionMessage
+    if (decisionMsg.decision === 'disabled') {
+      return getBookmarkSyncService()
+        .then(async (service) => {
+          await service.disableSync()
+          return { success: true }
+        })
+        .catch(err => ({ success: false, error: String(err) }))
+    }
+    return getBookmarkSyncService().then((service) => {
+      if (decisionMsg.decision === 'create') {
+        return service.completeOnboardingCreate({
+          name: decisionMsg.name,
+          replicaId: decisionMsg.replicaId,
+          browserFamily: decisionMsg.browserFamily,
+          deviceLabel: decisionMsg.deviceLabel,
+        })
+      }
+      return service.completeOnboardingActivate({
+        collectionId: decisionMsg.collectionId,
+        collectionName: decisionMsg.collectionName,
+        replicaId: decisionMsg.replicaId,
+        browserFamily: decisionMsg.browserFamily,
+        deviceLabel: decisionMsg.deviceLabel,
+      })
+    })
+  }
+
+  if (message.type === BOOKMARKS_SYNC_NOW) {
+    return getBookmarkSyncService()
+      .then(async (service) => {
+        await service.runSyncOnce()
+        return { success: true }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_SWITCH_COLLECTION) {
+    const switchMsg = message as { collectionId: string, collectionName: string }
+    return getBookmarkSyncService()
+      .then(service => service.switchCollection({ collectionId: switchMsg.collectionId, collectionName: switchMsg.collectionName }))
+      .then(result => (result.ok ? { success: true } : { success: false, error: result.error }))
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_CONFIRM_DELETIONS) {
+    return getBookmarkSyncService()
+      .then(async (service) => {
+        await service.confirmPendingDeletions()
+        return { success: true }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_REJECT_DELETIONS) {
+    return getBookmarkSyncService()
+      .then(async (service) => {
+        await service.rejectPendingDeletions()
+        return { success: true }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
+  if (message.type === BOOKMARKS_GET_STATUS) {
+    return getBookmarkSyncService()
+      .then(async (service) => {
+        const status = await service.getStatus()
+        return { success: true, data: { status } }
+      })
+      .catch(err => ({ success: false, error: String(err) }))
+  }
+
   return undefined
 })
 
@@ -99,8 +224,7 @@ onMessage('connect', async () => {
   try {
     await vaultConnection.connect()
     return { success: true }
-  }
-  catch (err) {
+  } catch (err) {
     return { success: false, error: String(err) }
   }
 })
@@ -130,8 +254,7 @@ onMessage('get-items', async (message) => {
     const result = await vaultConnection.getItems(url, fields)
     console.log('[haex-pass] get-items result:', result)
     return { success: true, data: result }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] get-items error:', err)
     return { success: false, error: String(err) }
   }
@@ -142,8 +265,7 @@ onMessage('fill-field', async (message) => {
   try {
     await sendMessage('fill-field', { fieldId, value }, { context: 'content-script', tabId })
     return { success: true }
-  }
-  catch (err) {
+  } catch (err) {
     return { success: false, error: String(err) }
   }
 })
@@ -154,8 +276,7 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // Notify content script that page is ready
     try {
       await sendMessage('page-loaded', { url: tab.url }, { context: 'content-script', tabId })
-    }
-    catch {
+    } catch {
       // Content script may not be loaded yet
     }
   }
@@ -190,8 +311,7 @@ onMessage('passkey-create', async (message) => {
       return { success: true, data: haexResponse.data }
     }
     return { success: false, error: haexResponse.error || 'Unknown error' }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] passkey-create error:', err)
     return { success: false, error: String(err) }
   }
@@ -221,8 +341,7 @@ onMessage('passkey-get', async (message) => {
       return { success: true, data: haexResponse.data }
     }
     return { success: false, error: haexResponse.error || 'Unknown error' }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('[haex-pass] passkey-get error:', err)
     return { success: false, error: String(err) }
   }

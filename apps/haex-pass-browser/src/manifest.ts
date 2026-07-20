@@ -1,6 +1,6 @@
-import fs from 'fs-extra'
 import type { Manifest } from 'webextension-polyfill'
 import type PkgType from '../package.json'
+import fs from 'fs-extra'
 import { isDev, isFirefox, port, r } from '../scripts/utils'
 
 export async function getManifest() {
@@ -51,6 +51,10 @@ export async function getManifest() {
       'tabs',
       'storage',
       'activeTab',
+      'alarms',
+    ],
+    optional_permissions: [
+      'bookmarks',
     ],
     host_permissions: ['*://*/*'],
     content_scripts: [
