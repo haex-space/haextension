@@ -1,5 +1,6 @@
 import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
 import { notebooks, pages, type SelectNotebook, type SelectPage, type StrokeData, type PageTemplate, type PageTable } from "~/database/schemas";
+import { FULL_PAGES_TABLE } from "~/stores/spaces";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
@@ -144,6 +145,23 @@ export const useNotebookStore = defineStore("notebook", () => {
     const pageId = crypto.randomUUID();
 
     await db.insert(pages).values({ id: pageId, notebookId: currentNotebook.value.id, pageNumber, template: tmpl });
+
+    // Auto-share the new page if the whole notebook is shared (space_id set).
+    // groupId = notebookId is the invariant used when sharing (see spaces store).
+    if (currentNotebook.value.spaceId) {
+      try {
+        await haexVault.client.spaces.assignAsync([
+          {
+            tableName: FULL_PAGES_TABLE,
+            rowPks: JSON.stringify({ id: pageId }),
+            spaceId: currentNotebook.value.spaceId,
+            groupId: currentNotebook.value.id,
+          },
+        ]);
+      } catch (err) {
+        console.warn("[haex-notes] auto-assign new page to space failed:", err);
+      }
+    }
 
     // Reload pages
     const allPages = await db.select().from(pages).where(eq(pages.notebookId, currentNotebook.value.id)).orderBy(asc(pages.pageNumber));
