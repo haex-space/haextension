@@ -83,6 +83,41 @@ export const useSpacesStore = defineStore("spaces", () => {
     await orm.update(notebooks).set({ spaceId: remaining[0]?.spaceId ?? null }).where(eq(notebooks.id, notebookId));
   }
 
+  /** Current space assignments for a single page row. */
+  async function getPageAssignmentsAsync(pageId: string): Promise<SpaceAssignment[]> {
+    return haexVault.client.spaces.getAssignmentsAsync(FULL_PAGES_TABLE, nbPk(pageId));
+  }
+
+  /**
+   * Unshare selected pages from a space. If the notebook is not fully shared and
+   * no pages of it remain in the space, the notebook context row is dropped too.
+   */
+  async function unsharePagesFromSpaceAsync(notebookId: string, pageIds: string[], spaceId: string) {
+    const orm = haexVault.orm;
+    if (!orm) return;
+
+    await haexVault.client.spaces.unassignAsync(
+      pageIds.map((pid) => ({ tableName: FULL_PAGES_TABLE, rowPks: nbPk(pid), spaceId, groupId: notebookId })),
+    );
+
+    const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
+    if (nb?.spaceId === spaceId) return; // fully shared: keep everything
+
+    const nbPages = await orm.select().from(pages).where(eq(pages.notebookId, notebookId));
+    const pageIdSet = new Set(nbPages.map((p) => p.id));
+    const allPageAssignments = await getAllPageAssignmentsAsync();
+    const stillShared = allPageAssignments.some((a) => {
+      if (a.spaceId !== spaceId) return false;
+      try { return pageIdSet.has((JSON.parse(a.rowPks) as { id?: string }).id ?? ""); }
+      catch { return false; }
+    });
+    if (!stillShared) {
+      await haexVault.client.spaces.unassignAsync([
+        { tableName: FULL_NOTEBOOKS_TABLE, rowPks: nbPk(notebookId), spaceId, groupId: notebookId },
+      ]);
+    }
+  }
+
   /** Spaces the user can write to (valid share targets). */
   async function listWritableSpacesAsync(): Promise<DecryptedSpace[]> {
     const all = await haexVault.client.spaces.listSpacesAsync();
@@ -94,9 +129,11 @@ export const useSpacesStore = defineStore("spaces", () => {
   return {
     getNotebookAssignmentsAsync,
     getAllPageAssignmentsAsync,
+    getPageAssignmentsAsync,
     shareNotebookWithSpaceAsync,
     sharePagesWithSpaceAsync,
     unshareNotebookFromSpaceAsync,
+    unsharePagesFromSpaceAsync,
     listWritableSpacesAsync,
   };
 });

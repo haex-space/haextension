@@ -1,5 +1,5 @@
 <template>
-  <UiDrawerModal v-model:open="isOpen" :title="t('title')" :description="t('description')">
+  <UiDrawerModal v-model:open="isOpen" :title="isPageMode ? t('pageTitle') : t('title')" :description="isPageMode ? t('pageDescription') : t('description')">
     <template #content>
       <div class="space-y-6 p-4">
         <!-- Loading -->
@@ -79,7 +79,11 @@ import type { SpaceAssignment, DecryptedSpace } from "@haex-space/vault-sdk";
 
 const props = defineProps<{
   notebookId: string;
+  /** When set, the dialog shares this single page (+ notebook context) instead of the whole notebook. */
+  pageId?: string;
 }>();
+
+const isPageMode = computed(() => !!props.pageId);
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
@@ -108,7 +112,9 @@ async function loadDataAsync() {
   try {
     const [spacesResult, assignmentsResult] = await Promise.all([
       spacesStore.listWritableSpacesAsync(),
-      spacesStore.getNotebookAssignmentsAsync(props.notebookId),
+      isPageMode.value
+        ? spacesStore.getPageAssignmentsAsync(props.pageId!)
+        : spacesStore.getNotebookAssignmentsAsync(props.notebookId),
     ]);
     availableSpaces.value = spacesResult;
     assignments.value = assignmentsResult;
@@ -128,11 +134,15 @@ async function toggleSpaceAssignment(space: DecryptedSpace) {
   const wasAssigned = isSpaceAssigned(space.id);
   try {
     if (wasAssigned) {
-      await spacesStore.unshareNotebookFromSpaceAsync(props.notebookId, space.id);
+      if (isPageMode.value) await spacesStore.unsharePagesFromSpaceAsync(props.notebookId, [props.pageId!], space.id);
+      else await spacesStore.unshareNotebookFromSpaceAsync(props.notebookId, space.id);
     } else {
-      await spacesStore.shareNotebookWithSpaceAsync(props.notebookId, space.id);
+      if (isPageMode.value) await spacesStore.sharePagesWithSpaceAsync(props.notebookId, [props.pageId!], space.id);
+      else await spacesStore.shareNotebookWithSpaceAsync(props.notebookId, space.id);
     }
-    assignments.value = await spacesStore.getNotebookAssignmentsAsync(props.notebookId);
+    assignments.value = isPageMode.value
+      ? await spacesStore.getPageAssignmentsAsync(props.pageId!)
+      : await spacesStore.getNotebookAssignmentsAsync(props.notebookId);
   } catch (err) {
     console.error("[haex-notes] Toggle space assignment failed:", err);
     errorMessage.value = wasAssigned ? t("unshareFailed") : t("shareFailed");
@@ -146,6 +156,8 @@ async function toggleSpaceAssignment(space: DecryptedSpace) {
 de:
   title: Notizbuch teilen
   description: Weise dieses Notizbuch einem Space zu, um es mit anderen zu teilen.
+  pageTitle: Seite teilen
+  pageDescription: Weise diese Seite einem Space zu, um sie mit anderen zu teilen.
   availableSpaces: Verfügbare Spaces
   noSpaces: Es sind keine Spaces vorhanden. Spaces können in den Vault-Einstellungen verwaltet werden.
   close: Schließen
@@ -155,6 +167,8 @@ de:
 en:
   title: Share Notebook
   description: Assign this notebook to a space to share it with others.
+  pageTitle: Share Page
+  pageDescription: Assign this page to a space to share it with others.
   availableSpaces: Available Spaces
   noSpaces: No spaces available. Spaces can be managed in the vault settings.
   close: Close
