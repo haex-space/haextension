@@ -133,8 +133,10 @@ const isDraggingSB = ref(false);
 const updateSB = (e: MouseEvent | TouchEvent) => {
   if (!sbFieldEl.value) return;
   const rect = sbFieldEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-  const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+  const point = "touches" in e ? e.touches[0] : e;
+  if (!point) return;
+  const clientX = point.clientX;
+  const clientY = point.clientY;
 
   saturation.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
   brightness.value = Math.max(0, Math.min(100, 100 - ((clientY - rect.top) / rect.height) * 100));
@@ -153,7 +155,9 @@ const isDraggingHue = ref(false);
 const updateHue = (e: MouseEvent | TouchEvent) => {
   if (!hueSliderEl.value) return;
   const rect = hueSliderEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const point = "touches" in e ? e.touches[0] : e;
+  if (!point) return;
+  const clientX = point.clientX;
   hue.value = Math.max(0, Math.min(360, ((clientX - rect.left) / rect.width) * 360));
   updateColor();
 };
@@ -170,7 +174,9 @@ const isDraggingOpacity = ref(false);
 const updateOpacity = (e: MouseEvent | TouchEvent) => {
   if (!opacitySliderEl.value) return;
   const rect = opacitySliderEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const point = "touches" in e ? e.touches[0] : e;
+  if (!point) return;
+  const clientX = point.clientX;
   opacity.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
 };
 
