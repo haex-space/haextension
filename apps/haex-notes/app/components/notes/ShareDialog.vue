@@ -40,13 +40,13 @@
                   v-if="space.originUrl"
                   class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-primary/10 text-primary"
                 >
-                  online
+                  {{ t('online') }}
                 </span>
                 <span
                   v-else
                   class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-muted-foreground/10 text-muted-foreground"
                 >
-                  local
+                  {{ t('local') }}
                 </span>
               </button>
             </div>
@@ -145,7 +145,9 @@ async function toggleSpaceAssignment(space: DecryptedSpace) {
       : await spacesStore.getNotebookAssignmentsAsync(props.notebookId);
   } catch (err) {
     console.error("[haex-notes] Toggle space assignment failed:", err);
-    errorMessage.value = wasAssigned ? t("unshareFailed") : t("shareFailed");
+    errorMessage.value = isPageMode.value
+      ? (wasAssigned ? t("pageUnshareFailed") : t("pageShareFailed"))
+      : (wasAssigned ? t("unshareFailed") : t("shareFailed"));
   } finally {
     isProcessing.value = false;
   }
@@ -161,9 +163,13 @@ de:
   availableSpaces: Verfügbare Spaces
   noSpaces: Es sind keine Spaces vorhanden. Spaces können in den Vault-Einstellungen verwaltet werden.
   close: Schließen
+  online: Online
+  local: Lokal
   loadFailed: Daten konnten nicht geladen werden.
   shareFailed: Fehler beim Teilen des Notizbuchs.
-  unshareFailed: Fehler beim Aufheben der Freigabe.
+  unshareFailed: Fehler beim Aufheben der Freigabe des Notizbuchs.
+  pageShareFailed: Fehler beim Teilen der Seite.
+  pageUnshareFailed: Fehler beim Aufheben der Freigabe der Seite.
 en:
   title: Share Notebook
   description: Assign this notebook to a space to share it with others.
@@ -172,7 +178,11 @@ en:
   availableSpaces: Available Spaces
   noSpaces: No spaces available. Spaces can be managed in the vault settings.
   close: Close
+  online: Online
+  local: Local
   loadFailed: Failed to load data.
   shareFailed: Failed to share the notebook.
   unshareFailed: Failed to unshare the notebook.
+  pageShareFailed: Failed to share the page.
+  pageUnshareFailed: Failed to unshare the page.
 </i18n>

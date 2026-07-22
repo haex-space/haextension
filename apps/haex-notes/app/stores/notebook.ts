@@ -159,7 +159,9 @@ export const useNotebookStore = defineStore("notebook", () => {
           },
         ]);
       } catch (err) {
-        console.warn("[haex-notes] auto-assign new page to space failed:", err);
+        // Roll back rather than leave a page silently unshared in a fully-shared notebook.
+        await db.delete(pages).where(eq(pages.id, pageId));
+        throw err;
       }
     }
 

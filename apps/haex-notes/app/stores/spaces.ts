@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getTableName, type SpaceAssignment, type DecryptedSpace } from "@haex-space/vault-sdk";
 import { notebooks, pages } from "~/database/schemas";
 import manifest from "../../haextension/manifest.json";
@@ -30,15 +30,29 @@ export const useSpacesStore = defineStore("spaces", () => {
     return haexVault.client.spaces.getAssignmentsAsync(FULL_PAGES_TABLE);
   }
 
+  /** Throws if any pageId is missing or belongs to a different notebook. */
+  async function assertPagesBelongToNotebookAsync(notebookId: string, pageIds: string[]) {
+    const orm = haexVault.orm;
+    if (!orm) return;
+    const rows = await orm.select().from(pages).where(inArray(pages.id, pageIds));
+    if (rows.length !== pageIds.length || rows.some((p) => p.notebookId !== notebookId)) {
+      throw new Error(`Page ids do not all belong to notebook ${notebookId}`);
+    }
+  }
+
   /**
    * Share the whole notebook (+ all its pages) into a space.
    * Sets notebooks.space_id → future pages inherit (see notebook store).
+   * Only one space can be the full-share target at a time (space_id is scalar).
    */
   async function shareNotebookWithSpaceAsync(notebookId: string, spaceId: string) {
     const orm = haexVault.orm;
     if (!orm) return;
 
     const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
+    if (nb?.spaceId && nb.spaceId !== spaceId) {
+      throw new Error("Notebook is already fully shared with another space; unshare it first.");
+    }
     const nbPages = await orm.select().from(pages).where(eq(pages.notebookId, notebookId));
 
     const assignments: SpaceAssignment[] = [
@@ -57,6 +71,7 @@ export const useSpacesStore = defineStore("spaces", () => {
   async function sharePagesWithSpaceAsync(notebookId: string, pageIds: string[], spaceId: string) {
     const orm = haexVault.orm;
     if (!orm) return;
+    await assertPagesBelongToNotebookAsync(notebookId, pageIds);
 
     const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
 
@@ -79,8 +94,10 @@ export const useSpacesStore = defineStore("spaces", () => {
     ];
     await haexVault.client.spaces.unassignAsync(assignments);
 
-    const remaining = await getNotebookAssignmentsAsync(notebookId);
-    await orm.update(notebooks).set({ spaceId: remaining[0]?.spaceId ?? null }).where(eq(notebooks.id, notebookId));
+    const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
+    if (nb?.spaceId === spaceId) {
+      await orm.update(notebooks).set({ spaceId: null }).where(eq(notebooks.id, notebookId));
+    }
   }
 
   /** Current space assignments for a single page row. */
@@ -91,17 +108,22 @@ export const useSpacesStore = defineStore("spaces", () => {
   /**
    * Unshare selected pages from a space. If the notebook is not fully shared and
    * no pages of it remain in the space, the notebook context row is dropped too.
+   * Rejects if the notebook is fully shared into this space — unshare the whole
+   * notebook instead, so a full share can't be left in a partially-unassigned state.
    */
   async function unsharePagesFromSpaceAsync(notebookId: string, pageIds: string[], spaceId: string) {
     const orm = haexVault.orm;
     if (!orm) return;
+    await assertPagesBelongToNotebookAsync(notebookId, pageIds);
+
+    const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
+    if (nb?.spaceId === spaceId) {
+      throw new Error("Notebook is fully shared with this space; unshare the whole notebook instead of individual pages.");
+    }
 
     await haexVault.client.spaces.unassignAsync(
       pageIds.map((pid) => ({ tableName: FULL_PAGES_TABLE, rowPks: nbPk(pid), spaceId, groupId: notebookId })),
     );
-
-    const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
-    if (nb?.spaceId === spaceId) return; // fully shared: keep everything
 
     const nbPages = await orm.select().from(pages).where(eq(pages.notebookId, notebookId));
     const pageIdSet = new Set(nbPages.map((p) => p.id));

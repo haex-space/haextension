@@ -142,7 +142,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
               @change="renameNotebook(nb.id, ($event.target as HTMLInputElement).value)"
             />
             <button
-              class="shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:text-primary group-hover:opacity-100"
+              class="shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               :title="t('share')"
               @click.stop="openShare(nb.id)"
             >

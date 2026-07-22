@@ -181,7 +181,13 @@ pub async fn extension_space_get_members(
     // 1. resolve_extension_id(...) — copy from extension_space_list
     // 2. check_spaces_permission(&state, &Principal::Extension(id), SpaceAction::Read)
     //    then prompt_on_err(&app_handle, perm_result)?
-    // 3. query members ⋈ identities for this space:
+    // 3. verify `space_id` belongs to this vault and the requester is a member of
+    //    it (e.g. a `SELECT 1 FROM haex_space_members WHERE space_id = ?1` check) —
+    //    reject with ExtensionError before querying if it doesn't. The generic
+    //    spaces permission only gates that the extension may call this command at
+    //    all, not which space it may read; without this check any extension could
+    //    pass an arbitrary space_id and read another space's member DIDs/labels.
+    // 4. query members ⋈ identities for this space:
     let rows = core::select_with_crdt(
         SQL_SELECT_SPACE_MEMBERS_WITH_IDENTITY.clone(), // SELECT i.did, i.name, i.private_key IS NOT NULL
         vec![serde_json::Value::String(space_id.clone())],
@@ -368,5 +374,5 @@ Expected: all green; `dist/index.d.ts` contains `getMembersAsync` and `authoredB
 ## Notes / Non-goals
 
 - **No changes** to `pull/apply.ts`, `push.ts` signing, or the UCAN check — the security requirement (signed + capability-gated assignments) is already satisfied there. This phase only surfaces the author to extensions.
-- `authored_by_did` is a convenience/display carrier. Its trust derives from the existing signed+authorized ingest (a read-only member can't get an assignment accepted at all). We do not additionally cross-check `authored_by_did == signedBy` server-side; a write-capable member could in theory mislabel authorship, which is out of scope for this feature.
+- **Revised (was: convenience/display carrier, untrusted):** Phase B uses `authored_by_did` for the read-only decision (`readOnly = !!author && !myDids.has(author)`), which makes it an access decision, not just display. A client-supplied `authored_by_did` that doesn't match the verified pusher would let a write-capable member spoof authorship — e.g. set it to the recipient's own DID so their content is never shown read-only, or blame changes on another member. Ingest MUST derive `authored_by_did` from the verified `signedBy` identity (or reject the row if the client-supplied value doesn't match), the same place the sign+UCAN check already runs in `pull/apply.ts`. Phase B may then treat `authoredByDid` as trusted for both the author badge and the read-only gate.
 - QUIC/P2P delivery of extension data is out of scope — sharing is online-space-only by design.

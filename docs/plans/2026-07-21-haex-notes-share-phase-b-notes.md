@@ -248,7 +248,7 @@ if (spaceId) {
 ```
 Expose `readOnly` + `authorLabel` as reactive state for the open notebook.
 
-**Step 2: Gate the canvas.** In `PageCanvas.vue` add `const props = defineProps<{ readOnly?: boolean }>()` and early-return at the top of `onPointerDown`, the drawing/table branches of `onPointerMove`, `onPointerUp`, and the `contextmenu` handler when `props.readOnly`. **Keep** pan (middle/right button) and `onWheel` zoom — viewing must still work. Pass `:read-only="readOnly"` from the page view. Hide pen/tool UI when read-only.
+**Step 2: Gate the canvas.** In `PageCanvas.vue` add `const props = defineProps<{ readOnly?: boolean }>()`. In `onPointerDown`, do NOT early-return at the very top — check the button/tool first and only gate the drawing/table-creation path (primary button) when `props.readOnly`; middle/right-button pan must still initialize. Gate the drawing/table branches of `onPointerMove`, `onPointerUp`, and the `contextmenu` handler the same way. **Keep** pan (middle/right button) and `onWheel` zoom fully available — viewing must still work. Pass `:read-only="readOnly"` from the page view. Hide pen/tool UI when read-only.
 
 **Step 3: Badge.** Show "Geteilt · Nur lesen — von {authorLabel}" in the notebook header when `readOnly`.
 
