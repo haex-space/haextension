@@ -10,7 +10,13 @@
       }
     ],
     "shell": [],
-    "http": []
+    "http": [],
+    "spaces": [
+      {
+        "target": "*",
+        "operation": "readWrite"
+      }
+    ]
   },
   "icon": "haextension/haex-notes-logo.png",
   "singleInstance": true,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, BookOpen } from "lucide-vue-next";
+import { Plus, BookOpen, Share2, Users } from "lucide-vue-next";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 
@@ -54,6 +54,18 @@ const renameNotebook = async (id: string, name: string) => {
   await notebookStore.renameNotebookAsync(id, name);
   await loadNotebooks();
 };
+
+const shareNotebookId = ref<string | null>(null);
+const showShareDialog = computed({
+  get: () => shareNotebookId.value !== null,
+  set: (v) => {
+    if (!v) {
+      shareNotebookId.value = null;
+      loadNotebooks(); // refresh shared badges after (un)sharing
+    }
+  },
+});
+const openShare = (id: string) => { shareNotebookId.value = id; };
 </script>
 
 <template>
@@ -108,6 +120,14 @@ const renameNotebook = async (id: string, name: string) => {
             />
             <!-- Notebook spine effect -->
             <div class="absolute inset-y-0 left-0 w-3 bg-black/10" />
+            <!-- Shared indicator -->
+            <div
+              v-if="nb.spaceId"
+              class="absolute right-1.5 top-1.5 rounded-full bg-black/40 p-1"
+              :title="t('shared')"
+            >
+              <Users class="size-3 text-white" />
+            </div>
             <!-- Title on cover -->
             <div class="absolute inset-x-4 top-6 rounded bg-white/90 px-2 py-1.5 text-center">
               <span class="text-xs font-semibold text-gray-800 line-clamp-2">{{ nb.name }}</span>
@@ -121,6 +141,13 @@ const renameNotebook = async (id: string, name: string) => {
               @click.stop
               @change="renameNotebook(nb.id, ($event.target as HTMLInputElement).value)"
             />
+            <button
+              class="shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:text-primary group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              :title="t('share')"
+              @click.stop="openShare(nb.id)"
+            >
+              <Share2 class="size-3.5" />
+            </button>
             <button
               class="shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
               @click.stop="deleteNotebook(nb.id)"
@@ -185,6 +212,13 @@ const renameNotebook = async (id: string, name: string) => {
         </div>
       </ShadcnDialogContent>
     </ShadcnDialog>
+
+    <!-- Share Notebook Dialog -->
+    <NotesShareDialog
+      v-if="shareNotebookId"
+      v-model:open="showShareDialog"
+      :notebook-id="shareNotebookId"
+    />
   </div>
 </template>
 
@@ -199,6 +233,8 @@ de:
   pageType: Seitentyp
   coverColor: Umschlagfarbe
   create: Erstellen
+  share: Teilen
+  shared: In einem Space geteilt
 en:
   newNotebook: New Notebook
   emptyState: No notebooks yet
@@ -209,4 +245,6 @@ en:
   pageType: Page Type
   coverColor: Cover Color
   create: Create
+  share: Share
+  shared: Shared in a space
 </i18n>

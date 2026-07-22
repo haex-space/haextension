@@ -27,6 +27,8 @@ export const notebooks = sqliteTable(
     coverImage: text("cover_image"),
     /** Default page orientation */
     defaultOrientation: text("default_orientation").notNull().default("portrait"),
+    /** Non-null = "entire notebook shared into this space; future pages inherit" */
+    spaceId: text("space_id"),
     ...timestamps,
   }
 );

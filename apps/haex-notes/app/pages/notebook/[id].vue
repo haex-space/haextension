@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw, Table2, RotateCw } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw, Table2, RotateCw, Share2 } from "lucide-vue-next";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { PageTemplate, PenSlot } from "~/database/schemas";
 
@@ -17,6 +17,17 @@ const pageCanvasRef = useTemplateRef<any>("pageCanvasRef");
 const selectedAddTemplate = ref<PageTemplate>("lined");
 
 const pagesSidebarVisible = ref(false);
+
+// Per-page sharing (shares the currently open page)
+const sharePageId = ref<string | null>(null);
+const showSharePageDialog = computed({
+  get: () => sharePageId.value !== null,
+  set: (v) => { if (!v) sharePageId.value = null; },
+});
+const openSharePage = () => {
+  const id = notebook.currentPage?.id;
+  if (id) sharePageId.value = id;
+};
 
 // Trash preview
 const trashPreviewPage = ref<any>(null);
@@ -221,6 +232,15 @@ const cancelSlotEdit = () => {
           <RotateCw class="size-4" :class="(notebook.currentPage as any)?.orientation === 'landscape' ? 'rotate-90' : ''" />
         </button>
 
+        <!-- Share current page -->
+        <button
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('sharePage')"
+          @click="openSharePage"
+        >
+          <Share2 class="size-4" />
+        </button>
+
         <!-- Table tool -->
         <ShadcnPopover>
           <ShadcnPopoverTrigger as-child>
@@ -252,6 +272,13 @@ const cancelSlotEdit = () => {
         </button>
       </div>
     </header>
+
+    <NotesShareDialog
+      v-if="sharePageId"
+      v-model:open="showSharePageDialog"
+      :notebook-id="(route.params.id as string)"
+      :page-id="sharePageId"
+    />
 
     <!-- Main area: Pencil Case + Page Canvas -->
     <div class="flex flex-1 min-h-0">
@@ -450,6 +477,7 @@ de:
   addPage: Seite hinzufügen
   addTable: Tabelle einfügen
   toggleOrientation: Hoch-/Querformat
+  sharePage: Seite teilen
   resetZoom: Zoom zurücksetzen
   trashPreview: Diese Seite ist im Papierkorb
   restore: Wiederherstellen
@@ -465,6 +493,7 @@ en:
   addPage: Add Page
   addTable: Insert Table
   toggleOrientation: Portrait/Landscape
+  sharePage: Share page
   resetZoom: Reset Zoom
   trashPreview: This page is in the trash
   restore: Restore
