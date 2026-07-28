@@ -1,4 +1,4 @@
-import type { PageTemplate } from "~/database/schemas";
+import type { PageTemplate } from "~/types/document";
 
 export interface PageDimensions {
   width: number;
