@@ -97,8 +97,8 @@ describe("mutateElements", () => {
 
   it("replays every merged mutation on redo", () => {
     const page = doc(stroke("a"));
-    const first = mutateElements(page, ["a"], (el) => { el.size += 1; }, "Größe", "drag");
-    const second = mutateElements(page, ["a"], (el) => { el.size += 10; }, "Größe", "drag");
+    const first = mutateElements(page, ["a"], (el) => { if (el.type === "stroke") el.size += 1; }, "Größe", "drag");
+    const second = mutateElements(page, ["a"], (el) => { if (el.type === "stroke") el.size += 10; }, "Größe", "drag");
 
     first.apply();
     second.apply();
