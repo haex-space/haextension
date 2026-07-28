@@ -45,17 +45,8 @@ const restorePreviewedPage = async () => {
   const restoredId = trashPreviewPage.value.id;
   await notebook.restorePageAsync(restoredId);
   trashPreviewPage.value = null;
-  // Find and navigate to restored page
-  const idx = notebook.currentPages.findIndex(p => p.id === restoredId);
-  console.log("[haex-notes] restore preview:", { restoredId, idx, totalPages: notebook.currentPages.length, pageIds: notebook.currentPages.map(p => p.id) });
-  if (idx >= 0) {
-    notebook.currentPageIndex = idx;
-    // Force reload strokes for this page
-    const page = notebook.currentPages[idx]!;
-    notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
-    notebook.historyIndex = notebook.history.length - 1;
-    notebook.isDirty = false;
-  }
+  const index = notebook.currentPages.findIndex((p) => p.id === restoredId);
+  if (index >= 0) await notebook.goToPage(index);
 };
 
 // Pencil case config
@@ -452,19 +443,12 @@ const cancelSlotEdit = () => {
           v-if="pagesSidebarVisible"
           @close="pagesSidebarVisible = false"
           @preview-trash-page="onPreviewTrashPage"
-          @trash-restored="(pageId: string) => {
+          @trash-restored="async (pageId: string) => {
             const wasPreviewingThis = trashPreviewPage?.id === pageId;
             trashPreviewPage = null;
-            if (wasPreviewingThis) {
-              const idx = notebook.currentPages.findIndex(p => p.id === pageId);
-              if (idx >= 0) {
-                notebook.currentPageIndex = idx;
-                const page = notebook.currentPages[idx]!;
-                notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
-                notebook.historyIndex = notebook.history.length - 1;
-                notebook.isDirty = false;
-              }
-            }
+            if (!wasPreviewingThis) return;
+            const index = notebook.currentPages.findIndex(p => p.id === pageId);
+            if (index >= 0) await notebook.goToPage(index);
           }"
         />
       </div>

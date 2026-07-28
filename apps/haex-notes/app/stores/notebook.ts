@@ -12,7 +12,7 @@ import {
   type PageDoc,
 } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
-import { emptyLayer, migratePageRow } from "~/lib/migratePage";
+import { migratePageRow } from "~/lib/migratePage";
 import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {
