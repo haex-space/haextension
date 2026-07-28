@@ -28,7 +28,17 @@ export function useAssetStore() {
     return root;
   }
 
-  const rootAsync = () => (rootPromise ??= resolveRootAsync());
+  // Cache the successful root, but clear on failure so the next call can retry
+  // (e.g. permission denied, then user grants access).
+  const rootAsync = () => {
+    if (!rootPromise) {
+      rootPromise = resolveRootAsync().catch((err) => {
+        rootPromise = null;
+        throw err;
+      });
+    }
+    return rootPromise;
+  };
 
   async function absolutePathAsync(asset: SelectAsset): Promise<string> {
     const root = await rootAsync();
