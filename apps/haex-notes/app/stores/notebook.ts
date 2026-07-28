@@ -1,6 +1,19 @@
 import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
-import { notebooks, pages, type SelectNotebook, type SelectPage, type StrokeData, type PageTemplate, type PageTable } from "~/database/schemas";
+import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTemplate } from "~/database/schemas";
 import { FULL_PAGES_TABLE } from "~/stores/spaces";
+import { reactive, toRaw } from "vue";
+import type { PageElement, PageLayer, StrokeElement, TableElement } from "~/types/document";
+import {
+  addElements,
+  mutateElements,
+  removeElements,
+  setPageBackground,
+  type Command,
+  type PageDoc,
+} from "~/lib/commands";
+import { computeBbox } from "~/lib/bbox";
+import { migratePageRow } from "~/lib/migratePage";
+import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
@@ -14,45 +27,71 @@ export const useNotebookStore = defineStore("notebook", () => {
   const currentPage = computed(() => currentPages.value[currentPageIndex.value] ?? null);
   const pageCount = computed(() => currentPages.value.length);
 
-  // Page strokes (reactive for live drawing)
-  const strokes = ref<StrokeData[]>([]);
-  const currentStroke = ref<StrokeData | null>(null);
+  /** Dokumentzustand je Seite, aufgebaut beim ersten Öffnen der Seite. */
+  const docs = reactive(new Map<string, PageDoc>());
+  const undoStack = createUndoStack();
+
+  const currentDoc = computed(() => {
+    const page = currentPage.value;
+    return page ? docs.get(page.id) ?? null : null;
+  });
+
+  /** Aktiver Layer für neue Elemente. In Phase 2 vom Layer-Panel gesetzt. */
+  const activeLayerId = ref<string | null>(null);
+
+  const activeLayer = computed<PageLayer | null>(() => {
+    const doc = currentDoc.value;
+    if (!doc) return null;
+    return doc.layers.find((l) => l.id === activeLayerId.value) ?? doc.layers[0] ?? null;
+  });
+
+  /** Elemente aller sichtbaren Layer, in Zeichenreihenfolge. */
+  const visibleElements = computed<PageElement[]>(() => {
+    const doc = currentDoc.value;
+    if (!doc) return [];
+    return doc.layers.filter((l) => l.visible).flatMap((l) => l.elements);
+  });
+
+  /** Live gezeichneter Strich, noch nicht committet. */
+  const currentStroke = ref<StrokeElement | null>(null);
   const isDrawing = ref(false);
 
-  // Tables on current page
-  const pageTables = ref<PageTable[]>([]);
-
-  // History (per page)
-  const history = ref<{ stroke: StrokeData; label: string }[]>([]);
-  const historyIndex = ref(-1);
-
-  const activeStrokes = computed(() =>
-    history.value.slice(0, historyIndex.value + 1).map(e => e.stroke)
-  );
-
-  const addStroke = (stroke: StrokeData, label: string) => {
-    history.value = history.value.slice(0, historyIndex.value + 1);
-    history.value.push({ stroke, label });
-    historyIndex.value = history.value.length - 1;
+  const runCommand = (command: Command) => {
+    undoStack.push(command);
     isDirty.value = true;
   };
 
-  const undo = () => {
-    if (historyIndex.value >= 0) {
-      historyIndex.value--;
-      isDirty.value = true;
-    }
+  /**
+   * Der Undo-Stack ist notizbuchweit; ein Kommando kann eine andere Seite als
+   * die aktuell sichtbare betreffen. Damit das reverte/re-applied Ergebnis nicht
+   * beim nächsten Seitenwechsel verlorengeht, springen wir auf die betroffene
+   * Seite und markieren sie dirty.
+   */
+  const goToAffectedPageAsync = async (pageId: string) => {
+    const current = currentPage.value;
+    if (current?.id === pageId) return;
+    const index = currentPages.value.findIndex((p) => p.id === pageId);
+    if (index < 0) return;
+    if (isDirty.value) await saveCurrentPageAsync();
+    currentPageIndex.value = index;
+    loadPageIntoState();
   };
 
-  const redo = () => {
-    if (historyIndex.value < history.value.length - 1) {
-      historyIndex.value++;
-      isDirty.value = true;
-    }
+  const undo = async () => {
+    const command = undoStack.undo();
+    if (!command) return;
+    await goToAffectedPageAsync(command.pageId);
+    isDirty.value = true;
+  };
+  const redo = async () => {
+    const command = undoStack.redo();
+    if (!command) return;
+    await goToAffectedPageAsync(command.pageId);
+    isDirty.value = true;
   };
 
-  const canUndo = computed(() => historyIndex.value >= 0);
-  const canRedo = computed(() => historyIndex.value < history.value.length - 1);
+  const canUndo = undoStack.canUndo;
+  const canRedo = undoStack.canRedo;
 
   // --- Notebook CRUD ---
 
@@ -116,12 +155,11 @@ export const useNotebookStore = defineStore("notebook", () => {
   const loadPageIntoState = () => {
     const page = currentPage.value;
     if (!page) return;
-    history.value = (page.strokes || []).map((s, i) => ({
-      stroke: s,
-      label: s.brushPreset ?? s.tool,
-    }));
-    historyIndex.value = history.value.length - 1;
-    pageTables.value = page.tables ? JSON.parse(JSON.stringify(page.tables)) : [];
+    if (!docs.has(page.id)) {
+      const migrated = migratePageRow(page);
+      docs.set(page.id, { id: page.id, ...migrated });
+    }
+    activeLayerId.value = docs.get(page.id)!.layers[0]!.id;
     isDirty.value = false;
   };
 
@@ -250,87 +288,129 @@ export const useNotebookStore = defineStore("notebook", () => {
   };
 
   const togglePageOrientationAsync = async () => {
-    const db = haexVault.orm;
-    const page = currentPage.value;
-    if (!db || !page) return;
-    const newOrientation = (page as any).orientation === "landscape" ? "portrait" : "landscape";
-    await db.update(pages).set({ orientation: newOrientation }).where(eq(pages.id, page.id));
-    (page as any).orientation = newOrientation;
+    const doc = currentDoc.value;
+    if (!doc) return;
+    const [width, height] = [doc.height, doc.width];
+    doc.width = width;
+    doc.height = height;
     isDirty.value = true;
+    await saveCurrentPageAsync();
   };
 
   const changePageTemplateAsync = async (template: PageTemplate) => {
-    const db = haexVault.orm;
-    const page = currentPage.value;
-    if (!db || !page) return;
-    await db.update(pages).set({ template }).where(eq(pages.id, page.id));
-    page.template = template;
+    const doc = currentDoc.value;
+    if (!doc) return;
+    runCommand(setPageBackground(doc, { ...doc.background, template }, "Vorlage"));
+    await saveCurrentPageAsync();
   };
 
   // --- Save ---
 
-  const addTable = (rows: number, cols: number, x: number, y: number) => {
-    const defaultColWidth = 80;
-    const defaultRowHeight = 30;
-    const table: PageTable = {
+  const addStroke = (stroke: StrokeElement, label: string) => {
+    const doc = currentDoc.value;
+    const layer = activeLayer.value;
+    if (!doc || !layer) return;
+    stroke.bbox = computeBbox(stroke);
+    runCommand(addElements(doc, layer.id, [stroke], label));
+  };
+
+  const tableElements = computed(() =>
+    visibleElements.value.filter((e): e is TableElement => e.type === "table"),
+  );
+
+  const addTable = (rows: number, cols: number, x: number, y: number): TableElement | null => {
+    const doc = currentDoc.value;
+    const layer = activeLayer.value;
+    if (!doc || !layer) return null;
+
+    const table: TableElement = {
       id: crypto.randomUUID(),
+      type: "table",
       x,
       y,
       columns: cols,
       rows,
-      columnWidths: Array(cols).fill(defaultColWidth),
-      rowHeights: Array(rows).fill(defaultRowHeight),
+      columnWidths: Array(cols).fill(80),
+      rowHeights: Array(rows).fill(30),
+      bbox: [0, 0, 0, 0],
     };
-    pageTables.value.push(table);
-    isDirty.value = true;
-    return table;
+    table.bbox = computeBbox(table);
+    runCommand(addElements(doc, layer.id, [table], "Tabelle"));
+    // addElements cloned the input; return the live element from the layer so
+    // callers cannot accidentally mutate a detached copy.
+    const live = layer.elements.find((e) => e.id === table.id);
+    return live?.type === "table" ? live : null;
   };
 
   const removeTable = (id: string) => {
-    pageTables.value = pageTables.value.filter(t => t.id !== id);
-    isDirty.value = true;
+    const doc = currentDoc.value;
+    if (!doc) return;
+    runCommand(removeElements(doc, [id], "Tabelle löschen"));
   };
 
-  const addTableRow = (tableId: string) => {
-    const t = pageTables.value.find(t => t.id === tableId);
-    if (!t) return;
-    t.rows++;
-    t.rowHeights.push(30);
-    isDirty.value = true;
+  /** Gemeinsamer Weg für alle Tabellenänderungen: ein mutate-Kommando. */
+  const mutateTable = (id: string, label: string, mutate: (t: TableElement) => void, mergeKey?: string) => {
+    const doc = currentDoc.value;
+    if (!doc) return;
+    runCommand(
+      mutateElements(
+        doc,
+        [id],
+        (element) => {
+          if (element.type !== "table") return;
+          mutate(element);
+          element.bbox = computeBbox(element);
+        },
+        label,
+        mergeKey,
+      ),
+    );
   };
 
-  const addTableColumn = (tableId: string) => {
-    const t = pageTables.value.find(t => t.id === tableId);
-    if (!t) return;
-    t.columns++;
-    t.columnWidths.push(80);
-    isDirty.value = true;
-  };
+  const addTableRow = (id: string) =>
+    mutateTable(id, "Zeile hinzufügen", (t) => { t.rows++; t.rowHeights.push(30); });
 
-  const removeTableRow = (tableId: string) => {
-    const t = pageTables.value.find(t => t.id === tableId);
-    if (!t || t.rows <= 1) return;
-    t.rows--;
-    t.rowHeights.pop();
-    isDirty.value = true;
-  };
+  const addTableColumn = (id: string) =>
+    mutateTable(id, "Spalte hinzufügen", (t) => { t.columns++; t.columnWidths.push(80); });
 
-  const removeTableColumn = (tableId: string) => {
-    const t = pageTables.value.find(t => t.id === tableId);
-    if (!t || t.columns <= 1) return;
-    t.columns--;
-    t.columnWidths.pop();
-    isDirty.value = true;
-  };
+  const removeTableRow = (id: string) =>
+    mutateTable(id, "Zeile entfernen", (t) => {
+      if (t.rows <= 1) return;
+      t.rows--;
+      t.rowHeights.pop();
+    });
+
+  const removeTableColumn = (id: string) =>
+    mutateTable(id, "Spalte entfernen", (t) => {
+      if (t.columns <= 1) return;
+      t.columns--;
+      t.columnWidths.pop();
+    });
+
+  /**
+   * Live-Feedback beim Ziehen einer Tabellenlinie. Alle Aufrufe einer Geste teilen
+   * sich denselben mergeKey und werden zu einem Undo-Schritt.
+   */
+  const resizeTable = (id: string, gestureId: string, mutate: (t: TableElement) => void) =>
+    mutateTable(id, "Tabelle anpassen", mutate, `table-resize:${gestureId}`);
 
   const saveCurrentPageAsync = async () => {
     const db = haexVault.orm;
     const page = currentPage.value;
-    if (!db || !page) return;
+    const doc = currentDoc.value;
+    if (!db || !page || !doc) return;
 
-    const strokesData = JSON.parse(JSON.stringify(activeStrokes.value));
-    const tablesData = JSON.parse(JSON.stringify(pageTables.value));
-    await db.update(pages).set({ strokes: strokesData, tables: tablesData }).where(eq(pages.id, page.id));
+    // structuredClone entfernt die Vue-Proxies; Drizzle serialisiert sonst
+    // Reactive-Wrapper mit in das JSON.
+    await db
+      .update(pages)
+      .set({
+        layers: structuredClone(toRaw(doc.layers)),
+        background: structuredClone(toRaw(doc.background)),
+        width: doc.width,
+        height: doc.height,
+      })
+      .where(eq(pages.id, page.id));
     isDirty.value = false;
   };
 
@@ -378,12 +458,12 @@ export const useNotebookStore = defineStore("notebook", () => {
     currentNotebook.value = null;
     currentPages.value = [];
     currentPageIndex.value = 0;
-    history.value = [];
-    historyIndex.value = -1;
-    strokes.value = [];
+    docs.clear();
+    undoStack.clear();
     currentStroke.value = null;
     isDrawing.value = false;
     isDirty.value = false;
+    activeLayerId.value = null;
   };
 
   return {
@@ -392,12 +472,14 @@ export const useNotebookStore = defineStore("notebook", () => {
     currentPageIndex,
     currentPage,
     pageCount,
-    strokes: activeStrokes,
+    currentDoc,
+    visibleElements,
+    activeLayer,
+    activeLayerId,
     currentStroke,
     isDrawing,
     isDirty,
-    history,
-    historyIndex,
+    undoStack,
     canUndo,
     canRedo,
     addStroke,
@@ -417,13 +499,14 @@ export const useNotebookStore = defineStore("notebook", () => {
     reorderPagesAsync,
     togglePageOrientationAsync,
     changePageTemplateAsync,
-    pageTables,
+    tableElements,
     addTable,
     removeTable,
     addTableRow,
     addTableColumn,
     removeTableRow,
     removeTableColumn,
+    resizeTable,
     saveCurrentPageAsync,
     listTrashAsync,
     restorePageAsync,
