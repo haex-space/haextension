@@ -61,11 +61,33 @@ export const useNotebookStore = defineStore("notebook", () => {
     isDirty.value = true;
   };
 
-  const undo = () => {
-    if (undoStack.undo()) isDirty.value = true;
+  /**
+   * Der Undo-Stack ist notizbuchweit; ein Kommando kann eine andere Seite als
+   * die aktuell sichtbare betreffen. Damit das reverte/re-applied Ergebnis nicht
+   * beim nächsten Seitenwechsel verlorengeht, springen wir auf die betroffene
+   * Seite und markieren sie dirty.
+   */
+  const goToAffectedPageAsync = async (pageId: string) => {
+    const current = currentPage.value;
+    if (current?.id === pageId) return;
+    const index = currentPages.value.findIndex((p) => p.id === pageId);
+    if (index < 0) return;
+    if (isDirty.value) await saveCurrentPageAsync();
+    currentPageIndex.value = index;
+    loadPageIntoState();
   };
-  const redo = () => {
-    if (undoStack.redo()) isDirty.value = true;
+
+  const undo = async () => {
+    const command = undoStack.undo();
+    if (!command) return;
+    await goToAffectedPageAsync(command.pageId);
+    isDirty.value = true;
+  };
+  const redo = async () => {
+    const command = undoStack.redo();
+    if (!command) return;
+    await goToAffectedPageAsync(command.pageId);
+    isDirty.value = true;
   };
 
   const canUndo = undoStack.canUndo;
@@ -296,7 +318,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     visibleElements.value.filter((e): e is TableElement => e.type === "table"),
   );
 
-  const addTable = (rows: number, cols: number, x: number, y: number) => {
+  const addTable = (rows: number, cols: number, x: number, y: number): TableElement | null => {
     const doc = currentDoc.value;
     const layer = activeLayer.value;
     if (!doc || !layer) return null;
@@ -314,7 +336,10 @@ export const useNotebookStore = defineStore("notebook", () => {
     };
     table.bbox = computeBbox(table);
     runCommand(addElements(doc, layer.id, [table], "Tabelle"));
-    return table;
+    // addElements cloned the input; return the live element from the layer so
+    // callers cannot accidentally mutate a detached copy.
+    const live = layer.elements.find((e) => e.id === table.id);
+    return live?.type === "table" ? live : null;
   };
 
   const removeTable = (id: string) => {
