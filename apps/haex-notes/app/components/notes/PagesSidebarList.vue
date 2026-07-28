@@ -9,7 +9,10 @@ const notebook = useNotebookStore();
 
 const listRef = useTemplateRef<HTMLElement>("listRef");
 
-const getTemplateLabel = (template: string) => {
+// Prefer the migrated background.template; fall back to the legacy column so
+// pages that have never been saved under the new model still get a label.
+const getTemplateLabel = (page: SelectPage) => {
+  const template = page.background?.template ?? page.template;
   const tmpl = PAGE_TEMPLATES.find(t => t.id === template);
   if (!tmpl) return template;
   return locale.value === "de" ? tmpl.i18n.de : tmpl.i18n.en;
@@ -59,7 +62,7 @@ makeDroppable(listRef, {
         :items="notebook.currentPages"
         :is-active="idx === notebook.currentPageIndex"
         :can-delete="notebook.currentPages.length > 1"
-        :template-label="getTemplateLabel(page.template)"
+        :template-label="getTemplateLabel(page)"
         @select="notebook.goToPage(idx)"
         @delete="notebook.deletePageAsync(idx)"
       />
