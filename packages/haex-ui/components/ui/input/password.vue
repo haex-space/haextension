@@ -1,30 +1,28 @@
 <template>
-  <!-- <ShadcnInputGroup> -->
   <UiInput
     ref="inputRef"
     v-model="model"
     :type="showPassword ? 'text' : 'password'"
     v-bind="$attrs"
   >
-    <slot />
-
-    <UiButton
-      :icon="showPassword ? EyeOff : Eye"
-      :tooltip="showPassword ? t('hide') : t('show')"
-      variant="ghost"
-      @click.prevent="showPassword = !showPassword"
-      class="shadow-none"
-    />
-    <UiButton
-      v-if="copyable"
-      :icon="copied ? Check : Copy"
-      :tooltip="copied ? t('copied') : t('copy')"
-      variant="ghost"
-      @click.prevent="handleCopy"
-      class="shadow-none"
-    />
+    <template #append>
+      <UiButton
+        :icon="showPassword ? EyeOff : Eye"
+        :tooltip="showPassword ? t('hide') : t('show')"
+        variant="ghost"
+        class="shadow-none"
+        @click.prevent="showPassword = !showPassword"
+      />
+      <UiButton
+        v-if="copyable"
+        :icon="copied ? Check : Copy"
+        :tooltip="copied ? t('copied') : t('copy')"
+        variant="ghost"
+        class="shadow-none"
+        @click.prevent="handleCopy"
+      />
+    </template>
   </UiInput>
-  <!--  </ShadcnInputGroup> -->
 </template>
 
 <script setup lang="ts">
