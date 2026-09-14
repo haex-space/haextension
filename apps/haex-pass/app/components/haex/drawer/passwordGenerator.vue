@@ -222,7 +222,7 @@
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { RefreshCw, Copy, Check, Info, Save, Trash2 } from "lucide-vue-next";
+import { RefreshCw, Copy, Check, Info, Save, Trash2 } from "@lucide/vue";
 
 const value = defineModel<string | null>();
 const isOpen = defineModel<boolean>("open", { default: false });

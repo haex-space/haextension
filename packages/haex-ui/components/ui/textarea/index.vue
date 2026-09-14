@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
 import { useClipboard } from "@vueuse/core";
-import { Copy, Check } from "lucide-vue-next";
+import { Copy, Check } from "@lucide/vue";
 
 defineOptions({ inheritAttrs: false });
 

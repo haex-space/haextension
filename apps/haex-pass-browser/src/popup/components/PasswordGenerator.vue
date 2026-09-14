@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PasswordConfig } from '~/logic/passwordGenerator'
 import type { GetPasswordPresetsResponseData, PasswordPreset } from '~/logic/messages'
-import { Check, ChevronLeft, Copy, HelpCircle, RefreshCw } from 'lucide-vue-next'
+import { Check, ChevronLeft, Copy, HelpCircle, RefreshCw } from '@lucide/vue'
 import { useI18n } from '~/locales'
 import { defaultPasswordConfig, generatePassword } from '~/logic/passwordGenerator'
 import { MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'

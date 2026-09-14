@@ -356,7 +356,7 @@ import {
   Trash2,
   Upload,
   Users,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { watchDebounced, useMediaQuery, onClickOutside } from "@vueuse/core";
 import { calendars } from "~/database/schemas";

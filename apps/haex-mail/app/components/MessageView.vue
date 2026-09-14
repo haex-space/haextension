@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Download, Loader2, Reply, Trash2 } from "lucide-vue-next";
+import { ChevronRight, Download, Loader2, Reply, Trash2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";

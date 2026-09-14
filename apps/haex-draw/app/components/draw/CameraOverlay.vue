@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Camera, SwitchCamera, Check, RotateCcw } from "lucide-vue-next";
+import { X, Camera, SwitchCamera, Check, RotateCcw } from "@lucide/vue";
 
 const emit = defineEmits<{
   close: [];

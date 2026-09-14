@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, Trash } from "lucide-vue-next";
+import { ChevronDown, Trash } from "@lucide/vue";
 import type { HTMLAttributes } from "vue";
 
 const props = defineProps<{

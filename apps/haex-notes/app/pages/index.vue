@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, BookOpen, Share2, Users } from "lucide-vue-next";
+import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 

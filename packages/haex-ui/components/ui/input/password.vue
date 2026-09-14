@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { Eye, EyeOff, Copy, Check } from "lucide-vue-next";
+import { Eye, EyeOff, Copy, Check } from "@lucide/vue";
 
 defineProps<{
   copyable?: boolean;

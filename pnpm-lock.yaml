@@ -27,6 +27,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -60,9 +63,6 @@ importers:
       ical.js:
         specifier: ^2.1.0
         version: 2.2.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -118,6 +118,9 @@ importers:
       '@iconify-json/vscode-icons':
         specifier: ^1.2.45
         version: 1.2.45
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -160,9 +163,6 @@ importers:
       fuse.js:
         specifier: ^7.1.0
         version: 7.1.0
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
@@ -218,6 +218,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -245,9 +248,6 @@ importers:
       emoji-mart:
         specifier: ^5.6.0
         version: 5.6.0
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -300,6 +300,9 @@ importers:
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -324,9 +327,6 @@ importers:
       drizzle-orm:
         specifier: 0.45.1
         version: 0.45.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       minimatch:
         specifier: ^10.1.1
         version: 10.1.1
@@ -382,6 +382,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -403,9 +406,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -452,6 +452,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -473,9 +476,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -519,6 +519,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -543,9 +546,6 @@ importers:
       drizzle-orm:
         specifier: 0.45.1
         version: 0.45.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -595,6 +595,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -622,9 +625,6 @@ importers:
       drizzle-orm:
         specifier: 0.45.1
         version: 0.45.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -677,6 +677,9 @@ importers:
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -713,9 +716,6 @@ importers:
       kdbxweb:
         specifier: ^2.1.1
         version: 2.1.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -787,6 +787,9 @@ importers:
       '@antfu/eslint-config':
         specifier: ^6.6.1
         version: 6.7.3(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16(@types/node@25.0.3)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@playwright/test':
         specifier: ^1.57.0
         version: 1.57.0
@@ -838,9 +841,6 @@ importers:
       kolorist:
         specifier: ^1.8.0
         version: 1.8.0
-      lucide-vue-next:
-        specifier: ^0.561.0
-        version: 0.561.0(vue@3.5.26(typescript@5.9.3))
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -889,6 +889,9 @@ importers:
       '@haex-space/vault-sdk':
         specifier: ^3.6.0
         version: 3.6.0(@nuxt/kit@4.2.2(magicast@0.5.1))(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/eslint':
         specifier: ^1.12.1
         version: 1.12.1(@typescript-eslint/utils@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(magicast@0.5.1)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -910,9 +913,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -956,6 +956,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.10.1
         version: 3.10.1
+      '@lucide/vue':
+        specifier: ^1.45.0
+        version: 1.46.0(vue@3.5.26(typescript@5.9.3))
       '@nuxtjs/i18n':
         specifier: ^10.2.1
         version: 10.2.1(@vue/compiler-dom@3.5.26)(db0@0.3.4(drizzle-orm@0.45.1))(ioredis@5.8.2)(magicast@0.5.1)(rollup@4.54.0)(vue@3.5.26(typescript@5.9.3))
@@ -974,9 +977,6 @@ importers:
       embla-carousel-vue:
         specifier: ^8.6.0
         version: 8.6.0(vue@3.5.26(typescript@5.9.3))
-      lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.26(typescript@5.9.3))
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@types/node@25.0.3)(@vue/compiler-sfc@3.5.26)(cac@6.7.14)(db0@0.3.4(drizzle-orm@0.45.1))(drizzle-orm@0.45.1)(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(@types/node@25.0.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.2(typescript@5.9.3))(xml2js@0.6.2)(yaml@2.8.2)
@@ -2034,6 +2034,11 @@ packages:
 
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
+
+  '@lucide/vue@1.46.0':
+    resolution: {integrity: sha512-xp4mUamXKM/jYCve8TOcEcuikidFh3Jn9gs0THCeEKn/fAdeU0mKhPqk0fmIwn42fI4CwGLRWrLneLA69h8Nqw==}
+    peerDependencies:
+      vue: '>=3.0.1'
 
   '@mapbox/node-pre-gyp@2.0.3':
     resolution: {integrity: sha512-uwPAhccfFJlsfCxMYTwOdVfOz3xqyj8xYL3zJj8f0pb30tLohnnFPhLuqp4/qoEz8sNxe4SESZedcBojRefIzg==}
@@ -5926,16 +5931,6 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-vue-next@0.561.0:
-    resolution: {integrity: sha512-c5HUckO0qHklVSOf/0vaSR3pEb8fYImRDCRDLde56uqS9js0D/e3RAvq0/YFWjkmyOBKCb0/IdskdoHZQEkT5g==}
-    peerDependencies:
-      vue: '>=3.0.1'
-
-  lucide-vue-next@0.562.0:
-    resolution: {integrity: sha512-LN0BLGKMFulv0lnfK29r14DcngRUhIqdcaL0zXTt2o0oS9odlrjCGaU3/X9hIihOjjN8l8e+Y9G/famcNYaI7Q==}
-    peerDependencies:
-      vue: '>=3.0.1'
-
   magic-regexp@0.10.0:
     resolution: {integrity: sha512-Uly1Bu4lO1hwHUW0CQeSWuRtzCMNO00CmXtS8N6fyvB3B979GOEEeAkiTUDsmbYLAbvpUS/Kt5c4ibosAzVyVg==}
 
@@ -9198,6 +9193,10 @@ snapshots:
       - supports-color
 
   '@kwsites/promise-deferred@1.1.1': {}
+
+  '@lucide/vue@1.46.0(vue@3.5.26(typescript@5.9.3))':
+    dependencies:
+      vue: 3.5.26(typescript@5.9.3)
 
   '@mapbox/node-pre-gyp@2.0.3':
     dependencies:
@@ -13443,14 +13442,6 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
-
-  lucide-vue-next@0.561.0(vue@3.5.26(typescript@5.9.3)):
-    dependencies:
-      vue: 3.5.26(typescript@5.9.3)
-
-  lucide-vue-next@0.562.0(vue@3.5.26(typescript@5.9.3)):
-    dependencies:
-      vue: 3.5.26(typescript@5.9.3)
 
   magic-regexp@0.10.0:
     dependencies:

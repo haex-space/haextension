@@ -29,7 +29,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
     "ical.js": "^2.1.0",
-    "lucide-vue-next": "^0.562.0",
+    "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
     "reka-ui": "^2.6.1",
     "rrule": "^2.8.1",

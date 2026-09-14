@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { Pencil, Plus, Trash2 } from "@lucide/vue";
 import { formatRemindersShort } from "~/lib/reminders";
 import { rruleFrequency } from "~/lib/rrule";
 import type { SelectEventType } from "~/stores/eventTypes";

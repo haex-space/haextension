@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GetPasswordConfigResponseData } from '~/logic/messages'
-import { Check, Eye, EyeOff, Key, Loader2, X } from 'lucide-vue-next'
+import { Check, Eye, EyeOff, Key, Loader2, X } from '@lucide/vue'
 import { useI18n } from '~/locales'
 import { MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG } from '~/logic/messages'
 import { generatePassword, defaultPasswordConfig } from '~/logic/passwordGenerator'

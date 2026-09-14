@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Check, Trash2, X } from "lucide-vue-next";
+import { Plus, Check, Trash2, X } from "@lucide/vue";
 
 const { t } = useI18n();
 const paletteStore = usePaletteStore();

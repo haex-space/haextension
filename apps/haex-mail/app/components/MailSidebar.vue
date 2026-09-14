@@ -10,7 +10,7 @@ import {
   Pencil,
   Settings,
   RefreshCw,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
 import type { MailboxRole } from "~/database/schemas";
 

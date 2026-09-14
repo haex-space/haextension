@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, X } from "lucide-vue-next";
+import { Plus, X } from "@lucide/vue";
 import {
   REMINDER_UNITS,
   minutesToOffset,

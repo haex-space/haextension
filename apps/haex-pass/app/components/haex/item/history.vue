@@ -216,7 +216,7 @@ import {
   FileText,
   FileType as FileTypeIcon,
   Download,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { useTimeAgo } from "@vueuse/core";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
 import "photoswipe/style.css";

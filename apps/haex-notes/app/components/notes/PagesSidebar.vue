@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Trash2, RotateCcw, ChevronDown } from "lucide-vue-next";
+import { X, Trash2, RotateCcw, ChevronDown } from "@lucide/vue";
 import { DnDProvider } from "@vue-dnd-kit/core";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { SelectPage } from "~/database/schemas";

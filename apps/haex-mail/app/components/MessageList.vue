@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
-import { PanelLeftClose, PanelLeftOpen, Paperclip, Search } from "lucide-vue-next";
+import { PanelLeftClose, PanelLeftOpen, Paperclip, Search } from "@lucide/vue";
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
 import { isMessageUnread, roleLabelKey } from "~/stores/mail";

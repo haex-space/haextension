@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Loader2 } from "lucide-vue-next";
+import { Check, Loader2 } from "@lucide/vue";
 import type { SpaceAssignment, DecryptedSpace } from "@haex-space/vault-sdk";
 
 const props = defineProps<{
