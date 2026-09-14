@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Paintbrush } from "lucide-vue-next";
+import { Plus, Paintbrush } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
 
 const { t } = useI18n();

@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ShieldAlert, ShieldX, RefreshCw } from "lucide-vue-next";
+import { ShieldAlert, ShieldX, RefreshCw } from "@lucide/vue";
 
 const { t } = useI18n();
 const haexVaultStore = useHaexVaultStore();

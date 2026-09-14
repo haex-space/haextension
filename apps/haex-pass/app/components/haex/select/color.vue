@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { RotateCcw } from "lucide-vue-next";
+import { RotateCcw } from "@lucide/vue";
 
 defineProps<{
   label?: string;

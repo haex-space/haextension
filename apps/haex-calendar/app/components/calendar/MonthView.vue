@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { CheckSquare, Square } from "lucide-vue-next";
+import { CheckSquare, Square } from "@lucide/vue";
 import type { SelectEvent } from "~/database/schemas";
 import { toDateKey } from "~/composables/useTimeGrid";
 

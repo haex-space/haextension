@@ -6,7 +6,7 @@
 
 **Architecture:** Single-page Nuxt 4 extension with Drizzle ORM (2 tables: calendars + events), 3 Pinia stores (calendars, events, calendarView), composables for DnD/iCal/TimeGrid. Shared calendars map 1:1 to Spaces — sharing a calendar creates a Space, joining a Space pulls a calendar. UI follows Google Calendar patterns.
 
-**Tech Stack:** Nuxt 4, Vue 3, Drizzle ORM (SQLite), Pinia, @vue-dnd-kit, ical.js, @vueuse/core, Shadcn-vue, Tailwind CSS 4, lucide-vue-next
+**Tech Stack:** Nuxt 4, Vue 3, Drizzle ORM (SQLite), Pinia, @vue-dnd-kit, ical.js, @vueuse/core, Shadcn-vue, Tailwind CSS 4, @lucide/vue
 
 ---
 
@@ -58,7 +58,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
     "ical.js": "^2.1.0",
-    "lucide-vue-next": "^0.562.0",
+    "@lucide/vue": "^0.562.0",
     "nuxt": "^4.2.2",
     "reka-ui": "^2.6.1",
     "shadcn-nuxt": "2.3.2",
@@ -1472,7 +1472,7 @@ import {
   Plus,
   Upload,
   Users,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { watchDebounced } from "@vueuse/core";
 
 const { t } = useI18n();

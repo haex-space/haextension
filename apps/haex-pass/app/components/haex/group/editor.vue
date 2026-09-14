@@ -119,7 +119,7 @@
 
 <script setup lang="ts">
 import { useMagicKeys } from "@vueuse/core";
-import { Trash2, Pencil, Save, X } from "lucide-vue-next";
+import { Trash2, Pencil, Save, X } from "@lucide/vue";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{

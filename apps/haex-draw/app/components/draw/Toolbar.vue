@@ -25,7 +25,7 @@ import {
   Camera,
   Images,
   Smile,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { Tool } from "~/types";
 
 defineProps<{

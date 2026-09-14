@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreVertical, Trash2, Copy, Pencil } from "lucide-vue-next";
+import { MoreVertical, Trash2, Copy, Pencil } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
 
 const props = defineProps<{

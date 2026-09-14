@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, X } from "lucide-vue-next";
+import { Paperclip, X } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
 import { getErrorMessage } from "~/lib/utils";

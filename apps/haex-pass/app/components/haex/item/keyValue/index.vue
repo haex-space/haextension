@@ -182,7 +182,7 @@
 
 <script setup lang="ts">
 import { useClipboard, useFocus } from "@vueuse/core";
-import { Plus, Trash2, Copy, Check, Globe, KeyRound } from "lucide-vue-next";
+import { Plus, Trash2, Copy, Check, Globe, KeyRound } from "@lucide/vue";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,

@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Edit, Trash, RotateCcw, Image } from "lucide-vue-next";
+import { ChevronRight, Edit, Trash, RotateCcw, Image } from "@lucide/vue";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const props = defineProps<{

@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import { File } from "lucide-vue-next";
+import { File } from "@lucide/vue";
 import {
   haexPasswordsItemDetails,
   haexPasswordsGroupItems,

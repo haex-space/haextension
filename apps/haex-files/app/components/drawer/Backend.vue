@@ -158,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from "lucide-vue-next"
+import { Eye, EyeOff } from "@lucide/vue"
 import type { S3Config, StorageBackendInfo } from "~/stores/backends"
 
 const isOpen = defineModel<boolean>("open", { default: false })

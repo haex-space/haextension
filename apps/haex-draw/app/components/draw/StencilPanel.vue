@@ -19,7 +19,7 @@ import {
   ArrowDown,
   ChevronsUp,
   ChevronsDown,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { Stencil } from "~/types/stencil";
 import type { StrokeData } from "~/database/schemas";
 import getStroke from "perfect-freehand";

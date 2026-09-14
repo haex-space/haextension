@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { Loader2 } from "lucide-vue-next";
+import { Loader2 } from "@lucide/vue";
 import { discoverAsync, type CaldavCalendarInfo, type CaldavDiscoveryResult } from "~/composables/useCaldav";
 import { calendars, type InsertCalendar } from "~/database/schemas";
 

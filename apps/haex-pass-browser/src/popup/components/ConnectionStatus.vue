@@ -5,7 +5,7 @@ import {
   ExternalConnectionErrorCode,
   ExternalConnectionState,
 } from '@haex-space/vault-sdk'
-import { Clock, Loader2, PlugZap, Shield, ShieldOff } from 'lucide-vue-next'
+import { Clock, Loader2, PlugZap, Shield, ShieldOff } from '@lucide/vue'
 import { useI18n } from '~/locales'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 

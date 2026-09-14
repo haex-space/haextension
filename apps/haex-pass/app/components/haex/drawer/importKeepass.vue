@@ -80,7 +80,7 @@ import * as kdbxweb from "kdbxweb";
 import { argon2id, argon2i, argon2d } from "hash-wasm";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import { toast } from "vue-sonner";
-import { File, Eye, EyeOff } from "lucide-vue-next";
+import { File, Eye, EyeOff } from "@lucide/vue";
 import { addBinaryAsync } from "~/utils/cleanup";
 import {
   haexPasswordsItemDetails,

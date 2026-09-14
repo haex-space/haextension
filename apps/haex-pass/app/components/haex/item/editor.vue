@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { X, Trash2, Pencil, Save } from "lucide-vue-next";
+import { X, Trash2, Pencil, Save } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type {
   SelectHaexPasswordsItemDetails,
