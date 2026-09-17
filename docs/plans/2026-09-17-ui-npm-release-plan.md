@@ -686,6 +686,39 @@ Expected: one JS chunk path (German default label shipped, no i18n needed).
 
 Append the three command outputs (trimmed) to the PR description in Task 7. Then `rm -rf /tmp/ui-consumer-probe /tmp/haex-space-ui-0.1.0.tgz`.
 
+**Actual result (2026-09-17): the build failed, not the three grep checks.** Step 4's
+`pnpm exec nuxi build` failed before producing any output:
+```
+[vite:vue] [@vue/compiler-sfc] No fs option provided to `compileScript` in non-Node
+environment. File system access is required for resolving imported types.
+  components/shadcn/alert-dialog/{Content,Action}.vue
+  const props = defineProps<AlertDialogContentProps & { class?: HTMLAttributes["class"] }>()
+```
+Root-caused with four follow-up isolation builds (Vite pinned to 6.4.3 → same failure,
+rules out the Vite major version; the layer extended via a local relative path instead
+of an npm package → same failure, rules out node_modules/tarball resolution; a
+hand-written component using the identical `defineProps<RekaTypeProps & {...}>()`
+pattern placed directly in the app's own `~/components/` instead of behind an extended
+layer → **succeeds**, rules out reka-ui's typed props themselves; haex-calendar, Nuxt
+4.2.2, same layer → succeeds, already established in Task 3/4).
+
+**Conclusion:** this is specific to a Nuxt **layer's own** `components: [{ global: true
+}]` async/lazy component registration interacting with Nuxt 3.21's Vite integration when
+a component's props type is a generic imported from another package — a Nuxt 3 vs Nuxt 4
+framework difference, not fixable from the consumer side (not by pinning Vite, not by
+changing how the layer is installed). Nearly every reka-ui-wrapping shadcn-vue component
+uses this exact pattern, so the whole layer is affected for any Nuxt 3 consumer, not one
+component. Corollary, also verified: shadcn-vue components generated directly into a
+Nuxt 3 app's own component folder (not consumed through an extended layer) do not hit
+this — same types, same pattern, builds fine.
+
+This does not block this PR — the layer itself is correct and works for its existing
+Nuxt 4 consumers (haex-calendar, haex-notes, etc., unaffected, verified in Task 3/4).
+It means `@haex-space/ui` cannot currently be consumed as a layer by a Nuxt 3 app; that
+is a fact for Task 7's PR description to state plainly, not a defect in Tasks 1–5's work
+to fix here. Whether/how the intended external consumer (ifa-board, Nuxt 3.21) proceeds
+is a decision for its own maintainer, out of scope for this repo.
+
 ---
 
 ### Task 7: Push, PR, knowledge base
