@@ -16,6 +16,10 @@ permissions:
 
 jobs:
   publish:
+    # workflow_dispatch lets anyone with write access pick an arbitrary ref;
+    # restrict publishing to tag pushes (which always name an immutable ref)
+    # or a manual dispatch run on the default branch.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
