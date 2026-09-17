@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^3.2.6",
-    "@haex/ui": "workspace:*",
+    "@haex-space/ui": "workspace:*",
     "vue-i18n": "^11.2.2"
   },
   "devDependencies": {

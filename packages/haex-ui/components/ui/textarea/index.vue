@@ -17,7 +17,7 @@
         <UiButton
           v-if="withCopy"
           :icon="copied ? Check : Copy"
-          :tooltip="copied ? t('copied') : t('copy')"
+          :tooltip="copied ? props.labels.copied : props.labels.copy"
           variant="ghost"
           size="icon-sm"
           data-slot="button"
@@ -35,10 +35,24 @@ import { Copy, Check } from "@lucide/vue";
 
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps<{
-  withCopy?: boolean;
-  class?: HTMLAttributes["class"];
-}>();
+export type UiTextareaLabels = {
+  copy: string;
+  copied: string;
+};
+
+const props = withDefaults(
+  defineProps<{
+    withCopy?: boolean;
+    class?: HTMLAttributes["class"];
+    /** Tooltip texts for the copy button. Defaults are German. */
+    labels?: UiTextareaLabels;
+  }>(),
+  {
+    withCopy: false,
+    class: undefined,
+    labels: () => ({ copy: "Kopieren", copied: "Kopiert!" }),
+  },
+);
 
 const modelValue = defineModel<string | number | null | undefined>();
 
@@ -48,7 +62,6 @@ const textareaValue = computed({
   set: (val) => { modelValue.value = val; },
 });
 
-const { t } = useI18n();
 const { copy, copied } = useClipboard();
 
 const textareaRef = useTemplateRef("textareaRef");
@@ -86,12 +99,3 @@ defineExpose({ focus });
 }
 </style>
 
-<i18n lang="yaml">
-de:
-  copy: Kopieren
-  copied: Kopiert!
-
-en:
-  copy: Copy
-  copied: Copied!
-</i18n>

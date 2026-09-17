@@ -5,15 +5,6 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default defineNuxtConfig({
-  modules: [
-    '@nuxtjs/i18n',
-  ],
-
-  i18n: {
-    locales: ['de', 'en'],
-    defaultLocale: 'de',
-  },
-
   components: [
     // Shadcn components - naked shadcn-vue components
     // Use Shadcn* prefix to access these
