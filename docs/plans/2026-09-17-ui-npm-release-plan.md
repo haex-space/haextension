@@ -15,6 +15,15 @@
 **Known limits before release (need Martin, not code):**
 - Repo secret `NPM_TOKEN` (granular npm token with publish rights on `@haex-space`) must exist before the first `ui-v*` tag.
 - License: the repo has no LICENSE file; the org's npm packages declare `ISC`. This plan uses `ISC`. Confirm in the PR.
+- **Accepted behavior change (decided 2026-09-17, do not "fix" without asking):** removing i18n
+  from `UiInputPassword`, `UiTextarea`, `UiTimePicker` in Task 3 means their existing call sites in
+  `apps/haex-mail/app/components/AccountForm.vue` (1×) and
+  `apps/haex-calendar/app/components/calendar/{EventDrawer,QuickCreate}.vue` (4×) — none of which pass
+  a `labels` prop today — will render the German defaults regardless of the app's active locale,
+  until someone adds `labels` there. `apps/haex-pass` also uses `UiTextarea` (3×) but is archived and
+  no longer released. Only tooltips/placeholders are affected, not functionality. This plan
+  deliberately does not touch `apps/**` beyond the one-line rename in Task 2 — updating the call
+  sites is a separate, later change.
 
 ---
 
@@ -417,6 +426,13 @@ function updateMinute(value: AcceptableValue) {
 ```
 
 Delete the `<i18n lang="yaml">…</i18n>` block at the end of the file.
+
+**Step 5b: Note the accepted behavior change**
+
+This step is documentation only, no file changes beyond what Step 3–5 already produced. Before
+moving on, re-read the "Accepted behavior change" bullet in this plan's intro — it describes exactly
+what Steps 3–5 just did to `UiInputPassword`, `UiTextarea`, `UiTimePicker` and why existing call
+sites in `apps/haex-mail` and `apps/haex-calendar` are intentionally left unchanged.
 
 **Step 6: Verify no i18n is left**
 
