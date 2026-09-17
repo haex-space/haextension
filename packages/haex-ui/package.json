@@ -24,7 +24,6 @@
   },
   "peerDependencies": {
     "@internationalized/date": "^3.10.1",
-    "@nuxtjs/i18n": "^10.2.1",
     "@tailwindcss/vite": "^4.1.18",
     "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
