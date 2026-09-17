@@ -13,6 +13,10 @@ on:
 
 permissions:
   contents: read
+  # Lets the job request an OIDC token so `pnpm publish` can use npm's
+  # Trusted Publishing instead of NODE_AUTH_TOKEN, once configured on
+  # npmjs.com for this repo + workflow (see README.md "Release").
+  id-token: write
 
 jobs:
   publish:

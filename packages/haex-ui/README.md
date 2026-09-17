@@ -50,3 +50,17 @@ Dark mode is opt-in: add the `dark` class to `<html>` (for example via
 
 Bump `version` in `packages/haex-ui/package.json`, merge, then push a tag
 `ui-v<version>`. `.github/workflows/ui-release.yml` publishes to npm.
+
+**First release only:** npm requires a package to already exist before
+Trusted Publishing can be configured for it, so the very first `ui-v*` tag
+must publish using the `NPM_TOKEN` repo secret (a classic granular token
+with publish rights on `@haex-space`).
+
+**After the first release:** configure npm Trusted Publishing so future
+releases need no token at all — on the package's Settings page on npmjs.com,
+add a Trusted Publisher: provider GitHub Actions, organization/user
+`haex-space`, repository `haextension`, workflow filename `ui-release.yml`
+(just the filename, not the path). The workflow already requests
+`id-token: write`; npm's CLI (and pnpm ≥ 10, which this repo pins) detects
+the OIDC token automatically and prefers it over `NODE_AUTH_TOKEN`. The
+`NPM_TOKEN` secret can then be removed.
