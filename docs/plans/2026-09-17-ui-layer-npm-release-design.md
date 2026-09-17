@@ -56,7 +56,7 @@ has a single language.
 {
   "name": "@haex-space/ui",
   "version": "0.1.0",
-  "license": "<same as repo>",
+  "license": "ISC",
   "repository": { "type": "git", "url": "https://github.com/haex-space/haextension", "directory": "packages/haex-ui" },
   "files": ["nuxt.config.ts", "components", "lib", "plugins", "assets", "components.json", "README.md"],
   "publishConfig": { "access": "public" }
@@ -66,7 +66,7 @@ has a single language.
 No `exports` field: consumers must be able to deep-import
 `@haex-space/ui/assets/css/theme.css`, and Nuxt resolves the layer through
 `main: ./nuxt.config.ts` as today. `tailwind.config.ts` is empty and is not
-shipped. `peerDependencies` stay as they are minus `@nuxtjs/i18n`.
+shipped. `peerDependencies` stay as they are minus `@nuxtjs/i18n` and minus `shadcn-nuxt`, which the layer never loads.
 
 ## Release mechanics
 
@@ -111,7 +111,7 @@ export default defineNuxtConfig({
 }
 ```
 
-The app installs the layer's peers explicitly (`reka-ui`, `@lucide/vue`,
+The app installs the layer's peers explicitly (`reka-ui`, `clsx`, `@lucide/vue`,
 `vue-sonner`, `vaul-vue`, `embla-carousel-vue`, `class-variance-authority`,
 `@internationalized/date`, `tailwind-merge@3`, `@vueuse/core@14`,
 `tailwindcss@4`, `@tailwindcss/vite`, `tw-animate-css`). Nuxt 3.2x with

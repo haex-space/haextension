@@ -92,7 +92,6 @@ git commit -m "docs: haex-ui npm release design and plan"
     "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
     "reka-ui": "^2.6.1",
-    "shadcn-nuxt": "^2.4.3",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "tw-animate-css": "^1.4.0",
@@ -103,7 +102,7 @@ git commit -m "docs: haex-ui npm release design and plan"
 }
 ```
 
-(`@nuxtjs/i18n` is removed from peers in Task 3, not here, so each commit stays single-purpose.)
+(`shadcn-nuxt` is dropped here: the layer never loads that module, it only exists in consuming apps. `@nuxtjs/i18n` is removed from peers in Task 3, not here, so each commit stays single-purpose.)
 
 **Step 2: Create `packages/haex-ui/README.md`:**
 
@@ -432,7 +431,7 @@ Expected: `Types generated in .nuxt.` and the count is `0` (the baseline had `i1
 **Step 8: Verify an app that brings its own i18n still builds**
 
 Run: `pnpm --filter haex-calendar exec nuxt prepare && pnpm --filter haex-calendar build 2>&1 | tail -5`
-Expected: build ends with a Nitro "You can preview this build" or "✔ … built" line and no `ERROR`. (haex-calendar is what CI builds for `packages/**` changes.) If the build fails on something unrelated to i18n or the three components, stop and report; do not fix app code in this plan.
+Expected: build ends with a Nitro "You can preview this build" or "✔ … built" line and no `ERROR`. (CI builds haex-calendar and haex-code for `packages/**` changes; haex-code does not use the three changed components, so one local build suffices and the PR run covers the other.) If the build fails on something unrelated to i18n or the three components, stop and report; do not fix app code in this plan.
 
 **Step 9: Commit**
 
@@ -663,7 +662,7 @@ Append the three command outputs (trimmed) to the PR description in Task 7. Then
 
 **Step 1: Knowledge base (local, gitignored)**
 
-Append to `/home/haex/Projekte/haextension/.claude/session-log.md` a dated entry: what changed, the new tag scheme `ui-v*`, the `NPM_TOKEN` prerequisite, the consumer contract pointer. Add a subsection "haex-ui (npm)" under "CI/CD Release Pipelines" in `.claude/architecture.md` with trigger, steps and secret, mirroring the existing entries.
+The knowledge base lives only in the main checkout (`.claude/` is gitignored and therefore absent from the worktree). Append to `/home/haex/Projekte/haextension/.claude/session-log.md` a dated entry: what changed, the new tag scheme `ui-v*`, the `NPM_TOKEN` prerequisite, the consumer contract pointer. Add a subsection "haex-ui (npm)" under "CI/CD Release Pipelines" in `/home/haex/Projekte/haextension/.claude/architecture.md` with trigger, steps and secret, mirroring the existing entries. Do not create a `.claude/` directory inside the worktree.
 
 **Step 2: Push and open the PR**
 
