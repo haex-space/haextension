@@ -1,0 +1,57 @@
+name: UI Layer Release
+
+on:
+  push:
+    tags:
+      - 'ui-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (must equal packages/haex-ui/package.json version, e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Check tag matches package version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          GIT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            EXPECTED="$INPUT_VERSION"
+          else
+            EXPECTED="${GIT_REF#refs/tags/ui-v}"
+          fi
+          ACTUAL=$(node -p "require('./packages/haex-ui/package.json').version")
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Tag/input version $EXPECTED does not match package.json version $ACTUAL" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish @haex-space/ui
+        working-directory: packages/haex-ui
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --access public --no-git-checks
