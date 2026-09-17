@@ -485,8 +485,22 @@ If `package.json`, `components.json` or `assets/` show up as modified, inspect t
 
 **Step 3: Verify the component names Nuxt derives**
 
-Run: `cd packages/haex-ui && pnpm exec nuxi prepare && grep -oE "'Shadcn(ToggleGroup|ToggleGroupItem|Toggle|Table|TableRow|TableHead|TableCell|NumberField|NumberFieldInput|NumberFieldIncrement|NumberFieldDecrement)'" .nuxt/components.d.ts | sort -u; cd ../..`
-Expected: all eleven names listed once each. (Nuxt strips the repeated path segment, so `toggle-group/ToggleGroupItem.vue` becomes `ShadcnToggleGroupItem`, same as the existing `sheet/SheetContent.vue`.)
+Run: `cd packages/haex-ui && pnpm exec nuxi prepare && grep -oE "Shadcn(ToggleGroup|ToggleGroupItem|Toggle|Table|TableRow|TableHead|TableCell|NumberField|NumberFieldInput|NumberFieldIncrement|NumberFieldDecrement)\b" .nuxt/components.d.ts | sort -u; cd ../..`
+Expected: all eleven names listed once each. (Nuxt strips the repeated path segment, so `toggle-group/ToggleGroupItem.vue` becomes `ShadcnToggleGroupItem`, same as the existing `sheet/SheetContent.vue`. Note: this Nuxt version emits `.nuxt/components.d.ts` as unquoted `export const ShadcnX: typeof import(...)`, not quoted string literals — the pattern above has no surrounding quotes for that reason; a quoted pattern silently matches nothing and gives a false "not generated" signal.)
+
+**Step 3b: Fix the icon import**
+
+`packages/haex-ui/components.json` has `"iconLibrary": "lucide"`, which makes the shadcn-vue CLI emit `import { X } from "lucide-vue-next"` in any generated component that uses an icon — but this monorepo migrated off `lucide-vue-next` to `@lucide/vue` (commit `dfdf944`), and `lucide-vue-next` is not a dependency anywhere here. `number-field` is the only one of the three components with icons (`NumberFieldIncrement.vue`, `NumberFieldDecrement.vue`).
+
+Run: `grep -rln "lucide-vue-next" packages/haex-ui/components/shadcn/{toggle,toggle-group,table,number-field}`
+Expected: `packages/haex-ui/components/shadcn/number-field/NumberFieldIncrement.vue` and `.../NumberFieldDecrement.vue`.
+
+Fix: `sed -i 's/from "lucide-vue-next"/from "@lucide\/vue"/' packages/haex-ui/components/shadcn/number-field/NumberFieldIncrement.vue packages/haex-ui/components/shadcn/number-field/NumberFieldDecrement.vue`
+
+Run: `grep -rl "lucide-vue-next" packages/haex-ui/components/shadcn/{toggle,toggle-group,table,number-field}`
+Expected: no output.
+
+(This is a standing gap in `components.json`, not something to fix in this task: every future `shadcn-vue add` of an icon-using component will reproduce it. Fixing `iconLibrary` itself is out of scope here — flag it to Martin as a follow-up, don't change `components.json`.)
 
 **Step 4: Commit**
 
