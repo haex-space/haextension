@@ -37,3 +37,6 @@ graphify-out/
 
 private.key
 */**/dist
+
+# git worktrees
+.worktrees/
