@@ -46,6 +46,13 @@ its own. Adjust the relative path to where your CSS file lives.
 Dark mode is opt-in: add the `dark` class to `<html>` (for example via
 `@nuxtjs/color-mode` with `classSuffix: ''`).
 
+## Compatibility
+
+This layer currently supports Nuxt 4.2.2 and newer (`nuxt ^4.2.2`). Nuxt 3.21
+layer consumption is not currently supported: `nuxi build` fails while
+processing the layer's globally registered components with
+`No fs option provided to compileScript in non-Node environment`.
+
 ## Release
 
 Bump `version` in `packages/haex-ui/package.json`, merge, then push a tag

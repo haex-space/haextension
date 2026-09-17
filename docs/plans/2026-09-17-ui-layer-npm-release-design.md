@@ -114,10 +114,12 @@ export default defineNuxtConfig({
 The app installs the layer's peers explicitly (`reka-ui`, `clsx`, `@lucide/vue`,
 `vue-sonner`, `vaul-vue`, `embla-carousel-vue`, `class-variance-authority`,
 `@internationalized/date`, `tailwind-merge@3`, `@vueuse/core@14`,
-`tailwindcss@4`, `@tailwindcss/vite`, `tw-animate-css`). Nuxt 3.2x with
-`future.compatibilityVersion: 4` is expected to work; the layer uses no
-Nuxt-4-only API. `nuxt ^4` stays the declared peer; a 3.x host gets a peer
-warning, not an error.
+`tailwindcss@4`, `@tailwindcss/vite`, `tw-animate-css`). The supported host is
+Nuxt 4.2.2+ (`nuxt ^4.2.2`). Nuxt 3.21 layer consumption is currently
+unsupported: its `nuxi build` fails while processing the layer's globally
+registered components with `No fs option provided to compileScript in non-Node
+environment`. This is a Nuxt 3 layer-integration limitation, not a peer warning
+that consumers can safely ignore.
 
 Dark mode is opt-in: without `@nuxtjs/color-mode` (or a manual `.dark`
 class) the light tokens apply.
