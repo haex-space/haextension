@@ -1,12 +1,15 @@
 import { eq, inArray } from "drizzle-orm";
 import { getTableName, type SpaceAssignment, type DecryptedSpace } from "@haex-space/vault-sdk";
 import { notebooks, pages } from "~/database/schemas";
+import { collectAssetIds } from "~/lib/collectAssets";
+import { migratePageRow } from "~/lib/migratePage";
 import manifest from "../../haextension/manifest.json";
 import packageJson from "../../package.json";
 
 const FULL_NOTEBOOKS_TABLE = getTableName(manifest.publicKey, packageJson.name, "notebooks");
 const FULL_PAGES_TABLE = getTableName(manifest.publicKey, packageJson.name, "pages");
-export { FULL_NOTEBOOKS_TABLE, FULL_PAGES_TABLE };
+const FULL_ASSETS_TABLE = getTableName(manifest.publicKey, packageJson.name, "assets");
+export { FULL_NOTEBOOKS_TABLE, FULL_PAGES_TABLE, FULL_ASSETS_TABLE };
 
 const nbPk = (id: string) => JSON.stringify({ id });
 
@@ -28,6 +31,25 @@ export const useSpacesStore = defineStore("spaces", () => {
   /** All space assignments for the pages table (used to mark shared pages). */
   async function getAllPageAssignmentsAsync(): Promise<SpaceAssignment[]> {
     return haexVault.client.spaces.getAssignmentsAsync(FULL_PAGES_TABLE);
+  }
+
+  /** Assignments für alle Assets, auf die die übergebenen Seiten verweisen. */
+  function assetAssignmentsFor(
+    sourcePages: { layers?: unknown; background?: unknown; strokes?: unknown }[],
+    spaceId: string,
+    groupId: string,
+  ): SpaceAssignment[] {
+    const ids = new Set<string>();
+    for (const page of sourcePages) {
+      const { layers, background } = migratePageRow(page as never);
+      for (const id of collectAssetIds(layers, background)) ids.add(id);
+    }
+    return [...ids].map((id) => ({
+      tableName: FULL_ASSETS_TABLE,
+      rowPks: nbPk(id),
+      spaceId,
+      groupId,
+    }));
   }
 
   /** Throws if any pageId is missing or belongs to a different notebook. */
@@ -58,6 +80,7 @@ export const useSpacesStore = defineStore("spaces", () => {
     const assignments: SpaceAssignment[] = [
       { tableName: FULL_NOTEBOOKS_TABLE, rowPks: nbPk(notebookId), spaceId, groupId: notebookId, type: "Notebook", label: nb?.name },
       ...nbPages.map((p) => ({ tableName: FULL_PAGES_TABLE, rowPks: nbPk(p.id), spaceId, groupId: notebookId })),
+      ...assetAssignmentsFor(nbPages, spaceId, notebookId),
     ];
     await haexVault.client.spaces.assignAsync(assignments);
     await orm.update(notebooks).set({ spaceId }).where(eq(notebooks.id, notebookId));
@@ -74,15 +97,23 @@ export const useSpacesStore = defineStore("spaces", () => {
     await assertPagesBelongToNotebookAsync(notebookId, pageIds);
 
     const [nb] = await orm.select().from(notebooks).where(eq(notebooks.id, notebookId));
+    const sharedPages = await orm.select().from(pages).where(inArray(pages.id, pageIds));
 
     const assignments: SpaceAssignment[] = [
       { tableName: FULL_NOTEBOOKS_TABLE, rowPks: nbPk(notebookId), spaceId, groupId: notebookId, type: "Notebook", label: nb?.name },
       ...pageIds.map((pid) => ({ tableName: FULL_PAGES_TABLE, rowPks: nbPk(pid), spaceId, groupId: notebookId })),
+      ...assetAssignmentsFor(sharedPages, spaceId, notebookId),
     ];
     await haexVault.client.spaces.assignAsync(assignments);
   }
 
-  /** Unshare the whole notebook (+ its pages) from a space and recompute space_id. */
+  /**
+   * Unshare the whole notebook (+ its pages) from a space and recompute space_id.
+   *
+   * Asset assignments are intentionally left in place: the same asset can still be
+   * referenced by another page that remains shared. Cleaning up orphaned asset
+   * assignments is deferred to a later phase.
+   */
   async function unshareNotebookFromSpaceAsync(notebookId: string, spaceId: string) {
     const orm = haexVault.orm;
     if (!orm) return;
