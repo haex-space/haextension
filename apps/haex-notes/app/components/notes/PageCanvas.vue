@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { useEventListener } from "@vueuse/core";
-import getStroke from "perfect-freehand";
-import { renderPageTemplate, PAGE_SIZE, getPageSize } from "~/utils/pageTemplates";
-import type { PageTemplate, StrokeData, PageTable } from "~/database/schemas";
+import { useEventListener, useResizeObserver } from "@vueuse/core";
+import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
+import type { TableElement } from "~/types/document";
+import { drawElement, drawElements } from "~/lib/render/elements";
 
-const canvasEl = useTemplateRef<HTMLCanvasElement>("canvasEl");
+const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
+const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
+const contentCanvasEl = useTemplateRef<HTMLCanvasElement>("contentCanvasEl");
+const overlayCanvasEl = useTemplateRef<HTMLCanvasElement>("overlayCanvasEl");
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
 
 const pageSize = computed(() => {
-  const page = notebook.currentPage;
-  const orientation = (page as any)?.orientation ?? "portrait";
-  return getPageSize(orientation);
+  const doc = notebook.currentDoc;
+  return { width: doc?.width ?? PAGE_SIZE.width, height: doc?.height ?? PAGE_SIZE.height };
 });
 
 // Viewport (pan/zoom within the page)
@@ -29,70 +31,70 @@ const PEN_TYPE_TO_PRESET: Record<string, string> = {
 
 // --- Rendering ---
 
-function getSvgPathFromStroke(stroke: [number, number][]) {
-  if (stroke.length < 2) return "";
-  const d: string[] = [];
-  const first = stroke[0]!;
-  d.push(`M ${first[0]} ${first[1]}`);
-  for (let i = 1; i < stroke.length; i++) {
-    const pt = stroke[i]!;
-    if (i === 1) {
-      d.push(`L ${pt[0]} ${pt[1]}`);
-    } else {
-      const prev = stroke[i - 1]!;
-      d.push(`Q ${prev[0]} ${prev[1]} ${(prev[0] + pt[0]) / 2} ${(prev[1] + pt[1]) / 2}`);
-    }
-  }
-  d.push("Z");
-  return d.join(" ");
-}
+type Layer = "bg" | "content" | "overlay";
 
-function renderStroke(ctx: CanvasRenderingContext2D, stroke: StrokeData) {
-  const outlinePoints = getStroke(stroke.points, {
-    size: stroke.size,
-    thinning: stroke.tool === "eraser" ? 0 : 0.3,
-    smoothing: 0.5,
-    streamline: 0.5,
-    simulatePressure: true,
+const dirty = new Set<Layer>(["bg", "content", "overlay"]);
+let frameId = 0;
+
+/** Markiert Ebenen als neu zu zeichnen und fordert genau einen Frame an. */
+const scheduleRender = (...layers: Layer[]) => {
+  for (const layer of layers) dirty.add(layer);
+  if (frameId) return;
+  frameId = requestAnimationFrame(() => {
+    frameId = 0;
+    const todo = new Set(dirty);
+    dirty.clear();
+    if (todo.has("bg")) renderBackground();
+    if (todo.has("content")) renderContent();
+    if (todo.has("overlay")) renderOverlay();
   });
-  if (outlinePoints.length < 2) return;
-  const pathData = getSvgPathFromStroke(outlinePoints as [number, number][]);
-  if (!pathData) return;
+};
 
-  ctx.save();
-  if (stroke.brushPreset === "marker" || stroke.brushPreset === "highlighter") {
-    ctx.globalAlpha = 0.35;
-  }
-  ctx.fillStyle = stroke.tool === "eraser" ? "#ffffff" : stroke.color;
-  ctx.fill(new Path2D(pathData));
-  ctx.restore();
-}
+onUnmounted(() => {
+  if (frameId) cancelAnimationFrame(frameId);
+});
 
-const render = () => {
-  const el = canvasEl.value;
-  if (!el) return;
+/** Setzt Canvas-Größe und Viewport-Transform, gibt den vorbereiteten Kontext zurück. */
+function prepare(el: HTMLCanvasElement | null): CanvasRenderingContext2D | null {
+  if (!el) return null;
   const ctx = el.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return null;
 
   const dpr = window.devicePixelRatio || 1;
   const cw = el.clientWidth;
   const ch = el.clientHeight;
-
   if (el.width !== cw * dpr || el.height !== ch * dpr) {
     el.width = cw * dpr;
     el.height = ch * dpr;
   }
 
-  // Clear
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = "#e5e7eb"; // muted background around the page
+  ctx.clearRect(0, 0, el.width, el.height);
+  ctx.setTransform(
+    dpr * viewport.zoom, 0,
+    0, dpr * viewport.zoom,
+    dpr * viewport.x, dpr * viewport.y,
+  );
+  return ctx;
+}
+
+function renderBackground() {
+  const el = bgCanvasEl.value;
+  const ctx = prepare(el);
+  if (!ctx || !el) return;
+
+  // Grauer Rand — außerhalb der Viewport-Transform, deckt den ganzen Canvas ab.
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#e5e7eb";
   ctx.fillRect(0, 0, el.width, el.height);
+  ctx.restore();
 
-  // Apply viewport transform
-  ctx.setTransform(dpr * viewport.zoom, 0, 0, dpr * viewport.zoom, dpr * viewport.x, dpr * viewport.y);
+  const doc = notebook.currentDoc;
+  if (!doc) return;
 
-  // Draw page (white rectangle)
-  ctx.fillStyle = "#ffffff";
+  // Papierrechteck
+  ctx.fillStyle = doc.background.paperColor;
   ctx.shadowColor = "rgba(0,0,0,0.1)";
   ctx.shadowBlur = 4;
   ctx.shadowOffsetX = 1;
@@ -100,91 +102,56 @@ const render = () => {
   ctx.fillRect(0, 0, pageSize.value.width, pageSize.value.height);
   ctx.shadowColor = "transparent";
 
-  // Draw page template (lines, grid, etc.)
-  const page = notebook.currentPage;
-  if (page) {
-    renderPageTemplate(ctx, page.template as PageTemplate, pageSize.value.width, pageSize.value.height);
+  renderPageTemplate(ctx, doc.background.template, pageSize.value.width, pageSize.value.height);
 
-    // Draw background image if present
-    if (page.backgroundImage && bgImage.value) {
-      ctx.save();
-      ctx.globalAlpha = 0.3;
-      ctx.drawImage(bgImage.value, 0, 0, pageSize.value.width, pageSize.value.height);
-      ctx.restore();
-    }
-  }
-
-  // Draw tables
-  for (const table of notebook.pageTables) {
+  const overlay = doc.background.overlay;
+  if (overlay?.type === "image" && bgImage.value) {
     ctx.save();
-    ctx.strokeStyle = "rgba(100, 120, 150, 0.5)";
-    ctx.lineWidth = 1;
-
-    const totalW = table.columnWidths.reduce((a, b) => a + b, 0);
-    const totalH = table.rowHeights.reduce((a, b) => a + b, 0);
-
-    // Outer border
-    ctx.strokeRect(table.x, table.y, totalW, totalH);
-
-    // Column lines
-    let cx = table.x;
-    for (let c = 0; c < table.columns - 1; c++) {
-      cx += table.columnWidths[c]!;
-      ctx.beginPath();
-      ctx.moveTo(cx, table.y);
-      ctx.lineTo(cx, table.y + totalH);
-      ctx.stroke();
-    }
-
-    // Row lines
-    let cy = table.y;
-    for (let r = 0; r < table.rows - 1; r++) {
-      cy += table.rowHeights[r]!;
-      ctx.beginPath();
-      ctx.moveTo(table.x, cy);
-      ctx.lineTo(table.x + totalW, cy);
-      ctx.stroke();
-    }
-
+    ctx.globalAlpha = overlay.opacity;
+    ctx.drawImage(bgImage.value, 0, 0, pageSize.value.width, pageSize.value.height);
     ctx.restore();
   }
+}
 
-  // Draw strokes
-  for (const stroke of notebook.strokes) {
-    renderStroke(ctx, stroke);
-  }
+function renderContent() {
+  const ctx = prepare(contentCanvasEl.value);
+  if (!ctx) return;
+  drawElements(ctx, notebook.visibleElements);
+}
 
-  // Draw current stroke
-  if (notebook.currentStroke) {
-    renderStroke(ctx, notebook.currentStroke);
-  }
-};
+function renderOverlay() {
+  const ctx = prepare(overlayCanvasEl.value);
+  if (!ctx) return;
+  if (notebook.currentStroke) drawElement(ctx, notebook.currentStroke);
+}
 
 // Background image cache
 const bgImage = ref<HTMLImageElement | null>(null);
-watch(() => notebook.currentPage?.backgroundImage, (src) => {
-  if (!src) { bgImage.value = null; return; }
-  const img = new Image();
-  img.onload = () => { bgImage.value = img; };
-  img.src = src;
-}, { immediate: true });
+watch(
+  () => {
+    const overlay = notebook.currentDoc?.background.overlay;
+    return overlay?.type === "image" && overlay.source.kind === "inline" ? overlay.source.dataUrl : null;
+  },
+  (src) => {
+    if (!src) { bgImage.value = null; return; }
+    const img = new Image();
+    img.onload = () => { bgImage.value = img; scheduleRender("bg"); };
+    img.src = src;
+  },
+  { immediate: true },
+);
 
-// Render loop
-let animFrameId = 0;
-const startLoop = () => {
-  const loop = () => { render(); animFrameId = requestAnimationFrame(loop); };
-  animFrameId = requestAnimationFrame(loop);
-};
-onMounted(startLoop);
-onUnmounted(() => cancelAnimationFrame(animFrameId));
+// --- Auslöser ---
 
-// Center the page on mount
-onMounted(() => {
-  nextTick(fitPage);
-});
+watch(() => notebook.currentDoc?.background, () => scheduleRender("bg"), { deep: true });
+watch(() => notebook.visibleElements, () => scheduleRender("content"), { deep: true });
+watch(() => [viewport.x, viewport.y, viewport.zoom], () => scheduleRender("bg", "content", "overlay"));
+watch(pageSize, () => nextTick(() => { fitPage(); scheduleRender("bg", "content", "overlay"); }));
+useResizeObserver(hostEl, () => scheduleRender("bg", "content", "overlay"));
+onMounted(() => { nextTick(() => { fitPage(); scheduleRender("bg", "content", "overlay"); }); });
 
 const fitPage = () => {
-  const el = canvasEl.value;
+  const el = overlayCanvasEl.value;
   if (!el) return;
   const cw = el.clientWidth;
   const ch = el.clientHeight;
@@ -196,9 +163,6 @@ const fitPage = () => {
   viewport.y = (ch - pageSize.value.height * viewport.zoom) / 2;
 };
 
-// Re-fit when orientation changes
-watch(pageSize, () => nextTick(fitPage));
-
 // --- Input handling ---
 
 const screenToPage = (sx: number, sy: number) => ({
@@ -207,7 +171,7 @@ const screenToPage = (sx: number, sy: number) => ({
 });
 
 const getPointerPos = (e: PointerEvent) => {
-  const rect = canvasEl.value!.getBoundingClientRect();
+  const rect = overlayCanvasEl.value!.getBoundingClientRect();
   return { x: e.clientX - rect.left, y: e.clientY - rect.top, pressure: e.pressure || 0.5 };
 };
 
@@ -215,18 +179,18 @@ const getPointerPos = (e: PointerEvent) => {
 const LINE_HIT_THRESHOLD = 6; // pixels in page-space
 
 interface TableHit {
-  table: PageTable;
+  table: TableElement;
   type: "col" | "row" | "move";
   index: number; // which col/row line (0-based, between cells)
 }
 
-const tableDrag = ref<{ hit: TableHit; startVal: number; startX: number; startY: number } | null>(null);
+const tableDrag = ref<{ hit: TableHit; startVal: number; startX: number; startY: number; gestureId: string } | null>(null);
 
 // Context menu state
-const tableContextMenu = ref<{ table: PageTable; pageX: number; pageY: number } | null>(null);
+const tableContextMenu = ref<{ table: TableElement; pageX: number; pageY: number } | null>(null);
 
 function hitTestTableLines(px: number, py: number): TableHit | null {
-  for (const table of notebook.pageTables) {
+  for (const table of notebook.tableElements) {
     const totalW = table.columnWidths.reduce((a, b) => a + b, 0);
     const totalH = table.rowHeights.reduce((a, b) => a + b, 0);
 
@@ -263,8 +227,8 @@ function hitTestTableLines(px: number, py: number): TableHit | null {
 }
 
 const onPointerDown = (e: PointerEvent) => {
-  if (!canvasEl.value) return;
-  canvasEl.value.setPointerCapture(e.pointerId);
+  if (!overlayCanvasEl.value) return;
+  overlayCanvasEl.value.setPointerCapture(e.pointerId);
 
   const { x, y, pressure } = getPointerPos(e);
 
@@ -285,12 +249,13 @@ const onPointerDown = (e: PointerEvent) => {
   // Check table line hit first
   const hit = hitTestTableLines(page.x, page.y);
   if (hit) {
+    const gestureId = String(e.pointerId);
     if (hit.type === "col") {
-      tableDrag.value = { hit, startVal: hit.table.columnWidths[hit.index]!, startX: page.x, startY: page.y };
+      tableDrag.value = { hit, startVal: hit.table.columnWidths[hit.index]!, startX: page.x, startY: page.y, gestureId };
     } else if (hit.type === "row") {
-      tableDrag.value = { hit, startVal: hit.table.rowHeights[hit.index]!, startX: page.x, startY: page.y };
+      tableDrag.value = { hit, startVal: hit.table.rowHeights[hit.index]!, startX: page.x, startY: page.y, gestureId };
     } else if (hit.type === "move") {
-      tableDrag.value = { hit, startVal: 0, startX: page.x - hit.table.x, startY: page.y - hit.table.y };
+      tableDrag.value = { hit, startVal: 0, startX: page.x - hit.table.x, startY: page.y - hit.table.y, gestureId };
     }
     return;
   }
@@ -299,17 +264,19 @@ const onPointerDown = (e: PointerEvent) => {
 
   notebook.currentStroke = {
     id: crypto.randomUUID(),
+    type: "stroke",
     points: [[page.x, page.y, pressure]],
     color: slot.color,
     size: slot.size,
     tool: slot.type === "eraser" ? "eraser" : "brush",
     brushPreset: PEN_TYPE_TO_PRESET[slot.type] ?? "fine-tip",
+    bbox: [0, 0, 0, 0],
   };
   notebook.isDrawing = true;
 };
 
 const onPointerMove = (e: PointerEvent) => {
-  if (!canvasEl.value) return;
+  if (!overlayCanvasEl.value) return;
   const { x, y, pressure } = getPointerPos(e);
 
   if (isPanning.value) {
@@ -321,19 +288,17 @@ const onPointerMove = (e: PointerEvent) => {
   // Table line dragging
   if (tableDrag.value) {
     const page = screenToPage(x, y);
-    const { hit, startVal, startX, startY } = tableDrag.value;
+    const { hit, startVal, startX, startY, gestureId } = tableDrag.value;
     if (hit.type === "col") {
-      const delta = page.x - startX;
-      hit.table.columnWidths[hit.index] = Math.max(20, startVal + delta);
-      notebook.isDirty = true;
+      const next = Math.max(20, startVal + (page.x - startX));
+      notebook.resizeTable(hit.table.id, gestureId, (t) => { t.columnWidths[hit.index] = next; });
     } else if (hit.type === "row") {
-      const delta = page.y - startY;
-      hit.table.rowHeights[hit.index] = Math.max(15, startVal + delta);
-      notebook.isDirty = true;
+      const next = Math.max(15, startVal + (page.y - startY));
+      notebook.resizeTable(hit.table.id, gestureId, (t) => { t.rowHeights[hit.index] = next; });
     } else if (hit.type === "move") {
-      hit.table.x = page.x - startX;
-      hit.table.y = page.y - startY;
-      notebook.isDirty = true;
+      const nx = page.x - startX;
+      const ny = page.y - startY;
+      notebook.resizeTable(hit.table.id, gestureId, (t) => { t.x = nx; t.y = ny; });
     }
     return;
   }
@@ -341,16 +306,17 @@ const onPointerMove = (e: PointerEvent) => {
   if (notebook.isDrawing && notebook.currentStroke) {
     const page = screenToPage(x, y);
     notebook.currentStroke.points.push([page.x, page.y, pressure]);
+    scheduleRender("overlay");
   }
 
   // Update cursor based on table hit
-  if (!notebook.isDrawing && canvasEl.value) {
+  if (!notebook.isDrawing && overlayCanvasEl.value) {
     const page = screenToPage(x, y);
     const hit = hitTestTableLines(page.x, page.y);
-    if (hit?.type === "col") canvasEl.value.style.cursor = "col-resize";
-    else if (hit?.type === "row") canvasEl.value.style.cursor = "row-resize";
-    else if (hit?.type === "move") canvasEl.value.style.cursor = "move";
-    else canvasEl.value.style.cursor = "crosshair";
+    if (hit?.type === "col") overlayCanvasEl.value.style.cursor = "col-resize";
+    else if (hit?.type === "row") overlayCanvasEl.value.style.cursor = "row-resize";
+    else if (hit?.type === "move") overlayCanvasEl.value.style.cursor = "move";
+    else overlayCanvasEl.value.style.cursor = "crosshair";
   }
 };
 
@@ -371,13 +337,14 @@ const onPointerUp = () => {
     notebook.addStroke(stroke, label);
     notebook.currentStroke = null;
     notebook.isDrawing = false;
+    scheduleRender("content", "overlay");
   }
 };
 
 const onWheel = (e: WheelEvent) => {
   e.preventDefault();
-  if (!canvasEl.value) return;
-  const rect = canvasEl.value.getBoundingClientRect();
+  if (!overlayCanvasEl.value) return;
+  const rect = overlayCanvasEl.value.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
 
@@ -390,14 +357,14 @@ const onWheel = (e: WheelEvent) => {
   viewport.zoom = newZoom;
 };
 
-useEventListener(canvasEl, "pointerdown", onPointerDown);
-useEventListener(canvasEl, "pointermove", onPointerMove);
-useEventListener(canvasEl, "pointerup", onPointerUp);
-useEventListener(canvasEl, "pointerleave", onPointerUp);
-useEventListener(canvasEl, "contextmenu", (e: MouseEvent) => {
+useEventListener(overlayCanvasEl, "pointerdown", onPointerDown);
+useEventListener(overlayCanvasEl, "pointermove", onPointerMove);
+useEventListener(overlayCanvasEl, "pointerup", onPointerUp);
+useEventListener(overlayCanvasEl, "pointerleave", onPointerUp);
+useEventListener(overlayCanvasEl, "contextmenu", (e: MouseEvent) => {
   e.preventDefault();
   // Show table context menu on right-click
-  const rect = canvasEl.value!.getBoundingClientRect();
+  const rect = overlayCanvasEl.value!.getBoundingClientRect();
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
   const page = screenToPage(sx, sy);
@@ -408,7 +375,7 @@ useEventListener(canvasEl, "contextmenu", (e: MouseEvent) => {
     tableContextMenu.value = null;
   }
 });
-useEventListener(canvasEl, "wheel", onWheel, { passive: false });
+useEventListener(overlayCanvasEl, "wheel", onWheel, { passive: false });
 
 const resetZoom = () => fitPage();
 
@@ -418,10 +385,12 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
 </script>
 
 <template>
-  <div class="relative h-full w-full">
+  <div ref="hostEl" class="relative h-full w-full">
+    <canvas ref="bgCanvasEl" class="absolute inset-0 h-full w-full" />
+    <canvas ref="contentCanvasEl" class="absolute inset-0 h-full w-full" />
     <canvas
-      ref="canvasEl"
-      class="h-full w-full touch-none"
+      ref="overlayCanvasEl"
+      class="absolute inset-0 h-full w-full touch-none"
       style="cursor: crosshair"
     />
 
