@@ -1,30 +1,54 @@
 <template>
-  <div
-    :class="[
-      'group relative transition-[color,box-shadow] rounded-md border border-input focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]',
-      props.class,
-    ]"
-  >
-    <ShadcnTextarea
-      ref="textareaRef"
-      v-model="textareaValue"
-      v-bind="$attrs"
-      class="border-none shadow-none focus-visible:ring-0 focus-visible:border-transparent pr-12"
-    />
+  <div :class="['relative w-full', props.class]">
+    <div
+      class="group relative transition-[color,box-shadow] rounded-md border border-input focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px] has-[[aria-invalid=true]]:border-destructive"
+      :style="labelStyle"
+    >
+      <ShadcnTextarea
+        ref="textareaRef"
+        v-model="textareaValue"
+        v-bind="$attrs"
+        :class="[
+          'peer border-none shadow-none focus-visible:ring-0 focus-visible:border-transparent pr-12',
+          labelledPlaceholderClass(label),
+        ]"
+        :placeholder="labelledPlaceholder(label, $attrs.placeholder)"
+        :aria-invalid="error ? 'true' : undefined"
+      />
 
-    <div class="absolute top-2 right-2 flex flex-col gap-1">
-      <slot name="actions">
-        <UiButton
-          v-if="withCopy"
-          :icon="copied ? Check : Copy"
-          :tooltip="copied ? props.labels.copied : props.labels.copy"
-          variant="ghost"
-          size="icon-sm"
-          data-slot="button"
-          @click.prevent="handleCopy"
-        />
-      </slot>
+      <label
+        v-if="label"
+        :for="($attrs.id as string | undefined) ?? undefined"
+        :class="[
+          floatingLabelBase,
+          floatingLabelRestMulti,
+          'left-2',
+          floatingLabelFloated,
+          error ? 'text-destructive peer-focus:text-destructive' : '',
+        ]"
+        data-slot="floating-label"
+      >
+        {{ label }}
+      </label>
+
+      <div class="absolute top-2 right-2 flex flex-col gap-1">
+        <slot name="actions">
+          <UiButton
+            v-if="withCopy"
+            :icon="copied ? Check : Copy"
+            :tooltip="copied ? props.labels.copied : props.labels.copy"
+            variant="ghost"
+            size="icon-sm"
+            data-slot="button"
+            @click.prevent="handleCopy"
+          />
+        </slot>
+      </div>
     </div>
+
+    <p v-if="error" class="mt-1 px-1 text-xs text-destructive" role="alert">
+      {{ error }}
+    </p>
   </div>
 </template>
 
@@ -32,6 +56,14 @@
 import type { HTMLAttributes } from "vue";
 import { useClipboard } from "@vueuse/core";
 import { Copy, Check } from "@lucide/vue";
+import {
+  LABEL_BG_VAR,
+  floatingLabelBase,
+  floatingLabelFloated,
+  floatingLabelRestMulti,
+  labelledPlaceholder,
+  labelledPlaceholderClass,
+} from "../../../lib/floating-label";
 
 defineOptions({ inheritAttrs: false });
 
@@ -44,6 +76,12 @@ const props = withDefaults(
   defineProps<{
     withCopy?: boolean;
     class?: HTMLAttributes["class"];
+    /** Floating label on the border of the field. */
+    label?: string;
+    /** CSS colour of the surface behind the field; the label uses it to cover the border. */
+    labelBg?: string;
+    /** Error text under the field; also marks the field invalid. */
+    error?: string;
     /** Tooltip texts for the copy button. Defaults are German. */
     labels?: UiTextareaLabels;
   }>(),
@@ -61,6 +99,8 @@ const textareaValue = computed({
   get: () => modelValue.value ?? undefined,
   set: (val) => { modelValue.value = val; },
 });
+
+const labelStyle = computed(() => (props.labelBg ? { [LABEL_BG_VAR]: props.labelBg } : undefined));
 
 const { copy, copied } = useClipboard();
 
@@ -98,4 +138,3 @@ defineExpose({ focus });
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 </style>
-

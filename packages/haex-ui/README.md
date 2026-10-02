@@ -46,6 +46,26 @@ its own. Adjust the relative path to where your CSS file lives.
 Dark mode is opt-in: add the `dark` class to `<html>` (for example via
 `@nuxtjs/color-mode` with `classSuffix: ''`).
 
+## Inputs with a floating label
+
+`UiInput`, `UiInputPassword`, `UiTextarea` and `UiSelect` take a `label`. At rest it lies inside the
+field like a placeholder; with focus or a value it moves onto the border (pure CSS: the field is a
+`peer`, `placeholder=" "` tells empty from filled). The label covers the border with the colour of the
+surface behind the field, which defaults to `--background`; set `label-bg` (any CSS colour, for
+example `var(--muted)`) where the field sits on another surface.
+
+```vue
+<UiInput v-model="name" label="Name" label-bg="var(--muted)" :error="nameError" clearable />
+<UiInputPassword v-model="secret" label="Passwort" copyable :labels="{ show, hide, copy, copied }" />
+<UiTextarea v-model="note" label="Notiz" />
+<UiSelect v-model="algorithm" label="Algorithmus" :options="[{ value: 'SHA1', label: 'SHA-1' }]" />
+```
+
+A real `placeholder` is shown only while the field has focus. `error` marks the field invalid and shows
+the text under it. The focus ring of every field is `--primary`, so an app that lets its users change
+`--primary` at runtime changes the rings and the labels with it. Texts of the buttons (`labels`) are
+passed in by the app; the defaults are German.
+
 ## Compatibility
 
 This layer currently supports Nuxt 4.2.2 and newer (`nuxt ^4.2.2`). Nuxt 3.21
