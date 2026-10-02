@@ -18,12 +18,14 @@
         ref="inputRef"
         :autofocus
         :placeholder="labelledPlaceholder(label, $attrs.placeholder)"
+        :id="fieldId"
         :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="describedBy"
       />
 
       <label
         v-if="label"
-        :for="($attrs.id as string | undefined) ?? undefined"
+        :for="fieldId"
         :class="[
           floatingLabelBase,
           floatingLabelRestSingle,
@@ -58,14 +60,14 @@
       />
     </ShadcnInputGroup>
 
-    <p v-if="error" class="mt-1 px-1 text-xs text-destructive" role="alert">
+    <p v-if="error" :id="errorId" class="mt-1 px-1 text-xs text-destructive" role="alert">
       {{ error }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { HTMLAttributes } from "vue";
+import { useId, type HTMLAttributes } from "vue";
 import { useClipboard } from "@vueuse/core";
 import { Check, Copy, X } from "@lucide/vue";
 import {
@@ -115,6 +117,17 @@ const props = withDefaults(
 
 const attrs = useAttrs();
 const slots = useSlots();
+
+// Ties the label and the error text to the input even when the consumer passes no id.
+const generatedId = useId();
+const fieldId = computed(() => (attrs.id as string | undefined) ?? generatedId);
+const errorId = `${generatedId}-error`;
+// Keeps a consumer's aria-describedby and adds the error text while there is one.
+const describedBy = computed(() =>
+  [attrs["aria-describedby"] as string | undefined, props.error ? errorId : undefined]
+    .filter(Boolean)
+    .join(" ") || undefined,
+);
 
 const modelValue = defineModel<string | number | null | undefined>();
 

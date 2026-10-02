@@ -6,12 +6,13 @@
       @update:open="open = $event"
     >
       <ShadcnSelectTrigger
-        :id="id"
+        :id="fieldId"
         :class="[
           'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
           error ? 'border-destructive' : '',
         ]"
         :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="error ? errorId : undefined"
         :aria-label="label ? undefined : ariaLabel"
       >
         <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
@@ -30,21 +31,21 @@
 
     <label
       v-if="label"
-      :for="id"
+      :for="fieldId"
       :class="labelClass"
       data-slot="floating-label"
     >
       {{ label }}
     </label>
 
-    <p v-if="error" class="mt-1 px-1 text-xs text-destructive" role="alert">
+    <p v-if="error" :id="errorId" class="mt-1 px-1 text-xs text-destructive" role="alert">
       {{ error }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { HTMLAttributes } from "vue";
+import { useId, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 import {
   LABEL_BG_VAR,
@@ -75,6 +76,11 @@ const props = defineProps<{
 }>();
 
 const model = defineModel<string | null | undefined>();
+
+// Ties the label and the error text to the trigger even when the consumer passes no id.
+const generatedId = useId();
+const fieldId = computed(() => props.id ?? generatedId);
+const errorId = `${generatedId}-error`;
 
 const open = ref(false);
 const floated = computed(
