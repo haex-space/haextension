@@ -3,7 +3,6 @@ import { Plus, Paintbrush } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
 
 const { t } = useI18n();
-const { $haexVault } = useNuxtApp();
 const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
@@ -61,7 +60,7 @@ const duplicateDrawing = async (id: string) => {
 
 const onDeleteDrawing = async (id: string) => {
   // Extensions run without `allow-modals`, so `window.confirm()` would return false at once.
-  const sure = await $haexVault.client.dialog.confirm({
+  const sure = await haexVault.client.dialog.confirm({
     message: t("confirmDelete"),
     confirmLabel: t("delete"),
     destructive: true,

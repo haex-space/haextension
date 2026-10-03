@@ -4,7 +4,6 @@ import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 
 const { t, locale } = useI18n();
-const { $haexVault } = useNuxtApp();
 const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
@@ -47,7 +46,7 @@ const openNotebook = (id: string) => {
 
 const deleteNotebook = async (id: string) => {
   // Extensions run without `allow-modals`, so `window.confirm()` would return false at once.
-  const sure = await $haexVault.client.dialog.confirm({
+  const sure = await haexVault.client.dialog.confirm({
     message: t("confirmDelete"),
     confirmLabel: t("delete"),
     destructive: true,
