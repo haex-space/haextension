@@ -130,11 +130,16 @@ watch(model, syncFromModel);
 const sbFieldEl = ref<HTMLElement | null>(null);
 const isDraggingSB = ref(false);
 
+/** The first touch of a touch event, or the mouse event itself. */
+const pointOf = (e: MouseEvent | TouchEvent): { clientX: number; clientY: number } | undefined =>
+  "touches" in e ? e.touches[0] : e;
+
 const updateSB = (e: MouseEvent | TouchEvent) => {
   if (!sbFieldEl.value) return;
+  const point = pointOf(e);
+  if (!point) return;
   const rect = sbFieldEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-  const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+  const { clientX, clientY } = point;
 
   saturation.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
   brightness.value = Math.max(0, Math.min(100, 100 - ((clientY - rect.top) / rect.height) * 100));
@@ -153,7 +158,8 @@ const isDraggingHue = ref(false);
 const updateHue = (e: MouseEvent | TouchEvent) => {
   if (!hueSliderEl.value) return;
   const rect = hueSliderEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const clientX = pointOf(e)?.clientX;
+  if (clientX === undefined) return;
   hue.value = Math.max(0, Math.min(360, ((clientX - rect.left) / rect.width) * 360));
   updateColor();
 };
@@ -170,7 +176,8 @@ const isDraggingOpacity = ref(false);
 const updateOpacity = (e: MouseEvent | TouchEvent) => {
   if (!opacitySliderEl.value) return;
   const rect = opacitySliderEl.value.getBoundingClientRect();
-  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const clientX = pointOf(e)?.clientX;
+  if (clientX === undefined) return;
   opacity.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
 };
 

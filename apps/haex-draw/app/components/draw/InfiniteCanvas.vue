@@ -2,12 +2,11 @@
 const canvas = useCanvasStore();
 const canvasEl = useTemplateRef<HTMLCanvasElement>("canvasEl");
 const { startRenderLoop, stopRenderLoop } = useCanvasRenderer(canvasEl);
-useCanvasInput(canvasEl);
+const { isPanning } = useCanvasInput(canvasEl);
 
 const cursorStyle = computed(() => {
-  if (canvas.activeTool === "pan") return "grab";
-  if (canvas.isDrawing && canvas.activeTool === "pan") return "grabbing";
-  return "crosshair";
+  if (isPanning.value) return "grabbing";
+  return canvas.activeTool === "pan" ? "grab" : "crosshair";
 });
 
 onMounted(() => startRenderLoop());
