@@ -59,8 +59,8 @@ function parseSvg(svgText: string): { svgPath: string; width: number; height: nu
   if (viewBox) {
     const parts = viewBox.split(/[\s,]+/).map(Number);
     if (parts.length === 4) {
-      svgWidth = parts[2];
-      svgHeight = parts[3];
+      svgWidth = parts[2] ?? svgWidth;
+      svgHeight = parts[3] ?? svgHeight;
     }
   }
 

@@ -1,6 +1,6 @@
 import type { BrushPreset } from "~/types";
 
-export const BRUSH_PRESETS: BrushPreset[] = [
+export const BRUSH_PRESETS: readonly [BrushPreset, ...BrushPreset[]] = [
   // --- Bleistift: dünne, leicht raue Linie ---
   {
     id: "pencil",

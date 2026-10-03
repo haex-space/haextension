@@ -339,6 +339,7 @@ export const useStencilStore = defineStore("stencils", () => {
     changeShape,
     resizeStencil,
     getStencil,
+    clipboard,
     copySelected,
     paste,
     hitTest,

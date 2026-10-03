@@ -24,6 +24,7 @@ function renderStrokesToCanvas(ctx: CanvasRenderingContext2D, strokes: StrokeDat
 
     ctx.beginPath();
     const [first, ...rest] = outlinePoints;
+    if (!first) continue;
     ctx.moveTo(first[0], first[1]);
     for (const [x, y] of rest) ctx.lineTo(x, y);
     ctx.closePath();

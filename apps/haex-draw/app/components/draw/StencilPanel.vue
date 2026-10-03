@@ -169,7 +169,7 @@ const multiSizeValue = computed({
     if (selectedStencils.value.length === 0) return 60;
     const sizes = selectedStencils.value.map((s) => Math.max(s.width, s.height));
     const allSame = sizes.every((s) => s === sizes[0]);
-    return allSame ? sizes[0] : Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length);
+    return allSame ? (sizes[0] ?? 60) : Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length);
   },
   set: (val: number) => {
     const v = Math.max(10, val);
@@ -188,7 +188,7 @@ const multiRotationDeg = computed({
   get: () => {
     if (selectedStencils.value.length === 0) return 0;
     const degs = selectedStencils.value.map((s) => Math.round((s.rotation * 180) / Math.PI));
-    return degs[0];
+    return degs[0] ?? 0;
   },
   set: (deg: number) => {
     const rad = (deg * Math.PI) / 180;
@@ -280,6 +280,7 @@ const renderStrokeToCtx = (ctx: CanvasRenderingContext2D, stroke: StrokeData) =>
 
   ctx.beginPath();
   const [first, ...rest] = outlinePoints;
+  if (!first) return;
   ctx.moveTo(first[0], first[1]);
   for (const [x, y] of rest) ctx.lineTo(x, y);
   ctx.closePath();
