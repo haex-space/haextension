@@ -4,6 +4,7 @@ import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 
 const { t, locale } = useI18n();
+const { $haexVault } = useNuxtApp();
 const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
@@ -45,7 +46,13 @@ const openNotebook = (id: string) => {
 };
 
 const deleteNotebook = async (id: string) => {
-  if (!confirm(t("confirmDelete"))) return;
+  // Extensions run without `allow-modals`, so `window.confirm()` would return false at once.
+  const sure = await $haexVault.client.dialog.confirm({
+    message: t("confirmDelete"),
+    confirmLabel: t("delete"),
+    destructive: true,
+  });
+  if (!sure) return;
   await notebookStore.deleteNotebookAsync(id);
   await loadNotebooks();
 };
@@ -228,6 +235,7 @@ de:
   emptyState: Noch keine Notizbücher vorhanden
   createFirst: Erstelle dein erstes Notizbuch
   confirmDelete: Dieses Notizbuch und alle Seiten wirklich löschen?
+  delete: Löschen
   name: Name
   notebookPlaceholder: z.B. Mathe Klasse 3
   pageType: Seitentyp
@@ -240,6 +248,7 @@ en:
   emptyState: No notebooks yet
   createFirst: Create your first notebook
   confirmDelete: Really delete this notebook and all pages?
+  delete: Delete
   name: Name
   notebookPlaceholder: e.g. Math Grade 3
   pageType: Page Type
