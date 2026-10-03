@@ -70,7 +70,7 @@ export class NestInteriorScene extends Phaser.Scene {
     this.startBuildPhase()
   }
 
-  update(_time: number, delta: number) {
+  override update(_time: number, delta: number) {
     switch (this.phase) {
       case 'build-cells':
         this.updateBuildPhase(delta)
@@ -335,12 +335,11 @@ export class NestInteriorScene extends Phaser.Scene {
     const pollenCells = this.waxCells.filter(c => c.type === 'pollen')
 
     const layNext = (index: number) => {
-      if (index >= pollenCells.length || index >= this.eggsNeeded) {
+      const cell = pollenCells[index]
+      if (!cell || index >= this.eggsNeeded) {
         this.startBroodPhase()
         return
       }
-
-      const cell = pollenCells[index]
 
       // Move queen to cell
       this.tweens.add({

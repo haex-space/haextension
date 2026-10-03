@@ -57,7 +57,7 @@ export class NestSearchScene extends Phaser.Scene {
     this.cameras.main.fadeIn(800, 0, 0, 0)
   }
 
-  update(_time: number, delta: number) {
+  override update(_time: number, delta: number) {
     if (!this.queen || this.inspecting) return
 
     this.queen.update(delta)
@@ -184,6 +184,7 @@ export class NestSearchScene extends Phaser.Scene {
     for (let i = 0; i < candidateDefs.length; i++) {
       const def = candidateDefs[i]
       const pos = positions[i]
+      if (!def || !pos) continue
 
       const sprite = this.add.sprite(pos.x, pos.y, def.texture)
       sprite.setDepth(DEPTH.NEST_CANDIDATES)

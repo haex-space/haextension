@@ -54,6 +54,7 @@ export class WeatherSystem {
     const dt = delta / 1000
     for (let i = this.snowflakes.length - 1; i >= 0; i--) {
       const s = this.snowflakes[i]
+      if (!s) continue
       s.y += s.speed * dt
       s.x += (s.drift + this.windStrength * 15) * dt
       s.x += Math.sin(s.y * 0.02 + s.drift) * 0.3
@@ -79,6 +80,7 @@ export class WeatherSystem {
     const dt = delta / 1000
     for (let i = this.leaves.length - 1; i >= 0; i--) {
       const l = this.leaves[i]
+      if (!l) continue
       l.y += l.speed * dt
       l.x += (l.drift + this.windStrength * 20) * dt
       l.x += Math.sin(l.y * 0.03 + l.drift) * 0.8

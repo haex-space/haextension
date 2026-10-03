@@ -97,6 +97,7 @@ export class CutsceneScene extends Phaser.Scene {
 
     // Build new frame
     const frameDef = this.config.frames[index]
+    if (!frameDef) return
     frameDef.build(this, this.container)
 
     // Fade in
@@ -418,12 +419,14 @@ export function createQueenEmergenceCutscene(): CutsceneConfig {
           // Scattered early flowers
           const flowerColors = [0xbb77ff, 0xffffff, 0xffdd44]
           for (let i = 0; i < 8; i++) {
+            const color = flowerColors[i % flowerColors.length]
+            if (color === undefined) continue
             const fx = (Math.random() - 0.5) * 200
             const fy = 25 + Math.random() * 30
             const flower = scene.add.graphics()
             flower.fillStyle(0x3a6a28)
             flower.fillRect(fx, fy, 1, 5)
-            flower.fillStyle(flowerColors[i % flowerColors.length])
+            flower.fillStyle(color)
             flower.fillCircle(fx, fy - 2, 3)
             container.add(flower)
           }

@@ -21,6 +21,7 @@
     "@pinia/nuxt": "^0.11.3",
     "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
+    "drizzle-orm": "^0.45.1",
     "clsx": "^2.1.1",
     "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
