@@ -65,7 +65,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
     this.playEmergenceAnimation()
   }
 
-  update(_time: number, delta: number) {
+  override update(_time: number, delta: number) {
     if (!this.queen) return
 
     this.queen.update(delta)
