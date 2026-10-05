@@ -21,6 +21,7 @@
         class="shadow-none"
         @click.prevent="handleCopy"
       />
+      <slot name="append" />
     </template>
   </UiInput>
 </template>

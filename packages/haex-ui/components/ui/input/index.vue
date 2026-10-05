@@ -8,7 +8,9 @@
       :style="labelStyle"
     >
       <slot name="prepend">
-        <component :is="prependIcon" />
+        <ShadcnInputGroupAddon v-if="prependIcon" align="inline-start">
+          <component :is="prependIcon" />
+        </ShadcnInputGroupAddon>
       </slot>
 
       <ShadcnInputGroupInput
@@ -39,7 +41,9 @@
       </label>
 
       <slot name="append">
-        <component :is="appendIcon" />
+        <ShadcnInputGroupAddon v-if="appendIcon" align="inline-end">
+          <component :is="appendIcon" />
+        </ShadcnInputGroupAddon>
       </slot>
 
       <UiButton
