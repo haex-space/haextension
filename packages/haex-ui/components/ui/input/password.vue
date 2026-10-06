@@ -7,6 +7,7 @@
   >
     <template #append>
       <UiButton
+        type="button"
         :icon="showPassword ? EyeOff : Eye"
         :tooltip="showPassword ? labels.hide : labels.show"
         variant="ghost"
@@ -15,6 +16,7 @@
       />
       <UiButton
         v-if="copyable"
+        type="button"
         :icon="copied ? Check : Copy"
         :tooltip="copied ? labels.copied : labels.copy"
         variant="ghost"

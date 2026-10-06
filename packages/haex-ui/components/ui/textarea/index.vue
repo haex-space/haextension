@@ -37,6 +37,7 @@
         <slot name="actions">
           <UiButton
             v-if="withCopy"
+            type="button"
             :icon="copied ? Check : Copy"
             :tooltip="copied ? props.labels.copied : props.labels.copy"
             variant="ghost"
