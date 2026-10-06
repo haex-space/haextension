@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { Copy, Check, ExternalLink, Image, Loader2 } from "lucide-vue-next";
+import { Copy, Check, ExternalLink, Image, Loader2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 
 const model = defineModel<string | null>();

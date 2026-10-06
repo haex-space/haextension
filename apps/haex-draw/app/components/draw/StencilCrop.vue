@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, X } from "lucide-vue-next";
+import { Check, X } from "@lucide/vue";
 import type { Stencil } from "~/types/stencil";
 
 interface CropRect {

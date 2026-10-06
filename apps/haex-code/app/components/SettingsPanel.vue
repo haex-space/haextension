@@ -6,7 +6,7 @@ import {
   Monitor,
   Code,
   Terminal as TerminalIcon,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { EDITOR_THEMES, FONT_FAMILIES, type UiScale } from "~/stores/settings";
 
 const { t } = useI18n();

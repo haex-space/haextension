@@ -122,7 +122,7 @@ import {
   CornerLeftUp,
   Folder,
   File,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 interface RemoteItem {
   key: string;

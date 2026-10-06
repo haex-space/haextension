@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Forward, MoreVertical, ReplyAll } from "lucide-vue-next";
+import { Forward, MoreVertical, ReplyAll } from "@lucide/vue";
 
 /**
  * Triple-dot overflow menu for a message's secondary actions (reply-all,

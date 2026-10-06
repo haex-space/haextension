@@ -277,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Cloud, Plus, RefreshCw, Trash2 } from "lucide-vue-next";
+import { ArrowLeft, Cloud, Plus, RefreshCw, Trash2 } from "@lucide/vue";
 import type { DefaultEventDuration } from "~/stores/settings";
 
 const { t, locale } = useI18n();

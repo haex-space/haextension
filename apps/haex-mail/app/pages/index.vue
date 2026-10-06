@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onKeyStroke } from "@vueuse/core";
-import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "lucide-vue-next";
+import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from "~/stores/mail";

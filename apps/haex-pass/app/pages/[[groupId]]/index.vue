@@ -193,7 +193,7 @@ import {
   AlertTriangle,
   Tag,
   Check,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { IPasswordMenuItem } from "~/types/password";
 import { onLongPress, useClipboard, useEventListener } from "@vueuse/core";
 import { toast } from "vue-sonner";

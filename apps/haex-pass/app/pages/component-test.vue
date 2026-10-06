@@ -350,7 +350,7 @@ import {
   Copy,
   Eye,
   RefreshCw,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 definePageMeta({
   name: "componentOverview",

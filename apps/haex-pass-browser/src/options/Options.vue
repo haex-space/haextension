@@ -4,7 +4,7 @@ import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import type { SupportedLocale } from '~/locales'
 import type { PasskeyPrefs } from '~/logic/settings'
 import { canExternalClientSendRequests, ExternalConnectionState } from '@haex-space/vault-sdk'
-import { PlugZap } from 'lucide-vue-next'
+import { PlugZap } from '@lucide/vue'
 import {
   BOOKMARKS_CONFIRM_DELETIONS,
   BOOKMARKS_GET_STATUS,

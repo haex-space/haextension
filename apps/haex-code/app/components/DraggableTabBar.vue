@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileCode2, Plus, X } from "lucide-vue-next";
+import { FileCode2, Plus, X } from "@lucide/vue";
 import type { EditorTab } from "~/types";
 
 const props = defineProps<{

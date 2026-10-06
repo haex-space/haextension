@@ -107,7 +107,7 @@ export class OverworldScene extends Phaser.Scene {
     this.emitEvent('scene-ready', { scene: 'OverworldScene' })
   }
 
-  update(_time: number, delta: number) {
+  override update(_time: number, delta: number) {
     this.seasonSystem.update(delta)
     this.updateParallax()
     this.updateWeather(delta)
@@ -276,6 +276,7 @@ export class OverworldScene extends Phaser.Scene {
       const x = this.rng.between(TILE_SIZE * 2, MAP_WIDTH * TILE_SIZE - TILE_SIZE * 2)
       const y = this.rng.between(TILE_SIZE * 2, MAP_HEIGHT * TILE_SIZE - TILE_SIZE * 2)
       const type = flowerTypes[this.rng.between(0, flowerTypes.length - 1)]
+      if (!type) continue
 
       const flower = this.add.sprite(x, y, type.key)
       flower.setDepth(DEPTH.FLOWERS)
@@ -513,6 +514,7 @@ export class OverworldScene extends Phaser.Scene {
     const dt = delta / 1000
     for (let i = this.ambientCreatures.length - 1; i >= 0; i--) {
       const c = this.ambientCreatures[i]
+      if (!c) continue
       c.lifetime -= delta
 
       if (c.type === 'butterfly') {

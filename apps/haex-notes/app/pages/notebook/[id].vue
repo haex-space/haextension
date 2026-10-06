@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw, Table2, RotateCw, Share2 } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, Trash2, X, Settings, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { PageTemplate, PenSlot } from "~/database/schemas";
 

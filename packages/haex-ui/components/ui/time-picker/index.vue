@@ -2,7 +2,7 @@
   <div class="flex gap-2">
     <ShadcnSelect :model-value="selectedHour" @update:model-value="updateHour">
       <ShadcnSelectTrigger class="w-[5rem]">
-        <ShadcnSelectValue :placeholder="t('hour')" />
+        <ShadcnSelectValue :placeholder="labels.hour" />
       </ShadcnSelectTrigger>
       <ShadcnSelectContent>
         <ShadcnSelectItem
@@ -19,7 +19,7 @@
 
     <ShadcnSelect :model-value="selectedMinute" @update:model-value="updateMinute">
       <ShadcnSelectTrigger class="w-[5rem]">
-        <ShadcnSelectValue :placeholder="t('minute')" />
+        <ShadcnSelectValue :placeholder="labels.minute" />
       </ShadcnSelectTrigger>
       <ShadcnSelectContent>
         <ShadcnSelectItem
@@ -37,9 +37,22 @@
 <script setup lang="ts">
 import type { AcceptableValue } from "reka-ui";
 
-const model = defineModel<string>({ default: "09:00" });
+export type UiTimePickerLabels = {
+  hour: string;
+  minute: string;
+};
 
-const { t } = useI18n();
+withDefaults(
+  defineProps<{
+    /** Select placeholders. Defaults are German abbreviations. */
+    labels?: UiTimePickerLabels;
+  }>(),
+  {
+    labels: () => ({ hour: "Std", minute: "Min" }),
+  },
+);
+
+const model = defineModel<string>({ default: "09:00" });
 
 const hourOptions = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
 const minuteOptions = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
@@ -55,12 +68,3 @@ function updateMinute(value: AcceptableValue) {
   model.value = `${selectedHour.value}:${String(value)}`;
 }
 </script>
-
-<i18n lang="yaml">
-de:
-  hour: Std
-  minute: Min
-en:
-  hour: Hr
-  minute: Min
-</i18n>

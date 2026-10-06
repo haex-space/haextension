@@ -517,10 +517,19 @@ export const useMailStore = defineStore("mail", () => {
       await Promise.allSettled(
         removed.map((id) => haexVault.client.mail.stopWatchingAsync(id, WATCHED_MAILBOX)),
       );
+      // The host logs in for the watch itself, so it gets the IMAP credentials, as with every
+      // other mail call; it keeps them only while the watch runs.
       await Promise.allSettled(
-        added.map((id) =>
-          haexVault.client.mail.startWatchingAsync(id, WATCHED_MAILBOX, WATCH_INTERVAL_SECONDS),
-        ),
+        added.map(async (id) => {
+          const loaded = await accountsStore.getCredentialsCachedAsync(id);
+          if (!loaded) return;
+          await haexVault.client.mail.startWatchingAsync(
+            id,
+            WATCHED_MAILBOX,
+            WATCH_INTERVAL_SECONDS,
+            loaded.imap,
+          );
+        }),
       );
     },
     { immediate: true },

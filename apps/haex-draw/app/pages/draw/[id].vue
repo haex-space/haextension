@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { Undo2, Redo2, History } from "lucide-vue-next";
+import { Undo2, Redo2, History } from "@lucide/vue";
 
 const route = useRoute();
 const router = useRouter();

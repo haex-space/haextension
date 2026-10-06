@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUpDown, ChevronDown, ChevronUp } from "lucide-vue-next";
+import { ArrowUpDown, ChevronDown, ChevronUp } from "@lucide/vue";
 import { SORT_OPTIONS } from "~/stores/mail";
 
 /**

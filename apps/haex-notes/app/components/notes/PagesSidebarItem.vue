@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GripVertical, Trash2 } from "lucide-vue-next";
+import { GripVertical, Trash2 } from "@lucide/vue";
 import { makeDraggable } from "@vue-dnd-kit/core";
 import type { IPlacement } from "@vue-dnd-kit/core";
 import type { SelectPage } from "~/database/schemas";

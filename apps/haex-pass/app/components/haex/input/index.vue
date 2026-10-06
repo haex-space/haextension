@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { Copy, Check } from "lucide-vue-next";
+import { Copy, Check } from "@lucide/vue";
 
 const model = defineModel<string | number | undefined | null>();
 

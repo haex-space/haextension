@@ -14,15 +14,16 @@
     "build:release": "pnpm build && pnpm package"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^3.2.6",
+    "@haex-space/vault-sdk": "^4.1.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
     "@nuxtjs/i18n": "^10.2.1",
     "@pinia/nuxt": "^0.11.3",
     "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
+    "drizzle-orm": "^0.45.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^0.562.0",
+    "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
     "phaser": "^3.88.2",
     "reka-ui": "^2.6.1",

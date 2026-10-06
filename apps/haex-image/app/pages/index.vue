@@ -3,7 +3,7 @@ import {
   ImagePlus, Undo2, Redo2, Crop, RotateCw, RotateCcw,
   FlipHorizontal2, FlipVertical2, Maximize2, SlidersHorizontal,
   Sparkles, X, Check, Save, Menu, Archive,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { EditorTool, FilterType, AspectRatioPreset } from "~/types";
 
 const { t } = useI18n();

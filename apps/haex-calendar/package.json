@@ -16,7 +16,7 @@
     "build:release": "pnpm build && pnpm package"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^3.3.0",
+    "@haex-space/vault-sdk": "^4.1.0",
     "@internationalized/date": "^3.10.1",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
@@ -29,7 +29,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
     "ical.js": "^2.1.0",
-    "lucide-vue-next": "^0.562.0",
+    "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
     "reka-ui": "^2.6.1",
     "rrule": "^2.8.1",

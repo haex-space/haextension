@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { eq } from "drizzle-orm";
-import { Folder } from "lucide-vue-next";
+import { Folder } from "@lucide/vue";
 import * as schema from "~/database/schemas";
 
 const open = defineModel<boolean>("open", { default: false });

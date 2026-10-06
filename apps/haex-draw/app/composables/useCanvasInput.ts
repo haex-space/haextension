@@ -211,7 +211,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       }
 
       // 3. Otherwise draw
-      const activePreset = BRUSH_PRESETS.find(p => p.id === canvas.activeBrushPreset) ?? BRUSH_PRESETS[0]!;
+      const activePreset = BRUSH_PRESETS.find(p => p.id === canvas.activeBrushPreset) ?? BRUSH_PRESETS[0];
 
       canvas.resetFrozen();
       // Compute next zIndex across strokes + stencils
@@ -359,7 +359,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       // so the beginning of the stroke stops shifting.
       const pts = canvas.currentStroke.points;
       if (pts.length - canvas.frozenUpTo >= FREEZE_CHUNK) {
-        const preset = BRUSH_PRESETS.find(p => p.id === canvas.currentStroke!.brushPreset) ?? BRUSH_PRESETS[0]!;
+        const preset = BRUSH_PRESETS.find(p => p.id === canvas.currentStroke!.brushPreset) ?? BRUSH_PRESETS[0];
         const hasPressure = pts.some(p => p[2] !== 0.5);
         const freezeEnd = pts.length - FREEZE_OVERLAP;
         const freezePoints = pts.slice(0, freezeEnd);
@@ -463,28 +463,38 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   };
 
   // Touch: pinch-to-zoom
+  /** The two touches of a pinch; `null` unless exactly two fingers are down. */
+  const pinchOf = (e: TouchEvent): [Touch, Touch] | null => {
+    const [a, b] = [e.touches[0], e.touches[1]];
+    return e.touches.length === 2 && a && b ? [a, b] : null;
+  };
+
   const onTouchStart = (e: TouchEvent) => {
-    if (e.touches.length === 2) {
+    const pinch = pinchOf(e);
+    if (pinch) {
+      const [a, b] = pinch;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dx = a.clientX - b.clientX;
+      const dy = a.clientY - b.clientY;
       lastPinchDist.value = Math.hypot(dx, dy);
       lastPinchCenter.value = {
-        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        x: (a.clientX + b.clientX) / 2,
+        y: (a.clientY + b.clientY) / 2,
       };
     }
   };
 
   const onTouchMove = (e: TouchEvent) => {
-    if (e.touches.length === 2) {
+    const pinch = pinchOf(e);
+    if (pinch) {
+      const [a, b] = pinch;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dx = a.clientX - b.clientX;
+      const dy = a.clientY - b.clientY;
       const dist = Math.hypot(dx, dy);
 
-      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const centerX = (a.clientX + b.clientX) / 2;
+      const centerY = (a.clientY + b.clientY) / 2;
 
       if (lastPinchDist.value > 0) {
         const rect = canvasEl.value!.getBoundingClientRect();
@@ -578,5 +588,5 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   useEventListener(window, "keydown", onKeyDown);
   useEventListener(window, "keyup", onKeyUp);
 
-  return { screenToWorld };
+  return { screenToWorld, isPanning: readonly(isPanning) };
 }

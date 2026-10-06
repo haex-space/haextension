@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { buttonVariants } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-vue-next";
+import { Loader2 } from "@lucide/vue";
 import Button from "@/components/shadcn/button/Button.vue";
 import type { ButtonVariants } from "@/components/shadcn/button";
 import type { Component, HTMLAttributes } from "vue";

@@ -1,0 +1,48 @@
+{
+  "generation_id": "g_20261002T095554Z_e3b0",
+  "molecules": [
+    {
+      "id": "com.github.haexmas.atoms.coding-guideline-javascript-typescript",
+      "paths": [
+        ".spaex/constitution.md"
+      ],
+      "revision": "fe9c6faafc88091956132cf9dbd5e9a911851521",
+      "source": "https://github.com/haexmas/atoms"
+    },
+    {
+      "id": "com.github.haexmas.atoms.general-coding",
+      "paths": [
+        ".spaex/constitution.md"
+      ],
+      "revision": "fe9c6faafc88091956132cf9dbd5e9a911851521",
+      "source": "https://github.com/haexmas/atoms"
+    },
+    {
+      "id": "com.github.haexmas.atoms.ponytail",
+      "paths": [
+        ".spaex/constitution.md"
+      ],
+      "revision": "fe9c6faafc88091956132cf9dbd5e9a911851521",
+      "source": "https://github.com/haexmas/atoms"
+    },
+    {
+      "id": "com.github.haexmas.atoms.speckit",
+      "paths": [],
+      "revision": "fe9c6faafc88091956132cf9dbd5e9a911851521",
+      "source": "https://github.com/haexmas/atoms",
+      "speckit": {
+        "cli_version": "1.0.11",
+        "declaration_fingerprint": "sha256:c27e4ad1a99810a5cf37bffe02ccc24935c26906fc06c78b9e4e359dc8f4de22",
+        "outcomes": {
+          "claude": "installed",
+          "codex": "installed"
+        },
+        "selected": [
+          "claude",
+          "codex"
+        ]
+      }
+    }
+  ],
+  "spaex_version": "4"
+}

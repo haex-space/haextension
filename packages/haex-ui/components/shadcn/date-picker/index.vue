@@ -2,7 +2,7 @@
 import type { DateValue } from "@internationalized/date"
 import type { HTMLAttributes } from "vue"
 import { CalendarDate, DateFormatter, getLocalTimeZone } from "@internationalized/date"
-import { Calendar as CalendarIcon, X } from "lucide-vue-next"
+import { Calendar as CalendarIcon, X } from "@lucide/vue"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/shadcn/button"
 import { Calendar } from "@/components/shadcn/calendar"

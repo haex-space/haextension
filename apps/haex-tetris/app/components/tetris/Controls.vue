@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowLeft, ArrowRight, ChevronsDown, RotateCw } from 'lucide-vue-next'
+import { ArrowDown, ArrowLeft, ArrowRight, ChevronsDown, RotateCw } from '@lucide/vue'
 
 const emit = defineEmits<{
   left: []

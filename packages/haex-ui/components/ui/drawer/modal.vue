@@ -15,8 +15,9 @@
         </slot>
       </ShadcnDrawerHeader>
 
-      <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 px-4 pb-4">
+      <!-- Scrollable Content. `-mt-2 pt-2` leaves room for a floated field label at the top, which
+           the scroll box would cut off otherwise. -->
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 -mt-2 px-4 pt-2 pb-4">
         <slot name="content" />
       </div>
 
@@ -48,8 +49,8 @@
         </slot>
       </ShadcnDialogHeader>
 
-      <!-- Scrollable Dialog Body -->
-      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+      <!-- Scrollable Dialog Body (`-mt-2 pt-2`: room for a floated field label, see above) -->
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 -mt-2 pt-2">
         <slot name="content" />
       </div>
 

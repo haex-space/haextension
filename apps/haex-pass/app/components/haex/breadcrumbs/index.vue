@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import type { SelectHaexPasswordsGroups } from "~/database";
-import { ChevronRight, Pencil, ClipboardPaste } from "lucide-vue-next";
+import { ChevronRight, Pencil, ClipboardPaste } from "@lucide/vue";
 
 const props = defineProps<{ items?: SelectHaexPasswordsGroups[] }>();
 

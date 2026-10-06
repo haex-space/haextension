@@ -16,7 +16,7 @@ import {
   GripHorizontal,
   FileUp,
   Menu,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { FileEntry, EditorTab } from "~/types";
 import type { UiScale } from "~/stores/settings";
 

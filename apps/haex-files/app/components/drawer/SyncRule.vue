@@ -314,7 +314,7 @@
 </template>
 
 <script setup lang="ts">
-import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy, Search } from "lucide-vue-next";
+import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy, Search } from "@lucide/vue";
 import type { SyncRule, SyncDirection, ConflictStrategy } from "~/stores/syncRules";
 
 const isOpen = defineModel<boolean>("open", { default: false });

@@ -11,7 +11,7 @@ import {
   SprayCan,
   Eraser,
   FileIcon,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const canvas = useCanvasStore();

@@ -261,7 +261,7 @@ import {
   Pencil,
   Check,
   Download,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
 import "photoswipe/style.css";
 import { eq } from "drizzle-orm";

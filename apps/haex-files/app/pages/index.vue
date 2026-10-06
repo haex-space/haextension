@@ -306,7 +306,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import haexFilesLogo from "~/assets/haex-files-logo.png";
 import type { SyncRule } from "~/stores/syncRules";
 import { QUEUE_STATUS, isPathIgnored, type LocalFileInfo } from "~/stores/files";

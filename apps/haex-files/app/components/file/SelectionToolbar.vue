@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { X, CheckSquare, Eye, EyeOff } from "lucide-vue-next";
+import { X, CheckSquare, Eye, EyeOff } from "@lucide/vue";
 
 defineProps<{
   allSelectedAreIgnored: boolean;

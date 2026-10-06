@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Mail, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { ArrowLeft, Mail, Pencil, Plus, Trash2 } from "@lucide/vue";
 import type * as schema from "~/database/schemas";
 
 const { t } = useI18n();

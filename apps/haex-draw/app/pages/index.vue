@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Paintbrush } from "lucide-vue-next";
+import { Plus, Paintbrush } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
 
 const { t } = useI18n();
@@ -59,7 +59,13 @@ const duplicateDrawing = async (id: string) => {
 };
 
 const onDeleteDrawing = async (id: string) => {
-  if (!confirm(t("confirmDelete"))) return;
+  // Extensions run without `allow-modals`, so `window.confirm()` would return false at once.
+  const sure = await haexVault.client.dialog.confirm({
+    message: t("confirmDelete"),
+    confirmLabel: t("delete"),
+    destructive: true,
+  });
+  if (!sure) return;
   await deleteAsync(id);
   await loadDrawings();
 };
@@ -149,9 +155,11 @@ de:
   emptyState: Noch keine Zeichnungen vorhanden
   createFirst: Erstelle deine erste Zeichnung
   confirmDelete: Diese Zeichnung wirklich löschen?
+  delete: Löschen
 en:
   newDrawing: New Drawing
   emptyState: No drawings yet
   createFirst: Create your first drawing
   confirmDelete: Really delete this drawing?
+  delete: Delete
 </i18n>

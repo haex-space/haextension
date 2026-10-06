@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pause, Play, RotateCcw } from 'lucide-vue-next'
+import { Pause, Play, RotateCcw } from '@lucide/vue'
 
 const {
   board,

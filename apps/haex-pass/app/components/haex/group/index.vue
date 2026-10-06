@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { onStartTyping } from "@vueuse/core";
-import { Image as ImageIcon } from "lucide-vue-next";
+import { Image as ImageIcon } from "@lucide/vue";
 import type { SelectHaexPasswordsGroups } from "~/database";
 
 const group = defineModel<SelectHaexPasswordsGroups>({ required: true });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, ChevronDown } from "lucide-vue-next";
+import { ChevronRight, ChevronDown } from "@lucide/vue";
 import type { FileEntry } from "~/types";
 
 const props = defineProps<{

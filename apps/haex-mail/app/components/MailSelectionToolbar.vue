@@ -6,7 +6,7 @@ import {
   MailOpen,
   Trash2,
   X,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 defineProps<{
   /** Move needs a single source account — disabled across accounts. */

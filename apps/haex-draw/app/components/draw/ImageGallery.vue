@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Loader2, ImageOff } from "lucide-vue-next";
+import { X, Loader2, ImageOff } from "@lucide/vue";
 
 const emit = defineEmits<{
   close: [];

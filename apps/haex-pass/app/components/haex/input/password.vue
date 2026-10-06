@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff, KeyRound, Dices } from "lucide-vue-next";
+import { Eye, EyeOff, KeyRound, Dices } from "@lucide/vue";
 
 const {
   passwordConfig = {

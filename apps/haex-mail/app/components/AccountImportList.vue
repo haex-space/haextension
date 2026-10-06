@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Mail } from "lucide-vue-next";
+import { Mail } from "@lucide/vue";
 import type { PasswordItemSummary } from "@haex-space/vault-sdk";
 import { getErrorMessage } from "~/lib/utils";
 

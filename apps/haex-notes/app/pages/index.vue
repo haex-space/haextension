@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, BookOpen, Share2, Users } from "lucide-vue-next";
+import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 
@@ -54,7 +54,13 @@ const openNotebook = (id: string) => {
 };
 
 const deleteNotebook = async (id: string) => {
-  if (!confirm(t("confirmDelete"))) return;
+  // Extensions run without `allow-modals`, so `window.confirm()` would return false at once.
+  const sure = await haexVault.client.dialog.confirm({
+    message: t("confirmDelete"),
+    confirmLabel: t("delete"),
+    destructive: true,
+  });
+  if (!sure) return;
   await notebookStore.deleteNotebookAsync(id);
   await loadNotebooks();
 };
@@ -188,16 +194,14 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium">{{ t("pageType") }}</label>
-            <ShadcnSelect v-model="newTemplate">
-              <ShadcnSelectTrigger class="w-full" :aria-label="t('pageType')">
-                <ShadcnSelectValue />
-              </ShadcnSelectTrigger>
-              <ShadcnSelectContent>
-                <ShadcnSelectItem v-for="tmpl in PAGE_TEMPLATES" :key="tmpl.id" :value="tmpl.id">
-                  {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
-                </ShadcnSelectItem>
-              </ShadcnSelectContent>
-            </ShadcnSelect>
+            <select
+              v-model="newTemplate"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option v-for="tmpl in PAGE_TEMPLATES" :key="tmpl.id" :value="tmpl.id">
+                {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
+              </option>
+            </select>
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium">{{ t("coverColor") }}</label>
@@ -249,6 +253,7 @@ de:
   emptyState: Noch keine Notizbücher vorhanden
   createFirst: Erstelle dein erstes Notizbuch
   confirmDelete: Dieses Notizbuch und alle Seiten wirklich löschen?
+  delete: Löschen
   loadError: haex-notes konnte nicht geladen werden
   retry: Erneut versuchen
   name: Name
@@ -263,6 +268,7 @@ en:
   emptyState: No notebooks yet
   createFirst: Create your first notebook
   confirmDelete: Really delete this notebook and all pages?
+  delete: Delete
   loadError: haex-notes failed to load
   retry: Retry
   name: Name

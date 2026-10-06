@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { TOTP } from "otpauth";
 import { useClipboard } from "@vueuse/core";
-import { Copy, Check } from "lucide-vue-next";
+import { Copy, Check } from "@lucide/vue";
 
 const model = defineModel<string | null>();
 const digits = defineModel<number | null>("digits");

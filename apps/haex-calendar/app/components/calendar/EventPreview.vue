@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { Clock, MapPin, Info, Link, Trash2 } from "lucide-vue-next";
+import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
 
 const { t } = useI18n();
 const preview = useEventPreviewStore();

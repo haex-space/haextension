@@ -103,7 +103,7 @@ import {
   XCircle,
   ClipboardPaste,
   RotateCcw,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 defineProps<{
   isInTrash?: boolean;

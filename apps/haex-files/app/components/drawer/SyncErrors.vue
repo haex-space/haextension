@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { AlertCircle, Upload, Download, Copy, RefreshCw, Trash2, X, CheckSquare, Clipboard, Check } from "lucide-vue-next";
+import { AlertCircle, Upload, Download, Copy, RefreshCw, Trash2, X, CheckSquare, Clipboard, Check } from "@lucide/vue";
 import { useClipboard } from "@vueuse/core";
 import type { SyncError } from "~/stores/files";
 

@@ -142,7 +142,7 @@ import {
   Loader2,
   Zap,
   Pencil,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { StorageBackendInfo } from "~/stores/backends";
 
 const { t } = useI18n();

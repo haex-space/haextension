@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BookmarkStatus } from '~/bookmarks/messages'
 import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
-import { Plus, Settings } from 'lucide-vue-next'
+import { Plus, Settings } from '@lucide/vue'
 import { BOOKMARKS_GET_STATUS, BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_SWITCH_COLLECTION, BOOKMARKS_SYNC_NOW } from '~/bookmarks/messages'
 import { useI18n } from '~/locales'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'

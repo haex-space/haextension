@@ -29,7 +29,6 @@ import {
   Plane,
   Car,
   Ticket,
-  Github,
   Wrench,
   Code,
   Server,
@@ -38,16 +37,21 @@ import {
   Wifi,
   Lightbulb,
   Rocket,
-  Twitter,
-  Facebook,
-  Linkedin,
-  Instagram,
-  Youtube,
   Tv,
   Apple,
   Globe,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { Icon } from '@iconify/vue';
+
+const iconifyComponent = (icon: string) => (props: Record<string, unknown>) =>
+  h(Icon, { icon, ...props });
+
+const Github = iconifyComponent('mdi:github');
+const Twitter = iconifyComponent('mdi:twitter');
+const Facebook = iconifyComponent('mdi:facebook');
+const Linkedin = iconifyComponent('mdi:linkedin');
+const Instagram = iconifyComponent('mdi:instagram');
+const Youtube = iconifyComponent('mdi:youtube');
 
 export const useIconComponents = () => {
   const iconComponents: Record<string, any> = {

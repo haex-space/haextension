@@ -168,10 +168,10 @@ Eigenschaften-Mapping:
 ```
 
 **shadcn-vue:**
-Verwende `lucide-vue-next`:
+Verwende `@lucide/vue`:
 ```vue
 <script setup>
-import { Check } from 'lucide-vue-next'
+import { Check } from '@lucide/vue'
 </script>
 
 <Check class="w-4 h-4" />
@@ -226,5 +226,5 @@ import { Check } from 'lucide-vue-next'
 1. **v-model**: Bei vielen shadcn-vue Komponenten wird `v-model:open` statt `v-model` verwendet
 2. **Slots**: shadcn-vue verwendet mehr explizite Unter-Komponenten statt Slots
 3. **as-child**: Für Trigger-Elemente muss oft `as-child` verwendet werden
-4. **Icons**: Nuxt UI Icon wird durch lucide-vue-next ersetzt
+4. **Icons**: Nuxt UI Icon wird durch @lucide/vue ersetzt
 5. **TooltipProvider**: Muss als Wrapper für Tooltips verwendet werden

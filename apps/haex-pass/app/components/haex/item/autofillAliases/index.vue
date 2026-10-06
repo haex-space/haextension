@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { User, KeyRound, Lock, Timer } from "lucide-vue-next";
+import { User, KeyRound, Lock, Timer } from "@lucide/vue";
 import type {
   SelectHaexPasswordsItemDetails,
   SelectHaexPasswordsItemKeyValues,

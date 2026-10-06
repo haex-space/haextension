@@ -1,0 +1,16 @@
+{
+  "compounds": [
+    {
+      "molecules": [
+        "com.github.haexmas.atoms.coding-guideline-javascript-typescript",
+        "com.github.haexmas.atoms.general-coding",
+        "com.github.haexmas.atoms.ponytail",
+        "com.github.haexmas.atoms.speckit"
+      ],
+      "revision": "fe9c6faafc88091956132cf9dbd5e9a911851521",
+      "source": "https://github.com/haexmas/atoms"
+    }
+  ],
+  "identity": "com.github.haex-space.haextension",
+  "spaex_version": "4"
+}
