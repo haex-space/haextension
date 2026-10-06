@@ -48,6 +48,7 @@
 
       <UiButton
         v-if="clearable && hasValue && !isLocked"
+        type="button"
         :icon="X"
         :tooltip="labels.clear"
         variant="ghost"
@@ -56,6 +57,7 @@
       />
       <UiButton
         v-if="copyable && hasValue"
+        type="button"
         :icon="copied ? Check : Copy"
         :tooltip="copied ? labels.copied : labels.copy"
         variant="ghost"
