@@ -12,11 +12,11 @@
 
 ## Status (2026-07-28)
 
-Tasks 1–16 implementiert auf Branch `feat/notes-element-model` (PR folgt). Task 17 automatisiert grün
-(`pnpm test` 46/46, `vue-tsc` 0 Fehler, `pnpm build` ✅); `eslint --max-warnings 0` bleibt rot, aber das ist
-vorbestehend auf `main` (16 Fehler dort, 10 auf diesem Branch — keiner davon in Phase-1-Code) und nicht Teil
-dieses Plans. Die 13-Punkte-Manualprüfung aus Task 17 steht noch aus — braucht ein laufendes haex-vault mit
-echtem Test-Notizbuch.
+Tasks 1–16 implementiert auf Branch `feat/notes-element-model` (PR folgt). Task 17 ist automatisiert teilweise
+geprüft (`pnpm test` 46/46, `vue-tsc` 0 Fehler, `pnpm build` ✅); `eslint --max-warnings 0` bleibt rot. Das
+Lint-Ergebnis ist auf `main` vorbestehend (16 Fehler dort, 10 auf diesem Branch — keiner davon in Phase-1-Code),
+deshalb ist die automatisierte Abnahme noch nicht vollständig grün. Die 13-Punkte-Manualprüfung aus Task 17
+steht ebenfalls noch aus — sie braucht ein laufendes haex-vault mit echtem Test-Notizbuch.
 
 Kleine Abweichungen von der Vorlage, alle im Ausführungslog dokumentiert: ein Typ-Guard in
 `commands.test.ts` (Discriminated-Union-Zugriff, der erst bei `vue-tsc` auffiel, nicht bei Vitest),
@@ -24,11 +24,10 @@ zwei laut Plantext unbenutzte Importe (`emptyLayer`, `assets`) nicht übernommen
 Plan waren um 2 daneben (Dokufehler, kein Codefehler).
 
 **Bekannte Folgeprobleme (nicht Teil dieses Plans, vor Phase 2 einordnen):**
-- `PagesSidebar(List).vue` liest weiterhin `page.template` (die alte Spalte) für das Vorlagen-Label. Sobald
-  `changePageTemplateAsync` nur noch `background.template` schreibt, läuft dieses Label nach der ersten
-  Vorlagenänderung einer Seite auseinander — kosmetisch, aber sichtbar.
-- Vor Release vermerken: nach dem ersten Save unter diesem Modell zeigt eine ältere Extension-Version die
-  Seite leer (sie liest nur noch `strokes`/`tables`).
+- Während Phase 1 werden `strokes`, `tables`, `template`, `background_image` und `orientation` beim Speichern
+  aus dem neuen Modell mitgeschrieben, damit ältere Clients die bisherigen Striche und Tabellen weiterhin sehen.
+  Sobald spätere Phasen neue Elementtypen einführen, braucht die Kompatibilität entweder eine Erweiterung des
+  Legacy-Formats oder eine Versionssperre für ältere Clients.
 
 ---
 
@@ -2837,7 +2836,7 @@ git commit -m "docs(haex-notes): align design with the implemented model"
 
 Kein Code. Diese Liste muss vollständig durchlaufen sein, bevor Phase 1 als fertig gilt.
 
-**Automatisiert:**
+**Automatisiert (Stand dieses Plans):**
 
 ```bash
 pnpm test
@@ -2846,7 +2845,9 @@ pnpm exec eslint app --max-warnings 0
 pnpm build
 ```
 
-Alle vier ohne Fehler.
+`pnpm test`, `pnpm exec vue-tsc --noEmit -p .` und `pnpm build` sind erfolgreich. `pnpm exec eslint app
+--max-warnings 0` bleibt wegen der vorbestehenden Fehler rot; deshalb gilt die automatisierte Abnahme erst
+nach einer separaten Lint-Bereinigung als vollständig bestanden.
 
 **Manuell im laufenden haex-vault**, mit dem in den Vorbedingungen angelegten Test-Notizbuch:
 
@@ -2866,6 +2867,8 @@ Alle vier ohne Fehler.
 | 12 | Seite in einen Space teilen, auf einem zweiten Gerät importieren | Import zeigt denselben Inhalt |
 | 13 | Vorlage einer Seite wechseln | Lineatur ändert sich, Striche bleiben |
 
-**Wichtig zu Prüfung 8:** Nach dem ersten Speichern schreibt haex-notes nur noch `layers`. Eine ältere Version der Extension zeigt diese Seite dann leer an. Das ist die im Design-Dokument bewusst getroffene Entscheidung — aber vor dem Release als Änderungshinweis vermerken.
+**Wichtig zu Prüfung 8:** Nach dem ersten Speichern schreibt haex-notes das neue Modell und in Phase 1
+parallel die Legacy-Felder für Striche und Tabellen. Eine ältere Version kann diese unterstützten Inhalte
+damit weiterhin anzeigen; neue Elementtypen müssen vor ihrer Einführung separat abgesichert werden.
 
 **Schlusseintrag:** Nach bestandener Abnahme `.claude/session-log.md` um einen Eintrag ergänzen und `graphify update .` laufen lassen.

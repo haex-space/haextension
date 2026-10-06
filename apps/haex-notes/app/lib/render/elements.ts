@@ -39,7 +39,11 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeElement) {
   if (stroke.brushPreset === "marker" || stroke.brushPreset === "highlighter") {
     ctx.globalAlpha = 0.35;
   }
-  ctx.fillStyle = stroke.tool === "eraser" ? "#ffffff" : stroke.color;
+  if (stroke.tool === "eraser") {
+    ctx.globalCompositeOperation = "destination-out";
+  } else {
+    ctx.fillStyle = stroke.color;
+  }
   ctx.fill(new Path2D(path));
   ctx.restore();
 }

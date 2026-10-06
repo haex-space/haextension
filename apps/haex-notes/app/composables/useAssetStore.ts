@@ -65,8 +65,14 @@ export function useAssetStore() {
     await fs.writeFile(`${root}/${relPath}`, bytes);
 
     const id = crypto.randomUUID();
-    await db.insert(assets).values({ id, sha256, fileName, mimeType, size: bytes.byteLength });
-    return id;
+    await db
+      .insert(assets)
+      .values({ id, sha256, fileName, mimeType, size: bytes.byteLength })
+      .onConflictDoNothing({ target: assets.sha256 });
+
+    const [asset] = await db.select().from(assets).where(eq(assets.sha256, sha256));
+    if (!asset) throw new Error(`[haex-notes] Asset insert failed for ${sha256}`);
+    return asset.id;
   }
 
   async function metaAsync(assetId: string): Promise<SelectAsset | null> {

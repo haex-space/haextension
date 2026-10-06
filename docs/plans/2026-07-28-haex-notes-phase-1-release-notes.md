@@ -4,28 +4,31 @@
 
 ## Für den Nutzer sichtbar
 
-Nichts. Undo/Redo funktioniert jetzt auch für Tabellen; sonst verhält sich die App wie vorher.
+Undo/Redo funktioniert jetzt auch für Tabellen. Zusätzlich zeigt die App beim Start einen Fehler mit
+erneutem Versuch an, und der Seitentyp-Selektor ist an das aktuelle Theme angepasst. Sonst verhält sich
+die App wie vorher.
 
 ## Kompatibilitäts-Hinweis für den Release
 
 Ab dieser Version schreibt haex-notes den Seiteninhalt in die neuen Spalten
-`pages.layers`, `pages.background`, `pages.width`, `pages.height` und **nicht mehr**
-in die alten Spalten `pages.strokes`, `pages.tables`, `pages.template`,
-`pages.background_image`, `pages.orientation`.
+`pages.layers`, `pages.background`, `pages.width`, `pages.height` und hält die alten
+Spalten `pages.strokes`, `pages.tables`, `pages.template`, `pages.background_image`,
+`pages.orientation` für die in Phase 1 unterstützten Striche und Tabellen synchron.
 
-**Folge:** Sobald eine Seite in dieser Version zum ersten Mal gespeichert wurde,
-zeigt eine **ältere Version** von haex-notes diese Seite **leer** an. Sie liest
-nur die alten Spalten, die ab dann nicht mehr aktualisiert werden.
+**Folge:** Seiten mit den in Phase 1 unterstützten Elementen bleiben für ältere
+Versionen lesbar. Spätere Elementtypen benötigen eine Erweiterung des alten Formats
+oder eine Versionssperre, bevor sie mit älteren Clients geteilt werden.
 
-Diese Design-Entscheidung ist bewusst getroffen (siehe Plandokument, Abschnitt
-"Bekannte Folgeprobleme"): Dual-Write würde die Spalten dauerhaft doppelt halten
-und den Migrationspfad blockieren.
+Die Legacy-Spalten werden in Phase 1 bewusst parallel gepflegt. Für spätere
+Elementtypen muss der Legacy-Pfad erweitert oder der Zugriff älterer Clients
+vor dem Speichern blockiert werden.
 
 ## Empfehlung an den Release-Prozess
 
 - Vor dem Release: alle produktiven haex-vault-Installationen auf die neue
-  Extension-Version bringen, bevor mit ihr gespeichert wird. In geteilten Räumen
-  gilt das für jedes Gerät, das den Raum abonniert.
+  Extension-Version bringen, bevor spätere, nicht rückwärtskompatible Elementtypen
+  gespeichert werden. In geteilten Räumen gilt das für jedes Gerät, das den Raum
+  abonniert.
 - Im Release-Text auf dieses Verhalten hinweisen.
 
 ## Was in dieser Version geändert wurde (Kurzfassung)

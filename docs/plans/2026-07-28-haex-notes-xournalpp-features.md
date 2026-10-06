@@ -358,7 +358,7 @@ Kein sichtbares Feature. Danach ist jedes folgende Feature klein.
     - Klassifizieren: 2 Punkte → Linie · 4 Ecken bei ~90° → Rechteck · 3 Ecken → Dreieck · geschlossen ohne Ecken bei geringer Radiusvarianz → Ellipse · offen mit Spitze am Ende → Pfeil
     - Unter der Trefferschwelle bleibt der Freihandstrich stehen
 20. Bild einfügen als `ImageElement`: aus Datei (`selectFile`), aus der Zwischenablage, per Drag-and-Drop. Bytes gehen in den Asset-Store.
-21. Der alte `backgroundImage`-Pfad wird zu `PageBackground.type === "image"` mit einstellbarer statt fest verdrahteter Deckkraft
+21. Der alte `backgroundImage`-Pfad wird zu `PageBackground.overlay` mit `type: "image"` und einstellbarer statt fest verdrahteter Deckkraft
 22. Lineal / Straightedge: gedrückt gehaltene Taste zwingt den laufenden Strich auf eine Gerade
 23. Snap to Grid, an der aktiven Seitenvorlage ausgerichtet
 
@@ -367,7 +367,7 @@ Kein sichtbares Feature. Danach ist jedes folgende Feature klein.
 ### Phase 4 — PDF und Export · XL
 
 24. `pdfjs-dist` einbinden. Worker statisch bundeln (`import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"`) — die Extension läuft in einem Webview ohne garantiertes Netz und hat laut Manifest keine `http`-Berechtigung, ein CDN-Worker ist keine Option.
-25. PDF-Import: `selectFile` → `readFile` → Hash → Asset-Store → pdf.js liest Seitenzahl und Seitengrößen → pro PDF-Seite eine `pages`-Row mit `background = { type: "pdf", assetId, pageIndex }` und den Maßen der PDF-Seite
+25. PDF-Import: `selectFile` → `readFile` → Hash → Asset-Store → pdf.js liest Seitenzahl und Seitengrößen → pro PDF-Seite eine `pages`-Row mit `background = { template: "blank", overlay: { type: "pdf", assetId, pageIndex } }` und den Maßen der PDF-Seite
 26. PDF-Rendering auf `bgCanvas` über `page.render()`, gecacht wie jeder andere Hintergrund
 27. PDF-Outline in der Sidebar über `pdf.getOutline()`
 28. **`pageTemplates.ts` abstrahieren.** [renderPageTemplate](../../apps/haex-notes/app/utils/pageTemplates.ts) zeichnet heute direkt auf einen `CanvasRenderingContext2D`. Für PDF- und SVG-Export braucht es ein `DrawSink`-Interface mit den Implementierungen `CanvasSink`, `PdfSink`, `SvgSink`. Ohne diesen Schritt driften Bildschirmdarstellung und Export unweigerlich auseinander, weil jede Vorlage zweimal definiert wäre.

@@ -114,7 +114,7 @@ export const assets = sqliteTable(
   tableName("assets"),
   {
     id: text().primaryKey(),
-    sha256: text().notNull(),
+    sha256: text().notNull().unique(),
     fileName: text("file_name").notNull(),
     mimeType: text("mime_type").notNull(),
     size: integer().notNull(),

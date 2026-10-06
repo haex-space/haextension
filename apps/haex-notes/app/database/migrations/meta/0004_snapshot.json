@@ -59,7 +59,15 @@
           "default": "(unixepoch())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-notes__assets_sha256_unique": {
+          "name": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-notes__assets_sha256_unique",
+          "columns": [
+            "sha256"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

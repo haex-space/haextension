@@ -402,15 +402,56 @@ export const useNotebookStore = defineStore("notebook", () => {
 
     // structuredClone entfernt die Vue-Proxies; Drizzle serialisiert sonst
     // Reactive-Wrapper mit in das JSON.
+    const layers = structuredClone(toRaw(doc.layers));
+    const background = structuredClone(toRaw(doc.background));
+    const strokes = layers.flatMap((layer) =>
+      layer.elements
+        .filter((element): element is StrokeElement => element.type === "stroke")
+        .map(({ id, points, color, size, tool, brushPreset }) => ({
+          id,
+          points,
+          color,
+          size,
+          tool,
+          brushPreset,
+        })),
+    );
+    const tables = layers.flatMap((layer) =>
+      layer.elements
+        .filter((element): element is TableElement => element.type === "table")
+        .map(({ id, x, y, columns, rows, columnWidths, rowHeights }) => ({
+          id,
+          x,
+          y,
+          columns,
+          rows,
+          columnWidths,
+          rowHeights,
+        })),
+    );
+    const overlay = background.overlay;
+    const backgroundImage = overlay?.type === "image" && overlay.source.kind === "inline"
+      ? overlay.source.dataUrl
+      : null;
+    const orientation = doc.width > doc.height ? "landscape" : "portrait";
+
     await db
       .update(pages)
       .set({
-        layers: structuredClone(toRaw(doc.layers)),
-        background: structuredClone(toRaw(doc.background)),
+        layers,
+        background,
         width: doc.width,
         height: doc.height,
+        // Keep the legacy representation in sync during the rollout so older
+        // clients do not render a page as empty after a new client saves it.
+        strokes,
+        tables,
+        template: background.template,
+        backgroundImage,
+        orientation,
       })
       .where(eq(pages.id, page.id));
+    Object.assign(page, { layers, background, width: doc.width, height: doc.height, strokes, tables, template: background.template, backgroundImage, orientation });
     isDirty.value = false;
   };
 
