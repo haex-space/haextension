@@ -1,14 +1,14 @@
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_backends` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__file_backends` (
 	`id` text PRIMARY KEY NOT NULL,
 	`file_id` text NOT NULL,
 	`backend_id` text NOT NULL,
 	`remote_key` text NOT NULL,
 	`synced_at` text,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
-	FOREIGN KEY (`file_id`) REFERENCES `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`file_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__files`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__file_chunks` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__file_chunks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`file_id` text NOT NULL,
 	`chunk_index` integer NOT NULL,
@@ -17,10 +17,10 @@ CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__
 	`content_hash` text NOT NULL,
 	`remote_id` text,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
-	FOREIGN KEY (`file_id`) REFERENCES `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`file_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__files`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__files` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__files` (
 	`id` text PRIMARY KEY NOT NULL,
 	`space_id` text NOT NULL,
 	`name` text NOT NULL,
@@ -34,17 +34,17 @@ CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__
 	`last_synced_at` text,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP),
-	FOREIGN KEY (`space_id`) REFERENCES `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__spaces`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`space_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__spaces`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__settings` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__settings` (
 	`key` text PRIMARY KEY NOT NULL,
 	`value` text NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP)
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__spaces` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__spaces` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`description` text,
@@ -56,7 +56,7 @@ CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP)
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_queue` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__sync_queue` (
 	`id` text PRIMARY KEY NOT NULL,
 	`rule_id` text NOT NULL,
 	`local_path` text NOT NULL,
@@ -71,10 +71,10 @@ CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
 	`started_at` text,
 	`completed_at` text,
-	FOREIGN KEY (`rule_id`) REFERENCES `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`rule_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__sync_rules`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__sync_rules` (
+CREATE TABLE `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__sync_rules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`space_id` text NOT NULL,
 	`local_path` text NOT NULL,
@@ -85,5 +85,5 @@ CREATE TABLE `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__
 	`conflict_strategy` text DEFAULT 'ask' NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP),
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP),
-	FOREIGN KEY (`space_id`) REFERENCES `52fb1e6d5bb4bbd3c09535dc1a4a41ba2b2b4a64568b68780556bbcac3137c0d__haex-files__spaces`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`space_id`) REFERENCES `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-files__spaces`(`id`) ON UPDATE no action ON DELETE cascade
 );
