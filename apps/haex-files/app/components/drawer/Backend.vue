@@ -2,7 +2,7 @@
   <UiDrawerModal v-model:open="isOpen" :title="isEditMode ? t('titleEdit') : t('title')" :description="isEditMode ? t('descriptionEdit') : t('description')">
     <template #content>
       <form class="space-y-4" @submit.prevent="submitAsync">
-        <!-- Backend Name -->
+        <!-- Name -->
         <div class="space-y-2">
           <ShadcnLabel for="name">{{ t("name") }}</ShadcnLabel>
           <ShadcnInputGroup>
@@ -15,45 +15,39 @@
           </ShadcnInputGroup>
         </div>
 
-        <!-- Backend Type -->
-        <div class="space-y-2">
-          <ShadcnLabel>{{ t("type") }}</ShadcnLabel>
-          <ShadcnSelect v-model="form.type" :disabled="isEditMode">
+        <!-- Provider: a known one (only the bucket is new) or a new connection -->
+        <div v-if="!isEditMode" class="space-y-2">
+          <ShadcnLabel>{{ t("provider") }}</ShadcnLabel>
+          <ShadcnSelect v-model="form.provider">
             <ShadcnSelectTrigger>
-              <ShadcnSelectValue :placeholder="t('typePlaceholder')" />
+              <ShadcnSelectValue />
             </ShadcnSelectTrigger>
             <ShadcnSelectContent>
-              <ShadcnSelectItem value="s3">S3-compatible Storage</ShadcnSelectItem>
-              <ShadcnSelectItem value="r2">Cloudflare R2</ShadcnSelectItem>
-              <ShadcnSelectItem value="minio">MinIO</ShadcnSelectItem>
+              <ShadcnSelectItem
+                v-for="known in knownProviders"
+                :key="known.backendId"
+                :value="known.backendId"
+              >
+                {{ known.providerName }}
+              </ShadcnSelectItem>
+              <ShadcnSelectItem :value="NEW_PROVIDER">{{ t("newProvider") }}</ShadcnSelectItem>
             </ShadcnSelectContent>
           </ShadcnSelect>
         </div>
 
-        <!-- S3 Configuration -->
+        <template v-if="!isEditMode && form.provider === NEW_PROVIDER">
           <!-- Endpoint URL -->
           <div class="space-y-2">
             <ShadcnLabel for="endpoint">{{ t("s3.endpoint") }}</ShadcnLabel>
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="endpoint"
-                v-model="form.s3.endpoint"
+                v-model="form.endpoint"
                 type="url"
                 :placeholder="t('s3.endpointPlaceholder')"
               />
             </ShadcnInputGroup>
-          </div>
-
-          <!-- Bucket -->
-          <div class="space-y-2">
-            <ShadcnLabel for="bucket">{{ t("s3.bucket") }}</ShadcnLabel>
-            <ShadcnInputGroup>
-              <ShadcnInputGroupInput
-                id="bucket"
-                v-model="form.s3.bucket"
-                :placeholder="t('s3.bucketPlaceholder')"
-              />
-            </ShadcnInputGroup>
+            <p class="text-xs text-muted-foreground">{{ t("s3.endpointHint") }}</p>
           </div>
 
           <!-- Region -->
@@ -62,68 +56,29 @@
             <ShadcnInputGroup>
               <ShadcnInputGroupInput
                 id="region"
-                v-model="form.s3.region"
+                v-model="form.region"
                 :placeholder="t('s3.regionPlaceholder')"
               />
             </ShadcnInputGroup>
           </div>
+        </template>
 
-          <!-- Access Key -->
-          <div class="space-y-2">
-            <ShadcnLabel for="accessKey">{{ t("s3.accessKey") }}</ShadcnLabel>
-            <ShadcnInputGroup>
-              <ShadcnInputGroupInput
-                id="accessKey"
-                v-model="form.s3.accessKeyId"
-                :placeholder="isEditMode ? t('s3.accessKeyPlaceholderEdit') : t('s3.accessKeyPlaceholder')"
-              />
-            </ShadcnInputGroup>
-            <p v-if="isEditMode" class="text-xs text-muted-foreground">
-              {{ t("s3.credentialHint") }}
-            </p>
-          </div>
+        <!-- Bucket -->
+        <div class="space-y-2">
+          <ShadcnLabel for="bucket">{{ t("s3.bucket") }}</ShadcnLabel>
+          <ShadcnInputGroup>
+            <ShadcnInputGroupInput
+              id="bucket"
+              v-model="form.bucket"
+              :placeholder="t('s3.bucketPlaceholder')"
+            />
+          </ShadcnInputGroup>
+        </div>
 
-          <!-- Secret Key -->
-          <div class="space-y-2">
-            <ShadcnLabel for="secretKey">{{ t("s3.secretKey") }}</ShadcnLabel>
-            <ShadcnInputGroup>
-              <ShadcnInputGroupInput
-                id="secretKey"
-                v-model="form.s3.secretAccessKey"
-                :type="showSecretKey ? 'text' : 'password'"
-                :placeholder="isEditMode ? t('s3.secretKeyPlaceholderEdit') : t('s3.secretKeyPlaceholder')"
-              />
-              <ShadcnInputGroupButton
-                :icon="showSecretKey ? EyeOff : Eye"
-                variant="ghost"
-                @click="showSecretKey = !showSecretKey"
-              />
-            </ShadcnInputGroup>
-            <p v-if="isEditMode" class="text-xs text-muted-foreground">
-              {{ t("s3.credentialHint") }}
-            </p>
-          </div>
-
-          <!-- Session Token (optional) -->
-          <div class="space-y-2">
-            <ShadcnLabel for="sessionToken">{{ t("s3.sessionToken") }}</ShadcnLabel>
-            <ShadcnInputGroup>
-              <ShadcnInputGroupInput
-                id="sessionToken"
-                v-model="form.s3.sessionToken"
-                :type="showSessionToken ? 'text' : 'password'"
-                :placeholder="isEditMode ? t('s3.sessionTokenPlaceholderEdit') : t('s3.sessionTokenPlaceholder')"
-              />
-              <ShadcnInputGroupButton
-                :icon="showSessionToken ? EyeOff : Eye"
-                variant="ghost"
-                @click="showSessionToken = !showSessionToken"
-              />
-            </ShadcnInputGroup>
-            <p class="text-xs text-muted-foreground">
-              {{ t("s3.sessionTokenHint") }}
-            </p>
-          </div>
+        <!-- Credentials are never typed here -->
+        <p class="p-3 rounded-md bg-muted text-xs text-muted-foreground">
+          {{ isEditMode ? t("hostHintEdit") : t("hostHint") }}
+        </p>
 
         <!-- Error -->
         <div
@@ -158,8 +113,9 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from "@lucide/vue"
-import type { S3Config, StorageBackendInfo } from "~/stores/backends"
+import { storageFailure, type StorageBackendInfo } from "~/stores/backends"
+
+const NEW_PROVIDER = "new"
 
 const isOpen = defineModel<boolean>("open", { default: false })
 
@@ -173,41 +129,36 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const backendsStore = useBackendsStore()
+const { backends } = storeToRefs(backendsStore)
 
 const isEditMode = computed(() => !!props.editBackend)
 
-const form = reactive({
-  name: "",
-  type: "s3" as "s3",
-  // S3 config
-  s3: {
-    endpoint: "",
-    bucket: "",
-    region: "auto",
-    accessKeyId: "",
-    secretAccessKey: "",
-    sessionToken: "",
-  },
+/** One entry per provider this extension already reaches: a new bucket there needs no new credentials. */
+const knownProviders = computed(() => {
+  const seen = new Map<string, { backendId: string; providerName: string }>()
+  for (const backend of backends.value) {
+    if (!seen.has(backend.providerName)) {
+      seen.set(backend.providerName, { backendId: backend.id, providerName: backend.providerName })
+    }
+  }
+  return [...seen.values()]
 })
 
-const showSecretKey = ref(false)
-const showSessionToken = ref(false)
+const form = reactive({
+  name: "",
+  provider: NEW_PROVIDER,
+  endpoint: "",
+  region: "",
+  bucket: "",
+})
+
 const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 
 const isValid = computed(() => {
-  if (!form.name.trim()) return false
-
-  // In edit mode, credentials are optional (keep existing if not provided)
-  if (isEditMode.value) {
-    return !!form.s3.bucket?.trim()
-  }
-
-  return (
-    !!form.s3.bucket?.trim() &&
-    !!form.s3.accessKeyId?.trim() &&
-    !!form.s3.secretAccessKey?.trim()
-  )
+  if (!form.name.trim() || !form.bucket.trim()) return false
+  if (isEditMode.value || form.provider !== NEW_PROVIDER) return true
+  return !!form.region.trim()
 })
 
 const submitAsync = async () => {
@@ -218,41 +169,15 @@ const submitAsync = async () => {
 
   try {
     if (isEditMode.value && props.editBackend) {
-      // Edit mode: Use update API - only send non-empty fields
-      // Credentials are preserved if not provided
-      const config: Partial<S3Config> = {
-        endpoint: form.s3.endpoint?.trim() || undefined,
-        bucket: form.s3.bucket.trim(),
-        region: form.s3.region.trim() || "auto",
-      }
-
-      // Only include credentials if provided
-      if (form.s3.accessKeyId.trim()) {
-        config.accessKeyId = form.s3.accessKeyId.trim()
-      }
-      if (form.s3.secretAccessKey.trim()) {
-        config.secretAccessKey = form.s3.secretAccessKey.trim()
-      }
-      if (form.s3.sessionToken.trim()) {
-        config.sessionToken = form.s3.sessionToken.trim()
-      }
-
-      await backendsStore.updateBackendAsync(
-        props.editBackend.id,
-        form.name.trim(),
-        config
-      )
+      await backendsStore.updateBackendAsync(props.editBackend.id, form.name.trim(), form.bucket.trim())
+    } else if (form.provider !== NEW_PROVIDER) {
+      await backendsStore.addOnSameProviderAsync(form.name.trim(), form.provider, form.bucket.trim())
     } else {
-      // Add mode: Full config required
-      const config: S3Config = {
-        endpoint: form.s3.endpoint?.trim() || undefined,
-        bucket: form.s3.bucket.trim(),
-        region: form.s3.region.trim() || "auto",
-        accessKeyId: form.s3.accessKeyId.trim(),
-        secretAccessKey: form.s3.secretAccessKey.trim(),
-        sessionToken: form.s3.sessionToken?.trim() || undefined,
-      }
-      await backendsStore.addBackendAsync(form.name.trim(), "s3", config)
+      await backendsStore.addBackendAsync(form.name.trim(), {
+        endpoint: form.endpoint.trim() || undefined,
+        region: form.region.trim(),
+        bucket: form.bucket.trim(),
+      })
     }
 
     emit("saved")
@@ -260,7 +185,8 @@ const submitAsync = async () => {
     isOpen.value = false
   } catch (err) {
     console.error("[Backend] Error:", err)
-    error.value = err instanceof Error ? err.message : t("error")
+    const failure = storageFailure(err)
+    error.value = failure.kind === "other" ? failure.message : t(`errors.${failure.kind}`)
   } finally {
     isSubmitting.value = false
   }
@@ -268,17 +194,10 @@ const submitAsync = async () => {
 
 const resetForm = () => {
   form.name = ""
-  form.type = "s3"
-  form.s3 = {
-    endpoint: "",
-    bucket: "",
-    region: "auto",
-    accessKeyId: "",
-    secretAccessKey: "",
-    sessionToken: "",
-  }
-  showSecretKey.value = false
-  showSessionToken.value = false
+  form.provider = knownProviders.value[0]?.backendId ?? NEW_PROVIDER
+  form.endpoint = ""
+  form.region = ""
+  form.bucket = ""
   error.value = null
 }
 
@@ -288,23 +207,10 @@ watch(
   ([open, editBackend]) => {
     if (!open) return
 
+    resetForm()
     if (editBackend) {
-      // Edit mode: populate from backend info
-      // Note: We can't retrieve credentials from backend (security)
       form.name = editBackend.name
-      form.type = editBackend.type as "s3"
-      // Populate config fields from saved config (credentials must be re-entered)
-      form.s3 = {
-        endpoint: editBackend.config?.endpoint || "",
-        bucket: editBackend.config?.bucket || "",
-        region: editBackend.config?.region || "auto",
-        accessKeyId: "",
-        secretAccessKey: "",
-        sessionToken: "",
-      }
-    } else {
-      // Add mode: reset form
-      resetForm()
+      form.bucket = editBackend.bucket
     }
   },
   { immediate: true }
@@ -313,66 +219,58 @@ watch(
 
 <i18n lang="yaml">
 de:
-  title: Backend hinzufügen
-  titleEdit: Backend bearbeiten
-  description: Füge einen Cloud-Speicher für die Synchronisierung hinzu.
-  descriptionEdit: Bearbeite die Konfiguration dieses Backends.
+  title: Speicher hinzufügen
+  titleEdit: Speicher bearbeiten
+  description: Füge einen Speicher für die Synchronisierung hinzu.
+  descriptionEdit: Ändere Name oder Bucket dieses Speichers.
   name: Name
-  namePlaceholder: z.B. Mein S3 Speicher
-  type: Typ
-  typePlaceholder: Backend-Typ auswählen
+  namePlaceholder: z.B. Fotos
+  provider: Anbieter
+  newProvider: Neuer Anbieter …
   cancel: Abbrechen
   add: Hinzufügen
   save: Speichern
-  error: Ein Fehler ist aufgetreten
+  hostHint: holzi fragt dich in einem eigenen Fenster, ob du den Speicher anlegen willst, und dort auch nach den Zugangsdaten. Diese Erweiterung bekommt sie nie zu sehen.
+  hostHintEdit: holzi fragt dich in einem eigenen Fenster, ob du die Änderung bestätigst. Neue Zugangsdaten gibst du dort ein.
   s3:
-    endpoint: Endpoint URL (optional)
+    endpoint: Endpunkt (optional)
     endpointPlaceholder: https://s3.example.com
+    endpointHint: Leer lassen für AWS S3.
     bucket: Bucket
     bucketPlaceholder: mein-bucket
     region: Region
-    regionPlaceholder: auto
-    accessKey: Access Key ID
-    accessKeyPlaceholder: AKIAIOSFODNN7EXAMPLE
-    accessKeyPlaceholderEdit: Neuen Access Key eingeben
-    secretKey: Secret Access Key
-    secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    secretKeyPlaceholderEdit: Neuen Secret Key eingeben
-    sessionToken: Session Token (optional)
-    sessionTokenPlaceholder: JWT für RLS-basierte Zugriffskontrolle
-    sessionTokenPlaceholderEdit: Neuen Session Token eingeben
-    sessionTokenHint: Für Supabase S3 mit RLS. Der Token läuft ab und muss bei erneuter Anmeldung aktualisiert werden.
-    credentialHint: Leer lassen, um bestehende Zugangsdaten zu behalten.
+    regionPlaceholder: z.B. us-east-1
+  errors:
+    cancelled: In holzi abgebrochen oder nicht erlaubt.
+    accessDenied: Zugang verweigert.
+    network: Der Anbieter ist nicht erreichbar.
+    bucketMissing: Den Bucket gibt es beim Anbieter nicht.
 
 en:
-  title: Add Backend
-  titleEdit: Edit Backend
-  description: Add a cloud storage backend for synchronization.
-  descriptionEdit: Edit the configuration of this backend.
+  title: Add storage
+  titleEdit: Edit storage
+  description: Add a storage for synchronization.
+  descriptionEdit: Change the name or bucket of this storage.
   name: Name
-  namePlaceholder: e.g. My S3 Storage
-  type: Type
-  typePlaceholder: Select backend type
+  namePlaceholder: e.g. Photos
+  provider: Provider
+  newProvider: New provider …
   cancel: Cancel
   add: Add
   save: Save
-  error: An error occurred
+  hostHint: holzi asks in its own window whether to add the storage, and asks for the credentials there too. This extension never sees them.
+  hostHintEdit: holzi asks in its own window to confirm the change. New credentials are entered there.
   s3:
-    endpoint: Endpoint URL (optional)
+    endpoint: Endpoint (optional)
     endpointPlaceholder: https://s3.example.com
+    endpointHint: Leave empty for AWS S3.
     bucket: Bucket
     bucketPlaceholder: my-bucket
     region: Region
-    regionPlaceholder: auto
-    accessKey: Access Key ID
-    accessKeyPlaceholder: AKIAIOSFODNN7EXAMPLE
-    accessKeyPlaceholderEdit: Enter new access key
-    secretKey: Secret Access Key
-    secretKeyPlaceholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    secretKeyPlaceholderEdit: Enter new secret key
-    sessionToken: Session Token (optional)
-    sessionTokenPlaceholder: JWT for RLS-based access control
-    sessionTokenPlaceholderEdit: Enter new session token
-    sessionTokenHint: Required for Supabase S3 with RLS. Token expires and needs to be updated on re-login.
-    credentialHint: Leave empty to keep existing credentials.
+    regionPlaceholder: e.g. us-east-1
+  errors:
+    cancelled: Cancelled in holzi or not allowed.
+    accessDenied: Access denied.
+    network: The provider is not reachable.
+    bucketMissing: The bucket does not exist at the provider.
 </i18n>

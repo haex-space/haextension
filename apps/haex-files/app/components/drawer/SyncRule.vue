@@ -175,7 +175,7 @@
               >
                 <Cloud class="size-4 text-muted-foreground" />
                 {{ backend.name }}
-                <span class="text-xs text-muted-foreground">({{ backend.type }})</span>
+                <span class="text-xs text-muted-foreground">({{ backend.providerName }} · {{ backend.bucket }})</span>
               </label>
             </div>
           </div>

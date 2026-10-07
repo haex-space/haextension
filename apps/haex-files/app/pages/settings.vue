@@ -31,6 +31,8 @@
             </ShadcnButton>
           </div>
 
+          <p v-if="failure" class="text-sm text-destructive">{{ failure }}</p>
+
           <!-- Backend List -->
           <div v-if="backends.length > 0" class="space-y-2">
             <div
@@ -45,8 +47,14 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-medium truncate">{{ backend.name }}</div>
-                <div class="text-sm text-muted-foreground">
-                  {{ getBackendTypeLabel(backend.type) }}
+                <div class="text-sm text-muted-foreground truncate">
+                  {{ backend.providerName }} · {{ backend.bucket }}
+                </div>
+                <div
+                  v-if="testFailure(backend.id)"
+                  class="text-xs text-destructive"
+                >
+                  {{ testFailure(backend.id) }}
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -75,7 +83,7 @@
                   variant="ghost"
                   size="icon"
                   :tooltip="t('backends.remove')"
-                  @click="confirmRemoveBackend(backend)"
+                  @click="removeBackendAsync(backend)"
                 >
                   <Trash2 class="size-4 text-destructive" />
                 </ShadcnButton>
@@ -104,30 +112,6 @@
       @saved="editingBackend = null"
     />
 
-    <!-- Delete Confirmation Dialog -->
-    <ShadcnAlertDialog v-model:open="deleteDialogOpen">
-      <ShadcnAlertDialogContent>
-        <ShadcnAlertDialogHeader>
-          <ShadcnAlertDialogTitle>{{
-            t("backends.deleteTitle")
-          }}</ShadcnAlertDialogTitle>
-          <ShadcnAlertDialogDescription>
-            {{
-              t("backends.deleteDescription", { name: backendToDelete?.name })
-            }}
-          </ShadcnAlertDialogDescription>
-        </ShadcnAlertDialogHeader>
-        <ShadcnAlertDialogFooter>
-          <ShadcnAlertDialogCancel>{{ t("cancel") }}</ShadcnAlertDialogCancel>
-          <ShadcnAlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            @click="removeBackendAsync"
-          >
-            {{ t("delete") }}
-          </ShadcnAlertDialogAction>
-        </ShadcnAlertDialogFooter>
-      </ShadcnAlertDialogContent>
-    </ShadcnAlertDialog>
   </div>
 </template>
 
@@ -143,7 +127,7 @@ import {
   Zap,
   Pencil,
 } from "@lucide/vue";
-import type { StorageBackendInfo } from "~/stores/backends";
+import { storageFailure, type StorageBackendInfo } from "~/stores/backends";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -153,8 +137,7 @@ const { backends, testingBackendId, testResult } = storeToRefs(backendsStore);
 
 const addBackendDrawerOpen = ref(false);
 const editingBackend = ref<StorageBackendInfo | null>(null);
-const deleteDialogOpen = ref(false);
-const backendToDelete = ref<StorageBackendInfo | null>(null);
+const failure = ref<string | null>(null);
 
 // Load backends on mount
 onMounted(async () => {
@@ -173,15 +156,6 @@ const openAddBackendDrawer = () => {
 const openEditBackendDrawer = (backend: StorageBackendInfo) => {
   editingBackend.value = backend;
   addBackendDrawerOpen.value = true;
-};
-
-const getBackendTypeLabel = (type: string): string => {
-  switch (type) {
-    case "s3":
-      return "S3-compatible Storage";
-    default:
-      return type;
-  }
 };
 
 const testBackendAsync = async (backendId: string) => {
@@ -208,48 +182,56 @@ const getTestResultClass = (backendId: string): string => {
   return "";
 };
 
-const confirmRemoveBackend = (backend: StorageBackendInfo) => {
-  backendToDelete.value = backend;
-  deleteDialogOpen.value = true;
+/** Why the last test of `backendId` failed; nothing when it passed or was cancelled in holzi. */
+const testFailure = (backendId: string): string | null => {
+  const result = testResult.value;
+  if (!result || result.backendId !== backendId || result.success) return null;
+  if (result.kind === "cancelled") return null;
+  return result.kind && result.kind !== "other"
+    ? t(`backends.failure.${result.kind}`)
+    : result.error ?? null;
 };
 
-const removeBackendAsync = async () => {
-  if (!backendToDelete.value) return;
-
-  await backendsStore.removeBackendAsync(backendToDelete.value.id);
-  deleteDialogOpen.value = false;
-  backendToDelete.value = null;
+/** holzi asks the user to confirm the removal and names other extensions that lose the storage. */
+const removeBackendAsync = async (backend: StorageBackendInfo) => {
+  failure.value = null;
+  try {
+    await backendsStore.removeBackendAsync(backend.id);
+  } catch (error) {
+    const reason = storageFailure(error);
+    if (reason.kind !== "cancelled") failure.value = reason.message;
+  }
 };
 </script>
 
 <i18n lang="yaml">
 de:
   title: Einstellungen
-  cancel: Abbrechen
-  delete: Löschen
   backends:
-    title: Speicher-Backends
-    description: Verwalte deine Cloud-Speicher für die Synchronisierung.
-    add: Backend hinzufügen
+    title: Speicher
+    description: Speicher, die holzi dieser Erweiterung freigegeben hat. Zugangsdaten verwaltet holzi.
+    add: Speicher hinzufügen
     edit: Bearbeiten
     test: Verbindung testen
     remove: Entfernen
-    empty: Noch keine Backends konfiguriert. Füge einen Speicher hinzu, um mit der Synchronisierung zu beginnen.
-    deleteTitle: Backend entfernen?
-    deleteDescription: Möchtest du "{name}" wirklich entfernen? Dateien auf diesem Backend werden nicht gelöscht.
+    empty: Noch kein Speicher freigegeben. Füge einen hinzu, um mit der Synchronisierung zu beginnen.
+    failure:
+      accessDenied: Zugang verweigert
+      network: Anbieter nicht erreichbar
+      bucketMissing: Bucket fehlt
 
 en:
   title: Settings
-  cancel: Cancel
-  delete: Delete
   backends:
-    title: Storage Backends
-    description: Manage your cloud storage backends for synchronization.
-    add: Add Backend
+    title: Storages
+    description: Storages holzi shares with this extension. holzi keeps the credentials.
+    add: Add storage
     edit: Edit
-    test: Test Connection
+    test: Test connection
     remove: Remove
-    empty: No backends configured yet. Add a storage backend to start syncing.
-    deleteTitle: Remove Backend?
-    deleteDescription: Are you sure you want to remove "{name}"? Files on this backend will not be deleted.
+    empty: No storage shared yet. Add one to start syncing.
+    failure:
+      accessDenied: Access denied
+      network: Provider not reachable
+      bucketMissing: Bucket missing
 </i18n>
