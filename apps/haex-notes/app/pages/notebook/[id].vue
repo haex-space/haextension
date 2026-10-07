@@ -13,6 +13,7 @@ const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
 
 const isLoaded = ref(false);
+const loadError = ref<string | null>(null);
 const pageCanvasRef = useTemplateRef<any>("pageCanvasRef");
 const selectedAddTemplate = ref<PageTemplate>("lined");
 
@@ -45,17 +46,8 @@ const restorePreviewedPage = async () => {
   const restoredId = trashPreviewPage.value.id;
   await notebook.restorePageAsync(restoredId);
   trashPreviewPage.value = null;
-  // Find and navigate to restored page
-  const idx = notebook.currentPages.findIndex(p => p.id === restoredId);
-  console.log("[haex-notes] restore preview:", { restoredId, idx, totalPages: notebook.currentPages.length, pageIds: notebook.currentPages.map(p => p.id) });
-  if (idx >= 0) {
-    notebook.currentPageIndex = idx;
-    // Force reload strokes for this page
-    const page = notebook.currentPages[idx]!;
-    notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
-    notebook.historyIndex = notebook.history.length - 1;
-    notebook.isDirty = false;
-  }
+  const index = notebook.currentPages.findIndex((p) => p.id === restoredId);
+  if (index >= 0) await notebook.goToPage(index);
 };
 
 // Pencil case config
@@ -68,19 +60,27 @@ const penTypes = [
   { value: "eraser", de: "Radierer", en: "Eraser" },
 ] as const;
 
-onMounted(async () => {
-  await haexVault.initializeAsync();
-  await pencilCase.loadAsync();
+const initAsync = async () => {
+  loadError.value = null;
+  try {
+    await haexVault.initializeAsync();
+    await pencilCase.loadAsync();
 
-  const id = route.params.id as string;
-  const success = await notebook.openNotebookAsync(id);
-  if (!success) {
-    router.replace(localePath("/"));
-    return;
+    const id = route.params.id as string;
+    const success = await notebook.openNotebookAsync(id);
+    if (!success) {
+      router.replace(localePath("/"));
+      return;
+    }
+    selectedAddTemplate.value = (notebook.currentNotebook?.defaultTemplate as PageTemplate) ?? "lined";
+    isLoaded.value = true;
+  } catch (err) {
+    console.error("[haex-notes] Failed to open notebook:", err);
+    loadError.value = err instanceof Error ? err.message : String(err);
   }
-  selectedAddTemplate.value = (notebook.currentNotebook?.defaultTemplate as PageTemplate) ?? "lined";
-  isLoaded.value = true;
-});
+};
+
+onMounted(initAsync);
 
 // Auto-save
 const autoSaveInterval = ref<ReturnType<typeof setInterval>>();
@@ -452,22 +452,33 @@ const cancelSlotEdit = () => {
           v-if="pagesSidebarVisible"
           @close="pagesSidebarVisible = false"
           @preview-trash-page="onPreviewTrashPage"
-          @trash-restored="(pageId: string) => {
+          @trash-restored="async (pageId: string) => {
             const wasPreviewingThis = trashPreviewPage?.id === pageId;
             trashPreviewPage = null;
-            if (wasPreviewingThis) {
-              const idx = notebook.currentPages.findIndex(p => p.id === pageId);
-              if (idx >= 0) {
-                notebook.currentPageIndex = idx;
-                const page = notebook.currentPages[idx]!;
-                notebook.history = (page.strokes || []).map((s: any) => ({ stroke: s, label: s.brushPreset ?? s.tool }));
-                notebook.historyIndex = notebook.history.length - 1;
-                notebook.isDirty = false;
-              }
-            }
+            if (!wasPreviewingThis) return;
+            const index = notebook.currentPages.findIndex(p => p.id === pageId);
+            if (index >= 0) await notebook.goToPage(index);
           }"
         />
       </div>
+    </div>
+  </div>
+  <div v-else-if="loadError" class="flex h-full flex-col items-center justify-center gap-3 bg-background p-6 text-center">
+    <p class="text-sm font-medium text-destructive">{{ t("loadError") }}</p>
+    <p class="max-w-md text-xs text-muted-foreground">{{ loadError }}</p>
+    <div class="flex items-center gap-2">
+      <button
+        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        @click="initAsync"
+      >
+        {{ t("retry") }}
+      </button>
+      <button
+        class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+        @click="router.push(localePath('/'))"
+      >
+        {{ t("backToList") }}
+      </button>
     </div>
   </div>
 </template>
@@ -479,6 +490,9 @@ de:
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
   resetZoom: Zoom zurücksetzen
+  loadError: Notizbuch konnte nicht geöffnet werden
+  retry: Erneut versuchen
+  backToList: Zurück zur Übersicht
   trashPreview: Diese Seite ist im Papierkorb
   restore: Wiederherstellen
   settings: Einstellungen
@@ -490,6 +504,9 @@ de:
   deletePen: Löschen
   save: Speichern
 en:
+  loadError: Failed to open notebook
+  retry: Retry
+  backToList: Back to overview
   addPage: Add Page
   addTable: Insert Table
   toggleOrientation: Portrait/Landscape

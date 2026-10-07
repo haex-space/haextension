@@ -42,7 +42,10 @@ const emptyTrash = async () => {
   trashedPages.value = [];
 };
 
-const getTemplateLabel = (template: string) => {
+// Prefer the migrated background.template; fall back to the legacy column so
+// pages that have never been saved under the new model still get a label.
+const getTemplateLabel = (page: SelectPage) => {
+  const template = page.background?.template ?? page.template;
   const tmpl = PAGE_TEMPLATES.find(t => t.id === template);
   if (!tmpl) return template;
   return locale.value === "de" ? tmpl.i18n.de : tmpl.i18n.en;
@@ -97,7 +100,7 @@ const getTemplateLabel = (template: string) => {
             @click="emit('previewTrashPage', page)"
           >
             <div class="min-w-0 flex-1">
-              <div class="text-xs text-muted-foreground">{{ getTemplateLabel(page.template) }}</div>
+              <div class="text-xs text-muted-foreground">{{ getTemplateLabel(page) }}</div>
             </div>
             <button
               class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"

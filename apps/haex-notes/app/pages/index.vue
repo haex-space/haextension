@@ -12,6 +12,7 @@ const pencilCaseStore = usePencilCaseStore();
 
 const allNotebooks = ref<SelectNotebook[]>([]);
 const isLoaded = ref(false);
+const loadError = ref<string | null>(null);
 const showNewDialog = ref(false);
 const newName = ref("");
 const newTemplate = ref<PageTemplate>("lined");
@@ -23,12 +24,20 @@ const loadNotebooks = async () => {
   allNotebooks.value = (await notebookStore.listNotebooksAsync()).reverse();
 };
 
-onMounted(async () => {
-  await haexVault.initializeAsync();
-  await pencilCaseStore.loadAsync();
-  await loadNotebooks();
-  isLoaded.value = true;
-});
+const initAsync = async () => {
+  loadError.value = null;
+  try {
+    await haexVault.initializeAsync();
+    await pencilCaseStore.loadAsync();
+    await loadNotebooks();
+    isLoaded.value = true;
+  } catch (err) {
+    console.error("[haex-notes] Failed to load notebooks:", err);
+    loadError.value = err instanceof Error ? err.message : String(err);
+  }
+};
+
+onMounted(initAsync);
 
 const createNotebook = async () => {
   const name = newName.value.trim() || "Notizbuch";
@@ -226,6 +235,16 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
       :notebook-id="shareNotebookId"
     />
   </div>
+  <div v-else-if="loadError" class="flex h-full flex-col items-center justify-center gap-3 bg-background p-6 text-center">
+    <p class="text-sm font-medium text-destructive">{{ t("loadError") }}</p>
+    <p class="max-w-md text-xs text-muted-foreground">{{ loadError }}</p>
+    <button
+      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      @click="initAsync"
+    >
+      {{ t("retry") }}
+    </button>
+  </div>
 </template>
 
 <i18n lang="yaml">
@@ -235,6 +254,8 @@ de:
   createFirst: Erstelle dein erstes Notizbuch
   confirmDelete: Dieses Notizbuch und alle Seiten wirklich löschen?
   delete: Löschen
+  loadError: haex-notes konnte nicht geladen werden
+  retry: Erneut versuchen
   name: Name
   notebookPlaceholder: z.B. Mathe Klasse 3
   pageType: Seitentyp
@@ -248,6 +269,8 @@ en:
   createFirst: Create your first notebook
   confirmDelete: Really delete this notebook and all pages?
   delete: Delete
+  loadError: haex-notes failed to load
+  retry: Retry
   name: Name
   notebookPlaceholder: e.g. Math Grade 3
   pageType: Page Type

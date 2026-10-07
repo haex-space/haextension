@@ -7,7 +7,7 @@
     "filesystem": [
       {
         "target": "*",
-        "operation": "read"
+        "operation": "readWrite"
       }
     ],
     "shell": [],
