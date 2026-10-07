@@ -23,6 +23,7 @@ export const useNotebookStore = defineStore("notebook", () => {
   const currentPages = ref<SelectPage[]>([]);
   const currentPageIndex = ref(0);
   const isDirty = ref(false);
+  const contentVersion = ref(0);
 
   const currentPage = computed(() => currentPages.value[currentPageIndex.value] ?? null);
   const pageCount = computed(() => currentPages.value.length);
@@ -59,6 +60,7 @@ export const useNotebookStore = defineStore("notebook", () => {
   const runCommand = (command: Command) => {
     undoStack.push(command);
     isDirty.value = true;
+    contentVersion.value++;
   };
 
   /**
@@ -80,12 +82,14 @@ export const useNotebookStore = defineStore("notebook", () => {
   const undo = async () => {
     const command = undoStack.undo();
     if (!command) return;
+    contentVersion.value++;
     await goToAffectedPageAsync(command.pageId);
     isDirty.value = true;
   };
   const redo = async () => {
     const command = undoStack.redo();
     if (!command) return;
+    contentVersion.value++;
     await goToAffectedPageAsync(command.pageId);
     isDirty.value = true;
   };
@@ -146,6 +150,11 @@ export const useNotebookStore = defineStore("notebook", () => {
 
     currentNotebook.value = result[0]!;
     const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    docs.clear();
+    undoStack.clear();
+    currentStroke.value = null;
+    isDrawing.value = false;
+    isDirty.value = false;
     currentPages.value = allPages;
     currentPageIndex.value = 0;
     loadPageIntoState();
@@ -548,6 +557,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     removeTableRow,
     removeTableColumn,
     resizeTable,
+    contentVersion,
     saveCurrentPageAsync,
     listTrashAsync,
     restorePageAsync,

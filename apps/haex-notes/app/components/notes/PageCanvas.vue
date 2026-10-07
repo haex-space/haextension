@@ -144,7 +144,10 @@ watch(
 // --- Auslöser ---
 
 watch(() => notebook.currentDoc?.background, () => scheduleRender("bg"), { deep: true });
-watch(() => notebook.visibleElements, () => scheduleRender("content"), { deep: true });
+watch(
+  () => [notebook.currentPage?.id, notebook.contentVersion],
+  () => scheduleRender("content"),
+);
 watch(() => [viewport.x, viewport.y, viewport.zoom], () => scheduleRender("bg", "content", "overlay"));
 watch(pageSize, () => nextTick(() => { fitPage(); scheduleRender("bg", "content", "overlay"); }));
 useResizeObserver(hostEl, () => scheduleRender("bg", "content", "overlay"));
