@@ -1,22 +1,35 @@
 // stores/backends.ts
-// Storage backends are managed centrally by haex-vault Core.
-// This store wraps the remoteStorage API for convenient access.
+// Storages belong to the host (holzi): it keeps the connections and their credentials, asks the
+// user to confirm every change in its own dialog and asks for credentials in its own window. This
+// extension only proposes storages and sees them by name, provider and bucket.
 
-import { isPermissionPromptError } from "./haexvault";
+import { isPermissionDeniedError, isPermissionPromptError } from "./haexvault";
 import type {
   RemoteStorageBackendInfo,
-  RemoteS3Config,
-  RemoteS3PublicConfig,
-  RemoteAddBackendRequest,
-  RemoteUpdateBackendRequest,
+  RemoteS3Proposal,
 } from "@haex-space/vault-sdk";
 
-// Type aliases for clarity
 export type StorageBackendInfo = RemoteStorageBackendInfo;
-export type S3Config = RemoteS3Config;
-export type S3PublicConfig = RemoteS3PublicConfig;
-export type AddBackendRequest = RemoteAddBackendRequest;
-export type UpdateBackendRequest = RemoteUpdateBackendRequest;
+
+/** What a new storage on a new connection is proposed with; never credentials. */
+export type StorageProposal = Omit<RemoteS3Proposal, "region"> & { region: string };
+
+/**
+ * Why a storage call failed: `cancelled` when the user cancelled or refused it in holzi (1002),
+ * the provider's kind (2002, e.g. `accessDenied`, `network`, `bucketMissing`), else `other`.
+ */
+export function storageFailure(error: unknown): { kind: string; message: string } {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isPermissionDeniedError(error)) return { kind: "cancelled", message };
+  const failed = error as { code?: number; details?: { kind?: unknown } } | null;
+  const kind = failed?.details?.kind;
+  if (failed?.code === 2002 && typeof kind === "string" && kind in PROVIDER_KINDS) {
+    return { kind, message };
+  }
+  return { kind: "other", message };
+}
+
+const PROVIDER_KINDS = { accessDenied: true, network: true, bucketMissing: true };
 
 export const useBackendsStore = defineStore("backends", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -24,7 +37,7 @@ export const useBackendsStore = defineStore("backends", () => {
   const backends = ref<StorageBackendInfo[]>([]);
   const isLoading = ref(false);
   const testingBackendId = ref<string | null>(null);
-  const testResult = ref<{ backendId: string; success: boolean; error?: string } | null>(null);
+  const testResult = ref<{ backendId: string; success: boolean; kind?: string; error?: string } | null>(null);
 
   /**
    * Load all backends via Core remoteStorage API
@@ -49,39 +62,60 @@ export const useBackendsStore = defineStore("backends", () => {
   };
 
   /**
-   * Add a new storage backend via Core remoteStorage API
+   * Proposes a storage on a new connection. holzi confirms it with the user and asks for the
+   * credentials in its own window; 1002 when the user cancels.
    */
   const addBackendAsync = async (
     name: string,
-    type: "s3",
-    config: S3Config
+    proposal: StorageProposal
   ): Promise<StorageBackendInfo> => {
-    const request: AddBackendRequest = {
+    const newBackend = await haexVaultStore.client.remoteStorage.backends.add({
       name,
-      type,
-      config,
-    };
-    const newBackend = await haexVaultStore.client.remoteStorage.backends.add(request);
+      type: "s3",
+      config: proposal,
+    });
 
     backends.value.push(newBackend);
-    console.log(`[haex-files] Added backend: ${name} (${type})`);
+    console.log(`[haex-files] Added storage: ${name}`);
 
     return newBackend;
   };
 
   /**
-   * Update a storage backend via Core remoteStorage API
-   * Only provided fields are updated. Credentials are preserved if not provided.
+   * Proposes another bucket at the provider of `sameAs` (a storage this extension may read): no
+   * new credentials, holzi only asks to confirm.
+   */
+  const addOnSameProviderAsync = async (
+    name: string,
+    sameAs: string,
+    bucket: string
+  ): Promise<StorageBackendInfo> => {
+    const newBackend = await haexVaultStore.client.remoteStorage.backends.add({
+      name,
+      type: "s3",
+      sameProviderAs: sameAs,
+      config: { bucket },
+    });
+
+    backends.value.push(newBackend);
+    console.log(`[haex-files] Added storage: ${name}`);
+
+    return newBackend;
+  };
+
+  /**
+   * Proposes a new name or bucket; holzi confirms it with the user and offers new credentials in
+   * its own window.
    */
   const updateBackendAsync = async (
     backendId: string,
     name?: string,
-    config?: Partial<S3Config>
+    bucket?: string
   ): Promise<StorageBackendInfo> => {
     const updatedBackend = await haexVaultStore.client.remoteStorage.backends.update({
       backendId,
       name,
-      config,
+      config: bucket ? { bucket } : undefined,
     });
 
     // Update local state
@@ -119,8 +153,8 @@ export const useBackendsStore = defineStore("backends", () => {
 
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      testResult.value = { backendId, success: false, error: errorMessage };
+      const failure = storageFailure(error);
+      testResult.value = { backendId, success: false, kind: failure.kind, error: failure.message };
       console.error(`[haex-files] Backend test error:`, error);
       return false;
     } finally {
@@ -142,6 +176,7 @@ export const useBackendsStore = defineStore("backends", () => {
     testResult: computed(() => testResult.value),
     loadBackendsAsync,
     addBackendAsync,
+    addOnSameProviderAsync,
     updateBackendAsync,
     removeBackendAsync,
     testBackendAsync,
