@@ -14,6 +14,28 @@ export type StorageBackendInfo = RemoteStorageBackendInfo;
 /** What a new storage on a new connection is proposed with; never credentials. */
 export type StorageProposal = Omit<RemoteS3Proposal, "region"> & { region: string };
 
+const PROVIDER_KINDS = { accessDenied: true, network: true, bucketMissing: true };
+
+function providerFailureKind(error: unknown): string | undefined {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("code" in error) ||
+    error.code !== 2002 ||
+    !("details" in error) ||
+    typeof error.details !== "object" ||
+    error.details === null ||
+    !("kind" in error.details) ||
+    typeof error.details.kind !== "string"
+  ) {
+    return undefined;
+  }
+
+  return Object.hasOwn(PROVIDER_KINDS, error.details.kind)
+    ? error.details.kind
+    : undefined;
+}
+
 /**
  * Why a storage call failed: `cancelled` when the user cancelled or refused it in holzi (1002),
  * the provider's kind (2002, e.g. `accessDenied`, `network`, `bucketMissing`), else `other`.
@@ -21,15 +43,12 @@ export type StorageProposal = Omit<RemoteS3Proposal, "region"> & { region: strin
 export function storageFailure(error: unknown): { kind: string; message: string } {
   const message = error instanceof Error ? error.message : String(error);
   if (isPermissionDeniedError(error)) return { kind: "cancelled", message };
-  const failed = error as { code?: number; details?: { kind?: unknown } } | null;
-  const kind = failed?.details?.kind;
-  if (failed?.code === 2002 && typeof kind === "string" && kind in PROVIDER_KINDS) {
+  const kind = providerFailureKind(error);
+  if (kind) {
     return { kind, message };
   }
   return { kind: "other", message };
 }
-
-const PROVIDER_KINDS = { accessDenied: true, network: true, bucketMissing: true };
 
 export const useBackendsStore = defineStore("backends", () => {
   const haexVaultStore = useHaexVaultStore();
@@ -53,6 +72,8 @@ export const useBackendsStore = defineStore("backends", () => {
 
       if (isPermissionPromptError(error)) {
         haexVaultStore.setPermissionPrompt(error, loadBackendsAsync);
+      } else if (isPermissionDeniedError(error)) {
+        haexVaultStore.setPermissionDenied(error);
       }
 
       backends.value = [];
