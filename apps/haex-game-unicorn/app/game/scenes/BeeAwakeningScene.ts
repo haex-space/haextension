@@ -2,27 +2,10 @@ import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
 import { createNestFoundCutscene } from './CutsceneScene'
-
-const TILE_SIZE = 16
-const SCENE_WIDTH = 40
-const SCENE_HEIGHT = 25
-
-const DEPTH = {
-  GROUND: 0,
-  GROUND_DETAIL: 1,
-  FLOWERS: 5,
-  ENTITY: 10,
-  UI: 100,
-}
-
-interface EarlyFlower {
-  sprite: Phaser.GameObjects.Sprite
-  type: 'crocus' | 'willow-catkin' | 'snowdrop'
-  x: number
-  y: number
-  hasNectar: boolean
-  interactionZone: Phaser.GameObjects.Zone
-}
+import { lerpColor } from '../utils/color'
+import { DEPTH, SCENE_HEIGHT, SCENE_WIDTH, TILE_SIZE } from './bee-awakening/constants'
+import type { EarlyFlower } from './bee-awakening/constants'
+import { createEarlySpringFlowers, createEmergencePoint, createGround } from './bee-awakening/world'
 
 export class BeeAwakeningScene extends Phaser.Scene {
   private queen!: BumblebeeQueen
@@ -53,9 +36,9 @@ export class BeeAwakeningScene extends Phaser.Scene {
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['awakening-v1'])
 
-    this.createGround()
-    this.createEarlySpringFlowers()
-    this.createEmergencePoint()
+    createGround(this, this.rng)
+    this.earlyFlowers.push(...createEarlySpringFlowers(this, this.rng))
+    createEmergencePoint(this)
     this.createQueen()
     this.createUI()
     this.setupCamera()
@@ -86,114 +69,6 @@ export class BeeAwakeningScene extends Phaser.Scene {
     // Win condition: visited enough flowers and energy recovered
     if (this.flowersVisited >= 3 && this.queen.energy > 0.45) {
       this.completeChapter()
-    }
-  }
-
-  // ── World Building ──────────────────────────────
-
-  private createGround() {
-    // Early spring ground — frosty, sparse
-    const frostGrassGfx = this.make.graphics({ x: 0, y: 0 })
-    frostGrassGfx.fillStyle(0x6a8a5a)
-    frostGrassGfx.fillRect(0, 0, 16, 16)
-    frostGrassGfx.fillStyle(0x8aaa7a, 0.3)
-    frostGrassGfx.fillRect(4, 4, 2, 2) // frost spots
-    frostGrassGfx.fillRect(10, 8, 3, 2)
-    frostGrassGfx.generateTexture('frost-grass', 16, 16)
-    frostGrassGfx.destroy()
-
-    for (let x = 0; x < SCENE_WIDTH; x++) {
-      for (let y = 0; y < SCENE_HEIGHT; y++) {
-        const tile = this.add.sprite(x * TILE_SIZE + 8, y * TILE_SIZE + 8, 'frost-grass')
-        tile.setDepth(DEPTH.GROUND)
-        if (this.rng.frac() > 0.8) {
-          tile.setTint(0x7a9a6a)
-        }
-      }
-    }
-
-    this.physics.world.setBounds(0, 0, SCENE_WIDTH * TILE_SIZE, SCENE_HEIGHT * TILE_SIZE)
-  }
-
-  private createEmergencePoint() {
-    // Mound of earth where queen emerges
-    const moundGfx = this.make.graphics({ x: 0, y: 0 })
-    moundGfx.fillStyle(0x6a5a3a)
-    moundGfx.fillEllipse(16, 12, 28, 16)
-    moundGfx.fillStyle(0x5a4a2a)
-    moundGfx.fillEllipse(16, 10, 22, 12)
-    // Small hole
-    moundGfx.fillStyle(0x2a1a0a)
-    moundGfx.fillCircle(16, 12, 5)
-    moundGfx.generateTexture('emergence-mound', 32, 20)
-    moundGfx.destroy()
-
-    const cx = (SCENE_WIDTH * TILE_SIZE) / 2
-    const cy = (SCENE_HEIGHT * TILE_SIZE) / 2 + 40
-    this.add.sprite(cx, cy, 'emergence-mound').setDepth(DEPTH.GROUND_DETAIL)
-  }
-
-  private createEarlySpringFlowers() {
-    // Crocus texture
-    const crocusGfx = this.make.graphics({ x: 0, y: 0 })
-    crocusGfx.fillStyle(0x3a6a28)
-    crocusGfx.fillRect(7, 10, 2, 6)
-    crocusGfx.fillStyle(0xbb77ff)
-    crocusGfx.fillEllipse(8, 7, 6, 8)
-    crocusGfx.fillStyle(0xffcc44)
-    crocusGfx.fillCircle(8, 7, 1.5)
-    crocusGfx.generateTexture('crocus', 16, 16)
-    crocusGfx.destroy()
-
-    // Snowdrop texture
-    const snowdropGfx = this.make.graphics({ x: 0, y: 0 })
-    snowdropGfx.fillStyle(0x3a6a28)
-    snowdropGfx.fillRect(7, 6, 1, 10)
-    snowdropGfx.lineStyle(1, 0x3a6a28)
-    snowdropGfx.lineBetween(7, 6, 5, 8)
-    snowdropGfx.fillStyle(0xffffff)
-    snowdropGfx.fillEllipse(4, 10, 4, 6)
-    snowdropGfx.generateTexture('snowdrop', 12, 16)
-    snowdropGfx.destroy()
-
-    // Willow catkin texture
-    const willowGfx = this.make.graphics({ x: 0, y: 0 })
-    willowGfx.fillStyle(0x6a5a3a)
-    willowGfx.fillRect(7, 0, 2, 16)
-    willowGfx.fillStyle(0xdddd88)
-    willowGfx.fillEllipse(8, 4, 5, 6)
-    willowGfx.fillEllipse(8, 10, 4, 5)
-    willowGfx.generateTexture('willow-catkin', 16, 16)
-    willowGfx.destroy()
-
-    const flowerDefs: { type: EarlyFlower['type'], texture: string }[] = [
-      { type: 'crocus', texture: 'crocus' },
-      { type: 'crocus', texture: 'crocus' },
-      { type: 'snowdrop', texture: 'snowdrop' },
-      { type: 'snowdrop', texture: 'snowdrop' },
-      { type: 'willow-catkin', texture: 'willow-catkin' },
-    ]
-
-    // Scatter sparsely — early spring, not many flowers yet
-    for (const def of flowerDefs) {
-      const x = this.rng.between(TILE_SIZE * 3, SCENE_WIDTH * TILE_SIZE - TILE_SIZE * 3)
-      const y = this.rng.between(TILE_SIZE * 3, SCENE_HEIGHT * TILE_SIZE - TILE_SIZE * 3)
-
-      const sprite = this.add.sprite(x, y, def.texture)
-      sprite.setDepth(DEPTH.FLOWERS)
-
-      // Interaction zone
-      const zone = this.add.zone(x, y, 24, 24)
-      this.physics.add.existing(zone, true)
-
-      this.earlyFlowers.push({
-        sprite,
-        type: def.type,
-        x,
-        y,
-        hasNectar: true,
-        interactionZone: zone,
-      })
     }
   }
 
@@ -285,7 +160,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
     // Fill from bottom
     const tempFill = this.queen.bodyTemperature
     const fillH = barH * tempFill
-    const tempColor = this.lerpColor(0x4488ff, 0xff6622, tempFill) // blue→orange
+    const tempColor = lerpColor(0x4488ff, 0xff6622, tempFill) // blue→orange
     this.temperatureIndicator.fillStyle(tempColor, 0.8)
     this.temperatureIndicator.fillRoundedRect(tempX, tempY + barH - fillH, barW, fillH, 2)
 
@@ -300,7 +175,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
     // Fill based on energy
     const energyFill = this.queen.energy
-    const energyColor = this.lerpColor(0xff4444, 0xf5c542, energyFill)
+    const energyColor = lerpColor(0xff4444, 0xf5c542, energyFill)
     this.energyIndicator.fillStyle(energyColor, 0.7)
     this.energyIndicator.fillEllipse(eX, eY, 12 * energyFill, 10 * energyFill)
 
@@ -571,20 +446,5 @@ export class BeeAwakeningScene extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('OverworldScene')
     })
-  }
-
-  // ── Utils ───────────────────────────────────────
-
-  private lerpColor(from: number, to: number, t: number): number {
-    const fr = (from >> 16) & 0xff
-    const fg = (from >> 8) & 0xff
-    const fb = from & 0xff
-    const tr = (to >> 16) & 0xff
-    const tg = (to >> 8) & 0xff
-    const tb = to & 0xff
-    const r = Math.round(fr + (tr - fr) * t)
-    const g = Math.round(fg + (tg - fg) * t)
-    const b = Math.round(fb + (tb - fb) * t)
-    return (r << 16) | (g << 8) | b
   }
 }
