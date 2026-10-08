@@ -1,5 +1,5 @@
 import { useEventListener } from "@vueuse/core";
-import type { Ref } from "vue";
+import { ref, type Ref } from "vue";
 
 /** Pull distance (px, after resistance) that triggers a refresh on release. */
 const THRESHOLD = 64;
@@ -67,6 +67,11 @@ export const usePullToRefresh = (
     distance.value = THRESHOLD;
     try {
       await onRefresh();
+    } catch (error) {
+      // DOM event listeners do not have a caller that can handle a rejected
+      // promise. Keep refresh failures observable without leaving an
+      // unhandled rejection behind.
+      console.warn("[haex-mail] pull-to-refresh failed", error);
     } finally {
       isRefreshing.value = false;
       distance.value = 0;
