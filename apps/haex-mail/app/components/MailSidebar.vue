@@ -11,7 +11,8 @@ import {
   Settings,
   RefreshCw,
 } from "@lucide/vue";
-import { ALL_ACCOUNTS_ID, roleLabelKey } from "~/stores/mail";
+import { roleLabelKey } from "~/lib/mail";
+import { ALL_ACCOUNTS_ID } from "~/stores/mail";
 import type { MailboxRole } from "~/database/schemas";
 
 defineEmits<{ compose: []; refresh: [] }>();

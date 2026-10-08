@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { onKeyStroke } from "@vueuse/core";
 import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
-import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID, roleLabelKey, type ReplyContext, type ReplyMode } from "~/stores/mail";
+import { roleLabelKey } from "~/lib/mail";
+import type { ReplyContext, ReplyMode } from "~/stores/mail/reply";
 import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
 
@@ -34,10 +33,6 @@ const toggleSidebar = () => {
 };
 
 const replyContext = ref<ReplyContext | null>(null);
-const showSetup = ref(false);
-const currentAccount = shallowRef<AccountWithCredentials | null>(null);
-const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
-const initError = ref<string | null>(null);
 
 // --- Mobile (1-column) navigation ---
 const sheetOpen = ref(false);
@@ -129,77 +124,7 @@ watch(showCompose, (v) => {
   if (!v) replyContext.value = null;
 });
 
-// --- Selection keyboard shortcuts (haex-pass parity) ---
-// Guard against text inputs and the compose dialog, otherwise Ctrl+A
-// would hijack text selection.
-const isEditableTarget = (e: KeyboardEvent) => {
-  const t = e.target as HTMLElement | null;
-  return (
-    !!t &&
-    (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
-  );
-};
-
-onKeyStroke(["a", "A"], (e) => {
-  if (!(e.ctrlKey || e.metaKey)) return;
-  if (isEditableTarget(e) || showCompose.value) return;
-  e.preventDefault();
-  selectionStore.selectAll(mailStore.filteredMessageList.map((m) => m.id));
-});
-
-onKeyStroke("Escape", (e) => {
-  if (!selectionStore.isSelectionMode) return;
-  e.preventDefault();
-  selectionStore.clearSelection();
-});
-
-onKeyStroke("Delete", async (e) => {
-  if (isEditableTarget(e) || showCompose.value) return;
-
-  if (selectionStore.isSelectionMode) {
-    e.preventDefault();
-    const ids = Array.from(selectionStore.selectedIds);
-    // Deleting the open message clears it (and the fullscreen v-if with it) —
-    // drop the overlay flag too so the next opened mail doesn't go fullscreen.
-    if (mailStore.selectedMessageId && selectionStore.isSelected(mailStore.selectedMessageId)) {
-      showFullscreenMessage.value = false;
-    }
-    await mailStore.bulkMoveToRoleAsync(ids, "trash");
-    selectionStore.clearSelection();
-    // Do NOT auto-open the next message — stay in list view after bulk delete.
-    return;
-  }
-
-  // No explicit selection, but a message is open for reading — delete it.
-  if (!mailStore.selectedMessageId) return;
-  e.preventDefault();
-  // Match the fullscreen delete button — otherwise the overlay's flag stays
-  // set and the next opened message would pop up in fullscreen again.
-  showFullscreenMessage.value = false;
-  await onDeleteFromView();
-});
-
-onKeyStroke("ArrowDown", (e) => {
-  if (isEditableTarget(e) || showCompose.value) return;
-  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
-  e.preventDefault();
-  const list = mailStore.filteredMessageList;
-  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
-  if (idx !== -1 && idx < list.length - 1) {
-    mailStore.selectMessage(list[idx + 1]!.id);
-  }
-});
-
-onKeyStroke("ArrowUp", (e) => {
-  if (isEditableTarget(e) || showCompose.value) return;
-  if (selectionStore.isSelectionMode || !mailStore.selectedMessageId) return;
-  e.preventDefault();
-  const list = mailStore.filteredMessageList;
-  const idx = list.findIndex((m) => m.id === mailStore.selectedMessageId);
-  if (idx > 0) {
-    mailStore.selectMessage(list[idx - 1]!.id);
-  }
-});
+useMailKeyboardShortcuts({ showCompose, showFullscreenMessage, onDeleteFromView });
 
 // A different folder/account means a different message set — selection
 // keys would go stale.
@@ -214,138 +139,8 @@ watch(
   },
 );
 
-onMounted(async () => {
-  try {
-    await haexVault.initializeAsync();
-  } catch (err) {
-    initError.value = getErrorMessage(err);
-    console.error('[haex-mail] Initialization failed:', err);
-    return;
-  }
-  await accountsStore.loadAccountsAsync();
-  if (!accountsStore.hasAccounts) {
-    showSetup.value = true;
-    return;
-  }
-  // Restore credentials after a remount (e.g. returning from /settings) —
-  // the selectedAccountId watcher only fires on change.
-  if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) {
-    await initUnifiedAsync();
-  } else if (mailStore.selectedAccountId) {
-    const acc = await accountsStore.loadAccountWithCredentialsAsync(
-      mailStore.selectedAccountId,
-    );
-    currentAccount.value = acc;
-    // The selection may have changed while unmounted (e.g. account deleted
-    // in settings) — refresh when the cached mailboxes belong to another one.
-    if (acc && mailStore.mailboxes[0]?.accountId !== acc.account.id) {
-      await refreshMailboxesAndSelectInboxAsync(acc);
-    }
-  }
-});
-
-const refreshMailboxesAndSelectInboxAsync = async (
-  acc: AccountWithCredentials,
-) => {
-  await mailStore.refreshMailboxesAsync(acc);
-  // Default to the inbox if we have one.
-  const inbox = mailStore.mailboxes.find((m) => m.role === "inbox");
-  if (inbox) {
-    mailStore.selectMailbox(inbox.name);
-  }
-};
-
-/**
- * Unified view: load credentials for every account (may surface vault
- * permission prompts), then refresh the selected role — default inbox.
- */
-const initUnifiedAsync = async () => {
-  currentAccount.value = null;
-  const creds = await Promise.all(
-    accountsStore.accounts.map((a) =>
-      accountsStore.getCredentialsCachedAsync(a.id),
-    ),
-  );
-  unifiedAccounts.value = creds.filter(
-    (c): c is AccountWithCredentials => c !== null,
-  );
-  if (mailStore.selectedRole) {
-    // Restored selection — the role watcher won't fire, refresh directly.
-    await mailStore.refreshUnifiedAsync(
-      mailStore.selectedRole,
-      unifiedAccounts.value,
-    );
-  } else {
-    mailStore.selectRole("inbox");
-  }
-};
-
-/**
- * When the selected account changes, load credentials and refresh
- * mailboxes. Credentials live in the core passwords vault — accessing
- * them may surface a permission prompt the first time.
- */
-watch(
-  () => mailStore.selectedAccountId,
-  async (id) => {
-    if (!id) {
-      currentAccount.value = null;
-      return;
-    }
-    if (id === ALL_ACCOUNTS_ID) {
-      await initUnifiedAsync();
-      return;
-    }
-    const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
-    currentAccount.value = acc;
-    if (acc) {
-      await refreshMailboxesAndSelectInboxAsync(acc);
-    }
-  },
-);
-
-watch(
-  () => mailStore.selectedMailboxName,
-  async (mailbox) => {
-    if (!mailbox || !currentAccount.value) return;
-    await mailStore.refreshMessagesAsync(currentAccount.value, mailbox);
-  },
-);
-
-watch(
-  () => mailStore.selectedRole,
-  async (role) => {
-    if (!role || !mailStore.isUnifiedView) return;
-    await mailStore.refreshUnifiedAsync(role, unifiedAccounts.value);
-  },
-);
-
-const onRefresh = async () => {
-  if (mailStore.isUnifiedView) {
-    if (mailStore.selectedRole) {
-      await mailStore.refreshUnifiedAsync(mailStore.selectedRole, unifiedAccounts.value);
-    }
-  } else {
-    if (currentAccount.value && mailStore.selectedMailboxName) {
-      await mailStore.refreshMessagesAsync(currentAccount.value, mailStore.selectedMailboxName);
-    }
-  }
-};
-
-watch(
-  () => mailStore.selectedMessageId,
-  async (id) => {
-    if (!id) return;
-    const row = mailStore.messageList.find((m) => m.id === id);
-    if (!row) return;
-    await mailStore.loadMessageBodyAsync(row);
-  },
-);
-
-const onSetupComplete = async () => {
-  showSetup.value = false;
-  await accountsStore.loadAccountsAsync();
-};
+const { showSetup, currentAccount, initError, onRefresh, onSetupComplete } =
+  useMailPageLoader();
 
 </script>
 
