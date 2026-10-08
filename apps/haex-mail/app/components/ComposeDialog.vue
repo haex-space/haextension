@@ -4,7 +4,7 @@ import { toast } from "vue-sonner";
 import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import type { ReplyContext } from "~/stores/mail";
+import type { ReplyContext } from "~/stores/mail/reply";
 
 const open = defineModel<boolean>("open", { default: false });
 

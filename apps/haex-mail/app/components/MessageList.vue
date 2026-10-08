@@ -3,7 +3,7 @@ import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { PanelLeftClose, PanelLeftOpen, Paperclip, RefreshCw, Search } from "@lucide/vue";
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
-import { isMessageUnread, roleLabelKey } from "~/stores/mail";
+import { isMessageUnread, roleLabelKey } from "~/lib/mail";
 
 const props = defineProps<{
   sidebarCollapsed?: boolean;
