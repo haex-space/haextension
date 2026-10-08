@@ -265,6 +265,3 @@ export function createSpriteFrame(
     },
   }
 }
-
-export { createQueenEmergenceCutscene } from './cutscene/queenEmergence'
-export { createNestFoundCutscene } from './cutscene/nestFound'

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
-import { createNestFoundCutscene } from './CutsceneScene'
+import { createNestFoundCutscene } from './cutscene/nestFound'
 import { lerpColor } from '../utils/color'
 import { DEPTH, SCENE_HEIGHT, SCENE_WIDTH, TILE_SIZE } from './bee-awakening/constants'
 import type { EarlyFlower } from './bee-awakening/constants'
