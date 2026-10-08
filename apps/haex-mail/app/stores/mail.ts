@@ -220,6 +220,40 @@ export const useMailStore = defineStore("mail", () => {
     }
   };
 
+  /**
+   * Re-read the server status (UNSEEN/EXISTS) of the given mailboxes after
+   * a local change (read, move, delete) so the sidebar counters stay
+   * current. The exact name as LIST pattern limits STATUS to those boxes.
+   * Best-effort: the action itself already succeeded.
+   */
+  const refreshMailboxStatusAsync = async (
+    accountId: string,
+    mailboxNames: string[],
+  ) => {
+    try {
+      const account = await accountsStore.getCredentialsCachedAsync(accountId);
+      if (!account) return;
+      const remote: MailboxInfo[] = [];
+      for (const name of mailboxNames) {
+        remote.push(
+          ...(await haexVault.client.mail.listMailboxesAsync(account.imap, {
+            pattern: name,
+            includeStatus: true,
+          })),
+        );
+      }
+      await syncMailboxesAsync(accountId, remote);
+    } catch (err) {
+      console.warn("[haex-mail] failed to refresh mailbox status", err);
+      return;
+    }
+    if (isUnifiedView.value) {
+      await loadMailboxesAsync();
+    } else if (selectedAccountId.value === accountId) {
+      await loadMailboxesAsync(accountId);
+    }
+  };
+
   /** Drop cached messages + bodies of one mailbox (uidValidity reset). */
   const invalidateMailboxCacheAsync = async (
     accountId: string,
@@ -795,7 +829,9 @@ export const useMailStore = defineStore("mail", () => {
       await updateLocalFlagsAsync([message.id], "\\Seen", true);
     } catch (err) {
       console.warn("[haex-mail] failed to set \\Seen flag", err);
+      return;
     }
+    await refreshMailboxStatusAsync(message.accountId, [message.mailboxName]);
   };
 
   /** Monotonic token so an outdated load can't overwrite a newer one. */
@@ -974,6 +1010,7 @@ export const useMailStore = defineStore("mail", () => {
           add,
         );
         await updateLocalFlagsAsync(g.rows.map((r) => r.id), flag, add);
+        await refreshMailboxStatusAsync(g.accountId, [g.mailboxName]);
       }),
     );
     reportBulkFailures(results);
@@ -1001,6 +1038,7 @@ export const useMailStore = defineStore("mail", () => {
     await haexVault.orm
       .delete(schema.messageBodies)
       .where(inArray(schema.messageBodies.messageId, ids));
+    await refreshMailboxStatusAsync(g.accountId, [g.mailboxName, destinationName]);
   };
 
   /** Delete (role "trash") or archive (role "archive") messages. */
