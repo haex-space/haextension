@@ -21,8 +21,8 @@ import {
   readByGroupIdAsync,
   readKeyValuesAsync,
   readSnapshotsAsync,
-} from "./read";
-import { updateAsync } from "./update";
+} from "~/utils/items/read";
+import { updateAsync } from "~/utils/items/update";
 
 export const usePasswordItemStore = defineStore("passwordItemStore", () => {
   const currentItemId = computed({

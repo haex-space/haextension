@@ -10,7 +10,7 @@ import {
 } from '~/database'
 import { getSingleRouteParam } from '~/utils/helper'
 import { usePasswordItemStore } from '../items'
-import { areGroupsEqual, getChildGroupsRecursiveAsync } from './helpers'
+import { areGroupsEqual, getChildGroupsRecursiveAsync } from '~/utils/groups/helpers'
 
 export const trashId = 'trash'
 
