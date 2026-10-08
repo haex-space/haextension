@@ -1,5 +1,6 @@
 import type { ExternalConnection } from '@haex-space/vault-sdk'
 import type { EncryptedMessage, KeyPair } from './crypto'
+import type { AuthorizationUpdate, EncryptedEnvelope, HandshakeResponse, ProtocolMessage } from './protocol'
 import { HAEX_PASS_METHODS } from '@haex-pass/api'
 import {
 
@@ -10,30 +11,18 @@ import { getWebSocketPort } from '~/logic/settings'
 import {
   createEncryptedMessage,
   decryptMessageEnvelope,
-  exportPrivateKey,
   exportPublicKey,
   generateClientId,
   generateKeyPair,
-  importPrivateKey,
   importPublicKey,
   toHex,
 } from './crypto'
+import { loadKeypair, saveAndVerifyKeypair } from './keypairStorage'
+import { createHandshakeRequest, createRequestEnvelope } from './protocol'
 
-// Protocol v2: the vault requires clients to declare their requested
-// permissions in the handshake (`ClientInfo.permissions`); v1 handshakes are
-// rejected with PERMISSIONS_DECLARATION_REQUIRED.
-const PROTOCOL_VERSION = 2
-const CLIENT_NAME = 'haex-pass Browser Extension'
-const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
 // 25 s is comfortably below the typical 30 s MV3 service-worker idle timeout
 // and below most stateful firewalls' connection-track timeouts.
 const PING_INTERVAL_MS = 25000
-
-// All requests from this browser extension target the haex-vault core directly,
-// not an installed extension. The sentinel values below are recognized by the
-// haex-vault external_bridge to route requests to its built-in core handler.
-const CORE_TARGET_PUBLIC_KEY = '__core__'
-const CORE_TARGET_NAME = 'core'
 
 // Re-export SDK types for use in the extension
 export { type ExternalConnection, ExternalConnectionErrorCode, ExternalConnectionState }
@@ -46,91 +35,6 @@ interface PendingRequest {
   reject: (reason: unknown) => void
   timeout: ReturnType<typeof setTimeout>
 }
-
-// Protocol message types (matching Rust ProtocolMessage enum)
-interface RequestedExtension {
-  name: string
-  extensionPublicKey: string // Public key of the haex-vault extension (from its manifest)
-  // Declared action names the client wants to call on this extension
-  // (protocol v2), or ['*'] for all actions.
-  actions?: string[]
-}
-
-// One declared core permission (mirrors the vault manifest's PermissionEntry).
-interface CorePermissionEntry {
-  target: string
-  operation?: string
-}
-
-// Declared core permissions (protocol v2) — mirrors the vault's
-// ClientPermissions shape ({ core: ExtensionPermissions }).
-interface ClientPermissions {
-  core: {
-    passwords?: CorePermissionEntry[]
-  }
-}
-
-interface ClientInfo {
-  clientId: string
-  clientName: string
-  publicKey: string // Public key of this client (browser extension) for E2E encryption
-  requestedExtensions?: RequestedExtension[]
-  permissions?: ClientPermissions
-}
-
-interface HandshakeRequest {
-  type: 'handshake'
-  version: number
-  client: ClientInfo
-}
-
-interface HandshakeResponse {
-  type: 'handshakeResponse'
-  version: number
-  serverPublicKey: string
-  authorized: boolean
-  pendingApproval: boolean
-}
-
-interface EncryptedEnvelope {
-  type: 'request' | 'response'
-  action: string
-  message: string // Base64 encrypted payload
-  iv: string // Base64 12-byte IV
-  clientId: string
-  publicKey: string // Ephemeral public key
-  // Target extension identifiers (required for requests)
-  extensionPublicKey?: string
-  extensionName?: string
-}
-
-interface AuthorizationUpdate {
-  type: 'authorizationUpdate'
-  authorized: boolean
-}
-
-interface ErrorMessage {
-  type: 'error'
-  code: string
-  message: string
-}
-
-interface PingMessage {
-  type: 'ping'
-}
-
-interface PongMessage {
-  type: 'pong'
-}
-
-type ProtocolMessage
-  = | HandshakeRequest
-    | HandshakeResponse
-    | EncryptedEnvelope
-    | AuthorizationUpdate
-    | ErrorMessage
-    | PingMessage
-    | PongMessage
 
 class VaultConnectionManager {
   private ws: WebSocket | null = null
@@ -160,7 +64,7 @@ class VaultConnectionManager {
   private async initialize(): Promise<void> {
     // Always try storage first — a stable clientId across service-worker
     // restarts is what makes haex-vault's permanent authorization useful.
-    const stored = await this.loadKeypair()
+    const stored = await loadKeypair()
     if (stored) {
       this.keyPair = stored
       console.log('[haex-pass] Loaded existing keypair from storage')
@@ -168,70 +72,13 @@ class VaultConnectionManager {
       this.keyPair = await generateKeyPair()
       // Persist BEFORE deriving the clientId, so a save failure aborts init
       // instead of producing an ephemeral identity.
-      await this.saveAndVerifyKeypair(this.keyPair)
+      await saveAndVerifyKeypair(this.keyPair)
       console.log('[haex-pass] Generated and saved new keypair')
     }
 
     this.clientId = await generateClientId(this.keyPair.publicKey)
     this.publicKeyBase64 = await exportPublicKey(this.keyPair.publicKey)
     console.log('[haex-pass] Initialized with clientId:', this.clientId)
-  }
-
-  private async loadKeypair(): Promise<KeyPair | null> {
-    let stored: { publicKey?: string, privateKey?: string } | undefined
-    try {
-      const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
-      stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
-    } catch (err) {
-      console.error('[haex-pass] storage.local.get failed:', err)
-      return null
-    }
-
-    if (!stored) {
-      console.log('[haex-pass] storage.local has no keypair entry')
-      return null
-    }
-    if (!stored.publicKey || !stored.privateKey) {
-      console.warn('[haex-pass] storage.local entry is incomplete:', { hasPub: !!stored.publicKey, hasPriv: !!stored.privateKey })
-      return null
-    }
-
-    try {
-      const publicKey = await importPublicKey(stored.publicKey)
-      const privateKey = await importPrivateKey(stored.privateKey)
-      return { publicKey, privateKey }
-    } catch (err) {
-      // Stored bytes are unusable (format change, corruption). Drop them so
-      // the caller generates and persists a fresh keypair instead of looping.
-      console.error('[haex-pass] Stored keypair is unusable, clearing:', err)
-      try {
-        await browser.storage.local.remove(STORAGE_KEY_KEYPAIR)
-      } catch (removeErr) {
-        console.error('[haex-pass] storage.local.remove failed:', removeErr)
-      }
-      return null
-    }
-  }
-
-  private async saveAndVerifyKeypair(keyPair: KeyPair): Promise<void> {
-    const publicKey = await exportPublicKey(keyPair.publicKey)
-    const privateKey = await exportPrivateKey(keyPair.privateKey)
-    await browser.storage.local.set({
-      [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
-    })
-
-    // Full round-trip check: re-read from storage AND re-import as CryptoKeys.
-    // String-equality on the base64 alone wouldn't catch an export/import
-    // mismatch that would later make loadKeypair() return null on every
-    // service-worker restart.
-    const reloaded = await this.loadKeypair()
-    if (!reloaded) {
-      throw new Error('keypair save verification failed — storage.local does not return what we wrote')
-    }
-    const reloadedPublic = await exportPublicKey(reloaded.publicKey)
-    if (reloadedPublic !== publicKey) {
-      throw new Error('keypair save verification failed — re-imported public key differs from saved one')
-    }
   }
 
   /**
@@ -440,28 +287,7 @@ class VaultConnectionManager {
     if (!this.ws || !this.clientId || !this.publicKeyBase64)
       return
 
-    const handshake: HandshakeRequest = {
-      type: 'handshake',
-      version: PROTOCOL_VERSION,
-      client: {
-        clientId: this.clientId,
-        clientName: CLIENT_NAME,
-        publicKey: this.publicKeyBase64,
-        // Request core access (will be pre-selected in authorization dialog)
-        requestedExtensions: [
-          { name: CORE_TARGET_NAME, extensionPublicKey: CORE_TARGET_PUBLIC_KEY },
-        ],
-        // Protocol v2: declare the core permissions this client needs up
-        // front. haex-pass needs full passwords access — read for
-        // autofill/TOTP/passkeys, write for saving credentials. The user
-        // still has to approve this grant in the authorization dialog.
-        permissions: {
-          core: {
-            passwords: [{ target: '*', operation: 'readWrite' }],
-          },
-        },
-      },
-    }
+    const handshake = createHandshakeRequest(this.clientId, this.publicKeyBase64)
 
     console.log('[haex-pass] Sending handshake')
     this.ws.send(JSON.stringify(handshake))
@@ -619,17 +445,7 @@ class VaultConnectionManager {
       this.serverPublicKey,
     )
 
-    // All requests target the haex-vault core, identified by the sentinel pair
-    const request: EncryptedEnvelope = {
-      type: 'request',
-      action: encrypted.action,
-      message: encrypted.message,
-      iv: encrypted.iv,
-      clientId: encrypted.clientID,
-      publicKey: encrypted.publicKey,
-      extensionPublicKey: CORE_TARGET_PUBLIC_KEY,
-      extensionName: CORE_TARGET_NAME,
-    }
+    const request = createRequestEnvelope(encrypted)
 
     return new Promise((resolve, reject) => {
       const timeoutHandle = setTimeout(() => {

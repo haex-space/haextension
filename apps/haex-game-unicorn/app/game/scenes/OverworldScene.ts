@@ -3,51 +3,12 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { SeasonSystem } from '../systems/SeasonSystem'
 import { WeatherSystem } from '../systems/WeatherSystem'
 import { AudioSystem } from '../systems/AudioSystem'
-import { createQueenEmergenceCutscene } from './CutsceneScene'
-
-const TILE_SIZE = 16
-const MAP_WIDTH = 60
-const MAP_HEIGHT = 40
-const UNICORN_SPEED = 80
-
-// Depth layers
-const DEPTH = {
-  SKY: 0,
-  MOUNTAINS: 1,
-  FAR_TREES: 2,
-  GROUND: 3,
-  GROUND_DETAIL: 4,
-  FLOWERS: 5,
-  NEST: 6,
-  ENTITIES: 10,
-  TREE_TRUNK: 11,
-  TREE_FOLIAGE: 50,
-  WEATHER: 100,
-}
-
-interface WorldTree {
-  trunk: Phaser.GameObjects.Sprite
-  foliage: Phaser.GameObjects.Sprite
-  x: number
-  y: number
-  swayOffset: number
-}
-
-interface WorldFlower {
-  sprite: Phaser.GameObjects.Sprite
-  x: number
-  y: number
-  swayOffset: number
-  type: string
-}
-
-interface AmbientCreature {
-  sprite: Phaser.GameObjects.Sprite
-  vx: number
-  vy: number
-  lifetime: number
-  type: 'butterfly' | 'ladybug'
-}
+import { createQueenEmergenceCutscene } from './cutscene/queenEmergence'
+import { lerpColor } from '../utils/color'
+import { DEPTH, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, UNICORN_SPEED } from './overworld/constants'
+import type { AmbientCreature, WorldFlower, WorldTree } from './overworld/constants'
+import { createAmbientCreature } from './overworld/ambientCreatures'
+import { createFlowers, createGrassDetails, createGround, createTrees } from './overworld/world'
 
 export class OverworldScene extends Phaser.Scene {
   private unicorn!: Phaser.Physics.Arcade.Sprite
@@ -94,10 +55,10 @@ export class OverworldScene extends Phaser.Scene {
 
     this.createSky()
     this.createParallaxLayers()
-    this.createGround()
-    this.createGrassDetails()
-    this.createTrees()
-    this.createFlowers()
+    createGround(this, this.rng)
+    this.grassDetails.push(...createGrassDetails(this, this.rng))
+    this.trees.push(...createTrees(this, this.rng))
+    this.flowers.push(...createFlowers(this, this.rng))
     this.createBumblebeeNest()
     this.createUnicorn()
     this.createWeatherLayer()
@@ -138,7 +99,7 @@ export class OverworldScene extends Phaser.Scene {
     const steps = 16
     for (let i = 0; i < steps; i++) {
       const t = i / steps
-      const color = this.lerpColor(palette.sky, palette.skyBottom, t)
+      const color = lerpColor(palette.sky, palette.skyBottom, t)
       this.skyGradient.fillStyle(color, 1)
       const yStart = (h / steps) * i
       const yHeight = h / steps + 1
@@ -208,88 +169,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   // ── Ground & Vegetation ─────────────────────────
-
-  private createGround() {
-    for (let x = 0; x < MAP_WIDTH; x++) {
-      for (let y = 0; y < MAP_HEIGHT; y++) {
-        const grass = this.add.sprite(x * TILE_SIZE + 8, y * TILE_SIZE + 8, 'grass')
-        grass.setDepth(DEPTH.GROUND)
-
-        // Natural color variation
-        const variation = this.rng.frac()
-        if (variation > 0.85) {
-          grass.setTint(0x4a8f3d) // darker
-        }
-        else if (variation > 0.7) {
-          grass.setTint(0x6a9f4d) // lighter
-        }
-      }
-    }
-
-    this.physics.world.setBounds(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE)
-  }
-
-  private createGrassDetails() {
-    for (let i = 0; i < 80; i++) {
-      const x = this.rng.between(TILE_SIZE, MAP_WIDTH * TILE_SIZE - TILE_SIZE)
-      const y = this.rng.between(TILE_SIZE, MAP_HEIGHT * TILE_SIZE - TILE_SIZE)
-      const detail = this.add.sprite(x, y, 'tall-grass')
-      detail.setDepth(DEPTH.GROUND_DETAIL)
-      detail.setAlpha(0.7 + this.rng.frac() * 0.3)
-      this.grassDetails.push(detail)
-    }
-  }
-
-  private createTrees() {
-    for (let i = 0; i < 18; i++) {
-      const x = this.rng.between(TILE_SIZE * 4, MAP_WIDTH * TILE_SIZE - TILE_SIZE * 4)
-      const y = this.rng.between(TILE_SIZE * 4, MAP_HEIGHT * TILE_SIZE - TILE_SIZE * 4)
-
-      const trunk = this.add.sprite(x, y, 'tree-trunk')
-      trunk.setDepth(DEPTH.TREE_TRUNK)
-      trunk.setOrigin(0.5, 0.9)
-
-      const foliage = this.add.sprite(x, y - 26, 'tree-foliage')
-      foliage.setDepth(DEPTH.TREE_FOLIAGE + y) // sort by Y for overlap
-      foliage.setOrigin(0.5, 0.7)
-
-      this.trees.push({
-        trunk,
-        foliage,
-        x,
-        y,
-        swayOffset: this.rng.frac() * Math.PI * 2,
-      })
-    }
-  }
-
-  private createFlowers() {
-    const flowerTypes = [
-      { key: 'flower-pink' },
-      { key: 'flower-blue' },
-      { key: 'flower-yellow' },
-      { key: 'flower-white' },
-      { key: 'flower-purple' },
-    ]
-
-    for (let i = 0; i < 50; i++) {
-      const x = this.rng.between(TILE_SIZE * 2, MAP_WIDTH * TILE_SIZE - TILE_SIZE * 2)
-      const y = this.rng.between(TILE_SIZE * 2, MAP_HEIGHT * TILE_SIZE - TILE_SIZE * 2)
-      const type = flowerTypes[this.rng.between(0, flowerTypes.length - 1)]
-      if (!type) continue
-
-      const flower = this.add.sprite(x, y, type.key)
-      flower.setDepth(DEPTH.FLOWERS)
-
-      this.flowers.push({
-        sprite: flower,
-        x,
-        y,
-        swayOffset: this.rng.frac() * Math.PI * 2,
-        type: type.key,
-      })
-    }
-  }
 
   private createBumblebeeNest() {
     const nestX = (MAP_WIDTH * TILE_SIZE) / 2 + 100
@@ -537,41 +416,7 @@ export class OverworldScene extends Phaser.Scene {
   private spawnAmbientCreature(cx: number, cy: number, cw: number, ch: number) {
     if (this.seasonSystem.season === 'winter') return
 
-    const type = this.rng.frac() > 0.3 ? 'butterfly' : 'ladybug'
-
-    if (type === 'butterfly') {
-      const sprite = this.add.sprite(
-        cx + (this.rng.frac() > 0.5 ? -10 : cw + 10),
-        cy + this.rng.between(10, ch - 10),
-        'butterfly',
-      )
-      sprite.setDepth(DEPTH.WEATHER - 1)
-      sprite.setScale(0.8)
-
-      this.ambientCreatures.push({
-        sprite,
-        vx: (this.rng.frac() > 0.5 ? 1 : -1) * (8 + this.rng.frac() * 12),
-        vy: (this.rng.frac() - 0.5) * 5,
-        lifetime: 8000 + this.rng.frac() * 6000,
-        type: 'butterfly',
-      })
-    }
-    else {
-      const sprite = this.add.sprite(
-        cx + this.rng.between(20, cw - 20),
-        cy + ch - this.rng.between(5, 20),
-        'ladybug',
-      )
-      sprite.setDepth(DEPTH.GROUND_DETAIL + 1)
-
-      this.ambientCreatures.push({
-        sprite,
-        vx: (this.rng.frac() - 0.5) * 6,
-        vy: (this.rng.frac() - 0.5) * 3,
-        lifetime: 5000 + this.rng.frac() * 4000,
-        type: 'ladybug',
-      })
-    }
+    this.ambientCreatures.push(createAmbientCreature(this, this.rng, cx, cy, cw, ch))
   }
 
   // ── World Animation ─────────────────────────────
@@ -629,18 +474,5 @@ export class OverworldScene extends Phaser.Scene {
 
   private emitEvent(event: string, data: Record<string, unknown>) {
     this.game.events.emit(event, data)
-  }
-
-  private lerpColor(from: number, to: number, t: number): number {
-    const fr = (from >> 16) & 0xff
-    const fg = (from >> 8) & 0xff
-    const fb = from & 0xff
-    const tr = (to >> 16) & 0xff
-    const tg = (to >> 8) & 0xff
-    const tb = to & 0xff
-    const r = Math.round(fr + (tr - fr) * t)
-    const g = Math.round(fg + (tg - fg) * t)
-    const b = Math.round(fb + (tb - fb) * t)
-    return (r << 16) | (g << 8) | b
   }
 }

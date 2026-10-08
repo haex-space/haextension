@@ -27,6 +27,7 @@ export const useNewMailWatch = (
   state: NewMailWatchState,
   sync: Pick<
     MailSync,
+    | "statusOrdering"
     | "syncMailboxesAsync"
     | "persistEnvelopesAsync"
     | "loadMailboxesAsync"
@@ -38,6 +39,7 @@ export const useNewMailWatch = (
   const accountsStore = useAccountsStore();
   const { selectedAccountId, selectedMailboxName, selectedRole, isUnifiedView } = state;
   const {
+    statusOrdering,
     syncMailboxesAsync,
     persistEnvelopesAsync,
     loadMailboxesAsync,
@@ -57,6 +59,7 @@ export const useNewMailWatch = (
     const account = await accountsStore.getCredentialsCachedAsync(accountId);
     if (!account || !haexVault.orm) return;
     try {
+      const seq = statusOrdering.issue();
       const [remoteMailboxes, envelopes] = await Promise.all([
         haexVault.client.mail.listMailboxesAsync(account.imap, { includeStatus: true }),
         haexVault.client.mail.fetchEnvelopesAsync(account.imap, mailboxName, {
@@ -64,7 +67,7 @@ export const useNewMailWatch = (
           count: 50,
         }),
       ]);
-      await syncMailboxesAsync(accountId, remoteMailboxes);
+      await syncMailboxesAsync(accountId, remoteMailboxes, seq);
       await persistEnvelopesAsync(accountId, mailboxName, envelopes);
     } catch (err) {
       console.warn("[haex-mail] failed to refresh after new-mail watch event", err);

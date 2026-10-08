@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
-import { quoteImapString } from "~/lib/imap";
+import { createStatusOrdering, quoteImapString } from "~/lib/imap";
 import { inferRole } from "~/lib/mail";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
@@ -33,14 +33,17 @@ export const useMailSync = (state: MailSyncState) => {
     isLoadingMessages,
   } = state;
 
+  const statusOrdering = createStatusOrdering();
+
   const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
     if (!haexVault.orm) return;
     isLoadingMailboxes.value = true;
     try {
+      const seq = statusOrdering.issue();
       const remote = await haexVault.client.mail.listMailboxesAsync(account.imap, {
         includeStatus: true,
       });
-      await syncMailboxesAsync(account.account.id, remote);
+      await syncMailboxesAsync(account.account.id, remote, seq);
       await loadMailboxesAsync(account.account.id);
     } finally {
       isLoadingMailboxes.value = false;
@@ -58,7 +61,12 @@ export const useMailSync = (state: MailSyncState) => {
     mailboxes.value = rows;
   };
 
-  const syncMailboxesAsync = async (accountId: string, remote: MailboxInfo[]) => {
+  /** `seq` comes from `statusOrdering.issue()`, taken before the LIST request. */
+  const syncMailboxesAsync = async (
+    accountId: string,
+    remote: MailboxInfo[],
+    seq: number,
+  ) => {
     if (!haexVault.orm) return;
     const existing = await haexVault.orm
       .select()
@@ -68,6 +76,7 @@ export const useMailSync = (state: MailSyncState) => {
 
     for (const m of remote) {
       const id = `${accountId}::${m.name}`;
+      if (!statusOrdering.claim(id, seq)) continue;
       const values = {
         delimiter: m.delimiter ?? null,
         role: inferRole(m.name, m.flags),
@@ -115,6 +124,7 @@ export const useMailSync = (state: MailSyncState) => {
     try {
       const account = await accountsStore.getCredentialsCachedAsync(accountId);
       if (!account) return;
+      const seq = statusOrdering.issue();
       const remote: MailboxInfo[] = [];
       for (const name of mailboxNames) {
         remote.push(
@@ -124,15 +134,14 @@ export const useMailSync = (state: MailSyncState) => {
           })),
         );
       }
-      await syncMailboxesAsync(accountId, remote);
+      await syncMailboxesAsync(accountId, remote, seq);
+      if (isUnifiedView.value) {
+        await loadMailboxesAsync();
+      } else if (selectedAccountId.value === accountId) {
+        await loadMailboxesAsync(accountId);
+      }
     } catch (err) {
       console.warn("[haex-mail] failed to refresh mailbox status", err);
-      return;
-    }
-    if (isUnifiedView.value) {
-      await loadMailboxesAsync();
-    } else if (selectedAccountId.value === accountId) {
-      await loadMailboxesAsync(accountId);
     }
   };
 
@@ -333,11 +342,12 @@ export const useMailSync = (state: MailSyncState) => {
       await loadUnifiedMessagesAsync(role);
       const results = await Promise.allSettled(
         accounts.map(async (acc) => {
+          const seq = statusOrdering.issue();
           const remote = await haexVault.client.mail.listMailboxesAsync(
             acc.imap,
             { includeStatus: true },
           );
-          await syncMailboxesAsync(acc.account.id, remote);
+          await syncMailboxesAsync(acc.account.id, remote, seq);
           const roleName = remote.find(
             (m) => inferRole(m.name, m.flags) === role,
           )?.name;
@@ -374,6 +384,7 @@ export const useMailSync = (state: MailSyncState) => {
   };
 
   return {
+    statusOrdering,
     refreshMailboxesAsync,
     loadMailboxesAsync,
     syncMailboxesAsync,
