@@ -2,8 +2,10 @@
 /**
  * A radio item that brings no look of its own: the slot is its whole content (a colour swatch, an
  * icon, a segment). Arrow keys, roving focus and `role="radio"` come from the surrounding
- * `ShadcnRadioGroup`; style the checked state with `data-[state=checked]:`. A radio group cannot
- * be cleared by clicking the checked item again; an app that wants that handles `click` itself.
+ * `ShadcnRadioGroup`; style the checked state with `data-[state=checked]:`. A radio group never
+ * clears itself: a click on the checked item checks it again. To let that click clear the choice,
+ * listen to `select` (cancelable, fired before the item is checked), call `preventDefault()` when
+ * the item is the checked one, and clear the value yourself. Doing it in `click` does not work.
  */
 import type { RadioGroupItemProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"

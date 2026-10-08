@@ -70,7 +70,9 @@ passed in by the app; the defaults are German.
 
 `ShadcnRadioGroup` holds the choices; arrow keys move between them. `ShadcnRadioGroupItem` is the
 round radio button, `UiRadioGroupTile` an item without a look of its own for swatches, icons or
-segments (style the checked one with `data-[state=checked]:`).
+segments (style the checked one with `data-[state=checked]:`). A second click on the checked item
+does not clear the group; to allow that, handle the cancelable `select` event: `preventDefault()` it
+for the checked item and clear the value yourself.
 
 ```vue
 <ShadcnRadioGroup v-model="mode">
