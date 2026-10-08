@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { quoteImapString } from "~/lib/imap";
 import { getErrorMessage } from "~/lib/utils";
 import type {
   MailMessage,
@@ -223,7 +224,8 @@ export const useMailStore = defineStore("mail", () => {
   /**
    * Re-read the server status (UNSEEN/EXISTS) of the given mailboxes after
    * a local change (read, move, delete) so the sidebar counters stay
-   * current. The exact name as LIST pattern limits STATUS to those boxes.
+   * current. The exact, quoted name as LIST pattern limits STATUS to
+   * those boxes.
    * Best-effort: the action itself already succeeded.
    */
   const refreshMailboxStatusAsync = async (
@@ -237,7 +239,7 @@ export const useMailStore = defineStore("mail", () => {
       for (const name of mailboxNames) {
         remote.push(
           ...(await haexVault.client.mail.listMailboxesAsync(account.imap, {
-            pattern: name,
+            pattern: quoteImapString(name),
             includeStatus: true,
           })),
         );
