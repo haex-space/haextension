@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LEGACY_BACKGROUND_OPACITY, migratePageRow, type LegacyPageRow } from "./migratePage";
+import { LEGACY_BACKGROUND_OPACITY, migratePageRow, serializePageDoc, type LegacyPageRow } from "./migratePage";
 
 const legacyRow: LegacyPageRow = {
   strokes: [
@@ -67,5 +67,30 @@ describe("migratePageRow", () => {
     expect(background.template).toBe("lined");
     expect(width).toBe(794);
     expect(height).toBe(1123);
+  });
+});
+
+describe("serializePageDoc", () => {
+  const row: LegacyPageRow = { ...legacyRow, backgroundImage: "data:image/png;base64,AAA", orientation: "landscape" };
+  const doc = { id: "p1", ...migratePageRow(row) };
+
+  it("writes the legacy columns back in their old shape", () => {
+    const serialized = serializePageDoc(doc);
+    expect(serialized).toMatchObject({
+      strokes: row.strokes,
+      tables: row.tables,
+      template: "grid",
+      backgroundImage: "data:image/png;base64,AAA",
+      orientation: "landscape",
+    });
+  });
+
+  it("round-trips through migratePageRow", () => {
+    const { layers, background, width, height } = serializePageDoc(doc);
+    expect(migratePageRow({ layers, background, width, height })).toEqual(migratePageRow(row));
+  });
+
+  it("returns copies detached from the document", () => {
+    expect(serializePageDoc(doc).layers).not.toBe(doc.layers);
   });
 });

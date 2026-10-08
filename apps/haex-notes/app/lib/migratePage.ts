@@ -1,3 +1,4 @@
+import { toRaw } from "vue";
 import type {
   PageBackground,
   PageLayer,
@@ -7,6 +8,7 @@ import type {
 } from "~/types/document";
 import { getPageSize } from "~/utils/pageTemplates";
 import { computeBbox } from "./bbox";
+import type { PageDoc } from "./commands";
 
 /** Strichform der Spalte `pages.strokes` vor dem Element-Modell. */
 interface LegacyStroke {
@@ -142,4 +144,59 @@ export function migratePageRow(row: LegacyPageRow): MigratedPage {
     : [buildLegacyLayer(row)];
 
   return { layers, background, width, height };
+}
+
+/**
+ * Gegenstück zu `migratePageRow`: die Spaltenwerte, mit denen eine Seite
+ * gespeichert wird — Dokumentmodell plus die Legacy-Spalten.
+ */
+export function serializePageDoc(doc: PageDoc) {
+  // structuredClone entfernt die Vue-Proxies; Drizzle serialisiert sonst
+  // Reactive-Wrapper mit in das JSON.
+  const layers = structuredClone(toRaw(doc.layers));
+  const background = structuredClone(toRaw(doc.background));
+  const strokes = layers.flatMap((layer) =>
+    layer.elements
+      .filter((element): element is StrokeElement => element.type === "stroke")
+      .map(({ id, points, color, size, tool, brushPreset }) => ({
+        id,
+        points,
+        color,
+        size,
+        tool,
+        brushPreset,
+      })),
+  );
+  const tables = layers.flatMap((layer) =>
+    layer.elements
+      .filter((element): element is TableElement => element.type === "table")
+      .map(({ id, x, y, columns, rows, columnWidths, rowHeights }) => ({
+        id,
+        x,
+        y,
+        columns,
+        rows,
+        columnWidths,
+        rowHeights,
+      })),
+  );
+  const overlay = background.overlay;
+  const backgroundImage = overlay?.type === "image" && overlay.source.kind === "inline"
+    ? overlay.source.dataUrl
+    : null;
+  const orientation = doc.width > doc.height ? "landscape" : "portrait";
+
+  return {
+    layers,
+    background,
+    width: doc.width,
+    height: doc.height,
+    // Keep the legacy representation in sync during the rollout so older
+    // clients do not render a page as empty after a new client saves it.
+    strokes,
+    tables,
+    template: background.template,
+    backgroundImage,
+    orientation,
+  };
 }

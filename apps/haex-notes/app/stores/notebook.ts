@@ -1,18 +1,17 @@
 import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
 import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTemplate } from "~/database/schemas";
 import { FULL_PAGES_TABLE } from "~/stores/spaces";
-import { reactive, toRaw } from "vue";
-import type { PageElement, PageLayer, StrokeElement, TableElement } from "~/types/document";
+import { reactive } from "vue";
+import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
 import {
   addElements,
-  mutateElements,
-  removeElements,
   setPageBackground,
   type Command,
   type PageDoc,
 } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
-import { migratePageRow } from "~/lib/migratePage";
+import { migratePageRow, serializePageDoc } from "~/lib/migratePage";
+import { createTableActions } from "~/lib/tableActions";
 import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {
@@ -323,85 +322,16 @@ export const useNotebookStore = defineStore("notebook", () => {
     runCommand(addElements(doc, layer.id, [stroke], label));
   };
 
-  const tableElements = computed(() =>
-    visibleElements.value.filter((e): e is TableElement => e.type === "table"),
-  );
-
-  const addTable = (rows: number, cols: number, x: number, y: number): TableElement | null => {
-    const doc = currentDoc.value;
-    const layer = activeLayer.value;
-    if (!doc || !layer) return null;
-
-    const table: TableElement = {
-      id: crypto.randomUUID(),
-      type: "table",
-      x,
-      y,
-      columns: cols,
-      rows,
-      columnWidths: Array(cols).fill(80),
-      rowHeights: Array(rows).fill(30),
-      bbox: [0, 0, 0, 0],
-    };
-    table.bbox = computeBbox(table);
-    runCommand(addElements(doc, layer.id, [table], "Tabelle"));
-    // addElements cloned the input; return the live element from the layer so
-    // callers cannot accidentally mutate a detached copy.
-    const live = layer.elements.find((e) => e.id === table.id);
-    return live?.type === "table" ? live : null;
-  };
-
-  const removeTable = (id: string) => {
-    const doc = currentDoc.value;
-    if (!doc) return;
-    runCommand(removeElements(doc, [id], "Tabelle löschen"));
-  };
-
-  /** Gemeinsamer Weg für alle Tabellenänderungen: ein mutate-Kommando. */
-  const mutateTable = (id: string, label: string, mutate: (t: TableElement) => void, mergeKey?: string) => {
-    const doc = currentDoc.value;
-    if (!doc) return;
-    runCommand(
-      mutateElements(
-        doc,
-        [id],
-        (element) => {
-          if (element.type !== "table") return;
-          mutate(element);
-          element.bbox = computeBbox(element);
-        },
-        label,
-        mergeKey,
-      ),
-    );
-  };
-
-  const addTableRow = (id: string) =>
-    mutateTable(id, "Zeile hinzufügen", (t) => { t.rows++; t.rowHeights.push(30); });
-
-  const addTableColumn = (id: string) =>
-    mutateTable(id, "Spalte hinzufügen", (t) => { t.columns++; t.columnWidths.push(80); });
-
-  const removeTableRow = (id: string) =>
-    mutateTable(id, "Zeile entfernen", (t) => {
-      if (t.rows <= 1) return;
-      t.rows--;
-      t.rowHeights.pop();
-    });
-
-  const removeTableColumn = (id: string) =>
-    mutateTable(id, "Spalte entfernen", (t) => {
-      if (t.columns <= 1) return;
-      t.columns--;
-      t.columnWidths.pop();
-    });
-
-  /**
-   * Live-Feedback beim Ziehen einer Tabellenlinie. Alle Aufrufe einer Geste teilen
-   * sich denselben mergeKey und werden zu einem Undo-Schritt.
-   */
-  const resizeTable = (id: string, gestureId: string, mutate: (t: TableElement) => void) =>
-    mutateTable(id, "Tabelle anpassen", mutate, `table-resize:${gestureId}`);
+  const {
+    tableElements,
+    addTable,
+    removeTable,
+    addTableRow,
+    addTableColumn,
+    removeTableRow,
+    removeTableColumn,
+    resizeTable,
+  } = createTableActions({ currentDoc, activeLayer, visibleElements, runCommand });
 
   const saveCurrentPageAsync = async () => {
     const db = haexVault.orm;
@@ -409,58 +339,9 @@ export const useNotebookStore = defineStore("notebook", () => {
     const doc = currentDoc.value;
     if (!db || !page || !doc) return;
 
-    // structuredClone entfernt die Vue-Proxies; Drizzle serialisiert sonst
-    // Reactive-Wrapper mit in das JSON.
-    const layers = structuredClone(toRaw(doc.layers));
-    const background = structuredClone(toRaw(doc.background));
-    const strokes = layers.flatMap((layer) =>
-      layer.elements
-        .filter((element): element is StrokeElement => element.type === "stroke")
-        .map(({ id, points, color, size, tool, brushPreset }) => ({
-          id,
-          points,
-          color,
-          size,
-          tool,
-          brushPreset,
-        })),
-    );
-    const tables = layers.flatMap((layer) =>
-      layer.elements
-        .filter((element): element is TableElement => element.type === "table")
-        .map(({ id, x, y, columns, rows, columnWidths, rowHeights }) => ({
-          id,
-          x,
-          y,
-          columns,
-          rows,
-          columnWidths,
-          rowHeights,
-        })),
-    );
-    const overlay = background.overlay;
-    const backgroundImage = overlay?.type === "image" && overlay.source.kind === "inline"
-      ? overlay.source.dataUrl
-      : null;
-    const orientation = doc.width > doc.height ? "landscape" : "portrait";
-
-    await db
-      .update(pages)
-      .set({
-        layers,
-        background,
-        width: doc.width,
-        height: doc.height,
-        // Keep the legacy representation in sync during the rollout so older
-        // clients do not render a page as empty after a new client saves it.
-        strokes,
-        tables,
-        template: background.template,
-        backgroundImage,
-        orientation,
-      })
-      .where(eq(pages.id, page.id));
-    Object.assign(page, { layers, background, width: doc.width, height: doc.height, strokes, tables, template: background.template, backgroundImage, orientation });
+    const row = serializePageDoc(doc);
+    await db.update(pages).set(row).where(eq(pages.id, page.id));
+    Object.assign(page, row);
     isDirty.value = false;
   };
 
