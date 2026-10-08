@@ -22,7 +22,7 @@ import {
   buildAttestationObjectAsync,
   buildAuthenticatorDataAsync,
   buildClientDataJson,
-} from "./webauthn";
+} from "~/utils/passkey/webauthn";
 
 export function usePasskeyRequestHandlers() {
   const haexVaultStore = useHaexVaultStore();
