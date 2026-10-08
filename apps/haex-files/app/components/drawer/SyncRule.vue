@@ -181,94 +181,12 @@
           </div>
         </div>
 
-        <!-- Sync Direction (only in edit mode) -->
-        <div v-if="isEditMode" class="space-y-2">
-          <ShadcnLabel>{{ t("direction.label") }}</ShadcnLabel>
-          <ShadcnSelect v-model="form.direction">
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent>
-              <ShadcnSelectItem value="up">
-                <span class="flex items-center gap-2">
-                  <Upload class="size-4" />
-                  {{ t("direction.up") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="down">
-                <span class="flex items-center gap-2">
-                  <Download class="size-4" />
-                  {{ t("direction.down") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="both">
-                <span class="flex items-center gap-2">
-                  <RefreshCw class="size-4" />
-                  {{ t("direction.both") }}
-                </span>
-              </ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
-        </div>
-
-        <!-- Conflict Strategy -->
-        <div class="space-y-2">
-          <ShadcnLabel>{{ t("conflict.label") }}</ShadcnLabel>
-          <ShadcnSelect v-model="form.conflictStrategy">
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent>
-              <ShadcnSelectItem value="ask">
-                <span class="flex items-center gap-2">
-                  <AlertCircle class="size-4" />
-                  {{ t("conflict.ask") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="newer">
-                <span class="flex items-center gap-2">
-                  <Clock class="size-4" />
-                  {{ t("conflict.newer") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="local">
-                <span class="flex items-center gap-2">
-                  <User class="size-4" />
-                  {{ t("conflict.local") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="remote">
-                <span class="flex items-center gap-2">
-                  <HardDrive class="size-4" />
-                  {{ t("conflict.remote") }}
-                </span>
-              </ShadcnSelectItem>
-              <ShadcnSelectItem value="keepBoth">
-                <span class="flex items-center gap-2">
-                  <Copy class="size-4" />
-                  {{ t("conflict.keepBoth") }}
-                </span>
-              </ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
-          <p class="text-xs text-muted-foreground">
-            {{ t("conflict.hint") }}
-          </p>
-        </div>
-
-        <!-- Ignore Patterns -->
-        <div class="space-y-2">
-          <ShadcnLabel>{{ t("ignore.label") }}</ShadcnLabel>
-          <ShadcnTextarea
-            v-model="form.ignorePatterns"
-            :placeholder="t('ignore.placeholder')"
-            rows="4"
-            class="font-mono text-sm"
-          />
-          <p class="text-xs text-muted-foreground">
-            {{ t("ignore.hint") }}
-          </p>
-        </div>
+        <DrawerSyncRuleOptions
+          v-model:direction="form.direction"
+          v-model:conflict-strategy="form.conflictStrategy"
+          v-model:ignore-patterns="form.ignorePatterns"
+          :show-direction="isEditMode"
+        />
 
         <!-- Error -->
         <div
@@ -314,8 +232,8 @@
 </template>
 
 <script setup lang="ts">
-import { FolderOpen, Cloud, Upload, Download, RefreshCw, Plus, Trash2, AlertCircle, Clock, User, HardDrive, Copy, Search } from "@lucide/vue";
-import type { SyncRule, SyncDirection, ConflictStrategy } from "~/stores/syncRules";
+import { FolderOpen, Cloud, Upload, Download, Plus, Trash2, Search } from "@lucide/vue";
+import type { SyncRule } from "~/stores/syncRules";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
@@ -339,16 +257,6 @@ const { spaces } = storeToRefs(spacesStore);
 
 const isEditMode = computed(() => !!props.editRule);
 
-const form = reactive({
-  localPath: "",
-  remotePaths: [] as string[],
-  spaceId: "",
-  backendIds: [] as string[],
-  direction: "up" as SyncDirection,
-  ignorePatterns: "",
-  conflictStrategy: "ask" as ConflictStrategy,
-});
-
 const isSelectingFolder = ref(false);
 const isSubmitting = ref(false);
 const isDeleting = ref(false);
@@ -362,38 +270,8 @@ const isCreatingSpace = ref(false);
 // Remote Browser Dialog state
 const showRemoteBrowser = ref(false);
 
-const isValid = computed(() => {
-  return (
-    form.localPath.trim() !== "" &&
-    form.spaceId !== "" &&
-    form.backendIds.length > 0
-  );
-});
-
-// Helper to convert ignore patterns string to array
-const ignorePatternsArray = computed(() => {
-  return form.ignorePatterns
-    .split("\n")
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-});
-
-// Computed display value for remote paths (semicolon-separated)
-const remotePathsDisplay = computed(() => form.remotePaths.join("; "));
-
-const hasChanges = computed(() => {
-  if (!props.editRule) return false;
-  const rule = props.editRule;
-  const backendsSame = rule.backendIds.length === form.backendIds.length &&
-    rule.backendIds.every((id) => form.backendIds.includes(id));
-  const ignorePatternsSame = JSON.stringify(rule.ignorePatterns) === JSON.stringify(ignorePatternsArray.value);
-  const remotePathsSame = JSON.stringify(rule.remotePaths) === JSON.stringify(form.remotePaths);
-  return rule.direction !== form.direction ||
-    rule.conflictStrategy !== form.conflictStrategy ||
-    !backendsSame ||
-    !ignorePatternsSame ||
-    !remotePathsSame;
-});
+const { form, isValid, ignorePatternsArray, remotePathsDisplay, hasChanges, resetForm } =
+  useSyncRuleForm(isOpen, () => props.editRule, error);
 
 const selectFolderAsync = async () => {
   isSelectingFolder.value = true;
@@ -514,87 +392,6 @@ const deleteAsync = async () => {
     isDeleting.value = false;
   }
 };
-
-const resetForm = () => {
-  form.localPath = "";
-  form.remotePaths = [];
-  form.spaceId = "";
-  form.backendIds = [];
-  form.direction = "up";
-  form.ignorePatterns = "";
-  form.conflictStrategy = "ask";
-  error.value = null;
-};
-
-// Helper to pre-select all backends (only in add mode)
-const preselectAllBackends = () => {
-  if (props.editRule) return;
-  if (backends.value.length === 0) return;
-  if (form.backendIds.length > 0) return;
-
-  form.backendIds = backends.value.map((b) => b.id);
-};
-
-// Helper to pre-select first space
-const preselectFirstSpace = () => {
-  if (props.editRule) return;
-  if (form.spaceId) return;
-
-  const firstSpace = spaces.value[0];
-  if (firstSpace) {
-    form.spaceId = firstSpace.id;
-  }
-};
-
-// Watch both isOpen AND editRule together to handle all cases
-watch(
-  [isOpen, () => props.editRule],
-  ([open, editRule]) => {
-    if (!open) return;
-
-    if (editRule) {
-      // Edit mode: populate form from rule
-      form.localPath = editRule.localPath;
-      form.remotePaths = [...editRule.remotePaths];
-      form.spaceId = editRule.spaceId;
-      form.backendIds = [...editRule.backendIds];
-      form.direction = editRule.direction;
-      form.ignorePatterns = editRule.ignorePatterns.join("\n");
-      form.conflictStrategy = editRule.conflictStrategy;
-    } else {
-      // Add mode: reset form and pre-select defaults
-      form.localPath = "";
-      form.remotePaths = [];
-      form.spaceId = spaces.value[0]?.id || "";
-      form.backendIds = backends.value.map((b) => b.id);
-      form.direction = "up";
-      form.ignorePatterns = "";
-      form.conflictStrategy = "ask";
-      error.value = null;
-    }
-  },
-  { immediate: true }
-);
-
-// Pre-select backends when they load (handles async loading)
-watch(
-  () => backends.value.length,
-  () => {
-    if (isOpen.value && !props.editRule && form.backendIds.length === 0) {
-      preselectAllBackends();
-    }
-  }
-);
-
-// Pre-select first space when spaces load (handles async loading)
-watch(
-  () => spaces.value.length,
-  () => {
-    if (isOpen.value && !props.editRule && !form.spaceId) {
-      preselectFirstSpace();
-    }
-  }
-);
 </script>
 
 <i18n lang="yaml">
@@ -626,27 +423,6 @@ de:
     create: Erstellen
   backends: Speicher-Backends
   noBackends: Keine Backends konfiguriert. Füge zuerst ein Backend hinzu.
-  direction:
-    label: Sync-Richtung
-    up: Nur hochladen (Lokal → Cloud)
-    down: Nur herunterladen (Cloud → Lokal)
-    both: Bidirektional (Beide Richtungen)
-  conflict:
-    label: Konflikt-Strategie
-    ask: Nachfragen
-    newer: Neuere Version verwenden
-    local: Lokale Version bevorzugen
-    remote: Remote-Version bevorzugen
-    keepBoth: Beide Versionen behalten
-    hint: Wie sollen Konflikte bei gleichzeitigen Änderungen behandelt werden?
-  ignore:
-    label: Ignorierte Dateien
-    placeholder: |
-      node_modules/
-      .git/
-      *.log
-      .DS_Store
-    hint: Ein Pattern pro Zeile. Unterstützt Gitignore-Syntax.
   cancel: Abbrechen
   add: Hinzufügen
   save: Speichern
@@ -681,27 +457,6 @@ en:
     create: Create
   backends: Storage Backends
   noBackends: No backends configured. Add a backend first.
-  direction:
-    label: Sync Direction
-    up: Upload only (Local → Cloud)
-    down: Download only (Cloud → Local)
-    both: Bidirectional (Both ways)
-  conflict:
-    label: Conflict Strategy
-    ask: Ask me
-    newer: Use newer version
-    local: Prefer local version
-    remote: Prefer remote version
-    keepBoth: Keep both versions
-    hint: How should conflicts be resolved when both versions have changed?
-  ignore:
-    label: Ignored Files
-    placeholder: |
-      node_modules/
-      .git/
-      *.log
-      .DS_Store
-    hint: One pattern per line. Supports gitignore syntax.
   cancel: Cancel
   add: Add
   save: Save

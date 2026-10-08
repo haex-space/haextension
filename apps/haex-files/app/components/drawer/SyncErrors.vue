@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { AlertCircle, Upload, Download, Copy, RefreshCw, Trash2, X, CheckSquare, Clipboard, Check } from "@lucide/vue";
 import { useClipboard } from "@vueuse/core";
-import type { SyncError } from "~/stores/files";
+import type { SyncError } from "~/stores/files/types";
 
 // Conflict resolution types (for future implementation)
 type ConflictResolution = "local" | "remote" | "keepBoth";
