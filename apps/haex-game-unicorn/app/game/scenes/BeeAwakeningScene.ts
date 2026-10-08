@@ -28,6 +28,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
   private hasShownVibrateHint = false
   private tapCount = 0
   private tapTimer = 0
+  private isCompleting = false
 
   constructor() {
     super({ key: 'BeeAwakeningScene' })
@@ -35,6 +36,17 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['awakening-v1'])
+    // Phaser reuses the scene instance, so a replay must start from a clean state
+    this.touchTarget = null
+    this.earlyFlowers = []
+    this.vibrateHintVisible = false
+    this.isCollectingNectar = false
+    this.collectTarget = null
+    this.flowersVisited = 0
+    this.hasShownVibrateHint = false
+    this.tapCount = 0
+    this.tapTimer = 0
+    this.isCompleting = false
 
     createGround(this, this.rng)
     this.earlyFlowers.push(...createEarlySpringFlowers(this, this.rng))
@@ -395,6 +407,10 @@ export class BeeAwakeningScene extends Phaser.Scene {
   // ── Completion ──────────────────────────────────
 
   private completeChapter() {
+    // update() keeps calling this while the win condition holds
+    if (this.isCompleting) return
+    this.isCompleting = true
+
     // Disable input
     this.input.removeAllListeners()
 
