@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { createStatusOrdering, quoteImapString } from "~/lib/imap";
 import { getErrorMessage } from "~/lib/utils";
 import type {
   MailMessage,
@@ -152,14 +153,17 @@ export const useMailStore = defineStore("mail", () => {
     });
   });
 
+  const statusOrdering = createStatusOrdering();
+
   const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
     if (!haexVault.orm) return;
     isLoadingMailboxes.value = true;
     try {
+      const seq = statusOrdering.issue();
       const remote = await haexVault.client.mail.listMailboxesAsync(account.imap, {
         includeStatus: true,
       });
-      await syncMailboxesAsync(account.account.id, remote);
+      await syncMailboxesAsync(account.account.id, remote, seq);
       await loadMailboxesAsync(account.account.id);
     } finally {
       isLoadingMailboxes.value = false;
@@ -177,7 +181,12 @@ export const useMailStore = defineStore("mail", () => {
     mailboxes.value = rows;
   };
 
-  const syncMailboxesAsync = async (accountId: string, remote: MailboxInfo[]) => {
+  /** `seq` comes from `statusOrdering.issue()`, taken before the LIST request. */
+  const syncMailboxesAsync = async (
+    accountId: string,
+    remote: MailboxInfo[],
+    seq: number,
+  ) => {
     if (!haexVault.orm) return;
     const existing = await haexVault.orm
       .select()
@@ -187,6 +196,7 @@ export const useMailStore = defineStore("mail", () => {
 
     for (const m of remote) {
       const id = `${accountId}::${m.name}`;
+      if (!statusOrdering.claim(id, seq)) continue;
       const values = {
         delimiter: m.delimiter ?? null,
         role: inferRole(m.name, m.flags),
@@ -217,6 +227,41 @@ export const useMailStore = defineStore("mail", () => {
           .set(values)
           .where(eq(schema.mailboxes.id, id));
       }
+    }
+  };
+
+  /**
+   * Re-read the server status (UNSEEN/EXISTS) of the given mailboxes after
+   * a local change (read, move, delete) so the sidebar counters stay
+   * current. The exact, quoted name as LIST pattern limits STATUS to
+   * those boxes.
+   * Best-effort: the action itself already succeeded.
+   */
+  const refreshMailboxStatusAsync = async (
+    accountId: string,
+    mailboxNames: string[],
+  ) => {
+    try {
+      const account = await accountsStore.getCredentialsCachedAsync(accountId);
+      if (!account) return;
+      const seq = statusOrdering.issue();
+      const remote: MailboxInfo[] = [];
+      for (const name of mailboxNames) {
+        remote.push(
+          ...(await haexVault.client.mail.listMailboxesAsync(account.imap, {
+            pattern: quoteImapString(name),
+            includeStatus: true,
+          })),
+        );
+      }
+      await syncMailboxesAsync(accountId, remote, seq);
+      if (isUnifiedView.value) {
+        await loadMailboxesAsync();
+      } else if (selectedAccountId.value === accountId) {
+        await loadMailboxesAsync(accountId);
+      }
+    } catch (err) {
+      console.warn("[haex-mail] failed to refresh mailbox status", err);
     }
   };
 
@@ -417,11 +462,12 @@ export const useMailStore = defineStore("mail", () => {
       await loadUnifiedMessagesAsync(role);
       const results = await Promise.allSettled(
         accounts.map(async (acc) => {
+          const seq = statusOrdering.issue();
           const remote = await haexVault.client.mail.listMailboxesAsync(
             acc.imap,
             { includeStatus: true },
           );
-          await syncMailboxesAsync(acc.account.id, remote);
+          await syncMailboxesAsync(acc.account.id, remote, seq);
           const roleName = remote.find(
             (m) => inferRole(m.name, m.flags) === role,
           )?.name;
@@ -469,6 +515,7 @@ export const useMailStore = defineStore("mail", () => {
     const account = await accountsStore.getCredentialsCachedAsync(accountId);
     if (!account || !haexVault.orm) return;
     try {
+      const seq = statusOrdering.issue();
       const [remoteMailboxes, envelopes] = await Promise.all([
         haexVault.client.mail.listMailboxesAsync(account.imap, { includeStatus: true }),
         haexVault.client.mail.fetchEnvelopesAsync(account.imap, mailboxName, {
@@ -476,7 +523,7 @@ export const useMailStore = defineStore("mail", () => {
           count: 50,
         }),
       ]);
-      await syncMailboxesAsync(accountId, remoteMailboxes);
+      await syncMailboxesAsync(accountId, remoteMailboxes, seq);
       await persistEnvelopesAsync(accountId, mailboxName, envelopes);
     } catch (err) {
       console.warn("[haex-mail] failed to refresh after new-mail watch event", err);
@@ -795,7 +842,9 @@ export const useMailStore = defineStore("mail", () => {
       await updateLocalFlagsAsync([message.id], "\\Seen", true);
     } catch (err) {
       console.warn("[haex-mail] failed to set \\Seen flag", err);
+      return;
     }
+    await refreshMailboxStatusAsync(message.accountId, [message.mailboxName]);
   };
 
   /** Monotonic token so an outdated load can't overwrite a newer one. */
@@ -974,6 +1023,7 @@ export const useMailStore = defineStore("mail", () => {
           add,
         );
         await updateLocalFlagsAsync(g.rows.map((r) => r.id), flag, add);
+        await refreshMailboxStatusAsync(g.accountId, [g.mailboxName]);
       }),
     );
     reportBulkFailures(results);
@@ -1001,6 +1051,7 @@ export const useMailStore = defineStore("mail", () => {
     await haexVault.orm
       .delete(schema.messageBodies)
       .where(inArray(schema.messageBodies.messageId, ids));
+    await refreshMailboxStatusAsync(g.accountId, [g.mailboxName, destinationName]);
   };
 
   /** Delete (role "trash") or archive (role "archive") messages. */
