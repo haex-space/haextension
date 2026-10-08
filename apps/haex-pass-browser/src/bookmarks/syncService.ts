@@ -22,7 +22,6 @@ const ALARM_PERIOD_MINUTES = 5
 const DEFAULT_COALESCE_MS = 2000
 
 export const COLLECTION_NOT_FOUND = 'COLLECTION_NOT_FOUND'
-export { OWN_COLLECTION_MISSING } from './syncPass'
 
 export interface SwitchTarget {
   collectionId: string
