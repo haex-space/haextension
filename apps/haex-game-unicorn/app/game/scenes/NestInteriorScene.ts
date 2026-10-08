@@ -1,32 +1,11 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
-
-const DEPTH = {
-  BG: 0,
-  NEST_WALL: 1,
-  WAX_CELLS: 5,
-  EGGS: 6,
-  QUEEN: 10,
-  DRAG_ITEM: 20,
-  UI: 50,
-  OVERLAY: 90,
-}
-
-interface WaxCell {
-  sprite: Phaser.GameObjects.Graphics
-  x: number
-  y: number
-  filled: boolean // has pollen/egg
-  type: 'empty' | 'pollen' | 'egg' | 'larva'
-}
-
-interface DraggableItem {
-  sprite: Phaser.GameObjects.Sprite
-  type: 'wax' | 'pollen'
-  isDragging: boolean
-}
-
-type Phase = 'build-cells' | 'fill-pollen' | 'lay-eggs' | 'brood'
+import { lerpColor } from '../utils/color'
+import { DEPTH } from './nest-interior/constants'
+import type { DraggableItem, Phase, WaxCell } from './nest-interior/constants'
+import { drawHexagon, drawHexFilled } from './nest-interior/hexagon'
+import { NestInteriorHud } from './nest-interior/NestInteriorHud'
+import { ensurePollenBallTexture, ensureQueenInteriorTexture, ensureWaxPieceTexture } from './nest-interior/textures'
 
 export class NestInteriorScene extends Phaser.Scene {
   private queenSprite!: Phaser.GameObjects.Sprite
@@ -52,8 +31,7 @@ export class NestInteriorScene extends Phaser.Scene {
   private tapTimer = 0
 
   // UI
-  private phaseIndicator!: Phaser.GameObjects.Graphics
-  private temperatureBar!: Phaser.GameObjects.Graphics
+  private hud!: NestInteriorHud
 
   constructor() {
     super({ key: 'NestInteriorScene' })
@@ -63,7 +41,7 @@ export class NestInteriorScene extends Phaser.Scene {
     this.resetState()
     this.createNestInterior()
     this.createQueen()
-    this.createUI()
+    this.hud = new NestInteriorHud(this)
     this.setupInput()
 
     this.cameras.main.fadeIn(800, 0, 0, 0)
@@ -86,7 +64,7 @@ export class NestInteriorScene extends Phaser.Scene {
         break
     }
 
-    this.updateUI()
+    this.hud.update(this.phase, this.isBrooding, this.broodTemperature, this.broodTimer, this.broodDuration)
     this.animateQueen()
   }
 
@@ -158,7 +136,7 @@ export class NestInteriorScene extends Phaser.Scene {
       const ghost = this.add.graphics()
       ghost.setDepth(DEPTH.WAX_CELLS - 0.1)
       ghost.lineStyle(1, 0x8a7a5a, 0.3)
-      this.drawHexagon(ghost, pos.x, pos.y, 12)
+      drawHexagon(ghost, pos.x, pos.y, 12)
 
       this.waxCells.push({
         sprite: ghost,
@@ -170,58 +148,10 @@ export class NestInteriorScene extends Phaser.Scene {
     }
   }
 
-  private drawHexagon(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, r: number, fill = false) {
-    const points: number[] = []
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6
-      points.push(cx + r * Math.cos(angle))
-      points.push(cy + r * Math.sin(angle))
-    }
-
-    if (fill) {
-      gfx.fillPoints(points.map((v, i) => i % 2 === 0
-        ? new Phaser.Geom.Point(v, points[i + 1])
-        : undefined,
-      ).filter(Boolean) as Phaser.Geom.Point[], true)
-    }
-    else {
-      gfx.strokePoints(points.map((v, i) => i % 2 === 0
-        ? new Phaser.Geom.Point(v, points[i + 1])
-        : undefined,
-      ).filter(Boolean) as Phaser.Geom.Point[], true)
-    }
-  }
-
   // ── Queen ───────────────────────────────────────
 
   private createQueen() {
-    if (!this.textures.exists('bee-queen-interior')) {
-      const gfx = this.make.graphics({ x: 0, y: 0 })
-      // Larger, more detailed bumblebee queen for interior view
-      // Black body base
-      gfx.fillStyle(0x1a1a1a)
-      gfx.fillEllipse(20, 18, 30, 20)
-      // Yellow band front
-      gfx.fillStyle(0xf0c830)
-      gfx.fillRect(10, 12, 14, 5)
-      // Yellow band rear
-      gfx.fillStyle(0xf0c830)
-      gfx.fillRect(16, 22, 12, 4)
-      // Orange tail
-      gfx.fillStyle(0xe06030)
-      gfx.fillEllipse(32, 20, 10, 12)
-      // Head — black
-      gfx.fillStyle(0x1a1a1a)
-      gfx.fillCircle(5, 14, 7)
-      // Eyes
-      gfx.fillStyle(0x222222)
-      gfx.fillCircle(3, 12, 2)
-      // Wings folded
-      gfx.fillStyle(0xccccee, 0.3)
-      gfx.fillEllipse(18, 8, 16, 8)
-      gfx.generateTexture('bee-queen-interior', 40, 30)
-      gfx.destroy()
-    }
+    ensureQueenInteriorTexture(this)
 
     this.queenSprite = this.add.sprite(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 40, 'bee-queen-interior')
     this.queenSprite.setDepth(DEPTH.QUEEN)
@@ -255,15 +185,7 @@ export class NestInteriorScene extends Phaser.Scene {
   }
 
   private spawnWaxPiece() {
-    if (!this.textures.exists('wax-piece')) {
-      const gfx = this.make.graphics({ x: 0, y: 0 })
-      gfx.fillStyle(0xe8d060)
-      gfx.fillEllipse(6, 6, 10, 8)
-      gfx.fillStyle(0xd4bc40, 0.5)
-      gfx.fillEllipse(5, 5, 6, 4)
-      gfx.generateTexture('wax-piece', 12, 12)
-      gfx.destroy()
-    }
+    ensureWaxPieceTexture(this)
 
     const sprite = this.add.sprite(
       this.queenSprite.x + 20 + Math.random() * 30,
@@ -292,15 +214,7 @@ export class NestInteriorScene extends Phaser.Scene {
   }
 
   private spawnPollenBalls() {
-    if (!this.textures.exists('pollen-ball')) {
-      const gfx = this.make.graphics({ x: 0, y: 0 })
-      gfx.fillStyle(0xffaa22)
-      gfx.fillCircle(5, 5, 5)
-      gfx.fillStyle(0xffcc44, 0.5)
-      gfx.fillCircle(4, 4, 2)
-      gfx.generateTexture('pollen-ball', 10, 10)
-      gfx.destroy()
-    }
+    ensurePollenBallTexture(this)
 
     for (let i = 0; i < 3; i++) {
       const sprite = this.add.sprite(
@@ -354,7 +268,7 @@ export class NestInteriorScene extends Phaser.Scene {
             cell.type = 'egg'
             cell.sprite.clear()
             cell.sprite.fillStyle(0xe8d060)
-            this.drawHexFilled(cell.sprite, cell.x, cell.y, 12)
+            drawHexFilled(cell.sprite, cell.x, cell.y, 12)
             // Egg on top of pollen
             cell.sprite.fillStyle(0xffffee)
             cell.sprite.fillEllipse(cell.x, cell.y - 2, 4, 6)
@@ -417,10 +331,10 @@ export class NestInteriorScene extends Phaser.Scene {
     // Color of cells reflects temperature
     for (const cell of this.waxCells.filter(c => c.type === 'egg')) {
       const warmth = this.broodTemperature
-      const tint = this.lerpColor(0x6688aa, 0xffaa44, warmth)
+      const tint = lerpColor(0x6688aa, 0xffaa44, warmth)
       cell.sprite.clear()
       cell.sprite.fillStyle(tint)
-      this.drawHexFilled(cell.sprite, cell.x, cell.y, 12)
+      drawHexFilled(cell.sprite, cell.x, cell.y, 12)
       cell.sprite.fillStyle(0xffffee)
       cell.sprite.fillEllipse(cell.x, cell.y - 2, 4, 6)
     }
@@ -439,7 +353,7 @@ export class NestInteriorScene extends Phaser.Scene {
       cell.type = 'larva'
       cell.sprite.clear()
       cell.sprite.fillStyle(0xe8d060)
-      this.drawHexFilled(cell.sprite, cell.x, cell.y, 12)
+      drawHexFilled(cell.sprite, cell.x, cell.y, 12)
       // Tiny C-shaped larva
       cell.sprite.fillStyle(0xffffcc)
       cell.sprite.lineStyle(2, 0xffffcc)
@@ -488,9 +402,9 @@ export class NestInteriorScene extends Phaser.Scene {
             cell.filled = true
             cell.sprite.clear()
             cell.sprite.fillStyle(0xe8d060)
-            this.drawHexFilled(cell.sprite, cell.x, cell.y, 12)
+            drawHexFilled(cell.sprite, cell.x, cell.y, 12)
             cell.sprite.lineStyle(1, 0xc4a830)
-            this.drawHexagon(cell.sprite, cell.x, cell.y, 12)
+            drawHexagon(cell.sprite, cell.x, cell.y, 12)
 
             this.cellsBuilt++
             gameObject.destroy()
@@ -509,7 +423,7 @@ export class NestInteriorScene extends Phaser.Scene {
             cell.type = 'pollen'
             cell.sprite.clear()
             cell.sprite.fillStyle(0xe8d060)
-            this.drawHexFilled(cell.sprite, cell.x, cell.y, 12)
+            drawHexFilled(cell.sprite, cell.x, cell.y, 12)
             // Pollen ball inside
             cell.sprite.fillStyle(0xffaa22)
             cell.sprite.fillCircle(cell.x, cell.y, 4)
@@ -546,123 +460,12 @@ export class NestInteriorScene extends Phaser.Scene {
     })
   }
 
-  // ── UI ──────────────────────────────────────────
-
-  private createUI() {
-    this.createBackButton()
-
-    this.phaseIndicator = this.add.graphics()
-    this.phaseIndicator.setDepth(DEPTH.UI)
-    this.phaseIndicator.setScrollFactor(0)
-
-    this.temperatureBar = this.add.graphics()
-    this.temperatureBar.setDepth(DEPTH.UI)
-    this.temperatureBar.setScrollFactor(0)
-  }
-
-  private createBackButton() {
-    const btn = this.add.graphics()
-    btn.setScrollFactor(0)
-    btn.setDepth(DEPTH.UI)
-
-    btn.fillStyle(0x000000, 0.3)
-    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
-    btn.lineStyle(2, 0xffffff, 0.7)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
-
-    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
-    hitZone.setScrollFactor(0)
-    hitZone.setDepth(DEPTH.UI)
-    hitZone.setInteractive({ useHandCursor: true })
-    hitZone.on('pointerdown', () => this.returnToOverworld())
-  }
-
-  private returnToOverworld() {
-    this.input.removeAllListeners()
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('OverworldScene')
-    })
-  }
-
-  private updateUI() {
-    this.phaseIndicator.clear()
-
-    // Phase progress dots (top center)
-    const phases: Phase[] = ['build-cells', 'fill-pollen', 'lay-eggs', 'brood']
-    const currentIdx = phases.indexOf(this.phase)
-
-    for (let i = 0; i < phases.length; i++) {
-      const x = GAME_WIDTH / 2 - 30 + i * 20
-      const y = 12
-      const isActive = i === currentIdx
-      const isDone = i < currentIdx
-
-      this.phaseIndicator.fillStyle(
-        isDone ? 0x88cc88 : isActive ? 0xffdd44 : 0x666666,
-        isDone ? 0.8 : isActive ? 0.9 : 0.4,
-      )
-      this.phaseIndicator.fillCircle(x, y, isActive ? 5 : 3)
-    }
-
-    // Temperature bar during brood phase
-    this.temperatureBar.clear()
-    if (this.phase === 'brood' && this.isBrooding) {
-      const barX = GAME_WIDTH - 20
-      const barY = 40
-      const barH = 80
-
-      // Background
-      this.temperatureBar.fillStyle(0x333333, 0.5)
-      this.temperatureBar.fillRoundedRect(barX, barY, 6, barH, 3)
-
-      // Fill
-      const fillH = barH * this.broodTemperature
-      const color = this.lerpColor(0x4488ff, 0xff6622, this.broodTemperature)
-      this.temperatureBar.fillStyle(color, 0.8)
-      this.temperatureBar.fillRoundedRect(barX, barY + barH - fillH, 6, fillH, 3)
-
-      // Progress bar at bottom
-      const progW = GAME_WIDTH - 100
-      const progX = 50
-      const progY = GAME_HEIGHT - 20
-      this.temperatureBar.fillStyle(0x333333, 0.4)
-      this.temperatureBar.fillRoundedRect(progX, progY, progW, 4, 2)
-      this.temperatureBar.fillStyle(0xffdd44, 0.7)
-      this.temperatureBar.fillRoundedRect(progX, progY, progW * (this.broodTimer / this.broodDuration), 4, 2)
-    }
-  }
-
   // ── Helpers ─────────────────────────────────────
-
-  private drawHexFilled(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, r: number) {
-    const points: Phaser.Geom.Point[] = []
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6
-      points.push(new Phaser.Geom.Point(cx + r * Math.cos(angle), cy + r * Math.sin(angle)))
-    }
-    gfx.fillPoints(points, true)
-  }
 
   private clearDraggables() {
     for (const d of this.draggables) {
       d.sprite.destroy()
     }
     this.draggables = []
-  }
-
-  private lerpColor(from: number, to: number, t: number): number {
-    const fr = (from >> 16) & 0xff
-    const fg = (from >> 8) & 0xff
-    const fb = from & 0xff
-    const tr = (to >> 16) & 0xff
-    const tg = (to >> 8) & 0xff
-    const tb = to & 0xff
-    const r = Math.round(fr + (tr - fr) * t)
-    const g = Math.round(fg + (tg - fg) * t)
-    const b = Math.round(fb + (tb - fb) * t)
-    return (r << 16) | (g << 8) | b
   }
 }
