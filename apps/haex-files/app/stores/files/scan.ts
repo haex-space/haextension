@@ -1,6 +1,6 @@
 import type { Ref } from "vue";
 import type { LocalFileInfo, RemoteFileInfo } from "./types";
-import { dirEntryToLocalFileInfo, isPathIgnored } from "./helpers";
+import { dirEntryToLocalFileInfo, isPathIgnored } from "~/lib/fileSync";
 
 interface FilesScanState {
   remoteFiles: Ref<RemoteFileInfo[]>;

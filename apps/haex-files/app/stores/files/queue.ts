@@ -15,7 +15,7 @@ import {
   type SyncError,
   type SyncQueueEntry,
 } from "./types";
-import { dbRowToQueueEntry } from "./helpers";
+import { dbRowToQueueEntry } from "~/lib/fileSync";
 
 interface FilesQueueState {
   queueSummary: Ref<QueueSummary | null>;

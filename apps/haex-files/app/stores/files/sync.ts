@@ -9,7 +9,7 @@ import {
   type SyncError,
   type SyncQueueEntry,
 } from "./types";
-import { dbRowToQueueEntry, extractErrorMessage, isPathIgnored } from "./helpers";
+import { dbRowToQueueEntry, extractErrorMessage, isPathIgnored } from "~/lib/fileSync";
 import type { FilesQueue } from "./queue";
 import type { FilesSyncState } from "./syncState";
 import type { FilesScan } from "./scan";

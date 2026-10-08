@@ -8,7 +8,7 @@ import {
   type InsertSyncState,
 } from "~/database/schemas";
 import { QUEUE_OPERATION, QUEUE_STATUS, type SyncQueueEntry } from "./types";
-import { dbRowToQueueEntry } from "./helpers";
+import { dbRowToQueueEntry } from "~/lib/fileSync";
 import type { FilesQueue } from "./queue";
 
 export type FilesSyncState = ReturnType<typeof useFilesSyncState>;

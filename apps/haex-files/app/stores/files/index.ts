@@ -16,7 +16,7 @@ import {
   type SyncError,
   type LocalSyncStatus,
 } from "./types";
-import { dirEntryToLocalFileInfo } from "./helpers";
+import { dirEntryToLocalFileInfo } from "~/lib/fileSync";
 import { useFilesQueue } from "./queue";
 import { useFilesSyncState } from "./syncState";
 import { useFilesScan } from "./scan";

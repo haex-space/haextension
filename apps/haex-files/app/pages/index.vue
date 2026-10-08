@@ -209,7 +209,7 @@ import {
 } from "@lucide/vue";
 import haexFilesLogo from "~/assets/haex-files-logo.png";
 import type { SyncRule } from "~/stores/syncRules";
-import { isPathIgnored } from "~/stores/files/helpers";
+import { isPathIgnored } from "~/lib/fileSync";
 
 const { t } = useI18n();
 const router = useRouter();
