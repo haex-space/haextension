@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onLongPress, useMediaQuery } from "@vueuse/core";
-import { PanelLeftClose, PanelLeftOpen, Paperclip, Search } from "@lucide/vue";
+import { PanelLeftClose, PanelLeftOpen, Paperclip, RefreshCw, Search } from "@lucide/vue";
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
 import { isMessageUnread, roleLabelKey } from "~/stores/mail";
 
-const props = defineProps<{ sidebarCollapsed?: boolean }>();
+const props = defineProps<{
+  sidebarCollapsed?: boolean;
+  /** Awaited so the pull-to-refresh indicator stays up until the fetch settles. */
+  refresh: () => Promise<void>;
+}>();
 const emit = defineEmits<{
   reply: [msg: SelectMessage];
   replyAll: [msg: SelectMessage];
@@ -94,6 +98,20 @@ const onActivateMessage = (msg: SelectMessage) => {
   }
   mailStore.selectMessage(msg.id);
 };
+
+// --- Pull-to-refresh (touch) ---
+
+const scrollEl = ref<HTMLElement | null>(null);
+const {
+  distance: pullDistance,
+  isPulling,
+  isRefreshing: isPullRefreshing,
+  threshold: pullThreshold,
+} = usePullToRefresh(scrollEl, async () => {
+  // A refresh triggered elsewhere (sidebar, folder switch) is already running.
+  if (mailStore.isLoadingMessages) return;
+  await props.refresh();
+});
 
 // --- Context menu actions ---
 
@@ -248,97 +266,122 @@ const formatTime = (ts: number | null): string => {
       <MailSearchBar v-else />
     </header>
 
-    <ul v-if="mailStore.filteredMessageList.length > 0" class="flex-1 overflow-y-auto">
-      <ShadcnContextMenu v-for="msg in mailStore.filteredMessageList" :key="msg.id">
-        <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
-          <li
-            :ref="(el) => setupLongPress(el, msg)"
-            tabindex="0"
-            class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            :class="rowClass(msg)"
-            @click="onClickMessage(msg, $event)"
-            @dblclick="emit('fullscreen', msg)"
-            @keydown.enter="onActivateMessage(msg)"
-            @keydown.space.prevent="onActivateMessage(msg)"
-          >
-            <!-- Sender avatar: colored circle with initials; ring when unread -->
-            <div class="shrink-0 pt-0.5">
-              <div
-                class="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white select-none leading-none"
-                :class="[
-                  getAvatarColor(senderEmail(msg)),
-                  isMessageUnread(msg) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : '',
-                ]"
-              >
-                {{ getAvatarInitials(msg.fromJson[0]?.name, senderEmail(msg)) }}
-              </div>
-            </div>
+    <div class="relative flex-1 min-h-0 overflow-hidden">
+      <div
+        v-if="pullDistance > 0"
+        class="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center"
+        :style="{ transform: `translateY(${pullDistance - 40}px)` }"
+      >
+        <div class="size-8 rounded-full border border-border bg-background shadow grid place-items-center">
+          <RefreshCw
+            class="size-4"
+            :class="isPullRefreshing ? 'animate-spin text-primary' : 'text-muted-foreground'"
+            :style="isPullRefreshing
+              ? undefined
+              : { transform: `rotate(${(pullDistance / pullThreshold) * 270}deg)` }"
+          />
+        </div>
+      </div>
 
-            <div class="flex-1 min-w-0">
-              <div class="flex items-start gap-2">
-                <span
-                  class="truncate text-sm flex-1 leading-tight"
-                  :class="isMessageUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
-                >{{ formatSender(msg) }}</span>
-                <div class="text-xs text-muted-foreground tabular-nums shrink-0 text-right leading-tight">
-                  <div>{{ formatDate(msg.internalDate) }}</div>
-                  <div v-if="formatTime(msg.internalDate)" class="mt-0.5 text-muted-foreground/70">
-                    {{ formatTime(msg.internalDate) }}
+      <div
+        ref="scrollEl"
+        class="h-full overflow-y-auto overscroll-y-contain"
+        :class="{ 'transition-transform duration-200': !isPulling }"
+        :style="pullDistance > 0 ? { transform: `translateY(${pullDistance}px)` } : undefined"
+      >
+        <ul v-if="mailStore.filteredMessageList.length > 0">
+          <ShadcnContextMenu v-for="msg in mailStore.filteredMessageList" :key="msg.id">
+            <ShadcnContextMenuTrigger as-child :disabled="isCoarsePointer">
+              <li
+                :ref="(el) => setupLongPress(el, msg)"
+                tabindex="0"
+                class="border-b border-border py-3 pr-4 pl-3 flex gap-2.5 cursor-pointer hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                :class="rowClass(msg)"
+                @click="onClickMessage(msg, $event)"
+                @dblclick="emit('fullscreen', msg)"
+                @keydown.enter="onActivateMessage(msg)"
+                @keydown.space.prevent="onActivateMessage(msg)"
+              >
+                <!-- Sender avatar: colored circle with initials; ring when unread -->
+                <div class="shrink-0 pt-0.5">
+                  <div
+                    class="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white select-none leading-none"
+                    :class="[
+                      getAvatarColor(senderEmail(msg)),
+                      isMessageUnread(msg) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : '',
+                    ]"
+                  >
+                    {{ getAvatarInitials(msg.fromJson[0]?.name, senderEmail(msg)) }}
                   </div>
                 </div>
-              </div>
-              <div
-                class="flex items-center gap-1 text-sm mt-0.5"
-                :class="isMessageUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
-              >
-                <span class="truncate">{{ msg.subject ?? t("noSubject") }}</span>
-                <Paperclip
-                  v-if="msg.hasAttachments"
-                  class="size-3.5 shrink-0 text-muted-foreground"
-                  role="img"
-                  :aria-label="t('hasAttachments')"
-                />
-              </div>
-              <div
-                v-if="mailStore.isUnifiedView"
-                class="flex items-center gap-1.5 mt-1"
-              >
-                <span
-                  class="size-1.5 rounded-full shrink-0"
-                  :class="accountColor(msg.accountId)"
-                />
-                <span class="text-xs text-muted-foreground truncate">
-                  {{ accountEmail(msg.accountId) }}
-                </span>
-              </div>
-            </div>
-          </li>
-        </ShadcnContextMenuTrigger>
-        <ShadcnContextMenuContent>
-          <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
-            {{ t("contextRead") }}
-          </ShadcnContextMenuItem>
-          <ShadcnContextMenuItem @select="emit('reply', msg)">
-            {{ t("contextReply") }}
-          </ShadcnContextMenuItem>
-          <ShadcnContextMenuItem @select="emit('replyAll', msg)">
-            {{ t("contextReplyAll") }}
-          </ShadcnContextMenuItem>
-          <ShadcnContextMenuItem @select="emit('forward', msg)">
-            {{ t("contextForward") }}
-          </ShadcnContextMenuItem>
-          <ShadcnContextMenuSeparator />
-          <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
-            {{ t("contextDelete") }}
-          </ShadcnContextMenuItem>
-        </ShadcnContextMenuContent>
-      </ShadcnContextMenu>
-    </ul>
 
-    <div v-else class="flex-1 grid place-items-center text-sm text-muted-foreground">
-      <p v-if="mailStore.isLoadingMessages">{{ t("loading") }}</p>
-      <p v-else-if="mailStore.searchQuery">{{ t("noResults") }}</p>
-      <p v-else>{{ t("empty") }}</p>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start gap-2">
+                    <span
+                      class="truncate text-sm flex-1 leading-tight"
+                      :class="isMessageUnread(msg) ? 'font-semibold' : 'font-medium text-muted-foreground'"
+                    >{{ formatSender(msg) }}</span>
+                    <div class="text-xs text-muted-foreground tabular-nums shrink-0 text-right leading-tight">
+                      <div>{{ formatDate(msg.internalDate) }}</div>
+                      <div v-if="formatTime(msg.internalDate)" class="mt-0.5 text-muted-foreground/70">
+                        {{ formatTime(msg.internalDate) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center gap-1 text-sm mt-0.5"
+                    :class="isMessageUnread(msg) ? 'font-medium' : 'text-muted-foreground'"
+                  >
+                    <span class="truncate">{{ msg.subject ?? t("noSubject") }}</span>
+                    <Paperclip
+                      v-if="msg.hasAttachments"
+                      class="size-3.5 shrink-0 text-muted-foreground"
+                      role="img"
+                      :aria-label="t('hasAttachments')"
+                    />
+                  </div>
+                  <div
+                    v-if="mailStore.isUnifiedView"
+                    class="flex items-center gap-1.5 mt-1"
+                  >
+                    <span
+                      class="size-1.5 rounded-full shrink-0"
+                      :class="accountColor(msg.accountId)"
+                    />
+                    <span class="text-xs text-muted-foreground truncate">
+                      {{ accountEmail(msg.accountId) }}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            </ShadcnContextMenuTrigger>
+            <ShadcnContextMenuContent>
+              <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
+                {{ t("contextRead") }}
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @select="emit('reply', msg)">
+                {{ t("contextReply") }}
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @select="emit('replyAll', msg)">
+                {{ t("contextReplyAll") }}
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuItem @select="emit('forward', msg)">
+                {{ t("contextForward") }}
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuSeparator />
+              <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
+                {{ t("contextDelete") }}
+              </ShadcnContextMenuItem>
+            </ShadcnContextMenuContent>
+          </ShadcnContextMenu>
+        </ul>
+
+        <div v-else class="h-full grid place-items-center text-sm text-muted-foreground">
+          <p v-if="mailStore.isLoadingMessages">{{ t("loading") }}</p>
+          <p v-else-if="mailStore.searchQuery">{{ t("noResults") }}</p>
+          <p v-else>{{ t("empty") }}</p>
+        </div>
+      </div>
     </div>
 
     <MailMoveDialog

@@ -393,6 +393,7 @@ const onSetupComplete = async () => {
         <ShadcnResizablePanel id="list-panel" :default-size="30" :min-size="20">
           <MessageList
             :sidebar-collapsed="sidebarCollapsed"
+            :refresh="onRefresh"
             @reply="onReplyFromList"
             @reply-all="onComposeFromList($event, 'reply-all')"
             @forward="onComposeFromList($event, 'forward')"
@@ -532,6 +533,7 @@ const onSetupComplete = async () => {
       <MessageList
         v-if="!mailStore.selectedMessageId"
         class="flex-1 min-h-0"
+        :refresh="onRefresh"
         @reply="onReplyFromList"
         @reply-all="onComposeFromList($event, 'reply-all')"
         @forward="onComposeFromList($event, 'forward')"
