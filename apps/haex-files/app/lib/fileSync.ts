@@ -1,7 +1,7 @@
 import { minimatch } from "minimatch";
 import type { DirEntry } from "@haex-space/vault-sdk";
 import type { SelectSyncQueue } from "~/database/schemas";
-import type { LocalFileInfo, QueueOperation, QueueStatus, SyncQueueEntry } from "./types";
+import type { LocalFileInfo, QueueOperation, QueueStatus, SyncQueueEntry } from "~/stores/files/types";
 
 // ============================================================================
 // Helpers

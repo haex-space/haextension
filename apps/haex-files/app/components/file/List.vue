@@ -92,7 +92,7 @@ import {
 } from "@lucide/vue";
 import type { SyncRule } from "~/stores/syncRules";
 import { QUEUE_STATUS, type LocalFileInfo } from "~/stores/files/types";
-import { isPathIgnored } from "~/stores/files/helpers";
+import { isPathIgnored } from "~/lib/fileSync";
 import { onLongPress } from "@vueuse/core";
 
 const props = defineProps<{
