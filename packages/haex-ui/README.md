@@ -66,6 +66,27 @@ the text under it. The focus ring of every field is `--primary`, so an app that 
 `--primary` at runtime changes the rings and the labels with it. Texts of the buttons (`labels`) are
 passed in by the app; the defaults are German.
 
+## Radio groups
+
+`ShadcnRadioGroup` holds the choices; arrow keys move between them. `ShadcnRadioGroupItem` is the
+round radio button, `UiRadioGroupTile` an item without a look of its own for swatches, icons or
+segments (style the checked one with `data-[state=checked]:`). A second click on the checked item
+does not clear the group; to allow that, handle the cancelable `select` event: `preventDefault()` it
+for the checked item and clear the value yourself.
+
+```vue
+<ShadcnRadioGroup v-model="mode">
+  <label class="flex items-center gap-2"><ShadcnRadioGroupItem value="auto" /> Auto</label>
+  <label class="flex items-center gap-2"><ShadcnRadioGroupItem value="manual" /> Manuell</label>
+</ShadcnRadioGroup>
+
+<ShadcnRadioGroup v-model="color" class="flex gap-2">
+  <UiRadioGroupTile v-for="c in colors" :key="c" :value="c" :aria-label="c"
+    class="size-7 rounded-full border-2 border-transparent data-[state=checked]:border-foreground"
+    :style="{ backgroundColor: c }" />
+</ShadcnRadioGroup>
+```
+
 ## Compatibility
 
 This layer currently supports Nuxt 4.2.2 and newer (`nuxt ^4.2.2`). Nuxt 3.21
