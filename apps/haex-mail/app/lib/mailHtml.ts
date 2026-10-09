@@ -103,6 +103,13 @@ const hardenDoc = (doc: Document) => {
       if (v && /^\s*javascript:/i.test(v)) el.removeAttribute(attr);
     }
   });
+  // Links open only in the host's system browser (via the bridge). Should the
+  // bridge not run, a plain click would load the page inside the iframe, i.e.
+  // inside the vault; `_blank` turns that into a popup the sandbox blocks.
+  // In-mail anchors (`#…`) keep scrolling the iframe.
+  doc.querySelectorAll("a[href], area[href]").forEach((el) => {
+    if (!el.getAttribute("href")?.trim().startsWith("#")) el.setAttribute("target", "_blank");
+  });
 };
 
 /** Wrap a body fragment for the sandboxed iframe: emails are authored for a

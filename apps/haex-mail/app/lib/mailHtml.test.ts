@@ -19,6 +19,23 @@ describe("mail iframe document", () => {
     );
   });
 
+  it("never lets a link load its page inside the iframe", async () => {
+    const body =
+      '<a href="https://a.example" target="_self">a</a>' +
+      '<a href="mailto:x@example.com">m</a><a href="#top">t</a>';
+    for (const html of [
+      stripExternalHtml(body).html,
+      await inlineExternalHtml(body, async () => "data:,"),
+    ]) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      expect([...doc.querySelectorAll("a")].map((a) => a.getAttribute("target"))).toEqual([
+        "_blank",
+        "_blank",
+        null,
+      ]);
+    }
+  });
+
   it("drops the sender's scripts and keeps only the bridge", async () => {
     const body = '<script>alert(1)</script><p>hi</p>';
     for (const html of [
