@@ -586,6 +586,9 @@ importers:
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
+      jsdom:
+        specifier: ^27.4.0
+        version: 27.4.0
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
