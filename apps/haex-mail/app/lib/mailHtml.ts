@@ -77,41 +77,10 @@ const parseSrcset = (
       return { url: url ?? "", descriptor: rest.join(" ") };
     });
 
-// Injected into the iframe (which runs with `allow-scripts` but stays an
-// opaque origin). Forwards link clicks to the host app so it can open them in
-// the system browser — the extension is itself nested in a sandbox without
-// `allow-popups`, so `target="_blank"` / `window.open` would be blocked.
-// Also reports the document's content height so the host can size the iframe
-// to fit it exactly — otherwise the mail body scrolls in its own box instead
-// of together with the rest of the message view. Also forwards the Delete key
-// so the host's "delete open message" shortcut still fires when focus is
-// inside the iframe's own document (keydown there never reaches the host
-// window — cross-frame events don't bubble across a frame boundary). Also
-// forwards link hover so the host can show the real target URL in a
-// browser-style status line (label text and actual href can differ).
-const LINK_BRIDGE =
-  `<script>(function(){addEventListener("click",function(e){` +
-  `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
-  `var h=a.getAttribute("href")||"";` +
-  `if(/^https?:\\/\\//i.test(h)){e.preventDefault();` +
-  `parent.postMessage({haexMailOpenUrl:h},"*");}},true);` +
-  `addEventListener("keydown",function(e){` +
-  `if(e.key==="Delete")parent.postMessage({haexMailKeydown:e.key},"*");},true);` +
-  `addEventListener("mouseover",function(e){` +
-  `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
-  `parent.postMessage({haexMailHoverUrl:a.getAttribute("href")||""},"*");},true);` +
-  `addEventListener("mouseout",function(e){` +
-  `var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;` +
-  `var to=e.relatedTarget;if(to&&a.contains(to))return;` +
-  `parent.postMessage({haexMailHoverUrl:null},"*");},true);` +
-  `function reportHeight(){parent.postMessage({haexMailContentHeight:document.documentElement.scrollHeight},"*");}` +
-  `new ResizeObserver(reportHeight).observe(document.body);` +
-  `reportHeight();})();<\/script>`;
-
-/** Neutralise active content before the body renders in a script-enabled
- *  iframe: strip script-bearing elements, inline event handlers and
- *  `javascript:` URLs. Defence-in-depth — the iframe is an opaque origin
- *  (no `allow-same-origin`) and the vault CSP blocks network regardless. */
+/** Neutralise active content before the body renders: strip script-bearing
+ *  elements, inline event handlers and `javascript:` URLs. Defence-in-depth —
+ *  the iframe sandbox already disables scripts and the host CSP blocks
+ *  network regardless. */
 const hardenDoc = (doc: Document) => {
   doc
     .querySelectorAll(
@@ -132,8 +101,7 @@ const hardenDoc = (doc: Document) => {
 
 /** Wrap a body fragment for the sandboxed iframe: emails are authored for a
  *  white surface, so force `color-scheme: light` and a light background (fixes
- *  dark-text-on-dark-theme). A bridge script forwards link clicks to the host,
- *  which opens them in the system browser. */
+ *  dark-text-on-dark-theme). */
 const wrapEmailHtml = (bodyHtml: string): string =>
   `<!doctype html><html><head><meta charset="utf-8">` +
   `<meta name="color-scheme" content="light">` +
@@ -141,7 +109,7 @@ const wrapEmailHtml = (bodyHtml: string): string =>
   `body{margin:0;padding:12px;background:#fff;color:#111;` +
   `font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}` +
   `a{color:#2563eb}img{max-width:100%;height:auto}</style>` +
-  `</head><body>${bodyHtml}${LINK_BRIDGE}</body></html>`;
+  `</head><body>${bodyHtml}</body></html>`;
 
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault

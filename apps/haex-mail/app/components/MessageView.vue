@@ -69,9 +69,10 @@ const openUrlAsync = async (url: string) => {
   }
 };
 
-// The HTML iframe's bridge script posts link clicks and its content height
-// here (it can't open a browser itself — nested sandbox). Only act on
-// messages from our own frame.
+// The HTML iframe runs without scripts (`sandbox="allow-same-origin"`, no
+// `allow-scripts`) — the host's frame CSP blocks inline scripts in a srcdoc
+// frame anyway. Being same-origin, it is driven from here instead: sized to
+// its content, and link clicks, link hover and the Delete key forwarded.
 const mailFrame = useTemplateRef<HTMLIFrameElement>("mailFrame");
 // The iframe is sized to its own content (rather than a fixed viewport
 // height) so the mail body scrolls together with the rest of the message
@@ -83,28 +84,50 @@ const MAX_IFRAME_HEIGHT = 20000;
 // The real target of the link currently hovered, shown in a browser-style
 // status line — the visible label and the actual href can differ.
 const hoveredUrl = ref<string | null>(null);
-const onFrameMessage = (event: MessageEvent) => {
-  if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
-  const data = event.data as {
-    haexMailOpenUrl?: unknown;
-    haexMailContentHeight?: unknown;
-    haexMailKeydown?: unknown;
-    haexMailHoverUrl?: unknown;
+let frameResizeObserver: ResizeObserver | null = null;
+
+// Nodes of the frame document belong to its own realm, so `instanceof
+// Element` against this window's constructor would always be false.
+const closestLink = (target: EventTarget | null): Element | null =>
+  (target as Partial<Element> | null)?.closest?.("a[href]") ?? null;
+
+const onFrameLoad = () => {
+  frameResizeObserver?.disconnect();
+  const doc = mailFrame.value?.contentDocument;
+  if (!doc?.body) return;
+  const fitHeight = () => {
+    iframeHeight.value = Math.min(doc.documentElement.scrollHeight, MAX_IFRAME_HEIGHT);
   };
-  if (typeof data?.haexMailOpenUrl === "string") openUrlAsync(data.haexMailOpenUrl);
-  if (typeof data?.haexMailContentHeight === "number") {
-    iframeHeight.value = Math.min(data.haexMailContentHeight, MAX_IFRAME_HEIGHT);
-  }
+  frameResizeObserver = new ResizeObserver(fitHeight);
+  frameResizeObserver.observe(doc.body);
+  fitHeight();
+  // The extension is itself nested in a sandbox without `allow-popups`, so
+  // the system browser is the only way to open a link.
+  doc.addEventListener("click", (e) => {
+    const href = closestLink(e.target)?.getAttribute("href") ?? "";
+    if (!/^https?:\/\//i.test(href)) return;
+    e.preventDefault();
+    openUrlAsync(href);
+  }, true);
   // Focus inside the iframe means keydown never reaches the host window, so
   // the page-level Delete shortcut can't see it — invoke the same "delete
   // open message" action the parent already wires to the trash button.
-  if (data?.haexMailKeydown === "Delete") emit("delete");
-  if ("haexMailHoverUrl" in data) {
-    hoveredUrl.value = typeof data.haexMailHoverUrl === "string" ? data.haexMailHoverUrl : null;
-  }
+  doc.addEventListener("keydown", (e) => {
+    if (e.key === "Delete") emit("delete");
+  }, true);
+  doc.addEventListener("mouseover", (e) => {
+    const link = closestLink(e.target);
+    if (link) hoveredUrl.value = link.getAttribute("href") ?? "";
+  }, true);
+  doc.addEventListener("mouseout", (e) => {
+    const link = closestLink(e.target);
+    if (!link) return;
+    const to = e.relatedTarget as Node | null;
+    if (to && link.contains(to)) return;
+    hoveredUrl.value = null;
+  }, true);
 };
-onMounted(() => window.addEventListener("message", onFrameMessage));
-onBeforeUnmount(() => window.removeEventListener("message", onFrameMessage));
+onBeforeUnmount(() => frameResizeObserver?.disconnect());
 
 // Text view: prefer the sender's text/plain part; fall back to a
 // link-preserving rendering of the HTML so URLs aren't lost. Bare URLs are
@@ -257,13 +280,12 @@ onBeforeUnmount(closeViewer);
           </div>
         </div>
 
-        <!-- HTML content runs inside an iframe that is an opaque origin (no
-             allow-same-origin) so email content can't reach the app/vault, and
-             the vault CSP blocks all network. The email HTML is hardened
-             (scripts/handlers stripped); the only script that runs is our
-             injected bridge that forwards link clicks to the host, which opens
-             them in the system browser. External resources are stripped by
-             default and loaded on demand via the banner. -->
+        <!-- HTML content runs inside an iframe sandboxed without
+             allow-scripts, so nothing in the email can execute, and the host
+             CSP blocks all network. The email HTML is hardened as well
+             (scripts/handlers stripped). Link clicks are handled by this view
+             and opened in the system browser. External resources are stripped
+             by default and loaded on demand via the banner. -->
         <div
           v-if="uiStore.mailFormat === 'html' && mailStore.messageBody.bodyHtml"
           class="mt-4"
@@ -285,12 +307,13 @@ onBeforeUnmount(closeViewer);
           <iframe
             ref="mailFrame"
             :srcdoc="iframeSrcdoc"
-            sandbox="allow-scripts"
+            sandbox="allow-same-origin"
             :style="{ height: `${iframeHeight ?? 200}px` }"
             :class="[
               'w-full border border-border',
               strippedHtml.hasExternal && !remoteApproved ? 'rounded-b' : 'rounded',
             ]"
+            @load="onFrameLoad"
           />
         </div>
         <div
