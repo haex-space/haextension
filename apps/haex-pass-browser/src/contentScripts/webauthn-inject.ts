@@ -182,8 +182,9 @@ type WebAuthnOptions = CredentialCreationOptions | CredentialRequestOptions
 // an extension update) and the request goes to the browser instead of hanging.
 const BRIDGE_ACK_TIMEOUT_MS = 2000
 // Safety net once the bridge has the request: it covers the consent prompt
-// and the vault round-trip. If we hit it the bridge is broken.
-const BRIDGE_RESPONSE_TIMEOUT_MS = 120000
+// and the vault round-trip, which waits up to 130 s for the user to confirm in
+// the vault app. If we hit it the bridge is broken.
+const BRIDGE_RESPONSE_TIMEOUT_MS = 300000
 
 interface PendingRequest {
   kind: RequestKind
