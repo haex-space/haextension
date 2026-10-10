@@ -514,8 +514,8 @@ class VaultConnectionManager {
     relyingPartyId?: string
     itemId?: string
     discoverableOnly?: boolean
-  }): Promise<unknown> {
-    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_LIST, payload)
+  }, timeout?: number): Promise<unknown> {
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_LIST, payload, timeout)
   }
 
   disconnect() {

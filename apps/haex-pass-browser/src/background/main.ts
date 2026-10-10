@@ -13,6 +13,7 @@ import { createRealAlarmsApi, createRealBookmarkEvents, createRealNativeBookmark
 import { loadState, saveState } from '~/bookmarks/storage'
 import { BookmarkSyncService } from '~/bookmarks/syncService'
 import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice, upsertNodes } from '~/bookmarks/vaultClient'
+import { parseVaultPasskeys } from '~/contentScripts/webauthn-routing'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import { vaultConnection } from './connection'
 
@@ -313,6 +314,24 @@ onMessage('passkey-create', async (message) => {
     return { success: false, error: haexResponse.error || 'Unknown error' }
   } catch (err) {
     console.error('[haex-pass] passkey-create error:', err)
+    return { success: false, error: String(err) }
+  }
+})
+
+// Asked before every passkey sign-in; the short budget keeps an unreachable
+// or unapproved vault from delaying the browser's own WebAuthn dialog.
+const PASSKEY_LOOKUP_TIMEOUT_MS = 3000
+
+// List the vault's passkeys for one site so the content script can tell
+// whether the vault could answer a sign-in at all.
+onMessage('passkey-list', async (message) => {
+  const { relyingPartyId } = message.data as { relyingPartyId: string }
+  try {
+    const result = await vaultConnection.listPasskeys({ relyingPartyId }, PASSKEY_LOOKUP_TIMEOUT_MS) as { success?: boolean, data?: unknown, error?: string }
+    if (!result?.success)
+      return { success: false, error: result?.error || 'Unknown error' }
+    return { success: true, passkeys: parseVaultPasskeys(result.data) }
+  } catch (err) {
     return { success: false, error: String(err) }
   }
 })

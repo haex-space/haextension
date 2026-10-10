@@ -19,11 +19,13 @@ export interface PasskeyConsentDecision {
   remember: boolean
 }
 
-type Handler = (req: PasskeyConsentRequest) => Promise<PasskeyConsentDecision | null>
+/** `signal` aborts when the page gave up on the request; the prompt then closes with null. */
+type Handler = (req: PasskeyConsentRequest, signal: AbortSignal) => Promise<PasskeyConsentDecision | null>
 
 let handler: Handler | null = null
 const pendingWhileUnmounted: Array<{
   req: PasskeyConsentRequest
+  signal: AbortSignal
   resolve: (value: PasskeyConsentDecision | null) => void
 }> = []
 
@@ -35,7 +37,7 @@ export function registerPasskeyConsentUi(impl: Handler): void {
   handler = impl
   while (pendingWhileUnmounted.length > 0) {
     const next = pendingWhileUnmounted.shift()!
-    impl(next.req).then(next.resolve, () => next.resolve(null))
+    impl(next.req, next.signal).then(next.resolve, () => next.resolve(null))
   }
 }
 
@@ -44,12 +46,25 @@ export function registerPasskeyConsentUi(impl: Handler): void {
  * decision (and whether to remember it), or null if the user cancelled
  * without picking.
  */
-export function requestPasskeyConsent(req: PasskeyConsentRequest): Promise<PasskeyConsentDecision | null> {
+export function requestPasskeyConsent(
+  req: PasskeyConsentRequest,
+  signal: AbortSignal,
+): Promise<PasskeyConsentDecision | null> {
+  if (signal.aborted)
+    return Promise.resolve(null)
   if (handler)
-    return handler(req)
+    return handler(req, signal)
   // Overlay not mounted yet — wait for the next registration call. WebAuthn
   // calls early in document lifecycle are rare, so this normally never fires.
   return new Promise((resolve) => {
-    pendingWhileUnmounted.push({ req, resolve })
+    const entry = { req, signal, resolve }
+    pendingWhileUnmounted.push(entry)
+    signal.addEventListener('abort', () => {
+      const index = pendingWhileUnmounted.indexOf(entry)
+      if (index !== -1) {
+        pendingWhileUnmounted.splice(index, 1)
+        resolve(null)
+      }
+    }, { once: true })
   })
 }
