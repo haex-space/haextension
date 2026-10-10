@@ -11,6 +11,8 @@
  * vor dem Laden der Seite zu überschreiben.
  */
 
+import { mustUseBrowserNative } from './webauthn-routing'
+
 // Speichere die originalen WebAuthn-Methoden
 const originalCredentials = navigator.credentials
 const originalCreate = originalCredentials.create?.bind(originalCredentials)
@@ -20,14 +22,6 @@ const originalGet = originalCredentials.get?.bind(originalCredentials)
 if (!originalCreate || !originalGet) {
   console.log('[HaexPass WebAuthn] WebAuthn not available on this page')
 } else {
-
-// Request-Tracking für asynchrone Responses
-const pendingRequests = new Map<string, {
-  resolve: (value: Credential | null) => void
-  reject: (reason: Error) => void
-  type: 'create' | 'get'
-  options: CredentialCreationOptions | CredentialRequestOptions
-}>()
 
 // Generiere eine eindeutige Request-ID
 function generateRequestId(): string {
@@ -180,99 +174,120 @@ function createPublicKeyCredentialFromGetResponse(
   return credential as unknown as PublicKeyCredential
 }
 
-// Überschreibe navigator.credentials.create
-navigator.credentials.create = async function(
-  options?: CredentialCreationOptions
-): Promise<Credential | null> {
-  // Keine Options oder keine PublicKey-Anfrage -> Original verwenden
-  if (!options || !isPublicKeyCredentialRequest(options)) {
-    return originalCreate(options)
+type RequestKind = 'create' | 'get'
+type WebAuthnOptions = CredentialCreationOptions | CredentialRequestOptions
+
+// The bridge acknowledges a request the moment it receives it. Without that
+// ack the content script is not listening (not loaded yet, or orphaned after
+// an extension update) and the request goes to the browser instead of hanging.
+const BRIDGE_ACK_TIMEOUT_MS = 2000
+// Safety net once the bridge has the request: it covers the consent prompt
+// and the vault round-trip. If we hit it the bridge is broken.
+const BRIDGE_RESPONSE_TIMEOUT_MS = 120000
+
+interface PendingRequest {
+  kind: RequestKind
+  options: WebAuthnOptions
+  resolve: (value: Credential | null) => void
+  reject: (reason: unknown) => void
+  timer: ReturnType<typeof setTimeout>
+  onAbort: () => void
+}
+
+const pendingRequests = new Map<string, PendingRequest>()
+
+function callBrowser(kind: RequestKind, options?: WebAuthnOptions): Promise<Credential | null> {
+  return kind === 'create'
+    ? originalCreate!(options as CredentialCreationOptions | undefined)
+    : originalGet!(options as CredentialRequestOptions | undefined)
+}
+
+/** Remove a request from the pending set and detach its timer and abort listener. */
+function settle(requestId: string): PendingRequest | undefined {
+  const pending = pendingRequests.get(requestId)
+  if (!pending)
+    return undefined
+  pendingRequests.delete(requestId)
+  clearTimeout(pending.timer)
+  pending.options.signal?.removeEventListener('abort', pending.onAbort)
+  return pending
+}
+
+function fallBackToBrowser(requestId: string, reason: string) {
+  const pending = settle(requestId)
+  if (!pending)
+    return
+  console.log('[HaexPass WebAuthn] Falling back to browser WebAuthn:', reason)
+  callBrowser(pending.kind, pending.options).then(pending.resolve, pending.reject)
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('The operation was aborted.', 'AbortError')
+}
+
+function convertOptions(kind: RequestKind, options: WebAuthnOptions): Record<string, unknown> {
+  return kind === 'create'
+    ? convertCreateOptions((options as CredentialCreationOptions).publicKey!)
+    : convertGetOptions((options as CredentialRequestOptions).publicKey!)
+}
+
+function intercept(kind: RequestKind, options?: WebAuthnOptions): Promise<Credential | null> {
+  if (!options || !isPublicKeyCredentialRequest(options) || mustUseBrowserNative(kind, options))
+    return callBrowser(kind, options)
+
+  const signal = options.signal
+  if (signal?.aborted)
+    return Promise.reject(abortReason(signal))
+
+  let data: Record<string, unknown>
+  try {
+    data = convertOptions(kind, options)
+  } catch (err) {
+    console.warn('[HaexPass WebAuthn] Could not read request options, using browser:', err)
+    return callBrowser(kind, options)
   }
 
-  const publicKeyOptions = options.publicKey!
   const requestId = generateRequestId()
-  const relyingPartyId = publicKeyOptions.rp?.id || window.location.hostname
-
-  console.log('[HaexPass WebAuthn] Intercepted credentials.create for:', relyingPartyId)
+  console.log(`[HaexPass WebAuthn] Intercepted credentials.${kind} for:`, data.relyingPartyId)
 
   return new Promise((resolve, reject) => {
-    // Safety net only — the bridge is expected to answer (with credential,
-    // 'USE_BROWSER_NATIVE', or a real error) once the user has clicked through
-    // the consent prompt. 120s is more than enough for any human; if we hit
-    // it the bridge is broken and we should fall back rather than hang.
-    const timeoutId = setTimeout(() => {
-      pendingRequests.delete(requestId)
-      console.warn('[HaexPass WebAuthn] Bridge did not respond in 120s, falling back to browser')
-      originalCreate(options).then(resolve).catch(reject)
-    }, 120000)
-
+    const onAbort = () => {
+      if (!settle(requestId))
+        return
+      // Lets the bridge close a consent prompt nobody needs any more.
+      window.postMessage({ type: 'HAEX_PASS_WEBAUTHN_ABORT', requestId }, '*')
+      reject(abortReason(signal!))
+    }
     pendingRequests.set(requestId, {
-      resolve: (credential) => {
-        clearTimeout(timeoutId)
-        resolve(credential)
-      },
-      reject: (error) => {
-        clearTimeout(timeoutId)
-        reject(error)
-      },
-      type: 'create',
+      kind,
       options,
+      resolve,
+      reject,
+      onAbort,
+      timer: setTimeout(() => fallBackToBrowser(requestId, 'bridge did not acknowledge'), BRIDGE_ACK_TIMEOUT_MS),
     })
+    signal?.addEventListener('abort', onAbort, { once: true })
 
-    // Sende Nachricht an Content-Script (ISOLATED world)
     window.postMessage({
-      type: 'HAEX_PASS_WEBAUTHN_CREATE',
+      type: kind === 'create' ? 'HAEX_PASS_WEBAUTHN_CREATE' : 'HAEX_PASS_WEBAUTHN_GET',
       requestId,
-      data: convertCreateOptions(publicKeyOptions),
+      data,
     }, '*')
   })
 }
 
-// Überschreibe navigator.credentials.get
-navigator.credentials.get = async function(
-  options?: CredentialRequestOptions
-): Promise<Credential | null> {
-  // Keine Options oder keine PublicKey-Anfrage -> Original verwenden
-  if (!options || !isPublicKeyCredentialRequest(options)) {
-    return originalGet(options)
-  }
+navigator.credentials.create = (options?: CredentialCreationOptions) => intercept('create', options)
+navigator.credentials.get = (options?: CredentialRequestOptions) => intercept('get', options)
 
-  const publicKeyOptions = options.publicKey!
-  const requestId = generateRequestId()
-  const relyingPartyId = publicKeyOptions.rpId || window.location.hostname
-
-  console.log('[HaexPass WebAuthn] Intercepted credentials.get for:', relyingPartyId)
-
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      pendingRequests.delete(requestId)
-      console.warn('[HaexPass WebAuthn] Bridge did not respond in 120s, falling back to browser')
-      originalGet(options).then(resolve).catch(reject)
-    }, 120000)
-
-    pendingRequests.set(requestId, {
-      resolve: (credential) => {
-        clearTimeout(timeoutId)
-        resolve(credential)
-      },
-      reject: (error) => {
-        clearTimeout(timeoutId)
-        reject(error)
-      },
-      type: 'get',
-      options,
-    })
-
-    // Sende Nachricht an Content-Script (ISOLATED world)
-    window.postMessage({
-      type: 'HAEX_PASS_WEBAUTHN_GET',
-      requestId,
-      data: convertGetOptions(publicKeyOptions),
-    }, '*')
-  })
+function handleAck(requestId: string) {
+  const pending = pendingRequests.get(requestId)
+  if (!pending)
+    return
+  clearTimeout(pending.timer)
+  pending.timer = setTimeout(() => fallBackToBrowser(requestId, 'bridge did not respond in time'), BRIDGE_RESPONSE_TIMEOUT_MS)
 }
 
-// Empfange Responses vom Content-Script
+// Empfange Acks und Responses vom Content-Script
 window.addEventListener('message', (event) => {
   // Ignoriere Nachrichten von anderen Origins
   if (event.source !== window) return
@@ -284,33 +299,25 @@ window.addEventListener('message', (event) => {
     error?: string
   }
 
-  // Nur unsere Response-Nachrichten verarbeiten
-  if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_RESPONSE_')) return
-
-  console.log('[HaexPass WebAuthn] Received response:', message.type, message.requestId)
-
-  const pending = pendingRequests.get(message.requestId)
-  if (!pending) {
-    console.warn('[HaexPass WebAuthn] No pending request for:', message.requestId)
+  if (message.type === 'HAEX_PASS_WEBAUTHN_ACK') {
+    handleAck(message.requestId)
     return
   }
 
-  pendingRequests.delete(message.requestId)
+  // Nur unsere Response-Nachrichten verarbeiten
+  if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_RESPONSE_')) return
 
   // Bei JEDEM Fehler auf Browser-Fallback umschalten
   // Wir können nicht alle möglichen Fehlermeldungen von verschiedenen Seiten vorhersehen,
   // daher: Nur bei explizitem Erfolg haex-pass verwenden, sonst immer Browser-Fallback
   if (message.error) {
-    console.log('[HaexPass WebAuthn] Falling back to browser WebAuthn due to error:', message.error)
-    if (pending.type === 'create') {
-      originalCreate(pending.options as CredentialCreationOptions)
-        .then(pending.resolve)
-        .catch(pending.reject)
-    } else {
-      originalGet(pending.options as CredentialRequestOptions)
-        .then(pending.resolve)
-        .catch(pending.reject)
-    }
+    fallBackToBrowser(message.requestId, message.error)
+    return
+  }
+
+  const pending = settle(message.requestId)
+  if (!pending) {
+    console.warn('[HaexPass WebAuthn] No pending request for:', message.requestId)
     return
   }
 

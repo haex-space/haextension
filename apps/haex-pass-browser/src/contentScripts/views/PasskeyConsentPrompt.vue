@@ -11,11 +11,18 @@ const remember = ref(false)
 let resolveActive: ((value: PasskeyConsentDecision | null) => void) | null = null
 
 onMounted(() => {
-  registerPasskeyConsentUi((req) => {
+  registerPasskeyConsentUi((req, signal) => {
     return new Promise((resolve) => {
+      // A newer request replaces the one on screen; the older one is
+      // answered as cancelled so its page call falls back instead of hanging.
+      cancel()
       active.value = req
       remember.value = false
       resolveActive = resolve
+      signal.addEventListener('abort', () => {
+        if (resolveActive === resolve)
+          cancel()
+      }, { once: true })
     })
   })
 })

@@ -16,6 +16,7 @@ import type { PasskeyHandler } from '~/logic/settings'
 import { sendMessage } from 'webext-bridge/content-script'
 import { getPasskeyPref, setPasskeyPref } from '~/logic/settings'
 import { requestPasskeyConsent } from './passkey-consent'
+import { parseVaultPasskeys, vaultCanAnswerGet } from './webauthn-routing'
 
 interface WebAuthnCreateRequest {
   type: 'HAEX_PASS_WEBAUTHN_CREATE'
@@ -48,7 +49,16 @@ interface WebAuthnGetRequest {
   }
 }
 
-type WebAuthnRequest = WebAuthnCreateRequest | WebAuthnGetRequest
+interface WebAuthnAbortRequest {
+  type: 'HAEX_PASS_WEBAUTHN_ABORT'
+  requestId: string
+}
+
+type WebAuthnRequest = WebAuthnCreateRequest | WebAuthnGetRequest | WebAuthnAbortRequest
+
+// One controller per request the inject script is still waiting for, so a
+// page-side abort can close the consent prompt.
+const inFlight = new Map<string, AbortController>()
 
 // Sentinel error consumed by webauthn-inject.ts to trigger the
 // originalCreate/originalGet fallback path. Anything else is treated as a
@@ -78,6 +88,7 @@ async function resolveHandler(
   rpId: string,
   rpDisplayName: string,
   kind: 'create' | 'get',
+  signal: AbortSignal,
 ): Promise<PasskeyHandler | null> {
   const existing = await getPasskeyPref(rpId)
   if (existing)
@@ -87,7 +98,7 @@ async function resolveHandler(
     rpId,
     rpDisplayName,
     kind,
-  })
+  }, signal)
   if (!decision)
     return null
 
@@ -99,10 +110,10 @@ async function resolveHandler(
   return decision.choice
 }
 
-async function handleWebAuthnCreate(request: WebAuthnCreateRequest) {
+async function handleWebAuthnCreate(request: WebAuthnCreateRequest, signal: AbortSignal) {
   const { relyingPartyId, relyingPartyName } = request.data
 
-  const handler = await resolveHandler(relyingPartyId, relyingPartyName || relyingPartyId, 'create')
+  const handler = await resolveHandler(relyingPartyId, relyingPartyName || relyingPartyId, 'create', signal)
   if (handler === null) {
     sendResponse(request.requestId, 'create', undefined, 'User cancelled passkey handler selection')
     return
@@ -126,10 +137,30 @@ async function handleWebAuthnCreate(request: WebAuthnCreateRequest) {
   }
 }
 
-async function handleWebAuthnGet(request: WebAuthnGetRequest) {
+/** Whether the vault holds a passkey that could answer this sign-in; false when it cannot be asked. */
+async function vaultHasPasskeyFor(data: WebAuthnGetRequest['data']): Promise<boolean> {
+  try {
+    const response = await sendMessage('passkey-list', { relyingPartyId: data.relyingPartyId }, 'background') as { success?: boolean, passkeys?: unknown }
+    if (!response?.success)
+      return false
+    const allowedIds = data.allowCredentials?.map(cred => cred.id) ?? []
+    return vaultCanAnswerGet(parseVaultPasskeys(response), allowedIds)
+  } catch {
+    return false
+  }
+}
+
+async function handleWebAuthnGet(request: WebAuthnGetRequest, signal: AbortSignal) {
   const { relyingPartyId } = request.data
 
-  const handler = await resolveHandler(relyingPartyId, relyingPartyId, 'get')
+  // Only a sign-in the vault can answer is worth a prompt; anything else (a
+  // YubiKey, a passkey kept by the browser) goes straight to the browser.
+  if (await getPasskeyPref(relyingPartyId) !== 'browser' && !(await vaultHasPasskeyFor(request.data))) {
+    sendResponse(request.requestId, 'get', undefined, USE_BROWSER_NATIVE)
+    return
+  }
+
+  const handler = await resolveHandler(relyingPartyId, relyingPartyId, 'get', signal)
   if (handler === null) {
     sendResponse(request.requestId, 'get', undefined, 'User cancelled passkey handler selection')
     return
@@ -160,14 +191,25 @@ function handleMessage(event: MessageEvent) {
   const message = event.data as WebAuthnRequest
   if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_'))
     return
-  if (message.type.includes('RESPONSE'))
+
+  if (message.type === 'HAEX_PASS_WEBAUTHN_ABORT') {
+    inFlight.get(message.requestId)?.abort()
+    return
+  }
+  // Our own ACKs and responses come back through this listener too.
+  if (message.type !== 'HAEX_PASS_WEBAUTHN_CREATE' && message.type !== 'HAEX_PASS_WEBAUTHN_GET')
     return
 
-  if (message.type === 'HAEX_PASS_WEBAUTHN_CREATE') {
-    void handleWebAuthnCreate(message as WebAuthnCreateRequest)
-  } else if (message.type === 'HAEX_PASS_WEBAUTHN_GET') {
-    void handleWebAuthnGet(message as WebAuthnGetRequest)
-  }
+  // Tells the inject script someone is listening; without this ack it
+  // hands the request to the browser after a short wait.
+  window.postMessage({ type: 'HAEX_PASS_WEBAUTHN_ACK', requestId: message.requestId }, '*')
+
+  const controller = new AbortController()
+  inFlight.set(message.requestId, controller)
+  const handled = message.type === 'HAEX_PASS_WEBAUTHN_CREATE'
+    ? handleWebAuthnCreate(message, controller.signal)
+    : handleWebAuthnGet(message, controller.signal)
+  void handled.finally(() => inFlight.delete(message.requestId))
 }
 
 export function initWebAuthnBridge() {
