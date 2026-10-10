@@ -24,6 +24,12 @@ import { createHandshakeRequest, createRequestEnvelope } from './protocol'
 // and below most stateful firewalls' connection-track timeouts.
 const PING_INTERVAL_MS = 25000
 
+// Requests the vault may hold open while it asks the user: holzi shows a
+// presence confirmation for every passkey (it expires after 120 s, 049 FR-030)
+// and may ask for a wider grant before saving an entry (049 FR-015). The extra
+// seconds let a last-moment answer still arrive.
+const USER_CONFIRMATION_TIMEOUT_MS = 130000
+
 // Re-export SDK types for use in the extension
 export { type ExternalConnection, ExternalConnectionErrorCode, ExternalConnectionState }
 // Backward compatibility aliases
@@ -468,7 +474,7 @@ class VaultConnectionManager {
   }
 
   async createItem(entry: object): Promise<unknown> {
-    return this.sendRequest(HAEX_PASS_METHODS.CREATE_ITEM, entry)
+    return this.sendRequest(HAEX_PASS_METHODS.CREATE_ITEM, entry, USER_CONFIRMATION_TIMEOUT_MS)
   }
 
   async getTotp(entryId: string): Promise<unknown> {
@@ -493,8 +499,9 @@ class VaultConnectionManager {
     excludeCredentials?: string[]
     requireResidentKey?: boolean
     userVerification?: 'required' | 'preferred' | 'discouraged'
+    origin: string
   }): Promise<unknown> {
-    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_CREATE, payload)
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_CREATE, payload, USER_CONFIRMATION_TIMEOUT_MS)
   }
 
   async getPasskey(payload: {
@@ -506,8 +513,9 @@ class VaultConnectionManager {
       transports?: string[]
     }>
     userVerification?: 'required' | 'preferred' | 'discouraged'
+    origin: string
   }): Promise<unknown> {
-    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_GET, payload)
+    return this.sendRequest(HAEX_PASS_METHODS.PASSKEY_GET, payload, USER_CONFIRMATION_TIMEOUT_MS)
   }
 
   async listPasskeys(payload: {

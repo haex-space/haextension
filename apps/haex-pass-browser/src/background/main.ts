@@ -16,6 +16,7 @@ import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice
 import { parseVaultPasskeys } from '~/contentScripts/webauthn-routing'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import { vaultConnection } from './connection'
+import { callerOrigin, rpIdMatchesOrigin } from './passkeyOrigin'
 
 let bookmarkSyncServicePromise: Promise<BookmarkSyncService> | null = null
 
@@ -287,6 +288,19 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // WebAuthn / Passkey Handlers
 // =============================================================================
 
+/**
+ * Origin of the tab that sent a passkey request, or null when it is not a
+ * page that may use `rpId`. Refusing here sends the page to the browser's own
+ * WebAuthn, which applies its own rules.
+ */
+async function verifiedPasskeyOrigin(sender: { tabId: number, frameId?: number }, rpId: string): Promise<string | null> {
+  const tab = await browser.tabs.get(sender.tabId).catch(() => undefined)
+  const origin = callerOrigin(sender.frameId, tab?.url)
+  return origin && rpIdMatchesOrigin(rpId, origin) ? origin : null
+}
+
+const ORIGIN_MISMATCH_ERROR = 'Relying party does not match the calling page'
+
 // Handle passkey create request from content script
 onMessage('passkey-create', async (message) => {
   const payload = message.data as {
@@ -303,8 +317,12 @@ onMessage('passkey-create', async (message) => {
 
   console.log('[haex-pass] passkey-create request:', payload.relyingPartyId)
 
+  const origin = await verifiedPasskeyOrigin(message.sender, payload.relyingPartyId)
+  if (!origin)
+    return { success: false, error: ORIGIN_MISMATCH_ERROR }
+
   try {
-    const result = await vaultConnection.createPasskey(payload)
+    const result = await vaultConnection.createPasskey({ ...payload, origin })
     console.log('[haex-pass] passkey-create result:', result)
 
     const haexResponse = result as { success: boolean, data?: unknown, error?: string }
@@ -326,6 +344,10 @@ const PASSKEY_LOOKUP_TIMEOUT_MS = 3000
 // whether the vault could answer a sign-in at all.
 onMessage('passkey-list', async (message) => {
   const { relyingPartyId } = message.data as { relyingPartyId: string }
+  // Without this a page could learn whether the vault holds a passkey for
+  // another site from whether the consent prompt appears.
+  if (!(await verifiedPasskeyOrigin(message.sender, relyingPartyId)))
+    return { success: false, error: ORIGIN_MISMATCH_ERROR }
   try {
     const result = await vaultConnection.listPasskeys({ relyingPartyId }, PASSKEY_LOOKUP_TIMEOUT_MS) as { success?: boolean, data?: unknown, error?: string }
     if (!result?.success)
@@ -351,8 +373,12 @@ onMessage('passkey-get', async (message) => {
 
   console.log('[haex-pass] passkey-get request:', payload.relyingPartyId)
 
+  const origin = await verifiedPasskeyOrigin(message.sender, payload.relyingPartyId)
+  if (!origin)
+    return { success: false, error: ORIGIN_MISMATCH_ERROR }
+
   try {
-    const result = await vaultConnection.getPasskey(payload)
+    const result = await vaultConnection.getPasskey({ ...payload, origin })
     console.log('[haex-pass] passkey-get result:', result)
 
     const haexResponse = result as { success: boolean, data?: unknown, error?: string }
