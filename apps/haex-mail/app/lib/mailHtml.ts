@@ -77,10 +77,21 @@ const parseSrcset = (
       return { url: url ?? "", descriptor: rest.join(" ") };
     });
 
-/** Neutralise active content before the body renders: strip script-bearing
- *  elements, inline event handlers and `javascript:` URLs. Defence-in-depth —
- *  the iframe sandbox already disables scripts and the host CSP blocks
- *  network regardless. */
+// The iframe inherits the host's Content-Security-Policy, which rejects inline
+// scripts but allows the extension's own URL — so the bridge (see
+// public/mail-bridge.js) is loaded from there instead of being inlined.
+// `crossorigin` is required: WebKitGTK refuses a no-cors load of the
+// extension's custom scheme from the iframe's opaque origin ("Unsafe attempt
+// to load URL … from origin null"); in CORS mode holzi's
+// `Access-Control-Allow-Origin: *` lets it through, as for the app's own
+// module scripts.
+const linkBridge = (): string =>
+  `<script src="${new URL("mail-bridge.js", document.baseURI).href}" crossorigin></script>`;
+
+/** Neutralise active content before the body renders in a script-enabled
+ *  iframe: strip script-bearing elements, inline event handlers and
+ *  `javascript:` URLs. Defence-in-depth — the iframe is an opaque origin
+ *  (no `allow-same-origin`) and the vault CSP blocks network regardless. */
 const hardenDoc = (doc: Document) => {
   doc
     .querySelectorAll(
@@ -97,11 +108,19 @@ const hardenDoc = (doc: Document) => {
       if (v && /^\s*javascript:/i.test(v)) el.removeAttribute(attr);
     }
   });
+  // Links open only in the host's system browser (via the bridge). Should the
+  // bridge not run, a plain click would load the page inside the iframe, i.e.
+  // inside the vault; `_blank` turns that into a popup the sandbox blocks.
+  // In-mail anchors (`#…`) keep scrolling the iframe.
+  doc.querySelectorAll("a[href], area[href]").forEach((el) => {
+    if (!el.getAttribute("href")?.trim().startsWith("#")) el.setAttribute("target", "_blank");
+  });
 };
 
 /** Wrap a body fragment for the sandboxed iframe: emails are authored for a
  *  white surface, so force `color-scheme: light` and a light background (fixes
- *  dark-text-on-dark-theme). */
+ *  dark-text-on-dark-theme). A bridge script forwards link clicks to the host,
+ *  which opens them in the system browser. */
 const wrapEmailHtml = (bodyHtml: string): string =>
   `<!doctype html><html><head><meta charset="utf-8">` +
   `<meta name="color-scheme" content="light">` +
@@ -109,7 +128,7 @@ const wrapEmailHtml = (bodyHtml: string): string =>
   `body{margin:0;padding:12px;background:#fff;color:#111;` +
   `font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}` +
   `a{color:#2563eb}img{max-width:100%;height:auto}</style>` +
-  `</head><body>${bodyHtml}</body></html>`;
+  `</head><body>${bodyHtml}${linkBridge()}</body></html>`;
 
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault
