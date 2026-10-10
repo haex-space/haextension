@@ -8,6 +8,18 @@ export type TextPart = { text: string } | { url: string; text: string };
 // that "label (https://x)" yields the URL without the trailing bracket.
 const URL_RE = /(https?:\/\/[^\s<>()"']+)/gi;
 
+/** True for an absolute http(s) URL — the only links the view hands to the
+ *  system browser. The mail iframe can post any string, so its link messages
+ *  are checked here rather than trusted. */
+export const isWebUrl = (url: string): boolean => {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 /** Split plain text into parts, marking bare URLs so the view can make them
  *  clickable (a `<pre>` swallows them as inert text otherwise). */
 export const linkifyText = (text: string): TextPart[] => {
