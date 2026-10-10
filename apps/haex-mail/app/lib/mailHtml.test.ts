@@ -1,6 +1,25 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { inlineExternalHtml, stripExternalHtml } from "./mailHtml";
+import { inlineExternalHtml, isWebUrl, stripExternalHtml } from "./mailHtml";
+
+// The mail iframe can post any string as a link to open.
+describe("isWebUrl", () => {
+  it("accepts absolute http(s) URLs only", () => {
+    expect(isWebUrl("https://example.com/a?b#c")).toBe(true);
+    expect(isWebUrl("HTTP://example.com")).toBe(true);
+    for (const url of [
+      "file:///etc/passwd",
+      "javascript:alert(1)",
+      "mailto:x@example.com",
+      "smb://host/share",
+      "//example.com",
+      "/relative",
+      "",
+    ]) {
+      expect(isWebUrl(url)).toBe(false);
+    }
+  });
+});
 
 const scriptsOf = (html: string) => [
   ...new DOMParser().parseFromString(html, "text/html").querySelectorAll("script"),

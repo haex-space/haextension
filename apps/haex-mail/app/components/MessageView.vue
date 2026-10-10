@@ -6,6 +6,7 @@ import { getErrorMessage } from "~/lib/utils";
 import {
   htmlToText,
   inlineExternalHtml,
+  isWebUrl,
   linkifyText,
   stripExternalHtml,
 } from "~/lib/mailHtml";
@@ -62,6 +63,7 @@ const {
 // --- Body rendering ---
 
 const openUrlAsync = async (url: string) => {
+  if (!isWebUrl(url)) return;
   try {
     await haexVault.client.web.openAsync(url);
   } catch (err) {
@@ -85,6 +87,8 @@ const MAX_IFRAME_HEIGHT = 20000;
 const hoveredUrl = ref<string | null>(null);
 const onFrameMessage = (event: MessageEvent) => {
   if (!mailFrame.value || event.source !== mailFrame.value.contentWindow) return;
+  // `in` throws on a primitive, and the frame can post anything.
+  if (typeof event.data !== "object" || event.data === null) return;
   const data = event.data as {
     haexMailOpenUrl?: unknown;
     haexMailContentHeight?: unknown;
