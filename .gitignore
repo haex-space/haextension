@@ -33,11 +33,14 @@ yarn.lock
 CLAUDE.md
 .claude
 .agents/skills/speckit-*/
+.specify/integrations/claude.manifest.json
+.specify/integrations/codex.manifest.json
 .npmrc
 graphify-out/
 
 # spaex
 .spaex/manifest.json.lock
+.spaex/install.lock
 
 private.key
 */**/dist
