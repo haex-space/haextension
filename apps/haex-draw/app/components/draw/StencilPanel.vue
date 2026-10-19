@@ -28,18 +28,14 @@ const stencil = computed<Stencil | null>(() => {
 const isImageStencil = computed(() => stencil.value?.shapeType === "image");
 const isCropping = ref(false);
 
-function onCropApply(imageData: string, cropWidth: number, cropHeight: number) {
+function onCropApply(imageData: string, cropWidth: number, cropHeight: number, sourceWidth: number, sourceHeight: number) {
   const s = stencil.value;
   if (!s) return;
 
-  // Scale crop pixel dimensions to stencil world dimensions
-  // The image may have been scaled when placed on the canvas
-  const img = new Image();
-  img.src = s.imageData!;
-  const imgNaturalWidth = img.naturalWidth || s.width;
-  const imgNaturalHeight = img.naturalHeight || s.height;
-  const scaleX = s.width / imgNaturalWidth;
-  const scaleY = s.height / imgNaturalHeight;
+  // Scale crop pixel dimensions to stencil world dimensions;
+  // the image may have been scaled when placed on the canvas.
+  const scaleX = s.width / sourceWidth;
+  const scaleY = s.height / sourceHeight;
 
   s.imageData = imageData;
   s.width = cropWidth * scaleX;

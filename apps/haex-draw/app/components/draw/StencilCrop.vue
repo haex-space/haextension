@@ -22,7 +22,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  apply: [imageData: string, width: number, height: number];
+  apply: [imageData: string, width: number, height: number, sourceWidth: number, sourceHeight: number];
 }>();
 
 const { t } = useI18n();
@@ -296,7 +296,7 @@ function applyCrop() {
   ctx.drawImage(img, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
 
   const dataUrl = tmpCanvas.toDataURL("image/png");
-  emit("apply", dataUrl, r.width, r.height);
+  emit("apply", dataUrl, r.width, r.height, img.naturalWidth, img.naturalHeight);
   open.value = false;
 }
 </script>

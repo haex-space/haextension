@@ -1,5 +1,6 @@
 import { drawGrid } from "~/utils/canvas/gridRenderer";
 import { renderScene } from "~/utils/canvas/sceneRenderer";
+import { retainStencilImages } from "~/utils/canvas/stencilRenderer";
 import { renderStroke } from "~/utils/canvas/strokeRenderer";
 
 export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
@@ -35,6 +36,7 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Grid (infinite, adaptive)
     drawGrid(ctx, width, height, canvas.viewport);
 
+    retainStencilImages(stencilStore.stencils);
     renderScene(ctx, canvas.strokes, stencilStore.stencils, (stencil) => ({
       hovered: stencil.id === stencilStore.hoveredId,
       selected: stencilStore.isSelected(stencil.id),

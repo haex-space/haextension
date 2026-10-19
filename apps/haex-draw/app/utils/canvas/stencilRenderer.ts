@@ -1,9 +1,15 @@
 import type { Stencil } from "~/types/stencil";
 import { getStencilClipPath } from "~/utils/stencilPresets";
 
-// Cache for loaded images (stencil id → HTMLImageElement)
-const imageCache = new Map<string, HTMLImageElement>();
-const imageLoading = new Set<string>();
+interface CachedImage {
+  /** Source the image was loaded from; a crop replaces the stencil's source under the same id. */
+  src: string;
+  img: HTMLImageElement;
+  failed: boolean;
+}
+
+// Cache for loaded images (stencil id → image of its current source)
+const imageCache = new Map<string, CachedImage>();
 
 // Cache for rendered emoji (emoji char + raster size → HTMLCanvasElement), least recently used first
 const emojiCache = new Map<string, HTMLCanvasElement>();
@@ -45,36 +51,45 @@ function getOrRenderEmoji(emoji: string, size: number): HTMLCanvasElement {
   return canvas;
 }
 
-function getOrLoadImage(stencil: Stencil): HTMLImageElement | null {
+function getOrLoadImageEntry(stencil: Stencil): CachedImage | null {
   if (!stencil.imageData) return null;
 
   const cached = imageCache.get(stencil.id);
-  if (cached && cached.complete && cached.naturalWidth > 0) return cached;
+  if (cached && cached.src === stencil.imageData) {
+    // Keep the stencil's own string so the next comparison is a cheap reference check.
+    cached.src = stencil.imageData;
+    return cached;
+  }
 
-  // Already loading
-  if (imageLoading.has(stencil.id)) return null;
+  const entry: CachedImage = { src: stencil.imageData, img: new Image(), failed: false };
+  entry.img.onerror = () => {
+    entry.failed = true;
+  };
+  entry.img.src = stencil.imageData;
+  imageCache.set(stencil.id, entry);
+  return entry;
+}
 
-  imageLoading.add(stencil.id);
-  const img = new Image();
-  img.onload = () => {
-    imageCache.set(stencil.id, img);
-    imageLoading.delete(stencil.id);
-  };
-  img.onerror = () => {
-    imageLoading.delete(stencil.id);
-  };
-  img.src = stencil.imageData;
-  imageCache.set(stencil.id, img);
-  return img;
+function getOrLoadImage(stencil: Stencil): HTMLImageElement | null {
+  const entry = getOrLoadImageEntry(stencil);
+  return entry && !entry.failed && entry.img.complete && entry.img.naturalWidth > 0 ? entry.img : null;
+}
+
+/** Drops cached images of stencils that no longer exist. */
+export function retainStencilImages(stencils: readonly Stencil[]) {
+  if (imageCache.size === 0) return;
+  const ids = new Set(stencils.map((s) => s.id));
+  for (const id of imageCache.keys()) {
+    if (!ids.has(id)) imageCache.delete(id);
+  }
 }
 
 /** Waits until the images of the given stencils are decoded, so an export does not miss them. */
 export async function preloadStencilImagesAsync(stencils: readonly Stencil[]): Promise<void> {
   await Promise.all(stencils.map(async (stencil) => {
     if (stencil.shapeType !== "image") return;
-    getOrLoadImage(stencil);
     // A broken image is left out, exactly as on the canvas.
-    await imageCache.get(stencil.id)?.decode().catch(() => undefined);
+    await getOrLoadImageEntry(stencil)?.img.decode().catch(() => undefined);
   }));
 }
 
