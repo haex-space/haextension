@@ -66,7 +66,7 @@ export function useReminderScheduler() {
     } finally {
       rebuilding = false;
     }
-    if (rebuildQueued) {
+    if (rebuildQueued && running) {
       void rebuildAsync();
     }
   }
@@ -166,6 +166,8 @@ export function useReminderScheduler() {
       clearTimeout(fireTimer);
       fireTimer = null;
     }
+    // A rebuild still in flight when the page unmounted must not re-arm.
+    if (!running) return;
     const head = queue[0];
     if (!head) return;
     // Lookahead caps the delay at 24h, well under setTimeout's overflow limit.
@@ -214,6 +216,7 @@ export function useReminderScheduler() {
 
   function stop() {
     running = false;
+    rebuildQueued = false;
     if (fireTimer) clearTimeout(fireTimer);
     if (refillTimer) clearInterval(refillTimer);
     fireTimer = null;
