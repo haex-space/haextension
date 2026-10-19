@@ -3,7 +3,7 @@ import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { PanelLeftClose, PanelLeftOpen, Paperclip, RefreshCw, Search } from "@lucide/vue";
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
-import { isMessageUnread, roleLabelKey } from "~/lib/mail";
+import { isMessageUnread, mailboxDisplayName, roleLabelKey } from "~/lib/mail";
 
 const props = defineProps<{
   sidebarCollapsed?: boolean;
@@ -121,9 +121,9 @@ const {
 const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
 const onContextDelete = async (msg: SelectMessage) => {
-  await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
+  const moved = await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
   // The row is gone — a stale selection id would keep selection mode on.
-  if (selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
+  if (moved > 0 && selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
 };
 
 const rowClass = (msg: SelectMessage) => {
@@ -167,7 +167,9 @@ const headerLabel = computed(() => {
     const labelKey = roleLabelKey(mailStore.selectedRole);
     return labelKey ? tRole(labelKey) : t("noMailbox");
   }
-  return mailStore.selectedMailboxName ?? t("noMailbox");
+  return mailStore.selectedMailboxName
+    ? mailboxDisplayName(mailStore.selectedMailboxName, tRole("mail.roles.inbox"))
+    : t("noMailbox");
 });
 
 /** Stable per-account color for the unified view's row indicator. */

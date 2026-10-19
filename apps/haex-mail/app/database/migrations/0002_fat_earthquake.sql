@@ -1,0 +1,1 @@
+CREATE INDEX `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__messages_mailbox_date_idx` ON `b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca__haex-mail__messages` (`account_id`,`mailbox_name`,`internal_date`);

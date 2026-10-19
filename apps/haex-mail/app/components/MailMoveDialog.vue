@@ -2,6 +2,8 @@
 import { eq } from "drizzle-orm";
 import { Folder } from "@lucide/vue";
 import * as schema from "~/database/schemas";
+import { decodeMailboxName } from "~/lib/imap";
+import { mailboxDisplayName } from "~/lib/mail";
 
 const open = defineModel<boolean>("open", { default: false });
 
@@ -29,7 +31,7 @@ watch(open, async (v) => {
     .where(eq(schema.mailboxes.accountId, props.accountId));
   folders.value = rows
     .filter((m) => m.name !== props.excludeMailboxName)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => decodeMailboxName(a.name).localeCompare(decodeMailboxName(b.name)));
 });
 
 const onSelect = (mailboxName: string) => {
@@ -52,7 +54,7 @@ const onSelect = (mailboxName: string) => {
           @click="onSelect(folder.name)"
         >
           <span class="truncate">
-            {{ folder.name === "INBOX" ? tRole("mail.roles.inbox") : folder.name }}
+            {{ mailboxDisplayName(folder.name, tRole("mail.roles.inbox")) }}
           </span>
         </UiButton>
         <p v-if="folders.length === 0" class="text-sm text-muted-foreground">

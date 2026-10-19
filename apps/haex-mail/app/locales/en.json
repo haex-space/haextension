@@ -10,7 +10,10 @@
     },
     "errors": {
       "credentials": "Failed to load credentials",
-      "noFolderForRole": "No {folder} folder found for this account"
+      "noFolderForRole": "No {folder} folder found for this account",
+      "alreadyInTrash": "These messages are already in the trash. Deleting them permanently is not supported.",
+      "alreadyArchived": "These messages are already archived.",
+      "openAttachmentFailed": "No app was found to open the attachment – it can be saved with the download button."
     },
     "quoteHeader": "On {date}, {sender} wrote:",
     "forwardAttachmentsFailed": "{count} attachment(s) could not be loaded and are missing from the forward.",
@@ -24,7 +27,8 @@
     "errors": {
       "accountNotFound": "Account not found",
       "passwordMissing": "Password missing",
-      "importIncomplete": "This vault entry is missing its email address or IMAP settings and can't be imported"
+      "importIncomplete": "This vault entry is missing its email address or IMAP settings and can't be imported",
+      "importInvalid": "This vault entry has an invalid port or encryption setting and can't be imported"
     },
     "testMail": {
       "subject": "haex-mail connection test {token}",

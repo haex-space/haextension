@@ -2,6 +2,7 @@
 import { Paperclip, X } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
+import { parseAddressList } from "~/lib/address";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import type { ReplyContext } from "~/stores/mail/reply";
@@ -135,13 +136,8 @@ watch(
   },
 );
 
-const parseAddresses = (input: string) => {
-  return input
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((email) => ({ email }));
-};
+/** Valid recipients of a field; a draft keeps what it can, a send refuses invalid ones. */
+const recipientsOf = (input: string) => parseAddressList(input).addresses;
 
 const resolveAccount = async (): Promise<AccountWithCredentials | null> => {
   return (
@@ -165,11 +161,16 @@ const sendAsync = async () => {
       error.value = t("errors.noSmtp");
       return;
     }
+    const invalid = [to.value, cc.value, bcc.value].flatMap((f) => parseAddressList(f).invalid);
+    if (invalid.length > 0) {
+      error.value = t("errors.invalidAddress", { addresses: invalid.join(", ") });
+      return;
+    }
     const message: OutgoingMessage = {
       from: { email: account.account.email, name: account.account.displayName },
-      to: parseAddresses(to.value),
-      cc: cc.value ? parseAddresses(cc.value) : [],
-      bcc: bcc.value ? parseAddresses(bcc.value) : [],
+      to: recipientsOf(to.value),
+      cc: recipientsOf(cc.value),
+      bcc: recipientsOf(bcc.value),
       subject: subject.value,
       bodyText: body.value || undefined,
       attachments: attachments.value.length ? attachments.value : undefined,
@@ -189,10 +190,10 @@ const sendAsync = async () => {
 /**
  * Save the current draft to the account's Drafts folder via IMAP APPEND.
  * Snapshots field values up-front so async gaps don't race with reset().
- * Best-effort — failures are logged but not surfaced to the user.
+ * Returns false, with `error` set, when the draft could not be stored.
  */
-const saveDraftAsync = async () => {
-  if (!isDirty.value) return;
+const saveDraftAsync = async (): Promise<boolean> => {
+  if (!isDirty.value) return true;
 
   // Snapshot before any async gap.
   const snap = {
@@ -207,18 +208,24 @@ const saveDraftAsync = async () => {
   isSavingDraft.value = true;
   try {
     const account = await resolveAccount();
-    if (!account) return;
+    if (!account) {
+      error.value = t("errors.noFromAccount");
+      return false;
+    }
 
     const draftsMailbox = mailStore.mailboxes.find(
       (m) => m.accountId === account.account.id && m.role === "drafts",
     );
-    if (!draftsMailbox) return;
+    if (!draftsMailbox) {
+      error.value = t("errors.noDraftsFolder");
+      return false;
+    }
 
     const message: OutgoingMessage = {
       from: { email: account.account.email, name: account.account.displayName },
-      to: snap.to ? parseAddresses(snap.to) : [],
-      cc: snap.cc ? parseAddresses(snap.cc) : [],
-      bcc: snap.bcc ? parseAddresses(snap.bcc) : [],
+      to: recipientsOf(snap.to),
+      cc: recipientsOf(snap.cc),
+      bcc: recipientsOf(snap.bcc),
       subject: snap.subject || t("noSubject"),
       bodyText: snap.body || undefined,
       attachments: snap.attachments.length ? snap.attachments : undefined,
@@ -234,18 +241,18 @@ const saveDraftAsync = async () => {
       ["\\Draft", "\\Seen"],
     );
     toast.success(t("draftSaved"));
+    return true;
   } catch (err) {
-    console.warn("[haex-mail] failed to save draft", err);
+    error.value = t("errors.draftFailed", { error: getErrorMessage(err) });
+    return false;
   } finally {
     isSavingDraft.value = false;
   }
 };
 
-/** Close and save draft if the form has content. */
+/** Close, saving a draft if the form has content; stays open if that fails. */
 const closeAsync = async () => {
-  if (isDirty.value) {
-    await saveDraftAsync();
-  }
+  if (!(await saveDraftAsync())) return;
   reset();
   open.value = false;
 };
@@ -409,6 +416,9 @@ de:
   errors:
     noFromAccount: Kein Absenderkonto gewählt.
     noSmtp: Dieses Konto hat keine SMTP-Konfiguration.
+    invalidAddress: "Keine gültige E-Mail-Adresse: {addresses}"
+    noDraftsFolder: "Kein Entwürfe-Ordner gefunden – Entwurf nicht gespeichert. Mit „Verwerfen“ schließen."
+    draftFailed: "Entwurf nicht gespeichert: {error}"
 en:
   title: New message
   close: Close
@@ -428,4 +438,7 @@ en:
   errors:
     noFromAccount: No sender account selected.
     noSmtp: This account has no SMTP configuration.
+    invalidAddress: "Not a valid email address: {addresses}"
+    noDraftsFolder: "No drafts folder found – draft not saved. Use “Discard” to close."
+    draftFailed: "Draft not saved: {error}"
 </i18n>

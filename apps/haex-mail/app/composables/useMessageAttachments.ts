@@ -1,11 +1,16 @@
 import { toast } from "vue-sonner";
 import type { AttachmentJson } from "~/database/schemas";
+import { normalizeContentId, referencedContentIds } from "~/lib/mailHtml";
 import { getErrorMessage } from "~/lib/utils";
+
+const INLINE_IMAGE_TYPE = /^image\/[\w.+-]+$/i;
 
 /** Attachments of the open message: open (inline pdf/image/txt) or download. */
 export const useMessageAttachments = () => {
   const mailStore = useMailStore();
   const haexVault = useHaexVaultStore();
+  const uiStore = useUiStore();
+  const { $i18n } = useNuxtApp();
 
   /** The list row backing the open message — needed to fetch bytes by uid. */
   const currentRow = computed(
@@ -45,6 +50,18 @@ export const useMessageAttachments = () => {
     return (ext && EXT_TO_TYPE[ext]) || att.contentType;
   };
 
+  const TYPE_TO_EXT = new Map<string, string>();
+  for (const [ext, type] of Object.entries(EXT_TO_TYPE)) {
+    if (!TYPE_TO_EXT.has(type)) TYPE_TO_EXT.set(type, ext);
+  }
+  // The host's viewer opens a file only by a known extension, so a nameless
+  // or extensionless part gets one from its type.
+  const fileNameOf = (att: AttachmentJson) => {
+    const name = att.filename ?? `attachment-${att.partIndex}`;
+    const ext = TYPE_TO_EXT.get(effectiveType(att).toLowerCase());
+    return ext && !name.includes(".") ? `${name}.${ext}` : name;
+  };
+
   // image and text render inline; pdf and everything else are handed to the
   // host to open with the system's default app (the sandboxed webview can't
   // embed them).
@@ -67,7 +84,7 @@ export const useMessageAttachments = () => {
 
   const saveAttachmentAsync = async (att: AttachmentJson, b64: string) => {
     await haexVault.client.filesystem.saveFileAsync(base64ToBytes(b64), {
-      defaultPath: att.filename ?? `attachment-${att.partIndex}`,
+      defaultPath: fileNameOf(att),
     });
   };
 
@@ -97,10 +114,11 @@ export const useMessageAttachments = () => {
       } else {
         // pdf and everything else: let the host open it with the system's
         // default application — the sandboxed webview can't embed it.
-        await haexVault.client.filesystem.openFileAsync(base64ToBytes(b64), {
-          fileName: att.filename ?? `attachment-${att.partIndex}`,
-          mimeType: type,
-        });
+        const { success } = await haexVault.client.filesystem.openFileAsync(
+          base64ToBytes(b64),
+          { fileName: fileNameOf(att), mimeType: type },
+        );
+        if (!success) toast.error($i18n.t("mail.errors.openAttachmentFailed"));
       }
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -123,6 +141,41 @@ export const useMessageAttachments = () => {
     }
   };
 
+  // `cid:` images of the open HTML body as data: URLs, keyed by content id.
+  // They are parts of the message itself, fetched from the user's own server.
+  const inlineImages = shallowRef<ReadonlyMap<string, string>>(new Map());
+  watch(
+    () => [mailStore.messageBody, uiStore.mailFormat] as const,
+    async ([body, format]) => {
+      inlineImages.value = new Map();
+      const row = currentRow.value;
+      if (!body?.bodyHtml || format !== "html" || !row) return;
+      const wanted = referencedContentIds(body.bodyHtml);
+      const parts = body.attachments.filter(
+        (a) =>
+          a.contentId &&
+          wanted.has(normalizeContentId(a.contentId)) &&
+          INLINE_IMAGE_TYPE.test(a.contentType),
+      );
+      if (parts.length === 0) return;
+      const images = new Map<string, string>();
+      await Promise.all(
+        parts.map(async (a) => {
+          try {
+            const b64 = await mailStore.fetchAttachmentBase64Async(row, a.partIndex);
+            images.set(normalizeContentId(a.contentId!), `data:${a.contentType};base64,${b64}`);
+          } catch (err) {
+            // The image stays broken; the rest of the body is unaffected.
+            console.warn("[haex-mail] failed to load inline image", err);
+          }
+        }),
+      );
+      if (mailStore.messageBody !== body) return;
+      inlineImages.value = images;
+    },
+    { immediate: true },
+  );
+
   // Dialog open-state binding: the primitive drives close via Escape,
   // outside-click and its built-in close button — all route through here.
   const onViewerOpenChange = (open: boolean) => {
@@ -132,6 +185,7 @@ export const useMessageAttachments = () => {
   return {
     viewer,
     busyPart,
+    inlineImages,
     closeViewer,
     effectiveType,
     openAttachmentAsync,

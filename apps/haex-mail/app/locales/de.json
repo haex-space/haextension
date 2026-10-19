@@ -10,7 +10,10 @@
     },
     "errors": {
       "credentials": "Zugangsdaten konnten nicht geladen werden",
-      "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden"
+      "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden",
+      "alreadyInTrash": "Diese Nachrichten sind schon im Papierkorb. Endgültiges Löschen wird nicht unterstützt.",
+      "alreadyArchived": "Diese Nachrichten sind schon im Archiv.",
+      "openAttachmentFailed": "Keine App zum Öffnen des Anhangs gefunden – er lässt sich über den Download-Knopf speichern."
     },
     "quoteHeader": "Am {date} schrieb {sender}:",
     "forwardAttachmentsFailed": "{count} Anhang/Anhänge konnten nicht geladen werden und fehlen in der Weiterleitung.",
@@ -24,7 +27,8 @@
     "errors": {
       "accountNotFound": "Konto nicht gefunden",
       "passwordMissing": "Passwort fehlt",
-      "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden"
+      "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden",
+      "importInvalid": "Port oder Verschlüsselung dieses Tresor-Eintrags sind ungültig, er kann nicht importiert werden"
     },
     "testMail": {
       "subject": "haex-mail Verbindungstest {token}",

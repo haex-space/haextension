@@ -11,10 +11,6 @@
       { "target": "*", "operation": "send" },
       { "target": "*", "operation": "poll" }
     ],
-    "filesystem": [
-      { "target": "*", "operation": "readWrite" }
-    ],
-    "shell": [],
     "http": [
       { "target": "*" }
     ]

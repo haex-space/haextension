@@ -1,5 +1,6 @@
+import { toast } from "vue-sonner";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
 
 /**
@@ -17,6 +18,17 @@ export const useMailPageLoader = () => {
   const unifiedAccounts = shallowRef<AccountWithCredentials[]>([]);
   const initError = ref<string | null>(null);
 
+  // Loads driven by selection watchers and refresh buttons have no caller
+  // that could report a failure (wrong password, unreachable server).
+  const reportFailuresAsync = async (load: () => Promise<void>) => {
+    try {
+      await load();
+    } catch (err) {
+      console.warn("[haex-mail] loading mail failed", err);
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   onMounted(async () => {
     try {
       await haexVault.initializeAsync();
@@ -25,19 +37,27 @@ export const useMailPageLoader = () => {
       console.error('[haex-mail] Initialization failed:', err);
       return;
     }
+    await reportFailuresAsync(() => restoreSelectionAsync());
+  });
+
+  const restoreSelectionAsync = async () => {
+    const restoredId = mailStore.selectedAccountId;
     await accountsStore.loadAccountsAsync();
     if (!accountsStore.hasAccounts) {
       showSetup.value = true;
       return;
     }
     // Restore credentials after a remount (e.g. returning from /settings) —
-    // the selectedAccountId watcher only fires on change.
-    if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) {
+    // the selectedAccountId watcher only fires on change. A selection made
+    // while the accounts loaded (the first launch defaults to the unified
+    // view) is the watcher's job; restoring it here too would load twice.
+    const id = mailStore.selectedAccountId;
+    if (!id || id !== restoredId) return;
+    if (id === ALL_ACCOUNTS_ID) {
       await initUnifiedAsync();
-    } else if (mailStore.selectedAccountId) {
-      const acc = await accountsStore.loadAccountWithCredentialsAsync(
-        mailStore.selectedAccountId,
-      );
+    } else {
+      const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
+      if (mailStore.selectedAccountId !== id) return;
       currentAccount.value = acc;
       // The selection may have changed while unmounted (e.g. account deleted
       // in settings) — refresh when the cached mailboxes belong to another one.
@@ -45,12 +65,14 @@ export const useMailPageLoader = () => {
         await refreshMailboxesAndSelectInboxAsync(acc);
       }
     }
-  });
+  };
 
   const refreshMailboxesAndSelectInboxAsync = async (
     acc: AccountWithCredentials,
   ) => {
     await mailStore.refreshMailboxesAsync(acc);
+    // Another account (or the unified view) was picked meanwhile.
+    if (mailStore.selectedAccountId !== acc.account.id) return;
     // Default to the inbox if we have one.
     const inbox = mailStore.mailboxes.find((m) => m.role === "inbox");
     if (inbox) {
@@ -69,6 +91,7 @@ export const useMailPageLoader = () => {
         accountsStore.getCredentialsCachedAsync(a.id),
       ),
     );
+    if (!mailStore.isUnifiedView) return;
     unifiedAccounts.value = creds.filter(
       (c): c is AccountWithCredentials => c !== null,
     );
@@ -90,7 +113,7 @@ export const useMailPageLoader = () => {
    */
   watch(
     () => mailStore.selectedAccountId,
-    async (id) => {
+    (id) => reportFailuresAsync(async () => {
       if (!id) {
         currentAccount.value = null;
         return;
@@ -99,31 +122,35 @@ export const useMailPageLoader = () => {
         await initUnifiedAsync();
         return;
       }
+      // Until this account's credentials are in, folder loads must not run
+      // with the previous account's.
+      currentAccount.value = null;
       const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
+      if (mailStore.selectedAccountId !== id) return;
       currentAccount.value = acc;
       if (acc) {
         await refreshMailboxesAndSelectInboxAsync(acc);
       }
-    },
+    }),
   );
 
   watch(
     () => mailStore.selectedMailboxName,
-    async (mailbox) => {
+    (mailbox) => reportFailuresAsync(async () => {
       if (!mailbox || !currentAccount.value) return;
       await mailStore.refreshMessagesAsync(currentAccount.value, mailbox);
-    },
+    }),
   );
 
   watch(
     () => mailStore.selectedRole,
-    async (role) => {
+    (role) => reportFailuresAsync(async () => {
       if (!role || !mailStore.isUnifiedView) return;
       await mailStore.refreshUnifiedAsync(role, unifiedAccounts.value);
-    },
+    }),
   );
 
-  const onRefresh = async () => {
+  const onRefresh = () => reportFailuresAsync(async () => {
     if (mailStore.isUnifiedView) {
       if (mailStore.selectedRole) {
         await mailStore.refreshUnifiedAsync(mailStore.selectedRole, unifiedAccounts.value);
@@ -133,7 +160,7 @@ export const useMailPageLoader = () => {
         await mailStore.refreshMessagesAsync(currentAccount.value, mailStore.selectedMailboxName);
       }
     }
-  };
+  });
 
   watch(
     () => mailStore.selectedMessageId,
@@ -145,10 +172,10 @@ export const useMailPageLoader = () => {
     },
   );
 
-  const onSetupComplete = async () => {
+  const onSetupComplete = () => reportFailuresAsync(async () => {
     showSetup.value = false;
     await accountsStore.loadAccountsAsync();
-  };
+  });
 
   return { showSetup, currentAccount, initError, onRefresh, onSetupComplete };
 };

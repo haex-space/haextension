@@ -13,14 +13,18 @@ export const useBulkMailActions = () => {
     await mailStore.bulkSetFlagAsync(selectedIds(), "\\Seen", add);
   };
 
+  // Nothing moved (already there, or every move failed): keep the selection
+  // so the user can act on it again.
   const archiveAsync = async () => {
-    await mailStore.bulkMoveToRoleAsync(selectedIds(), "archive");
-    selectionStore.clearSelection();
+    if ((await mailStore.bulkMoveToRoleAsync(selectedIds(), "archive")) > 0) {
+      selectionStore.clearSelection();
+    }
   };
 
   const deleteAsync = async () => {
-    await mailStore.bulkMoveToRoleAsync(selectedIds(), "trash");
-    selectionStore.clearSelection();
+    if ((await mailStore.bulkMoveToRoleAsync(selectedIds(), "trash")) > 0) {
+      selectionStore.clearSelection();
+    }
   };
 
   const moveToMailboxAsync = async (mailboxName: string) => {

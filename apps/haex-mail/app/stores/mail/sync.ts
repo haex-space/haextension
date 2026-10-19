@@ -1,13 +1,15 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "~/database/schemas";
-import { createStatusOrdering, quoteImapString } from "~/lib/imap";
-import { inferRole } from "~/lib/mail";
+import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
+import { assignRoles } from "~/lib/mailboxRoles";
+import { chunk, getErrorMessage } from "~/lib/utils";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
 import type { AccountWithCredentials } from "../accounts";
 
 interface MailSyncState {
   selectedAccountId: Ref<string | null>;
+  selectedMailboxName: Ref<string | null>;
   selectedRole: Ref<schema.MailboxRole | null>;
   isUnifiedView: ComputedRef<boolean>;
   mailboxes: Ref<schema.SelectMailbox[]>;
@@ -25,6 +27,7 @@ export const useMailSync = (state: MailSyncState) => {
   const accountsStore = useAccountsStore();
   const {
     selectedAccountId,
+    selectedMailboxName,
     selectedRole,
     isUnifiedView,
     mailboxes,
@@ -34,22 +37,32 @@ export const useMailSync = (state: MailSyncState) => {
   } = state;
 
   const statusOrdering = createStatusOrdering();
+  // Only the latest refresh may clear its loading flag — an older one can
+  // still be running after the user switched folder or account.
+  let mailboxRefreshSeq = 0;
+  let listRefreshSeq = 0;
 
   const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
     if (!haexVault.orm) return;
+    const seq = ++mailboxRefreshSeq;
     isLoadingMailboxes.value = true;
     try {
       const seq = statusOrdering.issue();
       const remote = await haexVault.client.mail.listMailboxesAsync(account.imap, {
         includeStatus: true,
       });
-      await syncMailboxesAsync(account.account.id, remote, seq);
+      await syncMailboxesAsync(account.account.id, remote, seq, { complete: true });
       await loadMailboxesAsync(account.account.id);
     } finally {
-      isLoadingMailboxes.value = false;
+      if (seq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
     }
   };
 
+  // The loaders below run at the end of IMAP round-trips; they only publish
+  // rows that still match the selection, so a slow refresh of a previous
+  // folder or account can't overwrite the current one.
+
+  /** One account's mailboxes, or every account's (unified view) without `accountId`. */
   const loadMailboxesAsync = async (accountId?: string) => {
     if (!haexVault.orm) return;
     const rows = accountId
@@ -58,14 +71,22 @@ export const useMailSync = (state: MailSyncState) => {
           .from(schema.mailboxes)
           .where(eq(schema.mailboxes.accountId, accountId))
       : await haexVault.orm.select().from(schema.mailboxes);
-    mailboxes.value = rows;
+    const isSelected = accountId
+      ? !isUnifiedView.value && selectedAccountId.value === accountId
+      : isUnifiedView.value;
+    if (isSelected) mailboxes.value = rows;
   };
 
-  /** `seq` comes from `statusOrdering.issue()`, taken before the LIST request. */
+  /**
+   * `seq` comes from `statusOrdering.issue()`, taken before the LIST request.
+   * `complete` marks an unfiltered LIST: only then are roles (re)assigned,
+   * since a role is unique among all of the account's mailboxes.
+   */
   const syncMailboxesAsync = async (
     accountId: string,
     remote: MailboxInfo[],
     seq: number,
+    { complete }: { complete: boolean },
   ) => {
     if (!haexVault.orm) return;
     const existing = await haexVault.orm
@@ -73,20 +94,35 @@ export const useMailSync = (state: MailSyncState) => {
       .from(schema.mailboxes)
       .where(eq(schema.mailboxes.accountId, accountId));
     const existingById = new Map(existing.map((m) => [m.id, m]));
+    const roles = complete ? assignRoles(remote) : null;
 
-    for (const m of remote) {
+    for (const [i, m] of remote.entries()) {
       const id = `${accountId}::${m.name}`;
-      if (!statusOrdering.claim(id, seq)) continue;
-      const values = {
+      const prev = existingById.get(id);
+      const structure = {
         delimiter: m.delimiter ?? null,
-        role: inferRole(m.name, m.flags),
-        unseen: m.unseen ?? 0,
-        exists: m.exists ?? 0,
-        uidValidity: m.uidValidity ?? null,
-        uidNext: m.uidNext ?? null,
+        role: roles ? roles[i]! : (prev?.role ?? null),
+      };
+      if (!statusOrdering.claim(id, seq)) {
+        // A later STATUS already wrote the counters; the LIST structure still applies.
+        if (prev && complete) {
+          await haexVault.orm
+            .update(schema.mailboxes)
+            .set(structure)
+            .where(eq(schema.mailboxes.id, id));
+        }
+        continue;
+      }
+      // A failed STATUS leaves these unset — keep the last known values,
+      // above all uidValidity, whose loss would disable the reset check below.
+      const values = {
+        ...structure,
+        unseen: m.unseen ?? prev?.unseen ?? 0,
+        exists: m.exists ?? prev?.exists ?? 0,
+        uidValidity: m.uidValidity ?? prev?.uidValidity ?? null,
+        uidNext: m.uidNext ?? prev?.uidNext ?? null,
       };
 
-      const prev = existingById.get(id);
       if (!prev) {
         await haexVault.orm
           .insert(schema.mailboxes)
@@ -106,6 +142,18 @@ export const useMailSync = (state: MailSyncState) => {
           .update(schema.mailboxes)
           .set(values)
           .where(eq(schema.mailboxes.id, id));
+      }
+    }
+
+    // A complete LIST names every mailbox: the rest were deleted or renamed
+    // on the server. (An empty LIST is a server hiccup — INBOX always exists.)
+    if (complete && remote.length > 0) {
+      const listed = new Set(remote.map((m) => m.name));
+      for (const gone of existing.filter((m) => !listed.has(m.name))) {
+        await invalidateMailboxCacheAsync(accountId, gone.name);
+        await haexVault.orm
+          .delete(schema.mailboxes)
+          .where(eq(schema.mailboxes.id, gone.id));
       }
     }
   };
@@ -134,7 +182,7 @@ export const useMailSync = (state: MailSyncState) => {
           })),
         );
       }
-      await syncMailboxesAsync(accountId, remote, seq);
+      await syncMailboxesAsync(accountId, remote, seq, { complete: false });
       if (isUnifiedView.value) {
         await loadMailboxesAsync();
       } else if (selectedAccountId.value === accountId) {
@@ -177,9 +225,13 @@ export const useMailSync = (state: MailSyncState) => {
     count: number = 50,
   ) => {
     if (!haexVault.orm) return;
+    const seq = ++listRefreshSeq;
     isLoadingMessages.value = true;
     try {
       await loadMessagesAsync(account.account.id, mailboxName);
+      // Detects a UIDVALIDITY reset (and drops the stale cache) before new
+      // envelopes are merged into rows keyed by UID.
+      await refreshMailboxStatusAsync(account.account.id, [mailboxName]);
       const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
         account.imap,
         mailboxName,
@@ -189,7 +241,7 @@ export const useMailSync = (state: MailSyncState) => {
       await purgeDeletedMessagesAsync(account, mailboxName, new Set(envelopes.map((e) => e.uid)));
       await loadMessagesAsync(account.account.id, mailboxName);
     } finally {
-      isLoadingMessages.value = false;
+      if (seq === listRefreshSeq) isLoadingMessages.value = false;
     }
   };
 
@@ -199,42 +251,47 @@ export const useMailSync = (state: MailSyncState) => {
     envelopes: MessageEnvelope[],
   ) => {
     if (!haexVault.orm) return;
-    for (const env of envelopes) {
-      const id = `${accountId}::${mailboxName}::${env.uid}`;
-      const threadKey = env.references[0] ?? env.inReplyTo ?? env.messageId ?? id;
-      const flags = env.flags.map((f) => f.replace(/^\\/, ""));
-
-      // Envelope fields are immutable per UID — only flags change between
-      // fetches (e.g. \Seen added by another client). Insert the row if it
-      // is new, then always update flags so they stay in sync regardless.
-      // hasAttachments rides along on that same update: rows cached before
-      // this field existed default to false and would otherwise never
-      // self-correct on a later refresh of the same UID.
+    // Envelope fields are immutable per UID — only flags change between
+    // fetches (e.g. \Seen added by another client), so an existing row only
+    // takes the new flags. hasAttachments rides along: rows cached before
+    // this field existed default to false and would otherwise never
+    // self-correct on a later refresh of the same UID.
+    // 50 rows of at most 17 values stay below SQLite's bind-parameter limit.
+    for (const batch of chunk(envelopes, 50)) {
       await haexVault.orm
         .insert(schema.messages)
-        .values({
-          id,
-          accountId,
-          mailboxName,
-          uid: env.uid,
-          threadKey,
-          flags,
-          internalDate: env.internalDate ?? null,
-          subject: env.subject ?? null,
-          fromJson: env.from,
-          toJson: env.to,
-          ccJson: env.cc,
-          messageId: env.messageId ?? null,
-          inReplyTo: env.inReplyTo ?? null,
-          references: env.references,
-          size: env.size ?? null,
-          hasAttachments: env.hasAttachments,
-        })
-        .onConflictDoNothing();
-      await haexVault.orm
-        .update(schema.messages)
-        .set({ flags, hasAttachments: env.hasAttachments })
-        .where(eq(schema.messages.id, id));
+        .values(
+          batch.map((env) => {
+            const id = `${accountId}::${mailboxName}::${env.uid}`;
+            return {
+              id,
+              accountId,
+              mailboxName,
+              uid: env.uid,
+              threadKey: env.references[0] ?? env.inReplyTo ?? env.messageId ?? id,
+              flags: env.flags.map((f) => f.replace(/^\\/, "")),
+              internalDate: env.internalDate ?? null,
+              subject: env.subject ?? null,
+              fromJson: env.from,
+              toJson: env.to,
+              ccJson: env.cc,
+              messageId: env.messageId ?? null,
+              inReplyTo: env.inReplyTo ?? null,
+              references: env.references,
+              size: env.size ?? null,
+              hasAttachments: env.hasAttachments,
+            };
+          }),
+        )
+        .onConflictDoUpdate({
+          // The vault's SQL check accepts only plain column names as conflict
+          // target; a column object renders table-qualified.
+          target: sql`${sql.identifier(schema.messages.id.name)}`,
+          set: {
+            flags: sql`excluded.${sql.identifier(schema.messages.flags.name)}`,
+            hasAttachments: sql`excluded.${sql.identifier(schema.messages.hasAttachments.name)}`,
+          },
+        });
     }
   };
 
@@ -242,7 +299,8 @@ export const useMailSync = (state: MailSyncState) => {
    * Remove cached messages that no longer exist on the server.
    * After a "latest" fetch we know which UIDs exist in that window, but older
    * cached UIDs could have been expunged from another client. We verify them
-   * via a single uidList round-trip and delete any the server doesn't return.
+   * via uidList fetches (at most MAX_UIDS_PER_FETCH each) and delete any the
+   * server doesn't return.
    */
   const purgeDeletedMessagesAsync = async (
     account: AccountWithCredentials,
@@ -263,22 +321,23 @@ export const useMailSync = (state: MailSyncState) => {
     const unverified = cached.filter((r) => !confirmedUids.has(r.uid));
     if (!unverified.length) return;
 
-    const stillPresent = await haexVault.client.mail.fetchEnvelopesAsync(
-      account.imap,
-      mailboxName,
-      { type: "uidList", uids: unverified.map((r) => r.uid) },
-    );
-    await persistEnvelopesAsync(account.account.id, mailboxName, stillPresent);
+    const presentUids = new Set<number>();
+    for (const uids of chunk(unverified.map((r) => r.uid), MAX_UIDS_PER_FETCH)) {
+      const stillPresent = await haexVault.client.mail.fetchEnvelopesAsync(
+        account.imap,
+        mailboxName,
+        { type: "uidList", uids },
+      );
+      await persistEnvelopesAsync(account.account.id, mailboxName, stillPresent);
+      for (const e of stillPresent) presentUids.add(e.uid);
+    }
 
-    const presentUids = new Set(stillPresent.map((e) => e.uid));
     const toDelete = unverified.filter((r) => !presentUids.has(r.uid)).map((r) => r.id);
     if (!toDelete.length) return;
 
     // Batch deletes to stay within SQLite's bind-parameter limit (same
     // rationale as the subquery approach in invalidateMailboxCacheAsync).
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
-      const batch = toDelete.slice(i, i + BATCH_SIZE);
+    for (const batch of chunk(toDelete, 500)) {
       await haexVault.orm
         .delete(schema.messageBodies)
         .where(inArray(schema.messageBodies.messageId, batch));
@@ -300,7 +359,13 @@ export const useMailSync = (state: MailSyncState) => {
         ),
       )
       .orderBy(desc(schema.messages.internalDate));
-    messageList.value = rows;
+    if (
+      !isUnifiedView.value &&
+      selectedAccountId.value === accountId &&
+      selectedMailboxName.value === mailboxName
+    ) {
+      messageList.value = rows;
+    }
   };
 
   /**
@@ -321,13 +386,15 @@ export const useMailSync = (state: MailSyncState) => {
       )
       .where(eq(schema.mailboxes.role, role))
       .orderBy(desc(schema.messages.internalDate));
-    messageList.value = rows.map((r) => r.message);
+    if (isUnifiedView.value && selectedRole.value === role) {
+      messageList.value = rows.map((r) => r.message);
+    }
   };
 
   /**
    * Unified refresh: for every account, sync mailboxes and fetch the
    * latest envelopes of its role mailbox. Per-account failures don't
-   * abort the others.
+   * abort the others; they are thrown together (AggregateError) at the end.
    */
   const refreshUnifiedAsync = async (
     role: schema.MailboxRole,
@@ -335,6 +402,8 @@ export const useMailSync = (state: MailSyncState) => {
     count: number = 50,
   ) => {
     if (!haexVault.orm) return;
+    const mailboxSeq = ++mailboxRefreshSeq;
+    const listSeq = ++listRefreshSeq;
     isLoadingMailboxes.value = true;
     isLoadingMessages.value = true;
     try {
@@ -347,10 +416,9 @@ export const useMailSync = (state: MailSyncState) => {
             acc.imap,
             { includeStatus: true },
           );
-          await syncMailboxesAsync(acc.account.id, remote, seq);
-          const roleName = remote.find(
-            (m) => inferRole(m.name, m.flags) === role,
-          )?.name;
+          await syncMailboxesAsync(acc.account.id, remote, seq, { complete: true });
+          const roles = assignRoles(remote);
+          const roleName = remote.find((_, i) => roles[i] === role)?.name;
           if (!roleName) return;
           const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
             acc.imap,
@@ -361,25 +429,21 @@ export const useMailSync = (state: MailSyncState) => {
           await purgeDeletedMessagesAsync(acc, roleName, new Set(envelopes.map((e) => e.uid)));
         }),
       );
-      results.forEach((r, i) => {
-        if (r.status === "rejected") {
-          console.warn(
-            "[haex-mail] unified refresh failed for account",
-            accounts[i]?.account.id,
-            r.reason,
-          );
-        }
-      });
-      // The user may have switched views while fetches were in flight.
-      if (isUnifiedView.value) {
-        await loadMailboxesAsync();
-        if (selectedRole.value === role) {
-          await loadUnifiedMessagesAsync(role);
-        }
+      await loadMailboxesAsync();
+      await loadUnifiedMessagesAsync(role);
+      // Reported after the reload, so the accounts that worked still show.
+      const failed = results.flatMap((r, i) =>
+        r.status === "rejected" ? [{ email: accounts[i]!.account.email, reason: r.reason }] : [],
+      );
+      if (failed.length > 0) {
+        throw new AggregateError(
+          failed.map((f) => f.reason),
+          failed.map((f) => `${f.email}: ${getErrorMessage(f.reason)}`).join("\n"),
+        );
       }
     } finally {
-      isLoadingMailboxes.value = false;
-      isLoadingMessages.value = false;
+      if (mailboxSeq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
+      if (listSeq === listRefreshSeq) isLoadingMessages.value = false;
     }
   };
 

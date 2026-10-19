@@ -62,12 +62,47 @@ export const htmlToText = (bodyHtml: string): string => {
 
 // External resource references we neutralise / inline. Protocol-relative
 // (`//host/…`) counts as remote too — mail clients resolve it against https.
-const REMOTE_ATTRS = ["src", "background", "poster", "xlink:href"] as const;
-// Matches both `url(...)` and a bare `@import "…"` (no `url()` wrapper); the
-// URL is in group 1 for the former, group 3 for the latter.
+const REMOTE_ATTRS = ["src", "background", "poster", "xlink:href"];
+// SVG2 resources (`<image href>`, `<use href>`) use a plain `href`; on a link
+// it is the target, which the bridge opens on click.
+const REMOTE_ATTRS_WITH_HREF = [...REMOTE_ATTRS, "href"];
+const remoteAttrsOf = (el: Element): string[] =>
+  el.localName === "a" || el.localName === "area" ? REMOTE_ATTRS : REMOTE_ATTRS_WITH_HREF;
+// Matches `url(...)` and a bare string where CSS takes a URL without the
+// `url()` wrapper — `@import "…"` and `image-set("…" 1x, "…" 2x)`. The URL is
+// in group 2 for the former, group 4 for the latter.
 const STYLE_URL_RE =
-  /url\(\s*['"]?((?:https?:)?\/\/[^'")]+)['"]?\s*\)|(?<=@import\s)(['"])((?:https?:)?\/\/[^'"]+)\2/gi;
-const styleMatchUrl = (m: RegExpMatchArray): string => (m[1] ?? m[3])!;
+  /url\(\s*(['"]?)((?:https?:)?\/\/[^'")]+)\1\s*\)|(?<=(?:@import|image-set\()\s*|,\s*)(['"])((?:https?:)?\/\/[^'"]+)\3/gi;
+
+// CSS escapes can spell `url(` or a scheme (`u\72l(`, `\68ttps:`) past the
+// pattern above. Unescaping letters, digits and URL punctuation exposes them;
+// escaped quotes stay, so strings keep their bounds.
+const unescapeCss = (css: string): string =>
+  css.replace(
+    /\\(?:([0-9a-f]{1,6})\s?|([^0-9a-f\r\n\f]))/gi,
+    (escape, hex: string | undefined, char: string | undefined) => {
+      const code = hex ? Number.parseInt(hex, 16) : undefined;
+      if (code !== undefined && code > 0x10ffff) return escape;
+      const c = code !== undefined ? String.fromCodePoint(code) : char!;
+      return /^[\w:/.]$/.test(c) ? c : escape;
+    },
+  );
+
+/** `css` with every remote reference rewritten by `replace`, or null when it
+ *  has none and stays untouched. Rewritten CSS comes back unescaped, which can
+ *  alter an escaped selector (`#\31 23`) — only CSS that loads remote content. */
+const rewriteCssUrls = (css: string, replace: (url: string) => string): string | null => {
+  let found = false;
+  const rewritten = unescapeCss(css).replace(
+    STYLE_URL_RE,
+    (_match, _q1, url1: string | undefined, _q2, url2: string | undefined) => {
+      found = true;
+      return replace((url1 ?? url2)!);
+    },
+  );
+  return found ? rewritten : null;
+};
+
 const isExternalUrl = (url: string | null | undefined): url is string =>
   !!url && /^(?:https?:)?\/\//i.test(url.trim());
 
@@ -97,8 +132,12 @@ const parseSrcset = (
 // to load URL … from origin null"); in CORS mode holzi's
 // `Access-Control-Allow-Origin: *` lets it through, as for the app's own
 // module scripts.
-const linkBridge = (): string =>
-  `<script src="${new URL("mail-bridge.js", document.baseURI).href}" crossorigin></script>`;
+const appendLinkBridge = (doc: Document) => {
+  const bridge = doc.createElement("script");
+  bridge.setAttribute("src", new URL("mail-bridge.js", document.baseURI).href);
+  bridge.setAttribute("crossorigin", "");
+  doc.body.append(bridge);
+};
 
 /** Neutralise active content before the body renders in a script-enabled
  *  iframe: strip script-bearing elements, inline event handlers and
@@ -107,7 +146,10 @@ const linkBridge = (): string =>
 const hardenDoc = (doc: Document) => {
   doc
     .querySelectorAll(
-      "script, noscript, iframe, object, embed, link, meta[http-equiv], base",
+      // `template`: DOMParser leaves its content unparsed (invisible to the
+      // passes below), the iframe turns `shadowrootmode` ones into live DOM.
+      // `plaintext`: swallows everything after it, the bridge script included.
+      "script, noscript, iframe, object, embed, link, meta[http-equiv], base, template, plaintext",
     )
     .forEach((el) => el.remove());
   doc.querySelectorAll("*").forEach((el) => {
@@ -129,60 +171,129 @@ const hardenDoc = (doc: Document) => {
   });
 };
 
-/** Wrap a body fragment for the sandboxed iframe: emails are authored for a
- *  white surface, so force `color-scheme: light` and a light background (fixes
- *  dark-text-on-dark-theme). A bridge script forwards link clicks to the host,
- *  which opens them in the system browser. */
-const wrapEmailHtml = (bodyHtml: string): string =>
-  `<!doctype html><html><head><meta charset="utf-8">` +
-  `<meta name="color-scheme" content="light">` +
-  `<style>html{color-scheme:light}` +
-  `body{margin:0;padding:12px;background:#fff;color:#111;` +
-  `font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}` +
-  `a{color:#2563eb}img{max-width:100%;height:auto}</style>` +
-  `</head><body>${bodyHtml}${linkBridge()}</body></html>`;
+const FRAME_CSS =
+  "html{color-scheme:light}" +
+  "body{margin:0;padding:12px;background:#fff;color:#111;" +
+  "font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}" +
+  "a{color:#2563eb}img{max-width:100%;height:auto}";
+
+/** Serialize the hardened mail as the sandboxed iframe's document. The whole
+ *  document is kept: the parser moves leading `<style>` blocks into `<head>`
+ *  and the sender's `<body>` carries attributes. Emails are authored for a
+ *  white surface, so `color-scheme: light` and a light background come first
+ *  (fixes dark-text-on-dark-theme) — the sender's own styles still override
+ *  them. A bridge script forwards link clicks to the host, which opens them
+ *  in the system browser. */
+const toFrameHtml = (doc: Document): string => {
+  const charset = doc.createElement("meta");
+  charset.setAttribute("charset", "utf-8");
+  const colorScheme = doc.createElement("meta");
+  colorScheme.setAttribute("name", "color-scheme");
+  colorScheme.setAttribute("content", "light");
+  const defaults = doc.createElement("style");
+  defaults.textContent = FRAME_CSS;
+  doc.head.prepend(charset, colorScheme, defaults);
+  // An author style sheet (the defaults) outranks the legacy attribute.
+  const bgcolor = doc.body.getAttribute("bgcolor");
+  if (bgcolor) {
+    doc.body.setAttribute(
+      "style",
+      `background-color:${bgcolor};${doc.body.getAttribute("style") ?? ""}`,
+    );
+  }
+  appendLinkBridge(doc);
+  return `<!doctype html>${doc.documentElement.outerHTML}`;
+};
+
+/** A content id as an attachment's `contentId` and a `cid:` URL carry it. */
+export const normalizeContentId = (id: string): string => id.trim().replace(/^<|>$/g, "");
+
+const contentIdOf = (url: string): string | null => {
+  const m = /^\s*cid:(.+)$/i.exec(url);
+  if (!m) return null;
+  try {
+    return normalizeContentId(decodeURIComponent(m[1]!));
+  } catch {
+    return normalizeContentId(m[1]!);
+  }
+};
+
+/** Content ids of the message parts a body shows as `cid:` images (RFC 2392). */
+export const referencedContentIds = (bodyHtml: string): Set<string> => {
+  const ids = new Set<string>();
+  for (const m of bodyHtml.matchAll(/\bcid:[^"'\s)>]+/gi)) {
+    const id = contentIdOf(m[0]);
+    if (id) ids.add(id);
+  }
+  return ids;
+};
+
+/** Point `cid:` images at the `data:` URLs of their message parts. */
+const showInlineImages = (doc: Document, inlineImages: ReadonlyMap<string, string>) => {
+  if (inlineImages.size === 0) return;
+  doc.querySelectorAll("img[src]").forEach((img) => {
+    const id = contentIdOf(img.getAttribute("src") ?? "");
+    const data = id === null ? undefined : inlineImages.get(id);
+    if (data) img.setAttribute("src", data);
+  });
+};
+
+const cssUrlValue = (url: string | null): string => (url === null ? "none" : `url("${url}")`);
+
+/** Apply `map` to every remote resource reference in `doc` — attributes,
+ *  srcset candidates, inline and `<style>` CSS: a URL repoints the reference,
+ *  null drops it. Returns whether there was any. */
+const rewriteRemoteRefs = (doc: Document, map: (url: string) => string | null): boolean => {
+  let found = false;
+  const mapUrl = (url: string) => {
+    found = true;
+    return map(url);
+  };
+  doc.querySelectorAll("*").forEach((el) => {
+    for (const attr of remoteAttrsOf(el)) {
+      const v = el.getAttribute(attr);
+      if (!isExternalUrl(v)) continue;
+      const next = mapUrl(v);
+      if (next === null) el.removeAttribute(attr);
+      else el.setAttribute(attr, next);
+    }
+    const srcset = el.getAttribute("srcset");
+    if (srcset && parseSrcset(srcset).some((c) => isExternalUrl(c.url))) {
+      // base64 data: URLs carry no whitespace, so a ", " join stays a valid
+      // srcset; dropped candidates are left out.
+      const rebuilt = parseSrcset(srcset)
+        .flatMap((c) => {
+          const url = isExternalUrl(c.url) ? mapUrl(c.url) : c.url;
+          if (url === null) return [];
+          return [c.descriptor ? `${url} ${c.descriptor}` : url];
+        })
+        .join(", ");
+      if (rebuilt) el.setAttribute("srcset", rebuilt);
+      else el.removeAttribute("srcset");
+    }
+    const style = el.getAttribute("style");
+    const rewritten = style && rewriteCssUrls(style, (url) => cssUrlValue(mapUrl(url)));
+    if (rewritten) el.setAttribute("style", rewritten);
+  });
+  doc.querySelectorAll("style").forEach((el) => {
+    const rewritten = rewriteCssUrls(el.textContent ?? "", (url) => cssUrlValue(mapUrl(url)));
+    if (rewritten !== null) el.textContent = rewritten;
+  });
+  return found;
+};
 
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault
  *  CSP blocks these regardless; stripping them just avoids broken-image noise. */
 export const stripExternalHtml = (
   bodyHtml: string,
+  inlineImages: ReadonlyMap<string, string> = new Map(),
 ): { html: string; hasExternal: boolean } => {
   const doc = new DOMParser().parseFromString(bodyHtml, "text/html");
   hardenDoc(doc);
-  let hasExternal = false;
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
-      if (isExternalUrl(el.getAttribute(attr))) {
-        hasExternal = true;
-        el.removeAttribute(attr);
-      }
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset && parseSrcset(srcset).some((c) => isExternalUrl(c.url))) {
-      hasExternal = true;
-      el.removeAttribute("srcset");
-    }
-    const style = el.getAttribute("style");
-    if (style) {
-      const stripped = style.replace(STYLE_URL_RE, "none");
-      if (stripped !== style) {
-        hasExternal = true;
-        el.setAttribute("style", stripped);
-      }
-    }
-  });
-  // <style> blocks (e.g. `background:url(...)` in newsletters) carry remote
-  // refs the per-element style attribute pass above never sees.
-  doc.querySelectorAll("style").forEach((el) => {
-    const css = el.textContent ?? "";
-    const stripped = css.replace(STYLE_URL_RE, "none");
-    if (stripped !== css) {
-      hasExternal = true;
-      el.textContent = stripped;
-    }
-  });
-  return { html: wrapEmailHtml(doc.body?.innerHTML ?? ""), hasExternal };
+  showInlineImages(doc, inlineImages);
+  const hasExternal = rewriteRemoteRefs(doc, () => null);
+  return { html: toFrameHtml(doc), hasExternal };
 };
 
 /** Replace remote resource references with `data:` URLs fetched through the
@@ -191,24 +302,16 @@ export const stripExternalHtml = (
 export const inlineExternalHtml = async (
   bodyHtml: string,
   toDataUrl: (url: string) => Promise<string>,
+  inlineImages: ReadonlyMap<string, string> = new Map(),
 ): Promise<string> => {
   const doc = new DOMParser().parseFromString(bodyHtml, "text/html");
   hardenDoc(doc);
+  showInlineImages(doc, inlineImages);
   const urls = new Set<string>();
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
-      const v = el.getAttribute(attr);
-      if (isExternalUrl(v)) urls.add(v);
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset)
-      for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
-    const style = el.getAttribute("style");
-    if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(styleMatchUrl(m));
-  });
-  doc.querySelectorAll("style").forEach((el) => {
-    for (const m of (el.textContent ?? "").matchAll(STYLE_URL_RE))
-      urls.add(styleMatchUrl(m));
+  // Collected on a copy: the rewrite below still needs the references.
+  rewriteRemoteRefs(doc.cloneNode(true) as Document, (url) => {
+    urls.add(url);
+    return null;
   });
 
   const resolved = new Map<string, string>();
@@ -222,50 +325,6 @@ export const inlineExternalHtml = async (
     }),
   );
 
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
-      const v = el.getAttribute(attr);
-      if (isExternalUrl(v)) {
-        if (resolved.has(v)) el.setAttribute(attr, resolved.get(v)!);
-        else el.removeAttribute(attr);
-      }
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset) {
-      // base64 data: URLs carry no whitespace, so a ", " join stays a valid
-      // srcset; candidates that failed to resolve are dropped.
-      const rebuilt = parseSrcset(srcset)
-        .map((c) => {
-          if (!isExternalUrl(c.url))
-            return c.descriptor ? `${c.url} ${c.descriptor}` : c.url;
-          const data = resolved.get(c.url);
-          if (!data) return null;
-          return c.descriptor ? `${data} ${c.descriptor}` : data;
-        })
-        .filter((c): c is string => c != null)
-        .join(", ");
-      if (rebuilt) el.setAttribute("srcset", rebuilt);
-      else el.removeAttribute("srcset");
-    }
-    const style = el.getAttribute("style");
-    if (style) {
-      el.setAttribute(
-        "style",
-        style.replace(STYLE_URL_RE, (whole, g1: string, g2: string, g3: string) => {
-          const url = g1 ?? g3;
-          return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
-        }),
-      );
-    }
-  });
-  doc.querySelectorAll("style").forEach((el) => {
-    el.textContent = (el.textContent ?? "").replace(
-      STYLE_URL_RE,
-      (whole, g1: string, g2: string, g3: string) => {
-        const url = g1 ?? g3;
-        return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
-      },
-    );
-  });
-  return wrapEmailHtml(doc.body?.innerHTML ?? "");
+  rewriteRemoteRefs(doc, (url) => resolved.get(url) ?? null);
+  return toFrameHtml(doc);
 };

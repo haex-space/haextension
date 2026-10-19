@@ -2,6 +2,7 @@
 import { ChevronRight, Download, Loader2, Reply, Trash2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
+import { formatAddressList } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
 import {
   htmlToText,
@@ -23,13 +24,6 @@ const { t, locale } = useI18n();
 const mailStore = useMailStore();
 const uiStore = useUiStore();
 const haexVault = useHaexVaultStore();
-
-const formatAddresses = (
-  addrs: { name?: string; email: string }[] | undefined,
-) => {
-  if (!addrs?.length) return "";
-  return addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
-};
 
 const formatDateLine = (ts: number | undefined) => {
   if (!ts) return "";
@@ -53,6 +47,7 @@ const primarySender = computed(() => mailStore.messageBody?.envelope.from?.[0]);
 const {
   viewer,
   busyPart,
+  inlineImages,
   closeViewer,
   effectiveType,
   openAttachmentAsync,
@@ -132,7 +127,7 @@ const isLoadingRemote = ref(false);
 
 const strippedHtml = computed(() => {
   const html = mailStore.messageBody?.bodyHtml;
-  return html ? stripExternalHtml(html) : { html: "", hasExternal: false };
+  return html ? stripExternalHtml(html, inlineImages.value) : { html: "", hasExternal: false };
 });
 
 const iframeSrcdoc = computed(() =>
@@ -155,8 +150,10 @@ const loadExternalAsync = async () => {
   if (!html || isLoadingRemote.value) return;
   isLoadingRemote.value = true;
   try {
-    const inlined = await inlineExternalHtml(html, async (url) =>
-      blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
+    const inlined = await inlineExternalHtml(
+      html,
+      async (url) => blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
+      inlineImages.value,
     );
     // The message switched mid-fetch — discard so the old body's approved
     // external content can't bleed into the newly selected message.
@@ -247,12 +244,12 @@ onBeforeUnmount(closeViewer);
           </div>
           <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm flex-1 min-w-0">
             <dt class="text-muted-foreground">{{ t("from") }}</dt>
-            <dd>{{ formatAddresses(mailStore.messageBody.envelope.from) }}</dd>
+            <dd>{{ formatAddressList(mailStore.messageBody.envelope.from) }}</dd>
             <dt class="text-muted-foreground">{{ t("to") }}</dt>
-            <dd>{{ formatAddresses(mailStore.messageBody.envelope.to) }}</dd>
+            <dd>{{ formatAddressList(mailStore.messageBody.envelope.to) }}</dd>
             <template v-if="mailStore.messageBody.envelope.cc?.length">
               <dt class="text-muted-foreground">Cc</dt>
-              <dd>{{ formatAddresses(mailStore.messageBody.envelope.cc) }}</dd>
+              <dd>{{ formatAddressList(mailStore.messageBody.envelope.cc) }}</dd>
             </template>
           </dl>
           <div class="shrink-0 text-sm text-muted-foreground text-right leading-snug">

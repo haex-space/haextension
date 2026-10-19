@@ -1,4 +1,25 @@
 import * as schema from "~/database/schemas";
+import { decodeMailboxName } from "~/lib/imap";
+import type { MailAttachment } from "@haex-space/vault-sdk";
+
+/**
+ * Pseudo-account id for the unified view across all accounts. Folder
+ * selection then works by mailbox *role* instead of name (per-account
+ * inbox/trash names differ).
+ */
+export const ALL_ACCOUNTS_ID = "__all__";
+
+/** Field the message list can be sorted by (shared: list UI + keyboard nav). */
+export type MessageSortField = "date" | "subject" | "sender" | "flagged" | "read";
+
+/** Ordered sort options for the sort dropdown (shared between desktop and mobile). */
+export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
+  { field: "date", labelKey: "sortDate" },
+  { field: "subject", labelKey: "sortSubject" },
+  { field: "sender", labelKey: "sortSender" },
+  { field: "flagged", labelKey: "sortFlagged" },
+  { field: "read", labelKey: "sortRead" },
+];
 
 /** Read/flagged state from cached IMAP flags (shared: store sort + list UI). */
 export const isMessageUnread = (msg: schema.SelectMessage) =>
@@ -6,15 +27,27 @@ export const isMessageUnread = (msg: schema.SelectMessage) =>
 export const isMessageFlagged = (msg: schema.SelectMessage) =>
   msg.flags.some((f) => f.toLowerCase().includes("flagged"));
 
+/** UI label of a mailbox: the localized inbox label, otherwise the decoded name. */
+export const mailboxDisplayName = (name: string, inboxLabel: string) =>
+  name === "INBOX" ? inboxLabel : decodeMailboxName(name);
+
 export const senderText = (msg: schema.SelectMessage) =>
   msg.fromJson[0]?.name || msg.fromJson[0]?.email || "";
 
-/**
- * Map an IMAP mailbox name + LIST flags to a standardized role used in
- * the sidebar. The IMAP RFC 6154 SPECIAL-USE flags (\Sent, \Drafts,
- * \Trash, \Junk, \Archive) are most reliable; fall back to common
- * folder names when the server doesn't advertise them.
- */
+/** "Name <email>, email, …" for headers and quotes. */
+export const formatAddressList = (addrs: schema.MailAddressJson[] | undefined) =>
+  (addrs ?? []).map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
+
+/** The attachment metadata kept in the body cache (bytes are fetched on demand). */
+export const toAttachmentJson = (a: MailAttachment): schema.AttachmentJson => ({
+  partIndex: a.partIndex,
+  filename: a.filename,
+  contentType: a.contentType,
+  size: a.size,
+  contentId: a.contentId,
+  isInline: a.isInline,
+});
+
 const ROLE_LABEL_KEYS = new Set<string>(schema.MAILBOX_ROLES);
 
 /**
@@ -23,23 +56,4 @@ const ROLE_LABEL_KEYS = new Set<string>(schema.MAILBOX_ROLES);
  */
 export function roleLabelKey(role: string | null | undefined): string | null {
   return role && ROLE_LABEL_KEYS.has(role) ? `mail.roles.${role}` : null;
-}
-
-export function inferRole(name: string, flags: string[]): schema.MailboxRole | null {
-  const flagSet = new Set(flags.map((f) => f.toLowerCase()));
-  if (flagSet.has("\\inbox") || name.toUpperCase() === "INBOX") return "inbox";
-  if (flagSet.has("\\sent")) return "sent";
-  if (flagSet.has("\\drafts")) return "drafts";
-  if (flagSet.has("\\trash")) return "trash";
-  if (flagSet.has("\\junk")) return "junk";
-  if (flagSet.has("\\archive")) return "archive";
-
-  const lower = name.toLowerCase();
-  if (lower.includes("sent") || lower.includes("gesend")) return "sent";
-  if (lower.includes("draft") || lower.includes("entwurf")) return "drafts";
-  if (lower.includes("trash") || lower.includes("papierkorb") || lower.includes("deleted"))
-    return "trash";
-  if (lower.includes("spam") || lower.includes("junk")) return "junk";
-  if (lower.includes("archiv")) return "archive";
-  return null;
 }

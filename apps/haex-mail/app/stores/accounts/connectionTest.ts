@@ -1,4 +1,4 @@
-import { inferRole } from "~/lib/mail";
+import { assignRoles } from "~/lib/mailboxRoles";
 import type * as schema from "~/database/schemas";
 import type { ConnectionSecurity, ImapConfig, SmtpConfig } from "@haex-space/vault-sdk";
 import type { Ref } from "vue";
@@ -57,8 +57,9 @@ export const useAccountConnectionTest = (accounts: Ref<schema.SelectAccount[]>) 
       password,
     };
     const boxes = await haexVault.client.mail.listMailboxesAsync(imap);
+    const roles = assignRoles(boxes);
     const nameForRole = (role: string) =>
-      boxes.find((b) => inferRole(b.name, b.flags) === role)?.name ?? null;
+      boxes.find((_, i) => roles[i] === role)?.name ?? null;
     return {
       mailboxCount: boxes.length,
       inboxName: nameForRole("inbox"),

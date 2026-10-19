@@ -48,8 +48,9 @@ export const useMailKeyboardShortcuts = (options: {
       if (mailStore.selectedMessageId && selectionStore.isSelected(mailStore.selectedMessageId)) {
         showFullscreenMessage.value = false;
       }
-      await mailStore.bulkMoveToRoleAsync(ids, "trash");
-      selectionStore.clearSelection();
+      if ((await mailStore.bulkMoveToRoleAsync(ids, "trash")) > 0) {
+        selectionStore.clearSelection();
+      }
       // Do NOT auto-open the next message — stay in list view after bulk delete.
       return;
     }

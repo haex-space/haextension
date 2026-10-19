@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Menu, Pencil, Reply, Search, Trash2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
-import { roleLabelKey } from "~/lib/mail";
+import { mailboxDisplayName, roleLabelKey } from "~/lib/mail";
 import type { ReplyContext, ReplyMode } from "~/stores/mail/reply";
 import { getErrorMessage } from "~/lib/utils";
 import type { SelectMessage } from "~/database/schemas";
@@ -43,9 +43,7 @@ const mobileTitle = computed(() => {
     return labelKey ? tRole(labelKey) : t("allAccounts");
   }
   if (mailStore.selectedMailboxName) {
-    return mailStore.selectedMailboxName === "INBOX"
-      ? tRole("mail.roles.inbox")
-      : mailStore.selectedMailboxName;
+    return mailboxDisplayName(mailStore.selectedMailboxName, tRole("mail.roles.inbox"));
   }
   return "haex-mail";
 });
