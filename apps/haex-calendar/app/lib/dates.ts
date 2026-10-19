@@ -164,3 +164,28 @@ export function eventSpan(event: { dtstart: string; dtend: string; allDay: boole
     end: addDays(parseLocalDate(inclusiveEndKey(event.dtstart, event.dtend)), 1),
   };
 }
+
+export type WeekStart = "monday" | "sunday";
+
+/** Local midnight of the first day of the week containing `date`. */
+export function startOfWeek(date: Date, weekStart: WeekStart): Date {
+  const first = weekStart === "sunday" ? 0 : 1;
+  const offset = (date.getDay() - first + 7) % 7;
+  const result = addDays(date, -offset);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+/** The 42 days (6 full weeks) the month view shows for `date`'s month. */
+export function monthGridDays(date: Date, weekStart: WeekStart): Date[] {
+  const gridStart = startOfWeek(new Date(date.getFullYear(), date.getMonth(), 1), weekStart);
+  return Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+}
+
+/**
+ * `date` moved by whole months. Starts from the 1st so that e.g. Oct 31 + 1
+ * lands in November instead of overflowing into December.
+ */
+export function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}

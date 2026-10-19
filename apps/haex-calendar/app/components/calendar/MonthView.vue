@@ -233,25 +233,13 @@ function daysBetween(dateA: Date, dateB: Date): number {
 }
 
 const weeks = computed((): WeekRow[] => {
-  const current = calendarView.currentDate;
-  const year = current.getFullYear();
-  const month = current.getMonth();
-
-  const firstDay = new Date(year, month, 1);
-  const startDay = firstDay.getDay();
-  const offset = startDay === 0 ? -6 : 1 - startDay;
-  const gridStart = new Date(year, month, 1 + offset);
+  const month = calendarView.currentDate.getMonth();
 
   const today = new Date();
   const todayKey = toDateKey(today.toISOString());
 
-  // Generate all 42 dates
-  const allDates: Date[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart);
-    d.setDate(d.getDate() + i);
-    allDates.push(d);
-  }
+  // Same 42 days the store loads events for.
+  const allDates = calendarView.monthGrid;
 
   // Separate multi-day and single-day events
   const multiDayEvents: SelectEvent[] = [];

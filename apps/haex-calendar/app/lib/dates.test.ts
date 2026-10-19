@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  addMonths,
   eventSpan,
   exclusiveEndKey,
   inclusiveEndKey,
+  monthGridDays,
   normalizeOffsetlessDateTime,
+  startOfWeek,
+  toLocalDateKey,
   zonedWallClockCandidates,
   zonedWallClockToDate,
 } from "./dates";
@@ -91,5 +95,26 @@ describe("eventSpan", () => {
   it("gives zero-length legacy all-day rows one day", () => {
     const span = eventSpan({ dtstart: "2026-03-09", dtend: "2026-03-09", allDay: true });
     expect(span.end.getDate()).toBe(10);
+  });
+});
+
+describe("calendar grid", () => {
+  it("starts weeks on the configured day", () => {
+    const wed = new Date(2026, 9, 21);
+    expect(toLocalDateKey(startOfWeek(wed, "monday"))).toBe("2026-10-19");
+    expect(toLocalDateKey(startOfWeek(wed, "sunday"))).toBe("2026-10-18");
+    expect(toLocalDateKey(startOfWeek(new Date(2026, 9, 25), "monday"))).toBe("2026-10-19");
+  });
+
+  it("covers the six weeks the month view renders", () => {
+    const days = monthGridDays(new Date(2026, 9, 15), "monday");
+    expect(days).toHaveLength(42);
+    expect(toLocalDateKey(days[0]!)).toBe("2026-09-28");
+    expect(toLocalDateKey(days[41]!)).toBe("2026-11-08");
+  });
+
+  it("moves months without overflowing short months", () => {
+    expect(toLocalDateKey(addMonths(new Date(2026, 9, 31), 1))).toBe("2026-11-01");
+    expect(toLocalDateKey(addMonths(new Date(2026, 2, 31), -1))).toBe("2026-02-01");
   });
 });
