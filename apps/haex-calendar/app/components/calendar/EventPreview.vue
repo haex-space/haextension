@@ -42,7 +42,7 @@
         <!-- Status (if not confirmed) -->
         <div v-if="event && event.status !== 'CONFIRMED'" class="flex items-center gap-2 text-sm">
           <Info class="w-4 h-4 text-muted-foreground shrink-0" />
-          <span>{{ t(`status.${event.status.toLowerCase()}`) }}</span>
+          <span>{{ te(`status.${event.status.toLowerCase()}`) ? t(`status.${event.status.toLowerCase()}`) : event.status }}</span>
         </div>
 
         <!-- Description (truncated) -->
@@ -121,7 +121,7 @@
 import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
 import { formatClock, parseEventInstant } from "~/lib/dates";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const preview = useEventPreviewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
@@ -201,6 +201,9 @@ de:
   status:
     tentative: Vorläufig
     cancelled: Abgesagt
+    needs-action: Offen
+    in-process: In Bearbeitung
+    completed: Erledigt
   deleteConfirm:
     titleEvent: Termin löschen?
     titleTask: Aufgabe löschen?
@@ -218,6 +221,9 @@ en:
   status:
     tentative: Tentative
     cancelled: Cancelled
+    needs-action: Open
+    in-process: In progress
+    completed: Completed
   deleteConfirm:
     titleEvent: Delete event?
     titleTask: Delete task?

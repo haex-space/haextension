@@ -211,6 +211,16 @@ function setDate(component: any, prop: string, value: string, allDay: boolean) {
   }
 }
 
+const TASK_STATUSES = new Set(["NEEDS-ACTION", "IN-PROCESS", "COMPLETED", "CANCELLED"]);
+const EVENT_STATUSES = new Set(["TENTATIVE", "CONFIRMED", "CANCELLED"]);
+
+/** STATUS valid for the component type (RFC 5545 §3.8.1.11). */
+function exportStatus(event: SelectEvent): string {
+  if (event.kind !== "task") return EVENT_STATUSES.has(event.status) ? event.status : "CONFIRMED";
+  if (event.completedAt) return "COMPLETED";
+  return TASK_STATUSES.has(event.status) && event.status !== "COMPLETED" ? event.status : "NEEDS-ACTION";
+}
+
 /**
  * Generate a .ics string from resolved export items. Events become VEVENT,
  * tasks become VTODO (DUE = dtstart, no DTEND). Effective RRULE, reminders
@@ -228,8 +238,9 @@ export function generateICS(items: IcalExportItem[], calendarName: string): stri
     const vcomp = new ICAL.Component(isTask ? "vtodo" : "vevent");
     vcomp.updatePropertyWithValue("uid", event.uid);
     vcomp.updatePropertyWithValue("summary", event.summary);
+    vcomp.updatePropertyWithValue("dtstamp", ICAL.Time.fromJSDate(new Date(), true));
     vcomp.updatePropertyWithValue("sequence", event.sequence);
-    vcomp.updatePropertyWithValue("status", event.status);
+    vcomp.updatePropertyWithValue("status", exportStatus(event));
 
     if (isTask) {
       setDate(vcomp, "due", event.dtstart, event.allDay);

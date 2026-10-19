@@ -174,3 +174,21 @@ describe("CATEGORIES", () => {
     expect(ics).toContain("CATEGORIES:Geburtstag,Familie");
   });
 });
+
+describe("generateICS conformance", () => {
+  it("writes a VTODO status and DTSTAMP", () => {
+    const task = { ...exportBase, kind: "task" };
+    const ics = generateICS([item(task)], "Cal");
+    expect(ics).toContain("STATUS:NEEDS-ACTION");
+    expect(ics).toMatch(/DTSTAMP:\d{8}T\d{6}Z/);
+  });
+
+  it("marks completed tasks as COMPLETED", () => {
+    const task = { ...exportBase, kind: "task", completedAt: new Date("2026-03-10T10:00:00Z") };
+    expect(generateICS([item(task)], "Cal")).toContain("STATUS:COMPLETED");
+  });
+
+  it("keeps event statuses", () => {
+    expect(generateICS([item({ ...exportBase, status: "TENTATIVE" })], "Cal")).toContain("STATUS:TENTATIVE");
+  });
+});
