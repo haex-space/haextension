@@ -25,17 +25,21 @@ export const useMailPageLoader = () => {
       console.error('[haex-mail] Initialization failed:', err);
       return;
     }
+    const restoredId = mailStore.selectedAccountId;
     await accountsStore.loadAccountsAsync();
     if (!accountsStore.hasAccounts) {
       showSetup.value = true;
       return;
     }
     // Restore credentials after a remount (e.g. returning from /settings) —
-    // the selectedAccountId watcher only fires on change.
-    if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) {
+    // the selectedAccountId watcher only fires on change. A selection made
+    // while the accounts loaded (the first launch defaults to the unified
+    // view) is the watcher's job; restoring it here too would load twice.
+    const id = mailStore.selectedAccountId;
+    if (!id || id !== restoredId) return;
+    if (id === ALL_ACCOUNTS_ID) {
       await initUnifiedAsync();
-    } else if (mailStore.selectedAccountId) {
-      const id = mailStore.selectedAccountId;
+    } else {
       const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
       if (mailStore.selectedAccountId !== id) return;
       currentAccount.value = acc;
