@@ -7,7 +7,7 @@ import {
   Code,
   Terminal as TerminalIcon,
 } from "@lucide/vue";
-import { EDITOR_THEMES, FONT_FAMILIES, type UiScale } from "~/stores/settings";
+import { EDITOR_THEMES, FONT_FAMILIES, UI_SCALES } from "~/lib/settingsOptions";
 
 const { t } = useI18n();
 const settings = useSettingsStore();
@@ -15,8 +15,6 @@ const settings = useSettingsStore();
 const emit = defineEmits<{
   close: [];
 }>();
-
-const UI_SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 
 const WORD_WRAP_OPTIONS = [
   { value: "off", label: "Off" },

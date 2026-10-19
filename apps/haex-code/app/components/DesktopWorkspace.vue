@@ -17,7 +17,7 @@ import {
   Menu,
 } from "@lucide/vue";
 import type { FileEntry } from "~/types";
-import type { UiScale } from "~/stores/settings";
+import { UI_SCALES } from "~/lib/settingsOptions";
 
 defineProps<{
   shells: { name: string; path: string }[];
@@ -46,10 +46,9 @@ const terminalStore = useTerminalStore();
 const settings = useSettingsStore();
 const gitStore = useGitStore();
 
-const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 const cycleScale = () => {
-  const idx = SCALES.indexOf(settings.uiScale as UiScale);
-  settings.uiScale = SCALES[(idx + 1) % SCALES.length] as UiScale;
+  const idx = UI_SCALES.indexOf(settings.uiScale);
+  settings.uiScale = UI_SCALES[(idx + 1) % UI_SCALES.length]!;
 };
 
 const terminalSize = ref(30);

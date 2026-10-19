@@ -1,8 +1,7 @@
 import { watchDebounced } from "@vueuse/core";
 import { eq } from "drizzle-orm";
 import { settings as settingsTable } from "~/database/schemas";
-
-export type UiScale = "compact" | "default" | "comfortable" | "spacious";
+import type { UiScale } from "~/lib/settingsOptions";
 
 interface ScaleConfig {
   fontSize: string;
@@ -42,22 +41,6 @@ const SCALE_MAP: Record<UiScale, ScaleConfig> = {
     lineHeight: "leading-relaxed",
   },
 };
-
-export const EDITOR_THEMES = [
-  { value: "vs-dark", label: "Dark (VS Code)" },
-  { value: "vs", label: "Light (VS Code)" },
-  { value: "hc-black", label: "High Contrast Dark" },
-  { value: "hc-light", label: "High Contrast Light" },
-] as const;
-
-export const FONT_FAMILIES = [
-  { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
-  { value: "'Fira Code', monospace", label: "Fira Code" },
-  { value: "'Cascadia Code', monospace", label: "Cascadia Code" },
-  { value: "'Source Code Pro', monospace", label: "Source Code Pro" },
-  { value: "'Ubuntu Mono', monospace", label: "Ubuntu Mono" },
-  { value: "monospace", label: "System Monospace" },
-] as const;
 
 export const useSettingsStore = defineStore("settings", () => {
   const haexVault = useHaexVaultStore();
