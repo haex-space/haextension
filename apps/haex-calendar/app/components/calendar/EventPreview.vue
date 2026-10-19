@@ -53,9 +53,16 @@
         <!-- URL -->
         <div v-if="event?.url" class="flex items-center gap-2 text-sm">
           <Link class="w-4 h-4 text-muted-foreground shrink-0" />
-          <a :href="event.url" target="_blank" class="text-primary hover:underline truncate">
+          <a
+            v-if="safeUrl"
+            :href="safeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary hover:underline truncate"
+          >
             {{ event.url }}
           </a>
+          <span v-else class="truncate">{{ event.url }}</span>
         </div>
       </div>
     </template>
@@ -120,6 +127,7 @@
 <script setup lang="ts">
 import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
 import { formatClock, parseEventInstant } from "~/lib/dates";
+import { safeExternalUrl } from "~/lib/url";
 
 const { t, te } = useI18n();
 const preview = useEventPreviewStore();
@@ -142,6 +150,8 @@ const event = computed(() => {
   if (!occ || occ === m.dtstart) return m;
   return eventsStore.events.find((e) => e.id === m.id && e.dtstart === occ) ?? m;
 });
+
+const safeUrl = computed(() => safeExternalUrl(event.value?.url));
 
 const calendar = computed(() => {
   if (!event.value) return null;
