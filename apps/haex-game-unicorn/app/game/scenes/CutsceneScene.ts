@@ -50,6 +50,7 @@ export class CutsceneScene extends Phaser.Scene {
     this.currentFrame = 0
     this.canAdvance = false
     this.transitioning = false
+    this.progressDots = []
   }
 
   create() {
