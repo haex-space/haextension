@@ -1,7 +1,8 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
-import { createStatusOrdering, quoteImapString } from "~/lib/imap";
+import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
 import { inferRole } from "~/lib/mail";
+import { chunk } from "~/lib/utils";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
 import type { AccountWithCredentials } from "../accounts";
@@ -242,7 +243,8 @@ export const useMailSync = (state: MailSyncState) => {
    * Remove cached messages that no longer exist on the server.
    * After a "latest" fetch we know which UIDs exist in that window, but older
    * cached UIDs could have been expunged from another client. We verify them
-   * via a single uidList round-trip and delete any the server doesn't return.
+   * via uidList fetches (at most MAX_UIDS_PER_FETCH each) and delete any the
+   * server doesn't return.
    */
   const purgeDeletedMessagesAsync = async (
     account: AccountWithCredentials,
@@ -263,22 +265,23 @@ export const useMailSync = (state: MailSyncState) => {
     const unverified = cached.filter((r) => !confirmedUids.has(r.uid));
     if (!unverified.length) return;
 
-    const stillPresent = await haexVault.client.mail.fetchEnvelopesAsync(
-      account.imap,
-      mailboxName,
-      { type: "uidList", uids: unverified.map((r) => r.uid) },
-    );
-    await persistEnvelopesAsync(account.account.id, mailboxName, stillPresent);
+    const presentUids = new Set<number>();
+    for (const uids of chunk(unverified.map((r) => r.uid), MAX_UIDS_PER_FETCH)) {
+      const stillPresent = await haexVault.client.mail.fetchEnvelopesAsync(
+        account.imap,
+        mailboxName,
+        { type: "uidList", uids },
+      );
+      await persistEnvelopesAsync(account.account.id, mailboxName, stillPresent);
+      for (const e of stillPresent) presentUids.add(e.uid);
+    }
 
-    const presentUids = new Set(stillPresent.map((e) => e.uid));
     const toDelete = unverified.filter((r) => !presentUids.has(r.uid)).map((r) => r.id);
     if (!toDelete.length) return;
 
     // Batch deletes to stay within SQLite's bind-parameter limit (same
     // rationale as the subquery approach in invalidateMailboxCacheAsync).
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
-      const batch = toDelete.slice(i, i + BATCH_SIZE);
+    for (const batch of chunk(toDelete, 500)) {
       await haexVault.orm
         .delete(schema.messageBodies)
         .where(inArray(schema.messageBodies.messageId, batch));

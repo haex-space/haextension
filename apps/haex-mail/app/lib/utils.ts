@@ -17,3 +17,10 @@ export function getErrorMessage(err: unknown): string {
   }
   return String(err);
 }
+
+/** Consecutive slices of `items`, each at most `size` long. */
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  const slices: T[][] = [];
+  for (let i = 0; i < items.length; i += size) slices.push(items.slice(i, i + size));
+  return slices;
+}

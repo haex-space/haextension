@@ -25,3 +25,6 @@ export const createStatusOrdering = () => {
     },
   };
 };
+
+/** The most UIDs the vault accepts in one `uidList` envelope fetch. */
+export const MAX_UIDS_PER_FETCH = 1000;
