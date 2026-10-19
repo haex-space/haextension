@@ -3,6 +3,9 @@
   "version": "0.1.17",
   "type": "module",
   "private": true,
+  "haextension": {
+    "archived": true
+  },
   "scripts": {
     "build": "nuxt build --preset static",
     "dev": "nuxt dev",
