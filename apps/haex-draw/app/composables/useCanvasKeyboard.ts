@@ -1,5 +1,14 @@
 import { useEventListener } from "@vueuse/core";
 
+/** Key events typed into form fields belong to the field, not to the canvas shortcuts. */
+function isTypingTarget(e: KeyboardEvent): boolean {
+  const target = e.composedPath()[0];
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+    || (target instanceof HTMLElement && target.isContentEditable);
+}
+
 /**
  * Keyboard shortcuts for the canvas: tool switching, undo/redo, stencil
  * clipboard/selection, plus the held-modifier state (space = pan, shift = constrain).
@@ -15,6 +24,7 @@ export function useCanvasKeyboard(state: {
   const { spaceHeld, shiftHeld, constrainAngle, constrainOrigin } = state;
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (isTypingTarget(e)) return;
     if (e.code === "Space") {
       e.preventDefault();
       spaceHeld.value = true;
