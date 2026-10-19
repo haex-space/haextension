@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { assertCaldavStatus, parseMultistatus } from "./caldav";
+import { assertCaldavStatus, escapeXml, normalizeHref, parseMultistatus, resourceHref } from "./caldav";
 
 const MULTISTATUS = `<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:">
@@ -42,5 +42,35 @@ describe("assertCaldavStatus", () => {
   it("throws on auth and server errors", () => {
     expect(() => assertCaldavStatus(401, "Unauthorized", "REPORT")).toThrow(/401/);
     expect(() => assertCaldavStatus(503, "Service Unavailable", "PROPFIND")).toThrow(/503/);
+  });
+});
+
+describe("resourceHref", () => {
+  it("encodes the UID as a single path segment", () => {
+    expect(resourceHref("/dav/cal/", "a b/c")).toBe("/dav/cal/a%20b%2Fc.ics");
+  });
+
+  it("keeps the href of default UIDs unchanged", () => {
+    expect(resourceHref("/dav/cal/", "123@haex-calendar")).toBe("/dav/cal/123@haex-calendar.ics");
+  });
+
+  it("adds the missing collection slash", () => {
+    expect(resourceHref("/dav/cal", "id")).toBe("/dav/cal/id.ics");
+  });
+});
+
+describe("normalizeHref", () => {
+  it("treats encoded and plain hrefs as the same resource", () => {
+    expect(normalizeHref("/dav/cal/a%40x.ics")).toBe(normalizeHref("/dav/cal/a@x.ics"));
+  });
+
+  it("strips the origin of absolute hrefs", () => {
+    expect(normalizeHref("https://dav.example.com/dav/cal/a.ics")).toBe("/dav/cal/a.ics");
+  });
+});
+
+describe("escapeXml", () => {
+  it("escapes markup characters in hrefs", () => {
+    expect(escapeXml("/cal/a&b<c>.ics")).toBe("/cal/a&amp;b&lt;c&gt;.ics");
   });
 });

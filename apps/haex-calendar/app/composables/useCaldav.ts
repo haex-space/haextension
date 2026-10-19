@@ -1,6 +1,7 @@
 import {
   assertCaldavStatus,
   buildAuthHeaders,
+  escapeXml,
   parseMultistatus,
   resolveUrl,
   type CaldavCalendarInfo,
@@ -203,7 +204,7 @@ export function useCaldav() {
     if (hrefs.length === 0) return []
 
     const fullUrl = resolveUrl(caldavPath, serverUrl)
-    const hrefElements = hrefs.map((h) => `  <d:href>${h}</d:href>`).join("\n")
+    const hrefElements = hrefs.map((h) => `  <d:href>${escapeXml(h)}</d:href>`).join("\n")
 
     const multigetBody = `<?xml version="1.0" encoding="UTF-8"?>
   <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -227,10 +228,15 @@ export function useCaldav() {
       }))
   }
 
+  /**
+   * Create or update a resource. `etag` null with `create` false is an
+   * update of a resource whose ETag the server never reported.
+   */
   async function putEventAsync(
     href: string,
     icsData: string,
     etag: string | null,
+    create: boolean,
     username: string,
     password: string,
     serverUrl: string,
@@ -244,6 +250,8 @@ export function useCaldav() {
 
     if (etag) {
       headers["If-Match"] = `"${etag.replace(/"/g, "")}"`
+    } else if (create) {
+      headers["If-None-Match"] = "*"
     }
 
     const response = await haexVault.client.web.fetchAsync(fullUrl, {
@@ -260,26 +268,27 @@ export function useCaldav() {
     return newEtag
   }
 
+  /** Delete a resource; an already missing resource counts as deleted. */
   async function deleteEventAsync(
     href: string,
-    etag: string,
+    etag: string | null,
     username: string,
     password: string,
     serverUrl: string,
   ): Promise<void> {
     const fullUrl = resolveUrl(href, serverUrl)
 
-    const headers: Record<string, string> = {
-      ...buildAuthHeaders(username, password),
-      "If-Match": `"${etag.replace(/"/g, "")}"`,
-    }
+    // Servers may omit the ETag on PUT; deleting without If-Match is then the
+    // only way to remove the resource instead of letting it come back on sync.
+    const headers: Record<string, string> = buildAuthHeaders(username, password)
+    if (etag) headers["If-Match"] = `"${etag.replace(/"/g, "")}"`
 
     const response = await haexVault.client.web.fetchAsync(fullUrl, {
       method: "DELETE",
       headers,
     })
 
-    if (response.status >= 400) {
+    if (response.status >= 400 && response.status !== 404) {
       throw new Error(`DELETE failed: ${response.status} ${response.statusText}`)
     }
   }

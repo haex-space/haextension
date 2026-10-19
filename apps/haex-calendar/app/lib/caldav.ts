@@ -22,6 +22,38 @@ export function buildAuthHeaders(username: string, password: string): Record<str
   return { Authorization: "Basic " + btoa(username + ":" + password) }
 }
 
+/**
+ * Href for a new resource named after the UID inside a calendar collection.
+ * "@" and ":" are valid in a path segment and stay readable, which keeps the
+ * hrefs of existing `<uuid>@haex-calendar` resources unchanged.
+ */
+export function resourceHref(collectionPath: string, uid: string): string {
+  const base = collectionPath.endsWith("/") ? collectionPath : `${collectionPath}/`
+  const segment = encodeURIComponent(uid).replace(/%40/g, "@").replace(/%3A/gi, ":")
+  return `${base}${segment}.ics`
+}
+
+/**
+ * Comparable form of a server href: servers differ in percent-encoding and
+ * may answer with absolute URLs for resources we stored as paths.
+ */
+export function normalizeHref(href: string): string {
+  try {
+    return decodeURIComponent(new URL(href, "http://caldav.invalid").pathname)
+  } catch {
+    return href
+  }
+}
+
+export function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}
+
 export function resolveUrl(href: string, serverUrl: string): string {
   return new URL(href, serverUrl).href
 }

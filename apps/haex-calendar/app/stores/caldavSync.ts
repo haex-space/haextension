@@ -1,5 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
-import { calendars, events, caldavAccounts } from "~/database/schemas";
+import { calendars, events, caldavAccounts, type SelectEvent } from "~/database/schemas";
+import { normalizeHref, resourceHref } from "~/lib/caldav";
+import { getErrorMessage } from "~/lib/errors";
 import { generateICS, parseICS } from "~/lib/ical";
 
 export const useCaldavSyncStore = defineStore("caldavSync", () => {
@@ -67,14 +69,18 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
         .from(events)
         .where(eq(events.calendarId, calendarId));
 
+      const failures: string[] = [];
+
       // Build lookup maps
-      const localByHref = new Map(localEvents.filter((e) => e.href).map((e) => [e.href!, e]));
-      const serverHrefs = new Set(serverEvents.map((e) => e.href));
+      const localByHref = new Map(
+        localEvents.filter((e) => e.href).map((e) => [normalizeHref(e.href!), e]),
+      );
+      const serverHrefs = new Set(serverEvents.map((e) => normalizeHref(e.href)));
 
       // Determine which events need fetching (new or changed ETag)
       const hrefsToFetch = serverEvents
         .filter((serverEvent) => {
-          const local = localByHref.get(serverEvent.href);
+          const local = localByHref.get(normalizeHref(serverEvent.href));
           return !local || local.etag !== serverEvent.etag;
         })
         .map((e) => e.href);
@@ -89,22 +95,68 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
           account.serverUrl,
         );
 
-        // Upsert events
+        // Upsert events. One unusable resource must not block the rest of
+        // the calendar; failures are reported once the loop is done.
         for (const fetched of fetchedEvents) {
-          if (!fetched.icsData) continue;
-          const parsed = parseICS(fetched.icsData);
-          if (parsed.length === 0) continue;
-          const eventData = parsed[0]!;
+          try {
+            if (!fetched.icsData) continue;
+            const parsed = parseICS(fetched.icsData);
+            if (parsed.length === 0) continue;
+            const eventData = parsed[0]!;
 
-          const existingLocal = localByHref.get(fetched.href);
-          // kind / recurrence / type-from-CATEGORIES / completion.
-          const columns = ical.mapImportColumns(eventData);
+            const existingLocal = localByHref.get(normalizeHref(fetched.href));
+            // kind / recurrence / type-from-CATEGORIES / completion.
+            const columns = ical.mapImportColumns(eventData);
 
-          if (existingLocal) {
-            // Update existing
-            await haexVault.orm
-              .update(events)
-              .set({
+            if (existingLocal) {
+              // Update existing
+              await haexVault.orm
+                .update(events)
+                .set({
+                  summary: eventData.summary,
+                  description: eventData.description,
+                  location: eventData.location,
+                  dtstart: eventData.dtstart,
+                  dtend: eventData.dtend,
+                  allDay: eventData.allDay,
+                  timezone: eventData.timezone,
+                  status: eventData.status,
+                  sequence: eventData.sequence,
+                  url: eventData.url,
+                  color: eventData.color,
+                  // `...columns` carries the type-stripped `categories`, `rrule`,
+                  // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
+                  ...columns,
+                  etag: fetched.etag,
+                  href: fetched.href,
+                })
+                .where(eq(events.id, existingLocal.id));
+              // Only replace own reminders when the server actually sent VALARMs.
+              // Many CalDAV servers (iCloud, some Radicale configs) strip alarms
+              // on round-trip; treating an empty list as "clear local reminders"
+              // silently wipes user-set per-event reminders on every poll.
+              if (eventData.reminderOffsets.length > 0) {
+                await eventsStore.replaceEventRemindersAsync(existingLocal.id, eventData.reminderOffsets);
+              }
+            } else {
+              // UIDs are unique across all calendars. The same UID can already
+              // live elsewhere (an event moved out of this calendar, an imported
+              // copy, an invitation in two calendars); inserting it would fail.
+              const [sameUid] = await haexVault.orm
+                .select({ calendarId: events.calendarId })
+                .from(events)
+                .where(eq(events.uid, eventData.uid))
+                .limit(1);
+              if (sameUid) {
+                failures.push(`"${eventData.summary}": UID already used in another calendar`);
+                continue;
+              }
+
+              const id = crypto.randomUUID();
+              await haexVault.orm.insert(events).values({
+                id,
+                calendarId,
+                uid: eventData.uid || `${id}@haex-calendar`,
                 summary: eventData.summary,
                 description: eventData.description,
                 location: eventData.location,
@@ -121,49 +173,20 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
                 ...columns,
                 etag: fetched.etag,
                 href: fetched.href,
-              })
-              .where(eq(events.id, existingLocal.id));
-            // Only replace own reminders when the server actually sent VALARMs.
-            // Many CalDAV servers (iCloud, some Radicale configs) strip alarms
-            // on round-trip; treating an empty list as "clear local reminders"
-            // silently wipes user-set per-event reminders on every poll.
-            if (eventData.reminderOffsets.length > 0) {
-              await eventsStore.replaceEventRemindersAsync(existingLocal.id, eventData.reminderOffsets);
+              });
+              if (eventData.reminderOffsets.length > 0) {
+                await eventsStore.replaceEventRemindersAsync(id, eventData.reminderOffsets);
+              }
             }
-          } else {
-            // Insert new
-            const id = crypto.randomUUID();
-            await haexVault.orm.insert(events).values({
-              id,
-              calendarId,
-              uid: eventData.uid || `${id}@haex-calendar`,
-              summary: eventData.summary,
-              description: eventData.description,
-              location: eventData.location,
-              dtstart: eventData.dtstart,
-              dtend: eventData.dtend,
-              allDay: eventData.allDay,
-              timezone: eventData.timezone,
-              status: eventData.status,
-              sequence: eventData.sequence,
-              url: eventData.url,
-              color: eventData.color,
-              // `...columns` carries the type-stripped `categories`, `rrule`,
-              // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
-              ...columns,
-              etag: fetched.etag,
-              href: fetched.href,
-            });
-            if (eventData.reminderOffsets.length > 0) {
-              await eventsStore.replaceEventRemindersAsync(id, eventData.reminderOffsets);
-            }
+          } catch (error) {
+            failures.push(`${fetched.href}: ${getErrorMessage(error)}`);
           }
         }
       }
 
       // Delete events that no longer exist on server
       const hrefsToDelete = localEvents
-        .filter((local) => local.href && !serverHrefs.has(local.href))
+        .filter((local) => local.href && !serverHrefs.has(normalizeHref(local.href)))
         .map((local) => local.id);
 
       if (hrefsToDelete.length > 0) {
@@ -172,19 +195,22 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
           .where(inArray(events.id, hrefsToDelete));
       }
 
-      // Update calendar CTag and account lastSyncAt
-      await haexVault.orm
-        .update(calendars)
-        .set({ caldavCtag: serverCtag })
-        .where(eq(calendars.id, calendarId));
+      // Keep the old CTag while resources failed, so the next sync retries them.
+      if (failures.length > 0) {
+        syncErrors.value.set(calendarId, failures.join("\n"));
+      } else {
+        await haexVault.orm
+          .update(calendars)
+          .set({ caldavCtag: serverCtag })
+          .where(eq(calendars.id, calendarId));
+      }
 
       await haexVault.orm
         .update(caldavAccounts)
         .set({ lastSyncAt: new Date() })
         .where(eq(caldavAccounts.id, account.id));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      syncErrors.value.set(calendarId, message);
+      syncErrors.value.set(calendarId, getErrorMessage(error));
       console.warn(`[caldav-sync] Failed to sync calendar ${calendarId}:`, error);
     }
   }
@@ -250,13 +276,14 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
     const items = await ical.buildExportItemsAsync([eventRow]);
     const icsData = generateICS(items, calendarRow.name);
 
-    // Determine href — use existing or create new
-    const href = eventRow.href || `${calendarRow.caldavPath}${eventRow.uid}.ics`;
+    const create = !eventRow.href;
+    const href = eventRow.href ?? resourceHref(calendarRow.caldavPath, eventRow.uid);
 
     const newEtag = await caldav.putEventAsync(
       href,
       icsData,
       eventRow.etag,
+      create,
       account.username,
       password,
       account.serverUrl,
@@ -270,18 +297,12 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
   }
 
   /**
-   * Delete an event from its CalDAV server.
+   * Delete an event's resource from the CalDAV calendar it was synced to.
+   * Takes the row as stored before any local change, because a caller moving
+   * the event to another calendar still needs the old calendar's server.
    */
-  async function deleteRemoteEventAsync(eventId: string) {
-    if (!haexVault.orm) return;
-
-    const [eventRow] = await haexVault.orm
-      .select()
-      .from(events)
-      .where(eq(events.id, eventId))
-      .limit(1);
-
-    if (!eventRow?.href || !eventRow.etag) return;
+  async function deleteRemoteEventAsync(eventRow: SelectEvent) {
+    if (!haexVault.orm || !eventRow.href) return;
 
     const [calendarRow] = await haexVault.orm
       .select()
