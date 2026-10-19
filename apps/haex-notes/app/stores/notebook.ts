@@ -16,6 +16,7 @@ import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
+  const spaces = useSpacesStore();
 
   // Current notebook
   const currentNotebook = ref<SelectNotebook | null>(null);
@@ -369,6 +370,12 @@ export const useNotebookStore = defineStore("notebook", () => {
   const restorePageAsync = async (pageId: string) => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
+
+    // Beim Teilen eines ganzen Notizbuchs bleiben Seiten im Papierkorb außen vor;
+    // wiederhergestellt gehört die Seite wieder in den Space. Erst teilen, damit
+    // ein Fehler keine ungeteilte Seite in einem geteilten Notizbuch hinterlässt.
+    const spaceId = currentNotebook.value.spaceId;
+    if (spaceId) await spaces.sharePagesWithSpaceAsync(currentNotebook.value.id, [pageId], spaceId);
 
     // Restore: clear deletedAt, set page number to end
     const nextPageNumber = currentPages.value.length;

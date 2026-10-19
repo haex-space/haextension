@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getTableName, type SpaceAssignment, type DecryptedSpace } from "@haex-space/vault-sdk";
 import { notebooks, pages } from "~/database/schemas";
 import { collectAssetIds } from "~/lib/collectAssets";
@@ -75,7 +75,9 @@ export const useSpacesStore = defineStore("spaces", () => {
     if (nb?.spaceId && nb.spaceId !== spaceId) {
       throw new Error("Notebook is already fully shared with another space; unshare it first.");
     }
-    const nbPages = await orm.select().from(pages).where(eq(pages.notebookId, notebookId));
+    // Seiten im Papierkorb bleiben privat; restorePageAsync teilt sie beim
+    // Wiederherstellen nach.
+    const nbPages = await orm.select().from(pages).where(and(eq(pages.notebookId, notebookId), isNull(pages.deletedAt)));
 
     const assignments: SpaceAssignment[] = [
       { tableName: FULL_NOTEBOOKS_TABLE, rowPks: nbPk(notebookId), spaceId, groupId: notebookId, type: "Notebook", label: nb?.name },
