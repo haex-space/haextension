@@ -107,7 +107,7 @@ const close = () => {
         <ShadcnTabsContent value="actions" class="flex-1 overflow-hidden">
           <ShadcnScrollArea class="h-full">
             <div class="flex flex-col gap-1 p-3">
-              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil)">
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil, { title: t('export'), filterName: t('pngImage') })">
                 <Download class="size-4" /> {{ t("export") }}
               </button>
               <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
@@ -152,6 +152,7 @@ de:
   shape: Form
   shapes: Formen
   export: Als PNG exportieren
+  pngImage: PNG-Bild
   copy: Kopieren
   pin: Fixieren
   unpin: Lösen
@@ -165,6 +166,7 @@ en:
   shape: Shape
   shapes: Shapes
   export: Export as PNG
+  pngImage: PNG image
   copy: Copy
   pin: Pin
   unpin: Unpin

@@ -11,7 +11,6 @@ interface CropRect {
 
 interface AspectPreset {
   id: string;
-  label: string;
   ratio: number | null;
 }
 
@@ -52,12 +51,12 @@ const cropHoverTarget = ref<"inside" | CropEdge | null>(null);
 const HANDLE_SIZE = 12;
 
 const aspectPresets: AspectPreset[] = [
-  { id: "free", label: "Frei", ratio: null },
-  { id: "1:1", label: "1:1", ratio: 1 },
-  { id: "4:3", label: "4:3", ratio: 4 / 3 },
-  { id: "3:4", label: "3:4", ratio: 3 / 4 },
-  { id: "16:9", label: "16:9", ratio: 16 / 9 },
-  { id: "9:16", label: "9:16", ratio: 9 / 16 },
+  { id: "free", ratio: null },
+  { id: "1:1", ratio: 1 },
+  { id: "4:3", ratio: 4 / 3 },
+  { id: "3:4", ratio: 3 / 4 },
+  { id: "16:9", ratio: 16 / 9 },
+  { id: "9:16", ratio: 9 / 16 },
 ];
 
 const cursorMap: Record<string, string> = {
@@ -321,7 +320,7 @@ function applyCrop() {
             : 'bg-accent/50 text-foreground hover:bg-accent'"
           @click="cropAspectRatio = preset.ratio"
         >
-          {{ preset.label }}
+          {{ preset.ratio === null ? t("free") : preset.id }}
         </button>
       </div>
 
@@ -362,6 +361,7 @@ de:
   title: Bild zuschneiden
   description: Wähle den Bereich aus, den du behalten möchtest
   aspectRatio: Seitenverhältnis
+  free: Frei
   hint: Ziehe ein Rechteck auf dem Bild
   apply: Zuschneiden
   cancel: Abbrechen
@@ -369,6 +369,7 @@ en:
   title: Crop image
   description: Select the area you want to keep
   aspectRatio: Aspect ratio
+  free: Free
   hint: Drag a rectangle on the image
   apply: Apply crop
   cancel: Cancel

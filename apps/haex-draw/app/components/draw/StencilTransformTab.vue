@@ -144,6 +144,7 @@ en:
   rotation: Rotation
   diameter: Diameter
   size: Size
+  layer: Layer
   layerUp: Up
   layerDown: Down
   layerTop: To top

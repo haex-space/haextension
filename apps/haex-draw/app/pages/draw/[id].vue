@@ -89,8 +89,8 @@ const onExportPng = async () => {
   const buffer = await blob.arrayBuffer();
   await haexVault.client.filesystem.saveFileAsync(new Uint8Array(buffer), {
     defaultPath: `${canvas.drawingName || "drawing"}.png`,
-    title: "Export as PNG",
-    filters: [{ name: "PNG Image", extensions: ["png"] }],
+    title: t("exportPng"),
+    filters: [{ name: t("pngImage"), extensions: ["png"] }],
   });
 };
 
@@ -251,10 +251,14 @@ de:
   redo: Wiederherstellen
   history: Verlauf
   saveFailed: Zeichnung konnte nicht gespeichert werden
+  exportPng: Als PNG exportieren
+  pngImage: PNG-Bild
 en:
   title: Draw
   undo: Undo
   redo: Redo
   history: History
   saveFailed: Could not save the drawing
+  exportPng: Export as PNG
+  pngImage: PNG image
 </i18n>

@@ -53,7 +53,7 @@ const duplicateDrawing = async (id: string) => {
   const newId = crypto.randomUUID();
   await db.insert(drawingsTable).values({
     id: newId,
-    name: `${original.name} (Kopie)`,
+    name: `${original.name} ${t("copySuffix")}`,
     strokes: original.strokes,
     stencils: original.stencils,
     viewport: original.viewport,
@@ -160,10 +160,12 @@ de:
   createFirst: Erstelle deine erste Zeichnung
   confirmDelete: Diese Zeichnung wirklich löschen?
   delete: Löschen
+  copySuffix: (Kopie)
 en:
   newDrawing: New Drawing
   emptyState: No drawings yet
   createFirst: Create your first drawing
   confirmDelete: Really delete this drawing?
   delete: Delete
+  copySuffix: (copy)
 </i18n>

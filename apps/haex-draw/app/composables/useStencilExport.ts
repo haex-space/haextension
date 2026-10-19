@@ -12,7 +12,7 @@ export function useStencilExport() {
   const stencilStore = useStencilStore();
   const haexVault = useHaexVaultStore();
 
-  const exportStencilAsync = async (s: Stencil) => {
+  const exportStencilAsync = async (s: Stencil, dialog: { title: string; filterName: string }) => {
     const hw = s.width / 2;
     const hh = s.height / 2;
 
@@ -48,8 +48,8 @@ export function useStencilExport() {
     const buffer = await blob.arrayBuffer();
     await haexVault.client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       defaultPath: `${s.label}.png`,
-      title: "Export as PNG",
-      filters: [{ name: "PNG Image", extensions: ["png"] }],
+      title: dialog.title,
+      filters: [{ name: dialog.filterName, extensions: ["png"] }],
     });
   };
 
