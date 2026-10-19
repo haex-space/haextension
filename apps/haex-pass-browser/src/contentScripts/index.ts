@@ -8,6 +8,7 @@ import { parseItemEntries } from '~/logic/haexPassApi'
 import { DEFAULT_ALIASES, fillAllFields, isOtpField, shouldShowIconForField } from './autofill'
 import { detectInputFields, type DetectedField } from './detector'
 import { showEntryDropdown } from './entryDropdown'
+import { attachFieldIcon } from './fieldIcon'
 import { initWebAuthnBridge } from './webauthn-bridge'
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
@@ -132,111 +133,20 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     if (primaryFields.length === 0) return
 
     // Only inject on first field to avoid multiple buttons
-    const field = primaryFields[0]
-    const input = field.element
+    attachFieldIcon(primaryFields[0], { addNew: true, onClick: icon => void openCreateEntryForm(icon) })
+  }
 
-    if (!input.isConnected || input.dataset.haexInjected) return
-
-    input.dataset.haexInjected = 'true'
-    input.dataset.haexFieldId = field.id
-
-    // Create icon container with haex-pass logo and + badge
-    const iconContainer = document.createElement('div')
-    iconContainer.className = 'haex-pass-icon haex-pass-add-new'
-    iconContainer.dataset.fieldId = field.id
-
-    const logoImg = document.createElement('img')
-    logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-    logoImg.alt = 'HaexPass'
-    logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
-    iconContainer.appendChild(logoImg)
-
-    // Add a small + badge
-    const badge = document.createElement('div')
-    badge.textContent = '+'
-    badge.style.cssText = `
-      position: absolute;
-      bottom: -2px;
-      right: -2px;
-      width: 14px;
-      height: 14px;
-      background: #10b981;
-      color: white;
-      border-radius: 50%;
-      font-size: 12px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-    `
-    iconContainer.appendChild(badge)
-
-    // Position the icon inside the input - full height, square
-    const inputStyles = window.getComputedStyle(input)
-    const inputHeight = input.offsetHeight
-
-    iconContainer.style.cssText = `
-      position: absolute;
-      right: 8px;
-      top: 8px;
-      width: ${inputHeight - 16}px;
-      height: ${inputHeight - 16}px;
-      cursor: pointer;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-sizing: border-box;
-      transition: all 0.2s;
-    `
-
-    // Wrap input if needed
-    const wrapper = document.createElement('div')
-    wrapper.style.cssText = `
-      position: relative;
-      display: inline-block;
-      width: ${inputStyles.width};
-    `
-
-    input.parentNode?.insertBefore(wrapper, input)
-    wrapper.appendChild(input)
-    wrapper.appendChild(iconContainer)
-
-    // Add padding to input to make room for icon
-    input.style.paddingRight = `${inputHeight + 4}px`
-
-    // Click handler to open popup with CreateEntryForm
-    iconContainer.addEventListener('click', async (e) => {
-      if (!e.isTrusted)
-        return
-      e.preventDefault()
-      e.stopPropagation()
-
-      // Set flag in storage to show CreateEntryForm when popup opens
+  // Opens the popup on its "create entry" form
+  async function openCreateEntryForm(icon: HTMLElement) {
+    try {
       await browser.storage.local.set({ showCreateEntryForm: true })
-
-      // Request background script to open popup
-      try {
-        const response = await sendMessage('open-popup', {}, 'background')
-        if (!(response as { success: boolean }).success) {
-          showAddNewTooltip(iconContainer)
-        }
-      } catch {
-        // Fallback: show a tooltip suggesting to click the extension icon
-        showAddNewTooltip(iconContainer)
-      }
-    })
-
-    // Hover effects
-    iconContainer.addEventListener('mouseenter', () => {
-      iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
-      iconContainer.style.transform = 'scale(1.05)'
-    })
-    iconContainer.addEventListener('mouseleave', () => {
-      iconContainer.style.backgroundColor = 'transparent'
-      iconContainer.style.transform = 'scale(1)'
-    })
+      const response = await sendMessage('open-popup', {}, 'background')
+      if (!(response as { success: boolean }).success)
+        showAddNewTooltip(icon)
+    } catch {
+      // Fallback: show a tooltip suggesting to click the extension icon
+      showAddNewTooltip(icon)
+    }
   }
 
   // Show tooltip when popup can't be opened programmatically
@@ -272,84 +182,13 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
   // Inject haex-pass icons into input fields
   function injectIcons() {
-    detectedFields.forEach((field) => {
-      const input = field.element
-
-      if (!input.isConnected || input.dataset.haexInjected)
-        return
-
-      // Check if we should show icon for this field
+    for (const field of detectedFields) {
       if (!shouldShowIconForField(field, matchingEntries))
-        return
-
-      input.dataset.haexInjected = 'true'
-      input.dataset.haexFieldId = field.id
-
-      // Create icon container with haex-pass logo
-      const iconContainer = document.createElement('div')
-      iconContainer.className = 'haex-pass-icon'
-      iconContainer.dataset.fieldId = field.id
-
-      const logoImg = document.createElement('img')
-      logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-      logoImg.alt = 'HaexPass'
-      logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
-      iconContainer.appendChild(logoImg)
-
-      // Position the icon inside the input - full height, square
-      const inputStyles = window.getComputedStyle(input)
-      const inputHeight = input.offsetHeight
-
-      iconContainer.style.cssText = `
-        position: absolute;
-        right: 8px;
-        top: 8px;
-        width: ${inputHeight - 16}px;
-        height: ${inputHeight - 16}px;
-        cursor: pointer;
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        transition: all 0.2s;
-      `
-
-      // Wrap input if needed
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = `
-        position: relative;
-        display: inline-block;
-        width: ${inputStyles.width};
-      `
-
-      input.parentNode?.insertBefore(wrapper, input)
-      wrapper.appendChild(input)
-      wrapper.appendChild(iconContainer)
-
-      // Add padding to input to make room for icon
-      input.style.paddingRight = `${inputHeight + 4}px`
-
-      // Click handler to show dropdown. The icon sits in the page's DOM, so
-      // only a real user click may open it; page scripts could click it too.
-      iconContainer.addEventListener('click', (e) => {
-        if (!e.isTrusted)
-          return
-        e.preventDefault()
-        e.stopPropagation()
-        showEntryDropdown(field.id, iconContainer, matchingEntries, shadowDOM, entry => void fillEntry(entry))
+        continue
+      attachFieldIcon(field, {
+        onClick: icon => showEntryDropdown(field.id, icon, matchingEntries, shadowDOM, entry => void fillEntry(entry)),
       })
-
-      // Hover effects
-      iconContainer.addEventListener('mouseenter', () => {
-        iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
-        iconContainer.style.transform = 'scale(1.05)'
-      })
-      iconContainer.addEventListener('mouseleave', () => {
-        iconContainer.style.backgroundColor = 'transparent'
-        iconContainer.style.transform = 'scale(1)'
-      })
-    })
+    }
   }
 
   // Initial scan after DOM is ready

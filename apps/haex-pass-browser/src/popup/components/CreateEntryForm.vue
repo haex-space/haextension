@@ -3,7 +3,7 @@ import type { GetPasswordConfigResponseData } from '~/logic/haexPassApi'
 import { Check, Eye, EyeOff, Key, Loader2, X } from '@lucide/vue'
 import { useI18n } from '~/locales'
 import { MSG_CREATE_ITEM, MSG_GET_PASSWORD_CONFIG } from '~/logic/messages'
-import { generatePassword, defaultPasswordConfig } from '~/logic/passwordGenerator'
+import { defaultPasswordConfig, fromVaultPasswordConfig, generatePassword } from '~/logic/passwordGenerator'
 import PasswordGenerator from './PasswordGenerator.vue'
 
 const emit = defineEmits<{
@@ -52,17 +52,7 @@ async function generateInitialPassword() {
     }
 
     if (response.success && response.data?.config) {
-      const remoteConfig = response.data.config
-      createForm.value.password = generatePassword({
-        length: remoteConfig.length,
-        uppercase: remoteConfig.uppercase,
-        lowercase: remoteConfig.lowercase,
-        numbers: remoteConfig.numbers,
-        symbols: remoteConfig.symbols,
-        excludeChars: remoteConfig.excludeChars ?? '',
-        usePattern: remoteConfig.usePattern,
-        pattern: remoteConfig.pattern ?? '',
-      })
+      createForm.value.password = generatePassword(fromVaultPasswordConfig(response.data.config))
       showPassword.value = true // Show password so user can see the generated one
       console.log('[CreateEntryForm] Generated password with remote config')
     } else {

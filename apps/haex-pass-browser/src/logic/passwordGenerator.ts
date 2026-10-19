@@ -1,3 +1,5 @@
+import type { PasswordConfig as VaultPasswordConfig } from './haexPassApi'
+
 export interface PasswordConfig {
   length: number
   uppercase: boolean
@@ -76,6 +78,20 @@ export function generatePassword(config: PasswordConfig): string {
   return Array.from(array)
     .map(x => chars[x % chars.length])
     .join('')
+}
+
+/** The vault's generator settings, with its empty fields as empty strings. */
+export function fromVaultPasswordConfig(config: VaultPasswordConfig): PasswordConfig {
+  return {
+    length: config.length,
+    uppercase: config.uppercase,
+    lowercase: config.lowercase,
+    numbers: config.numbers,
+    symbols: config.symbols,
+    excludeChars: config.excludeChars ?? '',
+    usePattern: config.usePattern,
+    pattern: config.pattern ?? '',
+  }
 }
 
 // Default config for quick password generation
