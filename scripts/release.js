@@ -2,9 +2,10 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 
-const repoRoot = new URL('..', import.meta.url).pathname;
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const extensionName = process.argv[2];
 const versionType = process.argv[3] || 'patch';
