@@ -53,6 +53,7 @@ const primarySender = computed(() => mailStore.messageBody?.envelope.from?.[0]);
 const {
   viewer,
   busyPart,
+  inlineImages,
   closeViewer,
   effectiveType,
   openAttachmentAsync,
@@ -132,7 +133,7 @@ const isLoadingRemote = ref(false);
 
 const strippedHtml = computed(() => {
   const html = mailStore.messageBody?.bodyHtml;
-  return html ? stripExternalHtml(html) : { html: "", hasExternal: false };
+  return html ? stripExternalHtml(html, inlineImages.value) : { html: "", hasExternal: false };
 });
 
 const iframeSrcdoc = computed(() =>
@@ -155,8 +156,10 @@ const loadExternalAsync = async () => {
   if (!html || isLoadingRemote.value) return;
   isLoadingRemote.value = true;
   try {
-    const inlined = await inlineExternalHtml(html, async (url) =>
-      blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
+    const inlined = await inlineExternalHtml(
+      html,
+      async (url) => blobToDataUrl(await haexVault.client.web.fetchBlobAsync(url)),
+      inlineImages.value,
     );
     // The message switched mid-fetch — discard so the old body's approved
     // external content can't bleed into the newly selected message.

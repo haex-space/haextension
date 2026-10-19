@@ -209,14 +209,49 @@ const toFrameHtml = (doc: Document): string => {
   return `<!doctype html>${doc.documentElement.outerHTML}`;
 };
 
+/** A content id as an attachment's `contentId` and a `cid:` URL carry it. */
+export const normalizeContentId = (id: string): string => id.trim().replace(/^<|>$/g, "");
+
+const contentIdOf = (url: string): string | null => {
+  const m = /^\s*cid:(.+)$/i.exec(url);
+  if (!m) return null;
+  try {
+    return normalizeContentId(decodeURIComponent(m[1]!));
+  } catch {
+    return normalizeContentId(m[1]!);
+  }
+};
+
+/** Content ids of the message parts a body shows as `cid:` images (RFC 2392). */
+export const referencedContentIds = (bodyHtml: string): Set<string> => {
+  const ids = new Set<string>();
+  for (const m of bodyHtml.matchAll(/\bcid:[^"'\s)>]+/gi)) {
+    const id = contentIdOf(m[0]);
+    if (id) ids.add(id);
+  }
+  return ids;
+};
+
+/** Point `cid:` images at the `data:` URLs of their message parts. */
+const showInlineImages = (doc: Document, inlineImages: ReadonlyMap<string, string>) => {
+  if (inlineImages.size === 0) return;
+  doc.querySelectorAll("img[src]").forEach((img) => {
+    const id = contentIdOf(img.getAttribute("src") ?? "");
+    const data = id === null ? undefined : inlineImages.get(id);
+    if (data) img.setAttribute("src", data);
+  });
+};
+
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault
  *  CSP blocks these regardless; stripping them just avoids broken-image noise. */
 export const stripExternalHtml = (
   bodyHtml: string,
+  inlineImages: ReadonlyMap<string, string> = new Map(),
 ): { html: string; hasExternal: boolean } => {
   const doc = new DOMParser().parseFromString(bodyHtml, "text/html");
   hardenDoc(doc);
+  showInlineImages(doc, inlineImages);
   let hasExternal = false;
   doc.querySelectorAll("*").forEach((el) => {
     for (const attr of remoteAttrsOf(el)) {
@@ -255,9 +290,11 @@ export const stripExternalHtml = (
 export const inlineExternalHtml = async (
   bodyHtml: string,
   toDataUrl: (url: string) => Promise<string>,
+  inlineImages: ReadonlyMap<string, string> = new Map(),
 ): Promise<string> => {
   const doc = new DOMParser().parseFromString(bodyHtml, "text/html");
   hardenDoc(doc);
+  showInlineImages(doc, inlineImages);
   const urls = new Set<string>();
   doc.querySelectorAll("*").forEach((el) => {
     for (const attr of remoteAttrsOf(el)) {

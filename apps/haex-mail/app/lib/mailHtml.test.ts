@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { inlineExternalHtml, isWebUrl, stripExternalHtml } from "./mailHtml";
+import {
+  inlineExternalHtml,
+  isWebUrl,
+  normalizeContentId,
+  referencedContentIds,
+  stripExternalHtml,
+} from "./mailHtml";
 
 // The mail iframe can post any string as a link to open.
 describe("isWebUrl", () => {
@@ -167,5 +173,29 @@ describe("sanitizer gaps", () => {
     );
     expect(hasExternal).toBe(false);
     expect(html).toContain("http://www.w3.org/2000/svg");
+  });
+});
+
+// Inline images reference the message's own MIME parts (RFC 2392).
+describe("cid: images", () => {
+  const body = '<p><img src="cid:logo%40example.com"><img src="cid:missing@x"></p>';
+
+  it("lists the content ids a body references", () => {
+    expect([...referencedContentIds(body)]).toEqual(["logo@example.com", "missing@x"]);
+  });
+
+  it("normalizes content ids from headers", () => {
+    expect(normalizeContentId(" <logo@example.com> ")).toBe("logo@example.com");
+  });
+
+  it("shows resolved parts and leaves unknown ones alone", async () => {
+    const images = new Map([["logo@example.com", "data:image/png;base64,AAAA"]]);
+    for (const html of [
+      stripExternalHtml(body, images).html,
+      await inlineExternalHtml(body, async () => "data:,", images),
+    ]) {
+      const srcs = [...frameOf(html).querySelectorAll("img")].map((i) => i.getAttribute("src"));
+      expect(srcs).toEqual(["data:image/png;base64,AAAA", "cid:missing@x"]);
+    }
   });
 });
