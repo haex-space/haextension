@@ -229,20 +229,30 @@ function hitTestTableLines(px: number, py: number): TableHit | null {
   return null;
 }
 
+/**
+ * Zeiger, dem die laufende Geste (Strich, Tabellen-Drag, Pan) gehört. Weitere
+ * Finger oder der aufliegende Handballen dürfen sie weder ersetzen noch Punkte
+ * in den Strich schreiben.
+ */
+let gesturePointerId: number | null = null;
+
 const onPointerDown = (e: PointerEvent) => {
-  if (!overlayCanvasEl.value) return;
+  if (!overlayCanvasEl.value || gesturePointerId !== null) return;
+
+  // Middle or right click → pan
+  const isPan = e.button === 1 || e.button === 2;
+  if (!isPan && e.button !== 0) return;
+
+  gesturePointerId = e.pointerId;
   overlayCanvasEl.value.setPointerCapture(e.pointerId);
 
   const { x, y, pressure } = getPointerPos(e);
 
-  // Middle or right click → pan
-  if (e.button === 1 || e.button === 2) {
+  if (isPan) {
     isPanning.value = true;
     panStart.value = { x: x - viewport.x, y: y - viewport.y };
     return;
   }
-
-  if (e.button !== 0) return;
 
   const page = screenToPage(x, y);
 
@@ -282,6 +292,7 @@ const onPointerDown = (e: PointerEvent) => {
 
 const onPointerMove = (e: PointerEvent) => {
   if (!overlayCanvasEl.value) return;
+  if (gesturePointerId !== null && e.pointerId !== gesturePointerId) return;
   const { x, y, pressure } = getPointerPos(e);
 
   if (isPanning.value) {
@@ -325,7 +336,10 @@ const onPointerMove = (e: PointerEvent) => {
   }
 };
 
-const onPointerUp = () => {
+const onPointerUp = (e: PointerEvent) => {
+  if (e.pointerId !== gesturePointerId) return;
+  gesturePointerId = null;
+
   if (isPanning.value) {
     isPanning.value = false;
     return;
@@ -366,6 +380,8 @@ useEventListener(overlayCanvasEl, "pointerdown", onPointerDown);
 useEventListener(overlayCanvasEl, "pointermove", onPointerMove);
 useEventListener(overlayCanvasEl, "pointerup", onPointerUp);
 useEventListener(overlayCanvasEl, "pointerleave", onPointerUp);
+useEventListener(overlayCanvasEl, "pointercancel", onPointerUp);
+useEventListener(overlayCanvasEl, "lostpointercapture", onPointerUp);
 useEventListener(overlayCanvasEl, "contextmenu", (e: MouseEvent) => {
   e.preventDefault();
   // Show table context menu on right-click
