@@ -81,7 +81,9 @@ export function useCaldav() {
       throw new Error("CalDAV discovery failed: could not find current-user-principal")
     }
 
-    const principalUrl = resolveUrl(principalHref, baseServerUrl)
+    // Hrefs in a redirected CalDAV response are relative to the URL we
+    // actually addressed, not necessarily to the URL the user entered.
+    const principalUrl = resolveUrl(principalHref, baseUrl)
 
     // Step 3: Get calendar-home-set
     const homeBody = `<?xml version="1.0" encoding="UTF-8"?>
@@ -101,7 +103,7 @@ export function useCaldav() {
       throw new Error("CalDAV discovery failed: could not find calendar-home-set")
     }
 
-    const calendarHomeUrl = resolveUrl(calendarHomeHref, baseServerUrl)
+    const calendarHomeUrl = resolveUrl(calendarHomeHref, principalUrl)
 
     // Step 4: List calendars
     const listBody = `<?xml version="1.0" encoding="UTF-8"?>
@@ -127,12 +129,14 @@ export function useCaldav() {
       .map((entry) => ({
         displayName: entry.props["displayname"] ?? "Unnamed",
         color: entry.props["calendar-color"] ?? null,
-        path: entry.href,
+        // Store absolute hrefs so later syncs keep working even when the
+        // well-known endpoint redirected to another host or path.
+        path: resolveUrl(entry.href, calendarHomeUrl),
       }))
 
     return {
-      principalUrl: principalHref,
-      calendarHomeUrl: calendarHomeHref,
+      principalUrl,
+      calendarHomeUrl,
       calendars,
     }
   }
