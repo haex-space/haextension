@@ -214,6 +214,7 @@
 
 <script setup lang="ts">
 import { ArrowLeft, Cloud, Plus, RefreshCw, Trash2 } from "@lucide/vue";
+import { toast } from "vue-sonner";
 import type { DefaultEventDuration } from "~/stores/settings";
 
 const { t, locale } = useI18n();
@@ -246,6 +247,15 @@ onMounted(() => {
   caldavAccounts.loadAccountsAsync();
 });
 
+watch(
+  () => settings.lastSave,
+  (result) => {
+    if (!result) return;
+    if (result.ok) toast.success(t("saved"));
+    else toast.error(t("saveFailed"));
+  },
+);
+
 function formatSyncTime(date: Date) {
   return new Intl.DateTimeFormat(locale.value, { dateStyle: "short", timeStyle: "short" }).format(date);
 }
@@ -275,6 +285,8 @@ async function executeDelete() {
 <i18n lang="yaml">
 de:
   title: Einstellungen
+  saved: Einstellungen gespeichert
+  saveFailed: Fehler beim Speichern
   sections:
     display: Anzeige
     viewOptions: Ansichtsoptionen
@@ -320,6 +332,8 @@ de:
       confirm: Entfernen
 en:
   title: Settings
+  saved: Settings saved
+  saveFailed: Failed to save settings
   sections:
     display: Display
     viewOptions: View Options
