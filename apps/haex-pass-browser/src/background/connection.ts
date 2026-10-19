@@ -245,6 +245,7 @@ class VaultConnectionManager {
           this.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
           this.serverPublicKey = null
           this.stopPing()
+          this.rejectPendingRequests('Connection closed')
           this.notifyStateChange()
         }
 
@@ -257,6 +258,7 @@ class VaultConnectionManager {
           this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
           this.state = ExternalConnectionState.DISCONNECTED
           this.stopPing()
+          this.rejectPendingRequests('Connection failed')
           this.notifyStateChange()
           reject(new Error(this.errorMessage || 'Connection failed'))
         }
@@ -281,6 +283,15 @@ class VaultConnectionManager {
         }
       }
     }, PING_INTERVAL_MS)
+  }
+
+  /** No answer can arrive on a closed socket; fail now instead of at each request's timeout. */
+  private rejectPendingRequests(reason: string) {
+    for (const pending of this.pendingRequests.values()) {
+      clearTimeout(pending.timeout)
+      pending.reject(new Error(reason))
+    }
+    this.pendingRequests.clear()
   }
 
   private stopPing() {
@@ -527,6 +538,7 @@ class VaultConnectionManager {
 
   disconnect() {
     this.stopPing()
+    this.rejectPendingRequests('Disconnected')
     if (this.ws) {
       this.ws.close()
       this.ws = null

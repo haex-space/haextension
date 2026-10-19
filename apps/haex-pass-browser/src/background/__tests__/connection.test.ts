@@ -1,6 +1,6 @@
 import type { vaultConnection as VaultConnection } from '../connection'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { generateKeyPair } from '../crypto'
+import { exportPublicKey, generateKeyPair } from '../crypto'
 
 vi.mock('../keypairStorage', () => ({
   loadKeypair: async () => generateKeyPair(),
@@ -96,5 +96,23 @@ describe('vaultConnection.connect', () => {
     const second = connection.connect()
     ;(await nextSocket()).open()
     expect(await settled(second)).toBe('resolved')
+  })
+})
+
+describe('vaultConnection.sendRequest', () => {
+  it('rejects pending requests as soon as the socket closes', async () => {
+    const connected = connection.connect()
+    const socket = await nextSocket()
+    socket.open()
+    await connected
+    const server = await generateKeyPair()
+    socket.receive({ type: 'handshakeResponse', version: 2, serverPublicKey: await exportPublicKey(server.publicKey), authorized: true, pendingApproval: false })
+    await vi.waitFor(() => expect(connection.getState().state).toBe('paired'))
+
+    const request = connection.getItems('https://example.com', ['password'])
+    await vi.waitFor(() => expect(socket.sent.some(frame => frame.includes('"type":"request"'))).toBe(true))
+    socket.close()
+
+    expect(await settled(request)).toBe('rejected')
   })
 })
