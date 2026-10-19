@@ -38,8 +38,10 @@ interface LegacyTable {
  * stammen kann.
  */
 export interface LegacyPageRow {
-  layers?: PageLayer[] | null;
-  background?: PageBackground | null;
+  /** Ungeprüft: die Zeile kann von einem anderen Gerät oder Space-Mitglied stammen. */
+  layers?: unknown;
+  /** Ungeprüft, siehe `layers`. */
+  background?: unknown;
   width?: number | null;
   height?: number | null;
   strokes?: LegacyStroke[] | null;
@@ -125,6 +127,31 @@ function buildLegacyLayer(row: LegacyPageRow): PageLayer {
   };
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+function isElement(value: unknown): boolean {
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.type !== "string") return false;
+  // Bekannte Typen muss der Renderer zeichnen können; unbekannte stammen von
+  // einer neueren Version und werden nur durchgereicht.
+  if (value.type === "stroke") return Array.isArray(value.points);
+  if (value.type === "table") return Array.isArray(value.columnWidths) && Array.isArray(value.rowHeights);
+  return true;
+}
+
+function isPageLayers(value: unknown): value is PageLayer[] {
+  return Array.isArray(value) && value.every((layer) =>
+    isObject(layer)
+    && typeof layer.id === "string"
+    && typeof layer.visible === "boolean"
+    && Array.isArray(layer.elements)
+    && layer.elements.every(isElement));
+}
+
+function isPageBackground(value: unknown): value is PageBackground {
+  return isObject(value) && typeof value.paperColor === "string" && typeof value.template === "string";
+}
+
 /**
  * Übersetzt eine gespeicherte Seitenzeile ins Dokumentmodell.
  *
@@ -136,12 +163,19 @@ export function migratePageRow(row: LegacyPageRow): MigratedPage {
   const size = getPageSize(row.orientation ?? "portrait");
   const width = row.width ?? size.width;
   const height = row.height ?? size.height;
-  const background = row.background ?? buildLegacyBackground(row);
+  const background = isPageBackground(row.background) ? row.background : buildLegacyBackground(row);
+
+  // Kaputtes JSON nicht als leere Seite zeigen — der nächste Save würde es sonst
+  // überschreiben. Die Legacy-Spalten werden parallel gepflegt und taugen als Ersatz.
+  const storedLayers = isPageLayers(row.layers) ? row.layers : null;
+  if (row.layers != null && !storedLayers) {
+    console.warn("[haex-notes] Ignoring malformed page layers, using the legacy columns", row.layers);
+  }
 
   // Ein leeres Layer-Array ist kein "noch nicht migriert", sondern eine leergeräumte
   // Seite. Trotzdem braucht sie einen Layer, sonst kann niemand darauf zeichnen.
-  const layers = row.layers
-    ? (row.layers.length > 0 ? row.layers : [emptyLayer()])
+  const layers = storedLayers
+    ? (storedLayers.length > 0 ? storedLayers : [emptyLayer()])
     : [buildLegacyLayer(row)];
 
   return { layers, background, width, height };
