@@ -48,6 +48,12 @@ export class OverworldScene extends Phaser.Scene {
 
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['meadow-world-v2'])
+    // Phaser reuses the scene instance, so a replay must start from a clean state
+    this.touchTarget = null
+    this.clouds = []
+    this.ambientCreatures = []
+    this.lastCreatureSpawn = 0
+    this.audioInitialized = false
 
     this.seasonSystem = new SeasonSystem(this)
     this.weatherSystem = new WeatherSystem(this)
@@ -56,9 +62,9 @@ export class OverworldScene extends Phaser.Scene {
     this.createSky()
     this.createParallaxLayers()
     createGround(this, this.rng)
-    this.grassDetails.push(...createGrassDetails(this, this.rng))
-    this.trees.push(...createTrees(this, this.rng))
-    this.flowers.push(...createFlowers(this, this.rng))
+    this.grassDetails = createGrassDetails(this, this.rng)
+    this.trees = createTrees(this, this.rng)
+    this.flowers = createFlowers(this, this.rng)
     this.createBumblebeeNest()
     this.createUnicorn()
     this.createWeatherLayer()
