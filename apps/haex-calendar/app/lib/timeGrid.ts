@@ -1,4 +1,5 @@
 import type { SelectEvent } from "~/database/schemas";
+import { addDays, inclusiveEndKey, parseLocalDate, toLocalDateKey } from "~/lib/dates";
 
 export interface PositionedEvent {
   event: SelectEvent;
@@ -8,8 +9,7 @@ export interface PositionedEvent {
   width: number;    // Percentage width within the day column
 }
 
-const HOURS_IN_DAY = 24;
-const MINUTES_IN_DAY = HOURS_IN_DAY * 60;
+const MINUTES_IN_DAY = 24 * 60;
 
 /**
  * Convert a datetime string to minutes since midnight.
@@ -34,79 +34,63 @@ export function toDateKey(dtstring: string): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Last local day a timed event touches; an end at midnight belongs to the day before. */
+function lastTimedDayKey(event: SelectEvent): string {
+  const start = new Date(event.dtstart);
+  const end = new Date(event.dtend);
+  return toLocalDateKey(end > start ? new Date(end.getTime() - 1) : start);
+}
+
+/**
+ * The part of a timed event that falls on `dayKey`, in minutes since midnight.
+ * Multi-day events start at 0 on later days and end at 1440 on earlier ones.
+ */
+function segmentOnDay(event: SelectEvent, dayKey: string): { start: number; end: number } {
+  const start = toDateKey(event.dtstart) < dayKey ? 0 : toMinutesSinceMidnight(event.dtstart);
+  const end = toDateKey(event.dtend) > dayKey ? MINUTES_IN_DAY : toMinutesSinceMidnight(event.dtend);
+  return { start, end: Math.max(end, start + 15) }; // Minimum 15min display
+}
+
 /**
  * Position events in a single day column, handling overlaps.
  * Returns positioned events with top/height/left/width as percentages.
  */
-export function positionEventsInDay(dayEvents: SelectEvent[]): PositionedEvent[] {
+export function positionEventsInDay(dayEvents: SelectEvent[], dayKey: string): PositionedEvent[] {
   if (dayEvents.length === 0) return [];
 
+  const segments = dayEvents.map((event) => ({ event, ...segmentOnDay(event, dayKey) }));
   // Sort by start time, then by duration (longer first)
-  const sorted = [...dayEvents].sort((a, b) => {
-    const startDiff = toMinutesSinceMidnight(a.dtstart) - toMinutesSinceMidnight(b.dtstart);
-    if (startDiff !== 0) return startDiff;
-    // Longer events first
-    const aDuration = toMinutesSinceMidnight(a.dtend) - toMinutesSinceMidnight(a.dtstart);
-    const bDuration = toMinutesSinceMidnight(b.dtend) - toMinutesSinceMidnight(b.dtstart);
-    return bDuration - aDuration;
-  });
+  segments.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
 
   // Assign columns for overlapping events
-  const columns: { end: number; event: SelectEvent }[][] = [];
-
-  for (const event of sorted) {
-    const startMin = toMinutesSinceMidnight(event.dtstart);
-    const endMin = Math.max(toMinutesSinceMidnight(event.dtend), startMin + 15); // Minimum 15min display
-
-    let placed = false;
-    for (const col of columns) {
-      const lastInCol = col[col.length - 1];
-      if (lastInCol && lastInCol.end <= startMin) {
-        col.push({ end: endMin, event });
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      columns.push([{ end: endMin, event }]);
-    }
+  const columns: (typeof segments)[] = [];
+  for (const segment of segments) {
+    const column = columns.find((col) => col[col.length - 1]!.end <= segment.start);
+    if (column) column.push(segment);
+    else columns.push([segment]);
   }
 
   const totalColumns = columns.length;
-
-  // Build positioned events
-  const result: PositionedEvent[] = [];
-  for (let colIndex = 0; colIndex < columns.length; colIndex++) {
-    for (const { event } of columns[colIndex]!) {
-      const startMin = toMinutesSinceMidnight(event.dtstart);
-      const endMin = Math.max(toMinutesSinceMidnight(event.dtend), startMin + 15);
-
-      result.push({
-        event,
-        top: (startMin / MINUTES_IN_DAY) * 100,
-        height: ((endMin - startMin) / MINUTES_IN_DAY) * 100,
-        left: (colIndex / totalColumns) * 100,
-        width: (1 / totalColumns) * 100,
-      });
-    }
-  }
-
-  return result;
+  return columns.flatMap((column, colIndex) =>
+    column.map(({ event, start, end }) => ({
+      event,
+      top: (start / MINUTES_IN_DAY) * 100,
+      height: ((end - start) / MINUTES_IN_DAY) * 100,
+      left: (colIndex / totalColumns) * 100,
+      width: (1 / totalColumns) * 100,
+    })),
+  );
 }
 
 /**
- * Check whether a given dateKey falls within an event's span.
- * For allDay events, dtend is exclusive (CalDAV convention).
- * For timed events, checks if the date is between start and end dates inclusive.
+ * Whether an event is shown on `dateKey`. All-day ends are exclusive (CalDAV
+ * convention); a zero-length legacy all-day row still covers its start day.
  */
 export function eventSpansDate(event: SelectEvent, dateKey: string): boolean {
-  const startKey = toDateKey(event.dtstart);
-  const endKey = toDateKey(event.dtend);
   if (event.allDay) {
-    // allDay dtend is exclusive, so dateKey must be < endKey
-    return dateKey >= startKey && dateKey < endKey;
+    return dateKey >= event.dtstart.slice(0, 10) && dateKey <= inclusiveEndKey(event.dtstart, event.dtend);
   }
-  return dateKey >= startKey && dateKey <= endKey;
+  return dateKey >= toDateKey(event.dtstart) && dateKey <= lastTimedDayKey(event);
 }
 
 /**
@@ -117,25 +101,10 @@ export function groupEventsByDay(eventList: SelectEvent[]): Map<string, SelectEv
   const map = new Map<string, SelectEvent[]>();
   for (const event of eventList) {
     if (event.allDay) continue; // All-day events handled separately
-    const startKey = toDateKey(event.dtstart);
-    const endKey = toDateKey(event.dtend);
-
-    if (startKey === endKey) {
-      // Single-day event: index by start date only
-      const existing = map.get(startKey) ?? [];
-      existing.push(event);
-      map.set(startKey, existing);
-    } else {
-      // Multi-day timed event: add to each day it spans
-      const current = new Date(startKey + "T00:00:00");
-      const endDate = new Date(endKey + "T00:00:00");
-      while (current <= endDate) {
-        const key = toDateKey(current.toISOString());
-        const existing = map.get(key) ?? [];
-        existing.push(event);
-        map.set(key, existing);
-        current.setDate(current.getDate() + 1);
-      }
+    const lastKey = lastTimedDayKey(event);
+    for (let day = parseLocalDate(toDateKey(event.dtstart)); toLocalDateKey(day) <= lastKey; day = addDays(day, 1)) {
+      const key = toLocalDateKey(day);
+      map.set(key, [...(map.get(key) ?? []), event]);
     }
   }
   return map;

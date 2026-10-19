@@ -317,7 +317,7 @@ const allDayBars = computed(() => {
 
 function getPositionedEvents(dateKey: string) {
   const dayEvents = eventsByDay.value.get(dateKey) ?? [];
-  return positionEventsInDay(dayEvents);
+  return positionEventsInDay(dayEvents, dateKey);
 }
 
 function getEventColor(event: SelectEvent): string {

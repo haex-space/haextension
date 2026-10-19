@@ -178,7 +178,7 @@ const allDayEventsForDay = computed(() =>
   getAllDayEvents(eventsStore.events).filter((event) => eventSpansDate(event, currentDateKey.value))
 );
 
-const positionedEvents = computed(() => positionEventsInDay(timedEvents.value));
+const positionedEvents = computed(() => positionEventsInDay(timedEvents.value, currentDateKey.value));
 
 function getEventColor(event: SelectEvent): string {
   if (event.color) return event.color;
