@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 
 const { t, locale } = useI18n();
 const router = useRouter();
@@ -199,7 +199,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
               class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option v-for="tmpl in PAGE_TEMPLATES" :key="tmpl.id" :value="tmpl.id">
-                {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
+                {{ templateLabel(tmpl.id, locale) }}
               </option>
             </select>
           </div>

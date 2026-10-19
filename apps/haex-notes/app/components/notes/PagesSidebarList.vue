@@ -2,22 +2,13 @@
 import { makeDroppable } from "@vue-dnd-kit/core";
 import type { IDragEvent } from "@vue-dnd-kit/core";
 import { reportError } from "~/lib/errors";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { pageTemplateLabel } from "~/utils/pageTemplates";
 import type { SelectPage } from "~/database/schemas";
 
 const { locale } = useI18n();
 const notebook = useNotebookStore();
 
 const listRef = useTemplateRef<HTMLElement>("listRef");
-
-// Prefer the migrated background.template; fall back to the legacy column so
-// pages that have never been saved under the new model still get a label.
-const getTemplateLabel = (page: SelectPage) => {
-  const template = page.background?.template ?? page.template;
-  const tmpl = PAGE_TEMPLATES.find(t => t.id === template);
-  if (!tmpl) return template;
-  return locale.value === "de" ? tmpl.i18n.de : tmpl.i18n.en;
-};
 
 function applySort(e: IDragEvent) {
   const result = e.helpers.suggestSort("vertical");
@@ -45,7 +36,7 @@ makeDroppable(listRef, {
         :items="notebook.currentPages"
         :is-active="idx === notebook.currentPageIndex"
         :can-delete="notebook.currentPages.length > 1"
-        :template-label="getTemplateLabel(page)"
+        :template-label="pageTemplateLabel(page, locale)"
         @select="notebook.goToPage(idx)"
         @delete="notebook.deletePageAsync(idx)"
       />

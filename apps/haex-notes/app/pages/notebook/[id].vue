@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate } from "~/database/schemas";
 import { reportError } from "~/lib/errors";
 import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
@@ -189,7 +189,7 @@ const addPage = async () => {
                 :class="selectedAddTemplate === tmpl.id ? 'bg-accent' : ''"
                 @click="selectedAddTemplate = tmpl.id"
               >
-                {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
+                {{ templateLabel(tmpl.id, locale) }}
               </ShadcnDropdownMenuItem>
             </ShadcnDropdownMenuContent>
           </ShadcnDropdownMenu>
