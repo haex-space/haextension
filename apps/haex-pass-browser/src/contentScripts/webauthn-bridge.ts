@@ -14,6 +14,7 @@
 
 import type { PasskeyHandler } from '~/logic/settings'
 import { sendMessage } from 'webext-bridge/content-script'
+import { rpIdMatchesOrigin } from '~/background/passkeyOrigin'
 import { getPasskeyPref, setPasskeyPref } from '~/logic/settings'
 import { requestPasskeyConsent } from './passkey-consent'
 import { parseVaultPasskeys, vaultCanAnswerGet } from './webauthn-routing'
@@ -199,10 +200,19 @@ function handleMessage(event: MessageEvent) {
   // Our own ACKs and responses come back through this listener too.
   if (message.type !== 'HAEX_PASS_WEBAUTHN_CREATE' && message.type !== 'HAEX_PASS_WEBAUTHN_GET')
     return
+  if (typeof message.requestId !== 'string' || typeof message.data?.relyingPartyId !== 'string')
+    return
 
   // Tells the inject script someone is listening; without this ack it
   // hands the request to the browser after a short wait.
   window.postMessage({ type: 'HAEX_PASS_WEBAUTHN_ACK', requestId: message.requestId }, '*')
+
+  // Page scripts can post requests here directly, so the rp id is the page's
+  // claim. A foreign one must never reach the prompt or a remembered choice.
+  if (!rpIdMatchesOrigin(message.data.relyingPartyId, location.origin)) {
+    sendResponse(message.requestId, message.type === 'HAEX_PASS_WEBAUTHN_CREATE' ? 'create' : 'get', undefined, USE_BROWSER_NATIVE)
+    return
+  }
 
   const controller = new AbortController()
   inFlight.set(message.requestId, controller)
