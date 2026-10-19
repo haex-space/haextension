@@ -1,61 +1,101 @@
 import type { KeyPair } from './crypto'
-import { exportPrivateKey, exportPublicKey, importPrivateKey, importPublicKey } from './crypto'
+import { exportPublicKey, importPrivateKey, importPublicKey } from './crypto'
 
-const STORAGE_KEY_KEYPAIR = 'haex-pass-keypair'
+// The client keypair lives in the extension origin's IndexedDB as
+// non-extractable CryptoKeys. `storage.local`, where it used to be kept as
+// PKCS#8, is readable by every content script, i.e. from each website's
+// renderer, and the vault grants this key lasting access to all passwords.
+const DB_NAME = 'haex-pass'
+const DB_VERSION = 1
+const STORE_NAME = 'keys'
+const RECORD_KEY = 'client-keypair'
 
-export async function loadKeypair(): Promise<KeyPair | null> {
-  let stored: { publicKey?: string, privateKey?: string } | undefined
+const LEGACY_STORAGE_KEY = 'haex-pass-keypair'
+
+export interface KeypairStore {
+  read: () => Promise<unknown>
+  write: (keyPair: KeyPair) => Promise<void>
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function runInStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openDatabase()
   try {
-    const result = await browser.storage.local.get(STORAGE_KEY_KEYPAIR)
-    stored = result[STORAGE_KEY_KEYPAIR] as { publicKey?: string, privateKey?: string } | undefined
-  } catch (err) {
-    console.error('[haex-pass] storage.local.get failed:', err)
-    return null
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, mode)
+      const request = run(transaction.objectStore(STORE_NAME))
+      transaction.oncomplete = () => resolve(request.result)
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+  } finally {
+    db.close()
   }
+}
 
-  if (!stored) {
-    console.log('[haex-pass] storage.local has no keypair entry')
+const indexedDbStore: KeypairStore = {
+  read: () => runInStore('readonly', store => store.get(RECORD_KEY)),
+  write: async (keyPair) => {
+    await runInStore('readwrite', store => store.put({ publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }, RECORD_KEY))
+  },
+}
+
+function isKeyPair(value: unknown): value is KeyPair {
+  const candidate = value as Partial<KeyPair> | null | undefined
+  return candidate?.publicKey instanceof CryptoKey && candidate.privateKey instanceof CryptoKey
+}
+
+/** Reads the PKCS#8 copy older versions kept in storage.local; an unusable one is deleted. */
+async function loadLegacyKeypair(): Promise<KeyPair | null> {
+  const result = await browser.storage.local.get(LEGACY_STORAGE_KEY)
+  const stored = result[LEGACY_STORAGE_KEY] as { publicKey?: unknown, privateKey?: unknown } | undefined
+  if (!stored)
     return null
-  }
-  if (!stored.publicKey || !stored.privateKey) {
-    console.warn('[haex-pass] storage.local entry is incomplete:', { hasPub: !!stored.publicKey, hasPriv: !!stored.privateKey })
-    return null
-  }
 
   try {
-    const publicKey = await importPublicKey(stored.publicKey)
-    const privateKey = await importPrivateKey(stored.privateKey)
-    return { publicKey, privateKey }
-  } catch (err) {
-    // Stored bytes are unusable (format change, corruption). Drop them so
-    // the caller generates and persists a fresh keypair instead of looping.
-    console.error('[haex-pass] Stored keypair is unusable, clearing:', err)
-    try {
-      await browser.storage.local.remove(STORAGE_KEY_KEYPAIR)
-    } catch (removeErr) {
-      console.error('[haex-pass] storage.local.remove failed:', removeErr)
+    if (typeof stored.publicKey !== 'string' || typeof stored.privateKey !== 'string')
+      throw new Error('incomplete entry')
+    return {
+      publicKey: await importPublicKey(stored.publicKey),
+      privateKey: await importPrivateKey(stored.privateKey),
     }
+  } catch (err) {
+    console.error('[haex-pass] Stored keypair is unusable, clearing:', err)
+    await browser.storage.local.remove(LEGACY_STORAGE_KEY)
     return null
   }
 }
 
-export async function saveAndVerifyKeypair(keyPair: KeyPair): Promise<void> {
-  const publicKey = await exportPublicKey(keyPair.publicKey)
-  const privateKey = await exportPrivateKey(keyPair.privateKey)
-  await browser.storage.local.set({
-    [STORAGE_KEY_KEYPAIR]: { publicKey, privateKey },
-  })
+export async function loadKeypair(store: KeypairStore = indexedDbStore): Promise<KeyPair | null> {
+  const stored = await store.read()
+  if (isKeyPair(stored))
+    return stored
 
-  // Full round-trip check: re-read from storage AND re-import as CryptoKeys.
-  // String-equality on the base64 alone wouldn't catch an export/import
-  // mismatch that would later make loadKeypair() return null on every
-  // service-worker restart.
-  const reloaded = await loadKeypair()
-  if (!reloaded) {
-    throw new Error('keypair save verification failed — storage.local does not return what we wrote')
-  }
-  const reloadedPublic = await exportPublicKey(reloaded.publicKey)
-  if (reloadedPublic !== publicKey) {
-    throw new Error('keypair save verification failed — re-imported public key differs from saved one')
-  }
+  const legacy = await loadLegacyKeypair()
+  if (!legacy)
+    return null
+  // Same keypair, so the clientId and the vault's authorization carry over.
+  await saveAndVerifyKeypair(legacy, store)
+  await browser.storage.local.remove(LEGACY_STORAGE_KEY)
+  return legacy
+}
+
+export async function saveAndVerifyKeypair(keyPair: KeyPair, store: KeypairStore = indexedDbStore): Promise<void> {
+  await store.write(keyPair)
+
+  // Round-trip check, so a store that silently drops the keys aborts init
+  // instead of minting a new clientId on every service-worker restart.
+  const reloaded = await store.read()
+  if (!isKeyPair(reloaded))
+    throw new Error('keypair save verification failed — the key store does not return what we wrote')
+  if (await exportPublicKey(reloaded.publicKey) !== await exportPublicKey(keyPair.publicKey))
+    throw new Error('keypair save verification failed — the stored public key differs from the saved one')
 }

@@ -20,11 +20,6 @@ export interface KeyPair {
   privateKey: CryptoKey
 }
 
-export interface ExportedKeyPair {
-  publicKey: string // Base64 raw 32 bytes
-  privateKey: string // Base64 PKCS#8 DER
-}
-
 export interface EncryptedMessage {
   action: string
   message: string // Base64 encrypted payload
@@ -34,12 +29,13 @@ export interface EncryptedMessage {
 }
 
 /**
- * Generate a new X25519 keypair for key exchange.
+ * Generate a new X25519 keypair for key exchange. The private key is not
+ * extractable; the public key always is.
  */
 export async function generateKeyPair(): Promise<KeyPair> {
   const keyPair = await crypto.subtle.generateKey(
     { name: KEX_ALGORITHM },
-    true, // extractable so we can persist it
+    false,
     ['deriveBits'],
   ) as CryptoKeyPair
   return {
@@ -72,16 +68,7 @@ export async function importPublicKey(base64Key: string): Promise<CryptoKey> {
 }
 
 /**
- * Export a private key as PKCS#8 (base64). X25519 in WebCrypto only exposes
- * the private key via `pkcs8` or `jwk` — not `raw`.
- */
-export async function exportPrivateKey(key: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('pkcs8', key)
-  return arrayBufferToBase64(exported)
-}
-
-/**
- * Import a private key from PKCS#8 (base64).
+ * Import a private key from PKCS#8 (base64) as non-extractable.
  */
 export async function importPrivateKey(base64Key: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(base64Key)
@@ -89,7 +76,7 @@ export async function importPrivateKey(base64Key: string): Promise<CryptoKey> {
     'pkcs8',
     keyData,
     { name: KEX_ALGORITHM },
-    true,
+    false,
     ['deriveBits'],
   )
 }
