@@ -105,12 +105,11 @@ export function useCaldav() {
 
     // Step 4: List calendars
     const listBody = `<?xml version="1.0" encoding="UTF-8"?>
-  <d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/" xmlns:ic="http://apple.com/ns/ical/">
+  <d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:ic="http://apple.com/ns/ical/">
     <d:prop>
       <d:displayname/>
       <d:resourcetype/>
       <ic:calendar-color/>
-      <cs:getctag/>
     </d:prop>
   </d:propfind>`
 
@@ -129,7 +128,6 @@ export function useCaldav() {
         displayName: entry.props["displayname"] ?? "Unnamed",
         color: entry.props["calendar-color"] ?? null,
         path: entry.href,
-        ctag: entry.props["getctag"] ?? null,
       }))
 
     return {

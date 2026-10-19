@@ -3,7 +3,6 @@ export interface CaldavCalendarInfo {
   displayName: string
   color: string | null
   path: string
-  ctag: string | null
 }
 
 export interface CaldavEventInfo {
