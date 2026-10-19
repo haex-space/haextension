@@ -7,7 +7,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { stream, isActive, error, facingMode, startAsync, stop, switchCamera, captureAsync } = useCamera();
+const { stream, isActive, error, facingMode, startAsync, stop, switchCamera, capture } = useCamera();
 
 const videoRef = useTemplateRef<HTMLVideoElement>("videoRef");
 const preview = ref<{ dataUrl: string; width: number; height: number } | null>(null);
@@ -24,7 +24,7 @@ watch(stream, (s) => {
 
 const onCapture = () => {
   if (!videoRef.value) return;
-  const result = captureAsync(videoRef.value);
+  const result = capture(videoRef.value);
   if (result) {
     preview.value = result;
     stop();
