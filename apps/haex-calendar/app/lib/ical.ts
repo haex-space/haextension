@@ -122,17 +122,36 @@ function parseVtodo(vtodo: any): ParsedEvent | null {
 /**
  * Parse a .ics string into events. Handles both VEVENT (→ event) and
  * VTODO (→ task) components, including RRULE and VALARM.
+ *
+ * Returns one entry per UID. Components carrying RECURRENCE-ID are
+ * single-instance overrides that share the master's UID; they must not
+ * replace the master (and its RRULE). Overrides themselves are not modelled
+ * yet, so they are dropped unless no master exists.
  */
 export function parseICS(icsString: string): ParsedEvent[] {
   const jcal = ICAL.parse(icsString);
   const comp = new ICAL.Component(jcal);
 
-  return [
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parse = (c: any, kind: "event" | "task") => ({
+    parsed: kind === "event" ? parseVevent(c) : parseVtodo(c),
+    isOverride: c.hasProperty("recurrence-id") as boolean,
+  });
+
+  const byUid = new Map<string, { parsed: ParsedEvent; isOverride: boolean }>();
+  for (const candidate of [
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...comp.getAllSubcomponents("vevent").map((c: any) => parseVevent(c)),
+    ...comp.getAllSubcomponents("vevent").map((c: any) => parse(c, "event")),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...comp.getAllSubcomponents("vtodo").map((c: any) => parseVtodo(c)),
-  ].filter((e): e is ParsedEvent => e !== null);
+    ...comp.getAllSubcomponents("vtodo").map((c: any) => parse(c, "task")),
+  ]) {
+    if (!candidate.parsed) continue;
+    const existing = byUid.get(candidate.parsed.uid);
+    if (!existing || (existing.isOverride && !candidate.isOverride)) {
+      byUid.set(candidate.parsed.uid, { parsed: candidate.parsed, isOverride: candidate.isOverride });
+    }
+  }
+  return [...byUid.values()].map((entry) => entry.parsed);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
