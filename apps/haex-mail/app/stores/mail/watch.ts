@@ -1,4 +1,5 @@
 import type * as schema from "~/database/schemas";
+import { planWatchChanges } from "~/lib/watchPlan";
 import type { MailNewMessagesEvent } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
 import type { MailSync } from "./sync";
@@ -91,35 +92,44 @@ export const useNewMailWatch = (
   });
 
   /**
-   * Keeps background watches in sync with the configured account list:
-   * starts a watch for newly-added accounts, stops it for removed ones.
-   * `startWatchingAsync` has replace semantics, so re-running for an
-   * already-watched account is harmless.
+   * Keeps background watches in sync with the configured accounts: starts
+   * one for new accounts, stops it for removed ones, and restarts it when
+   * an account was edited — the host keeps the credentials it was started
+   * with and ends a watch for good when its login fails.
    */
-  let watchedAccountIds = new Set<string>();
+  const watchKeys = new Map<string, string>();
   watch(
-    () => accountsStore.accounts.map((a) => a.id),
-    async (ids) => {
-      const nextIds = new Set(ids);
-      const removed = [...watchedAccountIds].filter((id) => !nextIds.has(id));
-      const added = ids.filter((id) => !watchedAccountIds.has(id));
-      watchedAccountIds = nextIds;
-
+    () =>
+      accountsStore.accounts.map((a) => ({
+        id: a.id,
+        // Every account edit bumps updatedAt (password changes included).
+        key: `${a.imapHost}:${a.imapPort}:${a.imapSecurity}@${a.updatedAt?.getTime() ?? ""}`,
+      })),
+    async (targets) => {
+      const { stop, start } = planWatchChanges(watchKeys, targets);
+      for (const id of stop) watchKeys.delete(id);
       await Promise.allSettled(
-        removed.map((id) => haexVault.client.mail.stopWatchingAsync(id, WATCHED_MAILBOX)),
+        stop.map((id) => haexVault.client.mail.stopWatchingAsync(id, WATCHED_MAILBOX)),
       );
       // The host logs in for the watch itself, so it gets the IMAP credentials, as with every
       // other mail call; it keeps them only while the watch runs.
       await Promise.allSettled(
-        added.map(async (id) => {
-          const loaded = await accountsStore.getCredentialsCachedAsync(id);
-          if (!loaded) return;
-          await haexVault.client.mail.startWatchingAsync(
-            id,
-            WATCHED_MAILBOX,
-            WATCH_INTERVAL_SECONDS,
-            loaded.imap,
-          );
+        start.map(async ({ id, key }) => {
+          watchKeys.set(id, key);
+          try {
+            const loaded = await accountsStore.getCredentialsCachedAsync(id);
+            if (!loaded) throw new Error("no credentials");
+            await haexVault.client.mail.startWatchingAsync(
+              id,
+              WATCHED_MAILBOX,
+              WATCH_INTERVAL_SECONDS,
+              loaded.imap,
+            );
+          } catch (err) {
+            // Unmarked, so the next change of the account list tries again.
+            if (watchKeys.get(id) === key) watchKeys.delete(id);
+            console.warn("[haex-mail] failed to start new-mail watch", id, err);
+          }
         }),
       );
     },
