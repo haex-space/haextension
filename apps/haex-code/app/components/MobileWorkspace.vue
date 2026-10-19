@@ -4,10 +4,8 @@ import {
   FolderOpen,
   X,
   Terminal as TerminalIcon,
-  FileCode2,
   ChevronDown as ChevronDownIcon,
   Settings,
-  GitCommit,
   PanelLeftOpen,
   FileUp,
   Menu,
@@ -41,9 +39,7 @@ const setTerminalHost = (el: Element | ComponentPublicInstance | null) => {
 
 const { t } = useI18n();
 const workspace = useWorkspaceStore();
-const editorStore = useEditorStore();
 const terminalStore = useTerminalStore();
-const gitStore = useGitStore();
 </script>
 
 <template>
@@ -78,39 +74,16 @@ const gitStore = useGitStore();
 
   <!-- Mobile Editor Area -->
   <div class="flex flex-1 flex-col min-h-0">
-    <!-- Tab Bar -->
-    <DraggableTabBar
-      v-if="editorStore.tabs.length > 0"
-      :tabs="editorStore.tabs"
-      :active-tab-id="editorStore.activeTabId"
-      @select="editorStore.activeTabId = $event"
-      @close="emit('closeTab', $event)"
-      @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
-      @new-file="emit('newFile')"
-    />
-
-    <!-- Editor Content -->
-    <div class="flex-1 min-h-0">
-      <template v-if="editorStore.activeTab">
-        <MonacoEditor
-          :tab="editorStore.activeTab"
-          @update:content="editorStore.updateTabContent"
-          @save="emit('save')"
-        />
+    <EditorPane @close-tab="emit('closeTab', $event)" @new-file="emit('newFile')" @save="emit('save')">
+      <template #empty>
+        <button
+          class="mt-4 rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground active:bg-primary/80"
+          @click="sidebarVisible = true"
+        >
+          {{ t("openFolder") }}
+        </button>
       </template>
-      <div v-else class="flex h-full items-center justify-center text-muted-foreground">
-        <div class="text-center px-6">
-          <FileCode2 class="mx-auto mb-3 size-12 opacity-30" />
-          <p class="text-sm">{{ t('openFileToEdit') }}</p>
-          <button
-            class="mt-4 rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground active:bg-primary/80"
-            @click="sidebarVisible = true"
-          >
-            {{ t("openFolder") }}
-          </button>
-        </div>
-      </div>
-    </div>
+    </EditorPane>
   </div>
 
   <!-- Mobile Sidebar (Sheet from left) -->
@@ -151,50 +124,13 @@ const gitStore = useGitStore();
           </div>
         </div>
 
-        <!-- Sidebar Tabs -->
-        <div class="flex border-b border-border">
-          <button
-            class="flex flex-1 items-center justify-center gap-1.5 py-3 text-sm"
-            :class="sidebarTab === 'explorer' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground'"
-            @click="sidebarTab = 'explorer'"
-          >
-            <FolderOpen class="size-4" />
-            {{ t("explorer") }}
-          </button>
-          <button
-            class="flex flex-1 items-center justify-center gap-1.5 py-3 text-sm"
-            :class="sidebarTab === 'git' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground'"
-            @click="sidebarTab = 'git'"
-          >
-            <GitCommit class="size-4" />
-            {{ t("sourceControl") }}
-            <span v-if="gitStore.files.length > 0" class="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-              {{ gitStore.files.length }}
-            </span>
-          </button>
-        </div>
-
-        <!-- Explorer -->
-        <ShadcnScrollArea v-if="sidebarTab === 'explorer'" class="flex-1 text-sm">
-          <template v-if="workspace.rootPath">
-            <div v-for="entry in workspace.fileTree" :key="entry.path">
-              <FileTreeNode :entry="entry" @select="emit('selectEntry', $event)" @toggle="emit('toggleEntry', $event)" />
-            </div>
-          </template>
-          <div v-else class="flex flex-col items-center gap-4 p-8 text-center text-muted-foreground">
-            <FolderOpen class="size-12 opacity-50" />
-            <p class="text-sm">{{ t("noFolder") }}</p>
-            <button
-              class="rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground active:bg-primary/80"
-              @click="emit('openFolder')"
-            >
-              {{ t("openFolder") }}
-            </button>
-          </div>
-        </ShadcnScrollArea>
-
-        <!-- Source Control -->
-        <GitPanel v-else-if="sidebarTab === 'git'" />
+        <ExplorerPanel
+          v-model:sidebar-tab="sidebarTab"
+          touch
+          @select-entry="emit('selectEntry', $event)"
+          @toggle-entry="emit('toggleEntry', $event)"
+          @open-folder="emit('openFolder')"
+        />
       </div>
     </ShadcnSheetContent>
   </ShadcnSheet>
@@ -266,18 +202,12 @@ const gitStore = useGitStore();
 <i18n lang="yaml">
 de:
   explorer: Explorer
-  sourceControl: Quellcodeverwaltung
   openFile: Datei öffnen
   openFolder: Ordner öffnen
-  noFolder: Kein Ordner geöffnet
-  openFileToEdit: Datei öffnen zum Bearbeiten
   terminal: Terminal
 en:
   explorer: Explorer
-  sourceControl: Source Control
   openFile: Open File
   openFolder: Open Folder
-  noFolder: No folder opened
-  openFileToEdit: Open a file to start editing
   terminal: Terminal
 </i18n>
