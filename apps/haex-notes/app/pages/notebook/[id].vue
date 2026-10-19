@@ -2,7 +2,8 @@
 import { useEventListener } from "@vueuse/core";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
-import type { PageTemplate } from "~/database/schemas";
+import type { PageTemplate, SelectPage } from "~/database/schemas";
+import type PageCanvas from "~/components/notes/PageCanvas.vue";
 import { reportError } from "~/lib/errors";
 import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
@@ -16,10 +17,15 @@ const pencilCase = usePencilCaseStore();
 
 const isLoaded = ref(false);
 const loadError = ref<string | null>(null);
-const pageCanvasRef = useTemplateRef<any>("pageCanvasRef");
+const pageCanvasRef = useTemplateRef<InstanceType<typeof PageCanvas>>("pageCanvasRef");
 const selectedAddTemplate = ref<PageTemplate>("lined");
 
 const pagesSidebarVisible = ref(false);
+
+const isLandscape = computed(() => {
+  const doc = notebook.currentDoc;
+  return !!doc && doc.width > doc.height;
+});
 
 // Per-page sharing (shares the currently open page)
 const sharePageId = ref<string | null>(null);
@@ -33,9 +39,9 @@ const openSharePage = () => {
 };
 
 // Trash preview
-const trashPreviewPage = ref<any>(null);
+const trashPreviewPage = ref<SelectPage | null>(null);
 
-const onPreviewTrashPage = (page: any) => {
+const onPreviewTrashPage = (page: SelectPage) => {
   trashPreviewPage.value = page;
 };
 
@@ -204,7 +210,7 @@ const addPage = async () => {
           :title="t('toggleOrientation')"
           @click="notebook.togglePageOrientationAsync()"
         >
-          <RotateCw class="size-4" :class="(notebook.currentPage as any)?.orientation === 'landscape' ? 'rotate-90' : ''" />
+          <RotateCw class="size-4" :class="isLandscape ? 'rotate-90' : ''" />
         </button>
 
         <!-- Share current page -->

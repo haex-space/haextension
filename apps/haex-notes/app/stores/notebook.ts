@@ -1,12 +1,12 @@
 import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
 import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTemplate } from "~/database/schemas";
-import { FULL_PAGES_TABLE } from "~/stores/spaces";
 import { reactive } from "vue";
 import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
 import { addElements, type Command, type PageDoc } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
 import { migratePageRow, serializePageDoc } from "~/lib/migratePage";
 import { createTableActions } from "~/lib/tableActions";
+import { FULL_PAGES_TABLE } from "~/lib/tableNames";
 import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {

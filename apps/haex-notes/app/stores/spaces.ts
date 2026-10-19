@@ -1,15 +1,9 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { getTableName, type SpaceAssignment, type DecryptedSpace } from "@haex-space/vault-sdk";
+import type { SpaceAssignment, DecryptedSpace } from "@haex-space/vault-sdk";
 import { notebooks, pages } from "~/database/schemas";
 import { collectAssetIds } from "~/lib/collectAssets";
-import { migratePageRow } from "~/lib/migratePage";
-import manifest from "../../haextension/manifest.json";
-import packageJson from "../../package.json";
-
-const FULL_NOTEBOOKS_TABLE = getTableName(manifest.publicKey, packageJson.name, "notebooks");
-const FULL_PAGES_TABLE = getTableName(manifest.publicKey, packageJson.name, "pages");
-const FULL_ASSETS_TABLE = getTableName(manifest.publicKey, packageJson.name, "assets");
-export { FULL_NOTEBOOKS_TABLE, FULL_PAGES_TABLE, FULL_ASSETS_TABLE };
+import { migratePageRow, type LegacyPageRow } from "~/lib/migratePage";
+import { FULL_ASSETS_TABLE, FULL_NOTEBOOKS_TABLE, FULL_PAGES_TABLE } from "~/lib/tableNames";
 
 const nbPk = (id: string) => JSON.stringify({ id });
 
@@ -35,13 +29,13 @@ export const useSpacesStore = defineStore("spaces", () => {
 
   /** Assignments für alle Assets, auf die die übergebenen Seiten verweisen. */
   function assetAssignmentsFor(
-    sourcePages: { layers?: unknown; background?: unknown; strokes?: unknown }[],
+    sourcePages: LegacyPageRow[],
     spaceId: string,
     groupId: string,
   ): SpaceAssignment[] {
     const ids = new Set<string>();
     for (const page of sourcePages) {
-      const { layers, background } = migratePageRow(page as never);
+      const { layers, background } = migratePageRow(page);
       for (const id of collectAssetIds(layers, background)) ids.add(id);
     }
     return [...ids].map((id) => ({
