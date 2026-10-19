@@ -9,6 +9,7 @@ import type { AccountWithCredentials } from "../accounts";
 
 interface MailSyncState {
   selectedAccountId: Ref<string | null>;
+  selectedMailboxName: Ref<string | null>;
   selectedRole: Ref<schema.MailboxRole | null>;
   isUnifiedView: ComputedRef<boolean>;
   mailboxes: Ref<schema.SelectMailbox[]>;
@@ -26,6 +27,7 @@ export const useMailSync = (state: MailSyncState) => {
   const accountsStore = useAccountsStore();
   const {
     selectedAccountId,
+    selectedMailboxName,
     selectedRole,
     isUnifiedView,
     mailboxes,
@@ -35,9 +37,14 @@ export const useMailSync = (state: MailSyncState) => {
   } = state;
 
   const statusOrdering = createStatusOrdering();
+  // Only the latest refresh may clear its loading flag — an older one can
+  // still be running after the user switched folder or account.
+  let mailboxRefreshSeq = 0;
+  let listRefreshSeq = 0;
 
   const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
     if (!haexVault.orm) return;
+    const seq = ++mailboxRefreshSeq;
     isLoadingMailboxes.value = true;
     try {
       const seq = statusOrdering.issue();
@@ -47,10 +54,15 @@ export const useMailSync = (state: MailSyncState) => {
       await syncMailboxesAsync(account.account.id, remote, seq, { complete: true });
       await loadMailboxesAsync(account.account.id);
     } finally {
-      isLoadingMailboxes.value = false;
+      if (seq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
     }
   };
 
+  // The loaders below run at the end of IMAP round-trips; they only publish
+  // rows that still match the selection, so a slow refresh of a previous
+  // folder or account can't overwrite the current one.
+
+  /** One account's mailboxes, or every account's (unified view) without `accountId`. */
   const loadMailboxesAsync = async (accountId?: string) => {
     if (!haexVault.orm) return;
     const rows = accountId
@@ -59,7 +71,10 @@ export const useMailSync = (state: MailSyncState) => {
           .from(schema.mailboxes)
           .where(eq(schema.mailboxes.accountId, accountId))
       : await haexVault.orm.select().from(schema.mailboxes);
-    mailboxes.value = rows;
+    const isSelected = accountId
+      ? !isUnifiedView.value && selectedAccountId.value === accountId
+      : isUnifiedView.value;
+    if (isSelected) mailboxes.value = rows;
   };
 
   /**
@@ -210,6 +225,7 @@ export const useMailSync = (state: MailSyncState) => {
     count: number = 50,
   ) => {
     if (!haexVault.orm) return;
+    const seq = ++listRefreshSeq;
     isLoadingMessages.value = true;
     try {
       await loadMessagesAsync(account.account.id, mailboxName);
@@ -225,7 +241,7 @@ export const useMailSync = (state: MailSyncState) => {
       await purgeDeletedMessagesAsync(account, mailboxName, new Set(envelopes.map((e) => e.uid)));
       await loadMessagesAsync(account.account.id, mailboxName);
     } finally {
-      isLoadingMessages.value = false;
+      if (seq === listRefreshSeq) isLoadingMessages.value = false;
     }
   };
 
@@ -338,7 +354,13 @@ export const useMailSync = (state: MailSyncState) => {
         ),
       )
       .orderBy(desc(schema.messages.internalDate));
-    messageList.value = rows;
+    if (
+      !isUnifiedView.value &&
+      selectedAccountId.value === accountId &&
+      selectedMailboxName.value === mailboxName
+    ) {
+      messageList.value = rows;
+    }
   };
 
   /**
@@ -359,7 +381,9 @@ export const useMailSync = (state: MailSyncState) => {
       )
       .where(eq(schema.mailboxes.role, role))
       .orderBy(desc(schema.messages.internalDate));
-    messageList.value = rows.map((r) => r.message);
+    if (isUnifiedView.value && selectedRole.value === role) {
+      messageList.value = rows.map((r) => r.message);
+    }
   };
 
   /**
@@ -373,6 +397,8 @@ export const useMailSync = (state: MailSyncState) => {
     count: number = 50,
   ) => {
     if (!haexVault.orm) return;
+    const mailboxSeq = ++mailboxRefreshSeq;
+    const listSeq = ++listRefreshSeq;
     isLoadingMailboxes.value = true;
     isLoadingMessages.value = true;
     try {
@@ -407,16 +433,11 @@ export const useMailSync = (state: MailSyncState) => {
           );
         }
       });
-      // The user may have switched views while fetches were in flight.
-      if (isUnifiedView.value) {
-        await loadMailboxesAsync();
-        if (selectedRole.value === role) {
-          await loadUnifiedMessagesAsync(role);
-        }
-      }
+      await loadMailboxesAsync();
+      await loadUnifiedMessagesAsync(role);
     } finally {
-      isLoadingMailboxes.value = false;
-      isLoadingMessages.value = false;
+      if (mailboxSeq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
+      if (listSeq === listRefreshSeq) isLoadingMessages.value = false;
     }
   };
 
