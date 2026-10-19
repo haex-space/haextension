@@ -112,7 +112,7 @@ watch(connectionState, async (state) => {
 
 onMounted(async () => {
   replicaId = crypto.randomUUID()
-  browserFamily = await detectBrowserFamily()
+  browserFamily = detectBrowserFamily()
   deviceLabel.value = `${browserLabel(browserFamily)} · ${detectOsLabel()} · ${replicaId.slice(0, 6)}`
 
   await fetchConnectionState()

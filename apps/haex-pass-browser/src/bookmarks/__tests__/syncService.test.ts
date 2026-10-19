@@ -135,4 +135,33 @@ describe('permission removal', () => {
     await vi.waitFor(() => expect(storageState(a).settings.mode).toBe('disabled'))
     expect(a.env.alarmCleared).toBe(true)
   })
+
+  it('turns sync off at start when the permission went away while the worker slept', async () => {
+    const vault = new FakeVault()
+    const a = createDevice(vault, 100)
+    await a.service.completeOnboardingCreate({ name: 'Privat', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+
+    await a.service.start({ bookmarksPermitted: false })
+
+    expect(storageState(a).settings.mode).toBe('disabled')
+    expect(a.env.alarmCleared).toBe(true)
+  })
+})
+
+describe('listener registration', () => {
+  it('records each native event once, however often listeners are attached', async () => {
+    const vault = new FakeVault()
+    const a = createDevice(vault, 100)
+    a.service.attachListeners()
+    await a.service.completeOnboardingCreate({ name: 'Privat', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+    a.service.attachListeners()
+    await a.service.start()
+    const collectionId = (storageState(a).settings as { collectionId: string }).collectionId
+
+    await a.env.userCreate('1', 'Once', 'https://once.example', 0)
+    await a.service.runSyncOnce()
+
+    const rows = (await vault.listNodes(collectionId)).filter(node => node.url === 'https://once.example')
+    expect(rows).toHaveLength(1)
+  })
 })

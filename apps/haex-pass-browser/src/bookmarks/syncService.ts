@@ -76,17 +76,29 @@ export class BookmarkSyncService {
     this.deps = deps
   }
 
-  async start(): Promise<void> {
+  /**
+   * `bookmarksPermitted: false` means the optional permission is gone; if it
+   * was revoked while the worker slept, the removal event was never seen.
+   */
+  async start({ bookmarksPermitted = true }: { bookmarksPermitted?: boolean } = {}): Promise<void> {
     const result = await this.deps.storage.loadState()
-    if (!result.ok)
+    if (!result.ok || result.state.settings.mode !== 'active')
       return
-    if (result.state.settings.mode === 'active') {
-      this.registerListeners()
-      this.scheduleSync(0)
+    if (!bookmarksPermitted) {
+      await this.disableSync()
+      return
     }
+    this.activateListening()
+    this.scheduleSync(0)
   }
 
-  private registerListeners(): void {
+  /**
+   * Registers the native bookmark, permission and alarm listeners; idempotent.
+   * The background calls this synchronously at startup: MV3 only delivers the
+   * event that woke the worker to listeners registered in that first turn.
+   * Handlers do nothing while sync is disabled.
+   */
+  attachListeners(): void {
     if (this.listenersRegistered)
       return
     this.listenersRegistered = true
@@ -95,11 +107,15 @@ export class BookmarkSyncService {
     this.deps.events.onMoved((id, info) => void this.recordNativeEvent((state, settings) => recordMoved(state, settings, id, info)))
     this.deps.events.onRemoved((id, info) => void this.recordNativeEvent((state, settings) => recordRemoved(state, settings, id, info)))
     this.deps.events.onPermissionRemoved(permissions => void this.handlePermissionRemoved(permissions))
-    this.deps.alarms.create(BOOKMARK_SYNC_ALARM_NAME, { periodInMinutes: ALARM_PERIOD_MINUTES })
     this.deps.alarms.onAlarm((alarm) => {
       if (alarm.name === BOOKMARK_SYNC_ALARM_NAME)
         this.scheduleSync(0)
     })
+  }
+
+  private activateListening(): void {
+    this.attachListeners()
+    this.deps.alarms.create(BOOKMARK_SYNC_ALARM_NAME, { periodInMinutes: ALARM_PERIOD_MINUTES })
   }
 
   scheduleSync(delayMs: number = this.deps.coalesceMs ?? DEFAULT_COALESCE_MS): void {
@@ -202,7 +218,7 @@ export class BookmarkSyncService {
         deviceLabel: params.deviceLabel,
         browserFamily: params.browserFamily,
       })
-      this.registerListeners()
+      this.activateListening()
       return { success: true }
     } catch (err) {
       return { success: false, error: String(err) }
@@ -249,7 +265,7 @@ export class BookmarkSyncService {
         deviceLabel: params.deviceLabel,
         browserFamily: params.browserFamily,
       })
-      this.registerListeners()
+      this.activateListening()
       return { success: true }
     } catch (err) {
       return { success: false, error: String(err) }

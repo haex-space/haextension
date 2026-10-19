@@ -18,30 +18,26 @@ import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG
 import { vaultConnection } from './connection'
 import { callerOrigin, rpIdMatchesOrigin } from './passkeyOrigin'
 
-let bookmarkSyncServicePromise: Promise<BookmarkSyncService> | null = null
+const bookmarkSyncService = new BookmarkSyncService({
+  api: createRealNativeBookmarksApi(detectBrowserFamily()),
+  events: createRealBookmarkEvents(),
+  alarms: createRealAlarmsApi(),
+  storage: { loadState, saveState },
+  vault: { listCollections, createCollection, listNodes, upsertNodes, deleteNodes, upsertDevice },
+  now: () => new Date().toISOString(),
+})
 
-async function getBookmarkSyncService(): Promise<BookmarkSyncService> {
-  if (!bookmarkSyncServicePromise) {
-    bookmarkSyncServicePromise = (async () => {
-      const browserFamily = await detectBrowserFamily()
-      const service = new BookmarkSyncService({
-        api: createRealNativeBookmarksApi(browserFamily),
-        events: createRealBookmarkEvents(),
-        alarms: createRealAlarmsApi(),
-        storage: { loadState, saveState },
-        vault: { listCollections, createCollection, listNodes, upsertNodes, deleteNodes, upsertDevice },
-        now: () => new Date().toISOString(),
-      })
-      await service.start()
-      return service
-    })()
-  }
-  return bookmarkSyncServicePromise
-}
+// `browser.bookmarks` only exists while the optional permission is granted.
+// Listeners must be registered in this first, synchronous turn, or the event
+// that woke the worker is lost; onboarding attaches them once permitted.
+const bookmarksPermitted = browser.bookmarks !== undefined
+if (bookmarksPermitted)
+  bookmarkSyncService.attachListeners()
 
-// Bring the sync service up (and, if a collection is already active, resume
-// listening + run an initial sync pass) as soon as the service worker starts.
-void getBookmarkSyncService()
+// If a collection is active, resume and run an initial sync pass.
+bookmarkSyncService.start({ bookmarksPermitted }).catch((err) => {
+  console.error('[haex-pass] Bookmark sync failed to start:', err)
+})
 
 // only on dev mode
 if (import.meta.hot) {
@@ -74,6 +70,12 @@ browser.runtime.onInstalled.addListener((details): void => {
     })
   }
 })
+
+function acknowledge(action: Promise<void>): Promise<{ success: boolean, error?: string }> {
+  return action
+    .then(() => ({ success: true }))
+    .catch(err => ({ success: false, error: String(err) }))
+}
 
 // Handle messages from extension pages (options, popup) via browser.runtime.sendMessage
 browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefined => {
@@ -143,74 +145,44 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
 
   if (message.type === BOOKMARKS_ONBOARDING_DECISION) {
     const decisionMsg = message as OnboardingDecisionMessage
-    if (decisionMsg.decision === 'disabled') {
-      return getBookmarkSyncService()
-        .then(async (service) => {
-          await service.disableSync()
-          return { success: true }
-        })
-        .catch(err => ({ success: false, error: String(err) }))
-    }
-    return getBookmarkSyncService().then((service) => {
-      if (decisionMsg.decision === 'create') {
-        return service.completeOnboardingCreate({
-          name: decisionMsg.name,
-          replicaId: decisionMsg.replicaId,
-          browserFamily: decisionMsg.browserFamily,
-          deviceLabel: decisionMsg.deviceLabel,
-        })
-      }
-      return service.completeOnboardingActivate({
-        collectionId: decisionMsg.collectionId,
-        collectionName: decisionMsg.collectionName,
+    if (decisionMsg.decision === 'disabled')
+      return acknowledge(bookmarkSyncService.disableSync())
+    if (decisionMsg.decision === 'create') {
+      return bookmarkSyncService.completeOnboardingCreate({
+        name: decisionMsg.name,
         replicaId: decisionMsg.replicaId,
         browserFamily: decisionMsg.browserFamily,
         deviceLabel: decisionMsg.deviceLabel,
       })
+    }
+    return bookmarkSyncService.completeOnboardingActivate({
+      collectionId: decisionMsg.collectionId,
+      collectionName: decisionMsg.collectionName,
+      replicaId: decisionMsg.replicaId,
+      browserFamily: decisionMsg.browserFamily,
+      deviceLabel: decisionMsg.deviceLabel,
     })
   }
 
-  if (message.type === BOOKMARKS_SYNC_NOW) {
-    return getBookmarkSyncService()
-      .then(async (service) => {
-        await service.runSyncOnce()
-        return { success: true }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
-  }
+  if (message.type === BOOKMARKS_SYNC_NOW)
+    return acknowledge(bookmarkSyncService.runSyncOnce())
 
   if (message.type === BOOKMARKS_SWITCH_COLLECTION) {
     const switchMsg = message as { collectionId: string, collectionName: string }
-    return getBookmarkSyncService()
-      .then(service => service.switchCollection({ collectionId: switchMsg.collectionId, collectionName: switchMsg.collectionName }))
+    return bookmarkSyncService.switchCollection({ collectionId: switchMsg.collectionId, collectionName: switchMsg.collectionName })
       .then(result => (result.ok ? { success: true } : { success: false, error: result.error }))
       .catch(err => ({ success: false, error: String(err) }))
   }
 
-  if (message.type === BOOKMARKS_CONFIRM_DELETIONS) {
-    return getBookmarkSyncService()
-      .then(async (service) => {
-        await service.confirmPendingDeletions()
-        return { success: true }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
-  }
+  if (message.type === BOOKMARKS_CONFIRM_DELETIONS)
+    return acknowledge(bookmarkSyncService.confirmPendingDeletions())
 
-  if (message.type === BOOKMARKS_REJECT_DELETIONS) {
-    return getBookmarkSyncService()
-      .then(async (service) => {
-        await service.rejectPendingDeletions()
-        return { success: true }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
-  }
+  if (message.type === BOOKMARKS_REJECT_DELETIONS)
+    return acknowledge(bookmarkSyncService.rejectPendingDeletions())
 
   if (message.type === BOOKMARKS_GET_STATUS) {
-    return getBookmarkSyncService()
-      .then(async (service) => {
-        const status = await service.getStatus()
-        return { success: true, data: { status } }
-      })
+    return bookmarkSyncService.getStatus()
+      .then(status => ({ success: true, data: { status } }))
       .catch(err => ({ success: false, error: String(err) }))
   }
 
