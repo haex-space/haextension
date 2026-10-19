@@ -47,8 +47,10 @@ export const useEditorStore = defineStore("editor", () => {
   const imageHeight = computed(() => current.value?.height ?? 0);
   const hasImage = computed(() => current.value !== null);
 
+  // A crop rect drawn on one image does not fit another
   function selectHistory(index: number) {
     historyIndex.value = index;
+    cropRect.value = { x: 0, y: 0, width: 0, height: 0 };
     resizeWidth.value = imageWidth.value;
     resizeHeight.value = imageHeight.value;
   }

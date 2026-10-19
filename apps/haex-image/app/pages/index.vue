@@ -193,6 +193,7 @@ async function saveAs() {
           @pointerdown="onCanvasPointerDown"
           @pointermove="onCanvasPointerMove"
           @pointerup="onCanvasPointerUp"
+          @pointercancel="onCanvasPointerUp"
         />
       </div>
     </div>
