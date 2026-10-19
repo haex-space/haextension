@@ -4,12 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       extension:
-        description: 'Extension name'
+        description: 'Extension name (e.g., haex-calendar); see scripts/extensions.js'
         required: true
-        type: choice
-        options:
-          - haex-calendar
-          - haex-code
+        type: string
       version:
         description: 'Version (without v prefix, e.g., 1.4.13)'
         required: true
@@ -19,11 +16,19 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout manifest
+      # Full checkout: validation reads every app's package.json and manifest.
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          sparse-checkout: |
-            apps/${{ inputs.extension }}/haextension/manifest.json
+          node-version: '22'
+
+      - name: Validate extension
+        env:
+          EXT_NAME: ${{ inputs.extension }}
+        run: node scripts/extensions.js --check "$EXT_NAME"
 
       - name: Download bundle from GitHub Release
         env:

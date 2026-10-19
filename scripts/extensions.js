@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 // Single source of truth for which apps are released as haextension bundles.
-// Used by scripts/release.js and the extension CI workflows; prints one name
-// per line when run directly.
+// Used by scripts/release.js and the extension CI workflows.
+//
+//   node scripts/extensions.js                one name per line
+//   node scripts/extensions.js --check <name> exit 1 unless <name> is listed
 
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -27,5 +29,14 @@ export function listExtensions() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  console.log(listExtensions().join('\n'));
+  const extensions = listExtensions();
+  const [flag, name] = process.argv.slice(2);
+  if (flag === '--check') {
+    if (!extensions.includes(name)) {
+      console.error(`'${name}' is not a releasable extension. Known: ${extensions.join(', ')}`);
+      process.exit(1);
+    }
+  } else {
+    console.log(extensions.join('\n'));
+  }
 }
