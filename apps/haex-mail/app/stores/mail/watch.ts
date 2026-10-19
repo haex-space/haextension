@@ -67,7 +67,7 @@ export const useNewMailWatch = (
           count: 50,
         }),
       ]);
-      await syncMailboxesAsync(accountId, remoteMailboxes, seq);
+      await syncMailboxesAsync(accountId, remoteMailboxes, seq, { complete: true });
       await persistEnvelopesAsync(accountId, mailboxName, envelopes);
     } catch (err) {
       console.warn("[haex-mail] failed to refresh after new-mail watch event", err);

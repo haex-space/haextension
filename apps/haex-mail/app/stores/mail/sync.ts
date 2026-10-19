@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
-import { inferRole } from "~/lib/mail";
+import { assignRoles } from "~/lib/mailboxRoles";
 import { chunk } from "~/lib/utils";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
@@ -44,7 +44,7 @@ export const useMailSync = (state: MailSyncState) => {
       const remote = await haexVault.client.mail.listMailboxesAsync(account.imap, {
         includeStatus: true,
       });
-      await syncMailboxesAsync(account.account.id, remote, seq);
+      await syncMailboxesAsync(account.account.id, remote, seq, { complete: true });
       await loadMailboxesAsync(account.account.id);
     } finally {
       isLoadingMailboxes.value = false;
@@ -62,11 +62,16 @@ export const useMailSync = (state: MailSyncState) => {
     mailboxes.value = rows;
   };
 
-  /** `seq` comes from `statusOrdering.issue()`, taken before the LIST request. */
+  /**
+   * `seq` comes from `statusOrdering.issue()`, taken before the LIST request.
+   * `complete` marks an unfiltered LIST: only then are roles (re)assigned,
+   * since a role is unique among all of the account's mailboxes.
+   */
   const syncMailboxesAsync = async (
     accountId: string,
     remote: MailboxInfo[],
     seq: number,
+    { complete }: { complete: boolean },
   ) => {
     if (!haexVault.orm) return;
     const existing = await haexVault.orm
@@ -74,20 +79,33 @@ export const useMailSync = (state: MailSyncState) => {
       .from(schema.mailboxes)
       .where(eq(schema.mailboxes.accountId, accountId));
     const existingById = new Map(existing.map((m) => [m.id, m]));
+    const roles = complete ? assignRoles(remote) : null;
 
-    for (const m of remote) {
+    for (const [i, m] of remote.entries()) {
       const id = `${accountId}::${m.name}`;
-      if (!statusOrdering.claim(id, seq)) continue;
-      const values = {
+      const prev = existingById.get(id);
+      const structure = {
         delimiter: m.delimiter ?? null,
-        role: inferRole(m.name, m.flags),
+        role: roles ? roles[i]! : (prev?.role ?? null),
+      };
+      if (!statusOrdering.claim(id, seq)) {
+        // A later STATUS already wrote the counters; the LIST structure still applies.
+        if (prev && complete) {
+          await haexVault.orm
+            .update(schema.mailboxes)
+            .set(structure)
+            .where(eq(schema.mailboxes.id, id));
+        }
+        continue;
+      }
+      const values = {
+        ...structure,
         unseen: m.unseen ?? 0,
         exists: m.exists ?? 0,
         uidValidity: m.uidValidity ?? null,
         uidNext: m.uidNext ?? null,
       };
 
-      const prev = existingById.get(id);
       if (!prev) {
         await haexVault.orm
           .insert(schema.mailboxes)
@@ -135,7 +153,7 @@ export const useMailSync = (state: MailSyncState) => {
           })),
         );
       }
-      await syncMailboxesAsync(accountId, remote, seq);
+      await syncMailboxesAsync(accountId, remote, seq, { complete: false });
       if (isUnifiedView.value) {
         await loadMailboxesAsync();
       } else if (selectedAccountId.value === accountId) {
@@ -350,10 +368,9 @@ export const useMailSync = (state: MailSyncState) => {
             acc.imap,
             { includeStatus: true },
           );
-          await syncMailboxesAsync(acc.account.id, remote, seq);
-          const roleName = remote.find(
-            (m) => inferRole(m.name, m.flags) === role,
-          )?.name;
+          await syncMailboxesAsync(acc.account.id, remote, seq, { complete: true });
+          const roles = assignRoles(remote);
+          const roleName = remote.find((_, i) => roles[i] === role)?.name;
           if (!roleName) return;
           const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
             acc.imap,
