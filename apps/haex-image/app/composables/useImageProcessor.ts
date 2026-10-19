@@ -1,9 +1,11 @@
+import { toast } from "vue-sonner";
 import type { CropRect, ImageAdjustments, FilterType } from "~/types";
 import { canvasToBlob, decodeImage } from "~/lib/image";
 import { adjustmentsPixelFn, filterPixel, mapPixels } from "~/lib/pixelOps";
 
 export function useImageProcessor() {
   const editor = useEditorStore();
+  const { t } = useI18n({ useScope: "global" });
 
   function createCanvas(width: number, height: number) {
     const canvas = document.createElement("canvas");
@@ -37,7 +39,7 @@ export function useImageProcessor() {
   /**
    * Runs one edit at a time. Its result becomes the new current image only if the image it started
    * from is still current: an undo or a newly opened image while it ran makes the result stale.
-   * Resolves to whether the result was applied.
+   * Failures are reported to the user. Resolves to whether the result was applied.
    */
   async function edit(op: (img: HTMLImageElement) => Edited): Promise<boolean> {
     const source = editor.current;
@@ -49,6 +51,10 @@ export function useImageProcessor() {
       if (editor.current !== source) return false;
       editor.pushHistory({ blob, width: canvas.width, height: canvas.height });
       return true;
+    } catch (error) {
+      console.error("[haex-image] edit failed:", error);
+      toast.error(t("editFailed"));
+      return false;
     } finally {
       editor.isProcessing = false;
     }

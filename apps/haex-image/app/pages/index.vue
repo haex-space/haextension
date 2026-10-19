@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ImagePlus } from "@lucide/vue";
+import { toast } from "vue-sonner";
 import { decodeImage } from "~/lib/image";
 
 const { t } = useI18n();
@@ -22,7 +23,12 @@ async function applyFreeRotation() {
 const previewAdjustments = ref({ brightness: 0, contrast: 0, saturation: 0 });
 
 onMounted(async () => {
-  await haexVault.initializeAsync();
+  try {
+    await haexVault.initializeAsync();
+  } catch (error) {
+    console.error("[haex-image] initialization failed:", error);
+    toast.error(t("initFailed"));
+  }
 });
 
 const { renderScale, render } = useCanvasRenderer(canvasRef, containerRef, previewAdjustments);
@@ -79,8 +85,9 @@ async function openFile() {
     const blob = new Blob([data as BlobPart], { type: mime });
     const img = await decodeImage(blob);
     editor.loadImage({ blob, width: img.naturalWidth, height: img.naturalHeight }, name, filePath);
-  } catch (e) {
-    console.error("[haex-image] openFile error:", e);
+  } catch (error) {
+    console.error("[haex-image] openFile error:", error);
+    toast.error(t("openFailed"));
   }
 }
 
@@ -115,8 +122,9 @@ async function saveAs() {
       defaultPath: editor.filePath || editor.fileName,
       filters: [{ name: "Bilder", extensions: [format === "jpeg" ? "jpg" : "png"] }],
     });
-  } catch (e) {
-    console.error("[haex-image] saveAs error:", e);
+  } catch (error) {
+    console.error("[haex-image] saveAs error:", error);
+    toast.error(t("saveFailed"));
   }
 }
 </script>
@@ -191,8 +199,14 @@ de:
   noImage: Kein Bild geladen
   openImage: Bild öffnen
   saveAs: Speichern unter
+  initFailed: Die Verbindung zum Vault ist fehlgeschlagen.
+  openFailed: Das Bild konnte nicht geöffnet werden.
+  saveFailed: Das Bild konnte nicht gespeichert werden.
 en:
   noImage: No image loaded
   openImage: Open Image
   saveAs: Save As
+  initFailed: Connecting to the vault failed.
+  openFailed: The image could not be opened.
+  saveFailed: The image could not be saved.
 </i18n>
