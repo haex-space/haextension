@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { Season } from '../../types/game'
+import { lerpColor } from '../utils/color'
 
 export interface SeasonPalette {
   sky: number
@@ -97,7 +98,7 @@ export class SeasonSystem {
     if (this.transitionProgress >= 1) {
       return PALETTES[this.currentSeason][baseTint]
     }
-    return this.lerpColor(
+    return lerpColor(
       PALETTES[this.currentSeason][baseTint],
       PALETTES[this.targetSeason][baseTint],
       this.transitionProgress,
@@ -109,23 +110,10 @@ export class SeasonSystem {
     if (this.transitionProgress >= 1) {
       return PALETTES[this.currentSeason][key]
     }
-    return this.lerpColor(
+    return lerpColor(
       PALETTES[this.currentSeason][key],
       PALETTES[this.targetSeason][key],
       this.transitionProgress,
     )
-  }
-
-  private lerpColor(from: number, to: number, t: number): number {
-    const fr = (from >> 16) & 0xff
-    const fg = (from >> 8) & 0xff
-    const fb = from & 0xff
-    const tr = (to >> 16) & 0xff
-    const tg = (to >> 8) & 0xff
-    const tb = to & 0xff
-    const r = Math.round(fr + (tr - fr) * t)
-    const g = Math.round(fg + (tg - fg) * t)
-    const b = Math.round(fb + (tb - fb) * t)
-    return (r << 16) | (g << 8) | b
   }
 }
