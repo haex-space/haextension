@@ -52,7 +52,7 @@ const onCellClick = () => {
           ? 'border-primary bg-primary/20'
           : 'border-border bg-background hover:border-primary/30'"
         @mouseenter="onCellHover(cell.r, cell.c)"
-        @touchstart.prevent="onCellHover(cell.r, cell.c)"
+        @pointerdown="onCellHover(cell.r, cell.c)"
         @click="onCellClick"
       />
     </div>
