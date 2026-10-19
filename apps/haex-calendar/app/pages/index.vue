@@ -221,6 +221,7 @@ import {
   Upload,
 } from "@lucide/vue";
 import { watchDebounced, useMediaQuery } from "@vueuse/core";
+import { toast } from "vue-sonner";
 import { calendars } from "~/database/schemas";
 
 const { t } = useI18n();
@@ -339,6 +340,35 @@ watchDebounced(
   { debounce: 500, deep: true }
 );
 
+function calendarName(calendarId: string) {
+  return calendarsStore.getCalendar(calendarId)?.name ?? "";
+}
+
+// Background sync runs on every navigation. Toast an error only when it first
+// shows up (or changes); the sidebar keeps indicating it until a sync succeeds.
+const toastedSyncErrors = new Map<string, string>();
+watch(
+  () => [...caldavSync.syncErrors.entries()],
+  (entries) => {
+    for (const [calendarId, message] of entries) {
+      if (toastedSyncErrors.get(calendarId) === message) continue;
+      toast.error(t("sync.failed", { calendar: calendarName(calendarId) }), { description: message });
+    }
+    toastedSyncErrors.clear();
+    for (const [calendarId, message] of entries) toastedSyncErrors.set(calendarId, message);
+  },
+);
+
+watch(
+  () => caldavSync.lastRemoteFailure,
+  (failure) => {
+    if (!failure) return;
+    toast.error(t(`sync.${failure.action}Failed`, { calendar: calendarName(failure.calendarId) }), {
+      description: failure.message,
+    });
+  },
+);
+
 // iCal import
 function handleImport() {
   fileInput.value?.click();
@@ -424,6 +454,10 @@ de:
     description: Dieser Kalender und alle zugehörigen Termine werden unwiderruflich gelöscht.
     confirm: Löschen
     abort: Abbrechen
+  sync:
+    failed: "Synchronisierung von „{calendar}“ fehlgeschlagen"
+    pushFailed: "Änderung konnte nicht zu „{calendar}“ hochgeladen werden"
+    deleteFailed: "Termin konnte nicht aus „{calendar}“ auf dem Server gelöscht werden"
   menu:
     import: Importieren (.ics)
     export: Exportieren (.ics)
@@ -443,6 +477,10 @@ en:
     description: This calendar and all its events will be permanently deleted.
     confirm: Delete
     abort: Cancel
+  sync:
+    failed: "Syncing \"{calendar}\" failed"
+    pushFailed: "Could not upload the change to \"{calendar}\""
+    deleteFailed: "Could not delete the event from \"{calendar}\" on the server"
   menu:
     import: Import (.ics)
     export: Export (.ics)

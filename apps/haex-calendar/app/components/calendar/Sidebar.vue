@@ -76,6 +76,13 @@
           <Cloud class="w-4 h-4" />
         </span>
         <span
+          v-if="caldavSync.syncErrors.has(cal.id)"
+          class="text-destructive"
+          :title="t('sidebar.syncError', { message: caldavSync.syncErrors.get(cal.id) })"
+        >
+          <TriangleAlert class="w-4 h-4" />
+        </span>
+        <span
           v-if="cal.spaceId"
           class="text-muted-foreground"
           :title="t('sidebar.shared')"
@@ -147,6 +154,7 @@ import {
   RefreshCw,
   Share2,
   Trash2,
+  TriangleAlert,
   Users,
 } from "@lucide/vue";
 import { CalendarDate, type DateValue } from "@internationalized/date";
@@ -255,6 +263,7 @@ de:
     color: Farbe
     delete: Löschen
     syncNow: Jetzt synchronisieren
+    syncError: "Synchronisierung fehlgeschlagen: {message}"
 en:
   sidebar:
     calendars: Calendars
@@ -268,4 +277,5 @@ en:
     color: Color
     delete: Delete
     syncNow: Sync now
+    syncError: "Sync failed: {message}"
 </i18n>

@@ -14,6 +14,16 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
   const isSyncing = ref(false);
   const syncErrors = ref<Map<string, string>>(new Map()); // calendarId → error message
+  /**
+   * Last failed upload or removal of a single event. Stores have no i18n
+   * scope, so the page turns this into a toast.
+   */
+  const lastRemoteFailure = ref<{ calendarId: string; action: "push" | "delete"; message: string } | null>(null);
+
+  function reportRemoteFailure(calendarId: string, action: "push" | "delete", error: unknown) {
+    console.warn(`[caldav-sync] Failed to ${action} event in calendar ${calendarId}:`, error);
+    lastRemoteFailure.value = { calendarId, action, message: getErrorMessage(error) };
+  }
 
   /**
    * Sync a single CalDAV calendar.
@@ -334,6 +344,8 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
   return {
     isSyncing,
     syncErrors,
+    lastRemoteFailure,
+    reportRemoteFailure,
     syncCalendarAsync,
     syncAllRemoteCalendarsAsync,
     pushEventAsync,

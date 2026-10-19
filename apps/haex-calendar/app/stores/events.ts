@@ -217,13 +217,12 @@ export const useEventsStore = defineStore("events", () => {
     }
 
     // Push to CalDAV server if this is a remote calendar
-    const calendar = calendarsStore.getCalendar(data.calendarId);
-    if (calendar?.caldavAccountId) {
+    if (isRemoteCalendar(data.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
       try {
-        const caldavSync = useCaldavSyncStore();
         await caldavSync.pushEventAsync(id);
       } catch (err) {
-        console.warn("[haex-calendar] Failed to push new event to CalDAV:", err);
+        caldavSync.reportRemoteFailure(data.calendarId, "push", err);
       }
     }
 
@@ -263,11 +262,11 @@ export const useEventsStore = defineStore("events", () => {
     const movedCalendar =
       eventData.calendarId !== undefined && eventData.calendarId !== existing.calendarId;
     if (movedCalendar && existing.href && isRemoteCalendar(existing.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
       try {
-        const caldavSync = useCaldavSyncStore();
         await caldavSync.deleteRemoteEventAsync(existing);
       } catch (err) {
-        console.warn("[haex-calendar] Failed to remove moved event from CalDAV:", err);
+        caldavSync.reportRemoteFailure(existing.calendarId, "delete", err);
       }
     }
 
@@ -285,12 +284,13 @@ export const useEventsStore = defineStore("events", () => {
       await replaceEventRemindersAsync(id, reminderOffsets);
     }
 
-    if (isRemoteCalendar(eventData.calendarId ?? existing.calendarId)) {
+    const targetCalendarId = eventData.calendarId ?? existing.calendarId;
+    if (isRemoteCalendar(targetCalendarId)) {
+      const caldavSync = useCaldavSyncStore();
       try {
-        const caldavSync = useCaldavSyncStore();
         await caldavSync.pushEventAsync(id);
       } catch (err) {
-        console.warn("[haex-calendar] Failed to push event update to CalDAV:", err);
+        caldavSync.reportRemoteFailure(targetCalendarId, "push", err);
       }
     }
 
@@ -303,11 +303,11 @@ export const useEventsStore = defineStore("events", () => {
     // Delete from CalDAV server first if this is a remote calendar event
     const existing = await findEventAsync(id);
     if (existing?.href && isRemoteCalendar(existing.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
       try {
-        const caldavSync = useCaldavSyncStore();
         await caldavSync.deleteRemoteEventAsync(existing);
       } catch (err) {
-        console.warn("[haex-calendar] Failed to delete event from CalDAV:", err);
+        caldavSync.reportRemoteFailure(existing.calendarId, "delete", err);
       }
     }
 
