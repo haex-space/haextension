@@ -207,7 +207,9 @@ async function handleSubscribe() {
         color: cal.color || "#3b82f6",
         caldavAccountId: accountId,
         caldavPath: cal.path,
-        caldavCtag: cal.ctag,
+        // Left empty so the first sync doesn't take the discovery CTag as
+        // "already in sync" and skip importing the existing events.
+        caldavCtag: null,
       };
       await haexVault.orm.insert(calendars).values(entry);
     }
