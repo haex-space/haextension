@@ -152,3 +152,15 @@ export function exclusiveEndKey(startKey: string, lastDayKey: string): string {
   const last = lastDayKey < startKey ? startKey : lastDayKey;
   return toLocalDateKey(addDays(parseLocalDate(last), 1));
 }
+
+/**
+ * [start, end) of a stored event as instants. All-day events cover whole
+ * local days (at least one, also for zero-length legacy rows).
+ */
+export function eventSpan(event: { dtstart: string; dtend: string; allDay: boolean }): { start: Date; end: Date } {
+  if (!event.allDay) return { start: new Date(event.dtstart), end: new Date(event.dtend) };
+  return {
+    start: parseLocalDate(event.dtstart),
+    end: addDays(parseLocalDate(inclusiveEndKey(event.dtstart, event.dtend)), 1),
+  };
+}

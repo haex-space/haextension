@@ -119,6 +119,7 @@
 
 <script setup lang="ts">
 import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
+import { parseEventInstant } from "~/lib/dates";
 
 const { t } = useI18n();
 const preview = useEventPreviewStore();
@@ -138,9 +139,7 @@ const event = computed(() => {
   if (!m) return null;
   const occ = preview.occurrenceStart;
   if (!occ || occ === m.dtstart) return m;
-  const durationMs = new Date(m.dtend).getTime() - new Date(m.dtstart).getTime();
-  const occEnd = new Date(new Date(occ).getTime() + Math.max(0, durationMs));
-  return { ...m, dtstart: occ, dtend: occEnd.toISOString() };
+  return eventsStore.events.find((e) => e.id === m.id && e.dtstart === occ) ?? m;
 });
 
 const calendar = computed(() => {
@@ -150,7 +149,7 @@ const calendar = computed(() => {
 
 const dateDescription = computed(() => {
   if (!event.value) return "";
-  const dt = new Date(event.value.dtstart);
+  const dt = parseEventInstant(event.value.dtstart, event.value.allDay);
   return new Intl.DateTimeFormat("de-DE", {
     weekday: "long",
     day: "numeric",

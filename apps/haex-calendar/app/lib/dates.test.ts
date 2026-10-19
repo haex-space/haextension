@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  eventSpan,
   exclusiveEndKey,
   inclusiveEndKey,
   normalizeOffsetlessDateTime,
@@ -78,5 +79,17 @@ describe("all-day end conversion", () => {
 
   it("crosses the DST change by calendar days", () => {
     expect(exclusiveEndKey("2026-10-24", "2026-10-25")).toBe("2026-10-26");
+  });
+});
+
+describe("eventSpan", () => {
+  it("covers whole local days for all-day events", () => {
+    const span = eventSpan({ dtstart: "2026-03-09", dtend: "2026-03-10", allDay: true });
+    expect([span.start.getHours(), span.start.getDate(), span.end.getDate()]).toEqual([0, 9, 10]);
+  });
+
+  it("gives zero-length legacy all-day rows one day", () => {
+    const span = eventSpan({ dtstart: "2026-03-09", dtend: "2026-03-09", allDay: true });
+    expect(span.end.getDate()).toBe(10);
   });
 });

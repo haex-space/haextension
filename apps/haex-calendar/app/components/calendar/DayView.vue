@@ -122,6 +122,7 @@ import {
   eventSpansDate,
   toDateKey,
 } from "~/lib/timeGrid";
+import { eventSpan } from "~/lib/dates";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
@@ -131,7 +132,7 @@ const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
 function isEventPast(event: SelectEvent): boolean {
-  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+  return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
 
 const scrollAreaRef = ref<ComponentPublicInstance | null>(null);

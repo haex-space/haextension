@@ -153,6 +153,7 @@
 import { CheckSquare, Square } from "@lucide/vue";
 import type { SelectEvent } from "~/database/schemas";
 import { toDateKey } from "~/lib/timeGrid";
+import { eventSpan } from "~/lib/dates";
 
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
@@ -174,7 +175,7 @@ function getISOWeekNumber(date: Date): number {
 }
 
 function isEventPast(event: SelectEvent): boolean {
-  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+  return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
 
 const quickCreateDate = ref<Date | null>(null);
@@ -281,8 +282,7 @@ const weeks = computed((): WeekRow[] => {
     const rowSlots: string[][] = []; // Track which event IDs occupy each row
 
     for (const event of multiDayEvents) {
-      const eventStart = new Date(event.dtstart);
-      const eventEnd = new Date(event.dtend);
+      const { start: eventStart, end: eventEnd } = eventSpan(event);
 
       // Check overlap: event starts before week ends AND event ends after week starts
       if (eventStart >= weekEnd || eventEnd <= weekStart) continue;

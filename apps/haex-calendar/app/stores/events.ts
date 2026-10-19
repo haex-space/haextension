@@ -9,6 +9,7 @@ import { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE } from "~/stores/calendars";
 import {
   addDays,
   daysBetween,
+  eventSpan,
   normalizeOffsetlessDateTime,
   parseEventInstant,
   parseLocalDate,
@@ -49,6 +50,10 @@ export const useEventsStore = defineStore("events", () => {
   const visibleEvents = ref<SelectEvent[]>([]);
   const isLoading = ref(false);
 
+  function widenIso(iso: string, days: number): string {
+    return addDays(new Date(iso), days).toISOString();
+  }
+
   /**
    * Load events for the current visible range and visible calendars.
    * Called reactively when visibleRange or visibleCalendarIds change.
@@ -84,10 +89,10 @@ export const useEventsStore = defineStore("events", () => {
           and(
             inArray(events.calendarId, calendarIds),
             or(
-              and(
-                lte(events.dtstart, end), // starts before range ends
-                gte(events.dtend, start)  // ends after range starts
-              ),
+              // All-day rows hold local dates, which don't compare exactly
+              // against UTC bounds; a day of slack on both sides keeps them in,
+              // expandedEventsInRange applies the precise check.
+              and(lte(events.dtstart, widenIso(end, 1)), gte(events.dtend, widenIso(start, -1))),
               isNotNull(events.rrule),
               typeIdsWithRrule.length > 0
                 ? inArray(events.eventTypeId, typeIdsWithRrule)
@@ -146,16 +151,20 @@ export const useEventsStore = defineStore("events", () => {
 
       const rule = effectiveRrule(event);
 
+      const span = eventSpan(event);
       if (!rule) {
-        const s = new Date(event.dtstart);
-        const e = new Date(event.dtend);
-        if (s <= end && e >= start) result.push(event);
+        if (span.start <= end && span.end > start) result.push(event);
         continue;
       }
 
-      const baseStart = parseEventInstant(event.dtstart, event.allDay);
-      for (const occ of expandOccurrences(rule, baseStart, start, end)) {
-        result.push({ ...event, ...shiftedBoundaries(event, occ), occurrenceStart: occ.toISOString() });
+      // Occurrences that begin before the range can still reach into it.
+      const duration = span.end.getTime() - span.start.getTime();
+      const from = new Date(start.getTime() - duration);
+      for (const occ of expandOccurrences(rule, span.start, from, end)) {
+        const boundaries = shiftedBoundaries(event, occ);
+        if (eventSpan({ ...boundaries, allDay: event.allDay }).end > start) {
+          result.push({ ...event, ...boundaries, occurrenceStart: occ.toISOString() });
+        }
       }
     }
 

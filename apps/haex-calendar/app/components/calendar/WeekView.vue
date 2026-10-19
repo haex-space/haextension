@@ -162,6 +162,7 @@ import {
   getAllDayEvents,
   toDateKey,
 } from "~/lib/timeGrid";
+import { eventSpan } from "~/lib/dates";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
@@ -185,7 +186,7 @@ const weekNumber = computed(() => {
 });
 
 function isEventPast(event: SelectEvent): boolean {
-  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+  return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
 const gridCols = computed(() => `3.5rem repeat(${dayCount.value}, 1fr)`);
 
