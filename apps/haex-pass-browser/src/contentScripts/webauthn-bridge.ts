@@ -17,7 +17,7 @@ import { sendMessage } from 'webext-bridge/content-script'
 import { rpIdMatchesOrigin } from '~/background/passkeyOrigin'
 import { getPasskeyPref, setPasskeyPref } from '~/logic/settings'
 import { requestPasskeyConsent } from './passkey-consent'
-import { parseVaultPasskeys, vaultCanAnswerGet } from './webauthn-routing'
+import { parseVaultPasskeys, USER_CANCELLED, vaultCanAnswerGet } from './webauthn-routing'
 
 interface WebAuthnCreateRequest {
   type: 'HAEX_PASS_WEBAUTHN_CREATE'
@@ -61,9 +61,8 @@ type WebAuthnRequest = WebAuthnCreateRequest | WebAuthnGetRequest | WebAuthnAbor
 // page-side abort can close the consent prompt.
 const inFlight = new Map<string, AbortController>()
 
-// Sentinel error consumed by webauthn-inject.ts to trigger the
-// originalCreate/originalGet fallback path. Anything else is treated as a
-// real failure and surfaced to the page.
+// Hands the request to the browser's own WebAuthn. webauthn-inject.ts does
+// that for every error except USER_CANCELLED, which it reports to the page.
 const USE_BROWSER_NATIVE = 'USE_BROWSER_NATIVE'
 
 function sendResponse(requestId: string, type: 'create' | 'get', data?: unknown, error?: string) {
@@ -116,7 +115,7 @@ async function handleWebAuthnCreate(request: WebAuthnCreateRequest, signal: Abor
 
   const handler = await resolveHandler(relyingPartyId, relyingPartyName || relyingPartyId, 'create', signal)
   if (handler === null) {
-    sendResponse(request.requestId, 'create', undefined, 'User cancelled passkey handler selection')
+    sendResponse(request.requestId, 'create', undefined, USER_CANCELLED)
     return
   }
   if (handler === 'browser') {
@@ -163,7 +162,7 @@ async function handleWebAuthnGet(request: WebAuthnGetRequest, signal: AbortSigna
 
   const handler = await resolveHandler(relyingPartyId, relyingPartyId, 'get', signal)
   if (handler === null) {
-    sendResponse(request.requestId, 'get', undefined, 'User cancelled passkey handler selection')
+    sendResponse(request.requestId, 'get', undefined, USER_CANCELLED)
     return
   }
   if (handler === 'browser') {

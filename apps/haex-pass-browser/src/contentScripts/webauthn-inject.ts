@@ -11,7 +11,7 @@
  * vor dem Laden der Seite zu überschreiben.
  */
 
-import { mustUseBrowserNative } from './webauthn-routing'
+import { mustUseBrowserNative, USER_CANCELLED } from './webauthn-routing'
 
 // Speichere die originalen WebAuthn-Methoden
 const originalCredentials = navigator.credentials
@@ -309,7 +309,14 @@ if (!originalCreate || !originalGet) {
     if (!message.type.startsWith('HAEX_PASS_WEBAUTHN_RESPONSE_'))
       return
 
-    // Bei JEDEM Fehler auf Browser-Fallback umschalten
+    // Abgebrochen wie ein Browser-Dialog: die Seite erfährt es, statt dass
+    // gleich der Browser-Dialog aufgeht, den der Nutzer nicht wollte.
+    if (message.error === USER_CANCELLED) {
+      settle(message.requestId)?.reject(new DOMException('The user cancelled the request.', 'NotAllowedError'))
+      return
+    }
+
+    // Bei jedem anderen Fehler auf Browser-Fallback umschalten
     // Wir können nicht alle möglichen Fehlermeldungen von verschiedenen Seiten vorhersehen,
     // daher: Nur bei explizitem Erfolg haex-pass verwenden, sonst immer Browser-Fallback
     if (message.error) {

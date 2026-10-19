@@ -101,6 +101,16 @@ describe('webauthn-inject', () => {
     expect(nativeGet).not.toHaveBeenCalled()
   })
 
+  it('rejects like the browser when the user cancels the haex-pass prompt', async () => {
+    const result = navigator.credentials.get(getOptions())
+    reply({ type: 'HAEX_PASS_WEBAUTHN_ACK', requestId: lastRequest().requestId })
+
+    reply({ type: 'HAEX_PASS_WEBAUTHN_RESPONSE_GET', requestId: lastRequest().requestId, error: 'USER_CANCELLED' })
+
+    await expect(result).rejects.toMatchObject({ name: 'NotAllowedError' })
+    expect(nativeGet).not.toHaveBeenCalled()
+  })
+
   it('ignores window messages that carry no object', () => {
     const errors: unknown[] = []
     const onError = (event: ErrorEvent) => errors.push(event.error)
