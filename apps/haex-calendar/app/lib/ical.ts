@@ -312,8 +312,19 @@ export function resolveEventTypeFromCategories(
   return { eventTypeId: matched.id, categories: rest || null };
 }
 
-/** Columns derived from a parsed event for import (type/recurrence/kind). */
-export interface ImportColumns {
+/** Event columns of an imported VEVENT/VTODO, with type/recurrence overrides resolved. */
+export interface ImportedEventColumns {
+  summary: string;
+  description: string | null;
+  location: string | null;
+  dtstart: string;
+  dtend: string;
+  allDay: boolean;
+  timezone: string;
+  status: string;
+  sequence: number;
+  url: string | null;
+  color: string | null;
   kind: "event" | "task";
   rrule: string | null;
   rruleOverride: boolean;

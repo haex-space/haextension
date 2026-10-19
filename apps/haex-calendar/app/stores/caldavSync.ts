@@ -25,6 +25,24 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
     lastRemoteFailure.value = { calendarId, action, message: getErrorMessage(error) };
   }
 
+  /** Calendar row and account of a CalDAV calendar; null for local calendars. */
+  async function resolveRemoteAsync(calendarId: string) {
+    if (!haexVault.orm) return null;
+    const [calendarRow] = await haexVault.orm
+      .select()
+      .from(calendars)
+      .where(eq(calendars.id, calendarId))
+      .limit(1);
+    if (!calendarRow?.caldavAccountId || !calendarRow.caldavPath) return null;
+
+    const [account] = await haexVault.orm
+      .select()
+      .from(caldavAccounts)
+      .where(eq(caldavAccounts.id, calendarRow.caldavAccountId))
+      .limit(1);
+    return account ? { calendarRow, caldavPath: calendarRow.caldavPath, account } : null;
+  }
+
   /**
    * Sync a single CalDAV calendar.
    * 1. CTag check — skip if unchanged
@@ -35,24 +53,9 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
    * 6. Update CTag
    */
   async function syncCalendarAsync(calendarId: string) {
-    if (!haexVault.orm) return;
-
-    // Load calendar + account
-    const [calendarRow] = await haexVault.orm
-      .select()
-      .from(calendars)
-      .where(eq(calendars.id, calendarId))
-      .limit(1);
-
-    if (!calendarRow?.caldavAccountId || !calendarRow.caldavPath) return;
-
-    const [account] = await haexVault.orm
-      .select()
-      .from(caldavAccounts)
-      .where(eq(caldavAccounts.id, calendarRow.caldavAccountId))
-      .limit(1);
-
-    if (!account) return;
+    const remote = await resolveRemoteAsync(calendarId);
+    if (!haexVault.orm || !remote) return;
+    const { calendarRow, caldavPath, account } = remote;
 
     try {
       syncErrors.value.delete(calendarId);
@@ -62,7 +65,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
       // Fetch event list from server
       const { ctag: serverCtag, events: serverEvents } = await caldav.fetchEventListAsync(
-        calendarRow.caldavPath,
+        caldavPath,
         account.username,
         password,
         account.serverUrl,
@@ -98,7 +101,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
       // Fetch changed events data
       if (hrefsToFetch.length > 0) {
         const fetchedEvents = await caldav.fetchEventsDataAsync(
-          calendarRow.caldavPath,
+          caldavPath,
           hrefsToFetch,
           account.username,
           password,
@@ -115,27 +118,13 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
             const eventData = parsed[0]!;
 
             const existingLocal = localByHref.get(normalizeHref(fetched.href));
-            // kind / recurrence / type-from-CATEGORIES / completion.
-            const columns = ical.mapImportColumns(eventData);
+            const columns = ical.importedEventColumns(eventData);
 
             if (existingLocal) {
               // Update existing
               await haexVault.orm
                 .update(events)
                 .set({
-                  summary: eventData.summary,
-                  description: eventData.description,
-                  location: eventData.location,
-                  dtstart: eventData.dtstart,
-                  dtend: eventData.dtend,
-                  allDay: eventData.allDay,
-                  timezone: eventData.timezone,
-                  status: eventData.status,
-                  sequence: eventData.sequence,
-                  url: eventData.url,
-                  color: eventData.color,
-                  // `...columns` carries the type-stripped `categories`, `rrule`,
-                  // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
                   ...columns,
                   etag: fetched.etag,
                   href: fetched.href,
@@ -166,20 +155,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
               await haexVault.orm.insert(events).values({
                 id,
                 calendarId,
-                uid: eventData.uid || `${id}@haex-calendar`,
-                summary: eventData.summary,
-                description: eventData.description,
-                location: eventData.location,
-                dtstart: eventData.dtstart,
-                dtend: eventData.dtend,
-                allDay: eventData.allDay,
-                timezone: eventData.timezone,
-                status: eventData.status,
-                sequence: eventData.sequence,
-                url: eventData.url,
-                color: eventData.color,
-                // `...columns` carries the type-stripped `categories`, `rrule`,
-                // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
+                uid: eventData.uid,
                 ...columns,
                 etag: fetched.etag,
                 href: fetched.href,
@@ -264,21 +240,9 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     if (!eventRow) return;
 
-    const [calendarRow] = await haexVault.orm
-      .select()
-      .from(calendars)
-      .where(eq(calendars.id, eventRow.calendarId))
-      .limit(1);
-
-    if (!calendarRow?.caldavAccountId || !calendarRow.caldavPath) return;
-
-    const [account] = await haexVault.orm
-      .select()
-      .from(caldavAccounts)
-      .where(eq(caldavAccounts.id, calendarRow.caldavAccountId))
-      .limit(1);
-
-    if (!account) return;
+    const remote = await resolveRemoteAsync(eventRow.calendarId);
+    if (!remote) return;
+    const { calendarRow, caldavPath, account } = remote;
 
     const password = await accountsStore.getPasswordAsync(account);
 
@@ -287,7 +251,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
     const icsData = generateICS(items, calendarRow.name);
 
     const create = !eventRow.href;
-    const href = eventRow.href ?? resourceHref(calendarRow.caldavPath, eventRow.uid);
+    const href = eventRow.href ?? resourceHref(caldavPath, eventRow.uid);
 
     const newEtag = await caldav.putEventAsync(
       href,
@@ -312,23 +276,10 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
    * the event to another calendar still needs the old calendar's server.
    */
   async function deleteRemoteEventAsync(eventRow: SelectEvent) {
-    if (!haexVault.orm || !eventRow.href) return;
-
-    const [calendarRow] = await haexVault.orm
-      .select()
-      .from(calendars)
-      .where(eq(calendars.id, eventRow.calendarId))
-      .limit(1);
-
-    if (!calendarRow?.caldavAccountId) return;
-
-    const [account] = await haexVault.orm
-      .select()
-      .from(caldavAccounts)
-      .where(eq(caldavAccounts.id, calendarRow.caldavAccountId))
-      .limit(1);
-
-    if (!account) return;
+    if (!eventRow.href) return;
+    const remote = await resolveRemoteAsync(eventRow.calendarId);
+    if (!remote) return;
+    const { account } = remote;
 
     const password = await accountsStore.getPasswordAsync(account);
 

@@ -6,7 +6,7 @@ import {
   parseICS,
   resolveEventTypeFromCategories,
   type IcalExportItem,
-  type ImportColumns,
+  type ImportedEventColumns,
   type ParsedEvent,
 } from "~/lib/ical";
 
@@ -52,8 +52,8 @@ export function useIcal() {
     return items;
   }
 
-  /** Map a parsed event to the type/recurrence/kind columns (types must be loaded). */
-  function mapImportColumns(parsed: ParsedEvent): ImportColumns {
+  /** Event columns for a parsed event (types must be loaded). */
+  function importedEventColumns(parsed: ParsedEvent): ImportedEventColumns {
     const { eventTypeId, categories } = resolveEventTypeFromCategories(
       parsed.categories,
       eventTypesStore.types,
@@ -70,11 +70,23 @@ export function useIcal() {
     // must not pin it as an override.
     const colorOverride = !!parsed.color && parsed.color.toLowerCase() !== type?.color.toLowerCase();
     return {
+      summary: parsed.summary,
+      description: parsed.description,
+      location: parsed.location,
+      dtstart: parsed.dtstart,
+      dtend: parsed.dtend,
+      allDay: parsed.allDay,
+      timezone: parsed.timezone,
+      status: parsed.status,
+      sequence: parsed.sequence,
+      url: parsed.url,
+      color: parsed.color,
       kind: parsed.kind,
       rrule: parsed.rrule,
       rruleOverride,
       colorOverride,
       eventTypeId,
+      // Type name stripped from the front, see resolveEventTypeFromCategories.
       categories,
       completedAt: parsed.completedAt,
     };
@@ -96,7 +108,7 @@ export function useIcal() {
     await eventTypesStore.loadTypesAsync();
 
     for (const event of parsed) {
-      const columns = mapImportColumns(event);
+      const columns = importedEventColumns(event);
 
       const existing = await haexVault.orm
         .select()
@@ -107,19 +119,6 @@ export function useIcal() {
       if (existing.length > 0) {
         if (event.sequence > (existing[0]?.sequence ?? 0)) {
           await eventsStore.updateEventAsync(existing[0]!.id, {
-            summary: event.summary,
-            description: event.description,
-            location: event.location,
-            dtstart: event.dtstart,
-            dtend: event.dtend,
-            allDay: event.allDay,
-            timezone: event.timezone,
-            status: event.status,
-            sequence: event.sequence,
-            url: event.url,
-            color: event.color,
-            // `...columns` carries the type-stripped `categories`, `rrule`,
-            // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
             ...columns,
             reminderOffsets: event.reminderOffsets,
           });
@@ -130,19 +129,6 @@ export function useIcal() {
       } else {
         await eventsStore.createEventAsync({
           calendarId,
-          summary: event.summary,
-          description: event.description,
-          location: event.location,
-          dtstart: event.dtstart,
-          dtend: event.dtend,
-          allDay: event.allDay,
-          timezone: event.timezone,
-          status: event.status,
-          sequence: event.sequence,
-          url: event.url,
-          color: event.color,
-          // `...columns` carries the type-stripped `categories`, `rrule`,
-          // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
           ...columns,
           reminderOffsets: event.reminderOffsets,
         });
@@ -177,7 +163,7 @@ export function useIcal() {
 
   return {
     buildExportItemsAsync,
-    mapImportColumns,
+    importedEventColumns,
     importFileAsync,
     exportCalendarAsync,
   };

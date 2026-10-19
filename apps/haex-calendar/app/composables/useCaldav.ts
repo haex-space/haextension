@@ -21,14 +21,11 @@ export function useCaldav() {
     password: string,
     extraHeaders: Record<string, string> = {},
     { allowAnyStatus = false }: { allowAnyStatus?: boolean } = {},
-  ): Promise<{ status: number; headers: Record<string, string>; text: string }> {
+  ): Promise<{ status: number; statusText: string; headers: Record<string, string>; text: string }> {
     const headers: Record<string, string> = {
       ...buildAuthHeaders(username, password),
+      ...(body ? { "Content-Type": "application/xml; charset=utf-8" } : {}),
       ...extraHeaders,
-    }
-
-    if (body) {
-      headers["Content-Type"] = "application/xml; charset=utf-8"
     }
 
     const response = await haexVault.client.web.fetchAsync(url, {
@@ -40,7 +37,7 @@ export function useCaldav() {
     if (!allowAnyStatus) assertCaldavStatus(response.status, response.statusText, method)
 
     const text = new TextDecoder().decode(response.body)
-    return { status: response.status, headers: response.headers, text }
+    return { status: response.status, statusText: response.statusText, headers: response.headers, text }
   }
 
   async function discoverAsync(
@@ -232,6 +229,10 @@ export function useCaldav() {
    * Create or update a resource. `etag` null with `create` false is an
    * update of a resource whose ETag the server never reported.
    */
+  function ifMatch(etag: string): string {
+    return `"${etag.replace(/"/g, "")}"`
+  }
+
   async function putEventAsync(
     href: string,
     icsData: string,
@@ -241,31 +242,12 @@ export function useCaldav() {
     password: string,
     serverUrl: string,
   ): Promise<string | null> {
-    const fullUrl = resolveUrl(href, serverUrl)
+    const headers: Record<string, string> = { "Content-Type": "text/calendar; charset=utf-8" }
+    if (etag) headers["If-Match"] = ifMatch(etag)
+    else if (create) headers["If-None-Match"] = "*"
 
-    const headers: Record<string, string> = {
-      ...buildAuthHeaders(username, password),
-      "Content-Type": "text/calendar; charset=utf-8",
-    }
-
-    if (etag) {
-      headers["If-Match"] = `"${etag.replace(/"/g, "")}"`
-    } else if (create) {
-      headers["If-None-Match"] = "*"
-    }
-
-    const response = await haexVault.client.web.fetchAsync(fullUrl, {
-      method: "PUT",
-      headers,
-      body: icsData,
-    })
-
-    if (response.status >= 400) {
-      throw new Error(`PUT failed: ${response.status} ${response.statusText}`)
-    }
-
-    const newEtag = response.headers["etag"] || response.headers["ETag"] || null
-    return newEtag
+    const response = await caldavRequest(resolveUrl(href, serverUrl), "PUT", icsData, username, password, headers)
+    return response.headers["etag"] || response.headers["ETag"] || null
   }
 
   /** Delete a resource; an already missing resource counts as deleted. */
@@ -276,21 +258,13 @@ export function useCaldav() {
     password: string,
     serverUrl: string,
   ): Promise<void> {
-    const fullUrl = resolveUrl(href, serverUrl)
-
     // Servers may omit the ETag on PUT; deleting without If-Match is then the
     // only way to remove the resource instead of letting it come back on sync.
-    const headers: Record<string, string> = buildAuthHeaders(username, password)
-    if (etag) headers["If-Match"] = `"${etag.replace(/"/g, "")}"`
-
-    const response = await haexVault.client.web.fetchAsync(fullUrl, {
-      method: "DELETE",
-      headers,
+    const headers: Record<string, string> = etag ? { "If-Match": ifMatch(etag) } : {}
+    const response = await caldavRequest(resolveUrl(href, serverUrl), "DELETE", undefined, username, password, headers, {
+      allowAnyStatus: true,
     })
-
-    if (response.status >= 400 && response.status !== 404) {
-      throw new Error(`DELETE failed: ${response.status} ${response.statusText}`)
-    }
+    if (response.status !== 404) assertCaldavStatus(response.status, response.statusText, "DELETE")
   }
 
   return {
