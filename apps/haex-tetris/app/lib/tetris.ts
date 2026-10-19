@@ -145,17 +145,29 @@ export function rotatePiece(piece: Piece, board: Board): Piece | null {
 export interface LockResult {
   board: Board
   clearedLines: number
+  /** Part of the piece stayed above the board, which ends the game. */
+  lockedOut: boolean
 }
 
 /** Writes `piece` into the board and removes completed lines. */
 export function lockPiece(board: Board, piece: Piece): LockResult {
-  const merged = board.map(row => [...row])
-  for (const { x, y } of pieceCells(piece.shape, piece.position)) {
-    if (y >= 0) merged[y]![x] = piece.color
+  const cells = pieceCells(piece.shape, piece.position)
+  // Cells above the board go into hidden rows so that a line clear below can still bring them into view.
+  const hiddenRows = Math.max(0, -Math.min(...cells.map(cell => cell.y)))
+  const merged = [...emptyRows(hiddenRows), ...board.map(row => [...row])]
+  for (const { x, y } of cells) {
+    merged[y + hiddenRows]![x] = piece.color
   }
   const kept = merged.filter(row => row.some(cell => cell === null))
   const clearedLines = merged.length - kept.length
-  return { board: [...emptyRows(clearedLines), ...kept], clearedLines }
+  const overflow = Math.max(0, kept.length - BOARD_HEIGHT)
+  const lockedOut = kept.slice(0, overflow).some(row => row.some(cell => cell !== null))
+  const visible = kept.slice(overflow)
+  return {
+    board: [...emptyRows(BOARD_HEIGHT - visible.length), ...visible],
+    clearedLines,
+    lockedOut,
+  }
 }
 
 export function scoreForLines(clearedLines: number, level: number): number {

@@ -57,7 +57,19 @@ export function useTetris() {
     }
 
     board.value = result.board
+    if (result.lockedOut) {
+      endGame()
+      return
+    }
     spawnPiece()
+  }
+
+  function endGame() {
+    gameState.value = 'gameover'
+    if (score.value > highScore.value) {
+      highScore.value = score.value
+    }
+    stopDropInterval()
   }
 
   function spawnPiece() {
@@ -69,11 +81,7 @@ export function useTetris() {
     nextPiece.value = createPiece(getNextType())
 
     if (!isValidPosition(currentPiece.value.shape, currentPiece.value.position, board.value)) {
-      gameState.value = 'gameover'
-      if (score.value > highScore.value) {
-        highScore.value = score.value
-      }
-      stopDropInterval()
+      endGame()
     }
   }
 

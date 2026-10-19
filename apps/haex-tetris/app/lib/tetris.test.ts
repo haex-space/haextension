@@ -87,6 +87,25 @@ describe('lockPiece', () => {
     expect(result.board[BOARD_HEIGHT - 2]![0]).toBe('#00f0f0')
     expect(result.board[0]).toEqual(Array.from({ length: BOARD_WIDTH }, () => null))
   })
+
+  it('reports a lock-out when cells stay above the board', () => {
+    const result = lockPiece(createEmptyBoard(), pieceAt('O', 0, -1))
+    expect(result.lockedOut).toBe(true)
+    expect(result.board[0]!.slice(0, 2)).toEqual(['#f0f000', '#f0f000'])
+  })
+
+  it('moves cells above the board into view when a line clears below them', () => {
+    const board = createEmptyBoard()
+    board[0] = rowWithGap([0, 1])
+    const result = lockPiece(board, pieceAt('O', 0, -1))
+    expect(result.clearedLines).toBe(1)
+    expect(result.lockedOut).toBe(false)
+    expect(result.board[0]!.slice(0, 3)).toEqual(['#f0f000', '#f0f000', null])
+  })
+
+  it('does not report a lock-out for a piece inside the board', () => {
+    expect(lockPiece(createEmptyBoard(), pieceAt('T', 3, 0)).lockedOut).toBe(false)
+  })
 })
 
 describe('rotatePiece', () => {
