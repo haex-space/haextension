@@ -39,8 +39,17 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     console.log(`[haex-notes] Migrations: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`);
   };
 
-  const initializeAsync = async () => {
-    if (isInitialized.value) return;
+  let initPromise: Promise<void> | null = null;
+
+  /**
+   * Läuft genau einmal pro Frame, auch bei parallelen Aufrufen mehrerer Seiten.
+   * Ein fehlgeschlagener Versuch bleibt bestehen: das SDK behält das abgelehnte
+   * Setup, und onSetup lässt sich kein zweites Mal registrieren. Ein neuer
+   * Versuch braucht deshalb einen Reload des Frames.
+   */
+  const initializeAsync = () => (initPromise ??= doInitializeAsync());
+
+  const doInitializeAsync = async () => {
     const haexVault = getHaexVault();
 
     console.log("[haex-notes] Initializing HaexVault SDK");

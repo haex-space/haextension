@@ -79,6 +79,9 @@ const initAsync = async () => {
 
 onMounted(initAsync);
 
+// Ein fehlgeschlagenes SDK-Setup lässt sich im selben Frame nicht wiederholen.
+const reloadFrame = () => window.location.reload();
+
 // Auto-save
 const autoSaveInterval = ref<ReturnType<typeof setInterval>>();
 onMounted(() => {
@@ -328,7 +331,7 @@ const addPage = async () => {
     <div class="flex items-center gap-2">
       <button
         class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        @click="initAsync"
+        @click="reloadFrame"
       >
         {{ t("retry") }}
       </button>

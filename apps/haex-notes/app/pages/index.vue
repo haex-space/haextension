@@ -39,6 +39,9 @@ const initAsync = async () => {
 
 onMounted(initAsync);
 
+// Ein fehlgeschlagenes SDK-Setup lässt sich im selben Frame nicht wiederholen.
+const reloadFrame = () => window.location.reload();
+
 const createNotebook = async () => {
   const name = newName.value.trim() || t("defaultName");
   const id = await notebookStore.createNotebookAsync(name, newTemplate.value, newColor.value);
@@ -240,7 +243,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
     <p class="max-w-md text-xs text-muted-foreground">{{ loadError }}</p>
     <button
       class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      @click="initAsync"
+      @click="reloadFrame"
     >
       {{ t("retry") }}
     </button>
