@@ -1,5 +1,12 @@
 import getStroke from "perfect-freehand";
-import type { PageElement, StrokeElement, TableElement } from "~/types/document";
+import type { BBox, PageElement, StrokeElement, TableElement } from "~/types/document";
+
+/**
+ * Pfade committeter Striche, damit Pan, Zoom und jeder neue Strich nicht alle
+ * Umrisse neu berechnen. Ein Eintrag gilt, solange `bbox` dasselbe Array ist:
+ * jede Geometrieänderung setzt per Vertrag eine neue Hülle (computeBbox).
+ */
+export type StrokePathCache = WeakMap<StrokeElement, { bbox: BBox; path: Path2D }>;
 
 /** Wandelt den Umriss aus perfect-freehand in einen geschlossenen SVG-Pfad. */
 export function strokeOutlineToPath(outline: [number, number][]): string {
@@ -32,8 +39,18 @@ export function strokeToPath(stroke: StrokeElement): string {
   return strokeOutlineToPath(outline as [number, number][]);
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeElement) {
-  const path = strokeToPath(stroke);
+function strokePath(stroke: StrokeElement, cache?: StrokePathCache): Path2D | null {
+  const cached = cache?.get(stroke);
+  if (cached && cached.bbox === stroke.bbox) return cached.path;
+  const d = strokeToPath(stroke);
+  if (!d) return null;
+  const path = new Path2D(d);
+  cache?.set(stroke, { bbox: stroke.bbox, path });
+  return path;
+}
+
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeElement, cache?: StrokePathCache) {
+  const path = strokePath(stroke, cache);
   if (!path) return;
   ctx.save();
   if (stroke.brushPreset === "marker" || stroke.brushPreset === "highlighter") {
@@ -44,7 +61,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeElement) {
   } else {
     ctx.fillStyle = stroke.color;
   }
-  ctx.fill(new Path2D(path));
+  ctx.fill(path);
   ctx.restore();
 }
 
@@ -84,10 +101,10 @@ function drawTable(ctx: CanvasRenderingContext2D, table: TableElement) {
  * dazu — bis dahin werden sie still übersprungen, damit eine von einem neueren
  * Gerät synchronisierte Seite nicht den ganzen Renderer wirft.
  */
-export function drawElement(ctx: CanvasRenderingContext2D, element: PageElement) {
+export function drawElement(ctx: CanvasRenderingContext2D, element: PageElement, cache?: StrokePathCache) {
   switch (element.type) {
     case "stroke":
-      drawStroke(ctx, element);
+      drawStroke(ctx, element, cache);
       return;
     case "table":
       drawTable(ctx, element);
@@ -97,6 +114,10 @@ export function drawElement(ctx: CanvasRenderingContext2D, element: PageElement)
   }
 }
 
-export function drawElements(ctx: CanvasRenderingContext2D, elements: readonly PageElement[]) {
-  for (const element of elements) drawElement(ctx, element);
+export function drawElements(
+  ctx: CanvasRenderingContext2D,
+  elements: readonly PageElement[],
+  cache?: StrokePathCache,
+) {
+  for (const element of elements) drawElement(ctx, element, cache);
 }

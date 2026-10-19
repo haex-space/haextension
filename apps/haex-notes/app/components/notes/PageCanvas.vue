@@ -2,7 +2,7 @@
 import { useEventListener, useResizeObserver } from "@vueuse/core";
 import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
-import { drawElement, drawElements } from "~/lib/render/elements";
+import { drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
 
 const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
 const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
@@ -61,11 +61,13 @@ function prepare(el: HTMLCanvasElement | null): CanvasRenderingContext2D | null 
   if (!ctx) return null;
 
   const dpr = window.devicePixelRatio || 1;
-  const cw = el.clientWidth;
-  const ch = el.clientHeight;
-  if (el.width !== cw * dpr || el.height !== ch * dpr) {
-    el.width = cw * dpr;
-    el.height = ch * dpr;
+  // Gerundet, sonst passt der Vergleich bei krummem DPR nie und der Canvas wird
+  // bei jedem Frame neu angelegt.
+  const width = Math.round(el.clientWidth * dpr);
+  const height = Math.round(el.clientHeight * dpr);
+  if (el.width !== width || el.height !== height) {
+    el.width = width;
+    el.height = height;
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -113,10 +115,12 @@ function renderBackground() {
   }
 }
 
+const strokePaths: StrokePathCache = new WeakMap();
+
 function renderContent() {
   const ctx = prepare(contentCanvasEl.value);
   if (!ctx) return;
-  drawElements(ctx, notebook.visibleElements);
+  drawElements(ctx, notebook.visibleElements, strokePaths);
 }
 
 function renderOverlay() {
