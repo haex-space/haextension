@@ -7,6 +7,7 @@ const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const paletteStore = usePaletteStore();
+const drawingSave = useDrawingSaveStore();
 const { listAsync, deleteAsync, loadAsync } = useDrawingPersistence();
 
 const drawings = ref<SelectDrawing[]>([]);
@@ -19,6 +20,8 @@ const loadDrawings = async () => {
 onMounted(async () => {
   await haexVault.initializeAsync();
   await paletteStore.loadAsync();
+  // The editor saves on unmount; list the drawings once that save has landed.
+  await drawingSave.whenIdleAsync();
   await loadDrawings();
   isLoaded.value = true;
 });

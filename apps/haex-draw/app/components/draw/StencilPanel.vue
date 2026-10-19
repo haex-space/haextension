@@ -14,7 +14,6 @@ import {
 import type { Stencil } from "~/types/stencil";
 
 const { t, locale } = useI18n();
-const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const { exportStencilAsync } = useStencilExport();
 
@@ -45,7 +44,6 @@ function onCropApply(imageData: string, cropWidth: number, cropHeight: number) {
   s.imageData = imageData;
   s.width = cropWidth * scaleX;
   s.height = cropHeight * scaleY;
-  canvas.isDirty = true;
   isCropping.value = false;
 }
 

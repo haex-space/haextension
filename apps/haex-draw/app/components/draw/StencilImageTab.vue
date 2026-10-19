@@ -11,7 +11,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const canvas = useCanvasStore();
 
 const stencil = toRef(props, "stencil");
 
@@ -20,7 +19,6 @@ const imageOpacity = computed({
   set: (v: number) => {
     if (!stencil.value) return;
     stencil.value.opacity = Math.max(0, Math.min(100, v)) / 100;
-    canvas.isDirty = true;
   },
 });
 
@@ -29,7 +27,6 @@ const imageSaturation = computed({
   set: (v: number) => {
     if (!stencil.value) return;
     stencil.value.saturation = Math.max(0, Math.min(200, v)) / 100;
-    canvas.isDirty = true;
   },
 });
 
@@ -38,7 +35,6 @@ const imageBrightness = computed({
   set: (v: number) => {
     if (!stencil.value) return;
     stencil.value.brightness = Math.max(0, Math.min(200, v)) / 100;
-    canvas.isDirty = true;
   },
 });
 
@@ -47,7 +43,6 @@ const imageContrast = computed({
   set: (v: number) => {
     if (!stencil.value) return;
     stencil.value.contrast = Math.max(0, Math.min(200, v)) / 100;
-    canvas.isDirty = true;
   },
 });
 
@@ -57,7 +52,6 @@ const resetImageAdjustments = () => {
   stencil.value.saturation = 1;
   stencil.value.brightness = 1;
   stencil.value.contrast = 1;
-  canvas.isDirty = true;
 };
 </script>
 

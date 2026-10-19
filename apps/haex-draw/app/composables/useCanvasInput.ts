@@ -360,7 +360,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       resizingId.value = null;
       isRotating.value = false;
       rotatingId.value = null;
-      canvas.isDirty = true;
       return;
     }
 

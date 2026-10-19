@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import getStroke from "perfect-freehand";
-import { drawings, type SelectDrawing, type StrokeData } from "~/database/schemas";
+import { drawings, type SelectDrawing, type SerializedStencil, type StrokeData, type ViewportState } from "~/database/schemas";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 
 function renderStrokesToCanvas(ctx: CanvasRenderingContext2D, strokes: StrokeData[]) {
@@ -33,14 +33,33 @@ function renderStrokesToCanvas(ctx: CanvasRenderingContext2D, strokes: StrokeDat
   }
 }
 
+export interface DrawingSnapshot {
+  id: string;
+  name: string;
+  strokes: StrokeData[];
+  stencils: SerializedStencil[];
+  viewport: ViewportState;
+}
+
+/** Deep plain copy of reactive store data, safe to hand to the database layer. */
+function plainCopy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export function useDrawingPersistence() {
   const haexVault = useHaexVaultStore();
   const canvas = useCanvasStore();
   const stencilStore = useStencilStore();
 
-  const saveAsync = async () => {
+  const requireDb = () => {
     const db = haexVault.orm;
-    if (!db || !canvas.drawingId) return;
+    if (!db) throw new Error("The vault database is not initialized");
+    return db;
+  };
+
+  /** Copies the open drawing in one synchronous step, so a save never mixes two states. */
+  const snapshotDrawing = (): DrawingSnapshot | null => {
+    if (!canvas.drawingId) return null;
 
     // Serialize stencils to plain objects (strip runtime state)
     const serializedStencils = stencilStore.stencils.map(s => ({
@@ -64,28 +83,29 @@ export function useDrawingPersistence() {
       contrast: s.contrast,
     }));
 
-    // Deep-clone reactive data to plain objects for serialization
-    const strokesData = JSON.parse(JSON.stringify(canvas.strokes));
-    const stencilsData = JSON.parse(JSON.stringify(serializedStencils));
-    const viewportData = JSON.parse(JSON.stringify(canvas.viewport));
+    return plainCopy({
+      id: canvas.drawingId,
+      name: canvas.drawingName,
+      strokes: canvas.strokes,
+      stencils: serializedStencils,
+      viewport: canvas.viewport,
+    });
+  };
 
-    const existing = await db.select({ id: drawings.id }).from(drawings).where(eq(drawings.id, canvas.drawingId));
+  const writeDrawingAsync = async (snapshot: DrawingSnapshot) => {
+    const db = requireDb();
+    const values = {
+      name: snapshot.name,
+      strokes: snapshot.strokes,
+      stencils: snapshot.stencils,
+      viewport: snapshot.viewport,
+    };
 
+    const existing = await db.select({ id: drawings.id }).from(drawings).where(eq(drawings.id, snapshot.id));
     if (existing.length > 0) {
-      await db.update(drawings).set({
-        name: canvas.drawingName,
-        strokes: strokesData,
-        stencils: stencilsData,
-        viewport: viewportData,
-      }).where(eq(drawings.id, canvas.drawingId));
+      await db.update(drawings).set(values).where(eq(drawings.id, snapshot.id));
     } else {
-      await db.insert(drawings).values({
-        id: canvas.drawingId,
-        name: canvas.drawingName,
-        strokes: strokesData,
-        stencils: stencilsData,
-        viewport: viewportData,
-      });
+      await db.insert(drawings).values({ id: snapshot.id, ...values });
     }
   };
 
@@ -150,12 +170,12 @@ export function useDrawingPersistence() {
     });
   };
 
-  const generateThumbnailAsync = async () => {
-    const db = haexVault.orm;
-    if (!db || !canvas.drawingId || canvas.strokes.length === 0) return;
+  const writeThumbnailAsync = async (snapshot: DrawingSnapshot) => {
+    if (snapshot.strokes.length === 0) return;
+    const db = requireDb();
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const stroke of canvas.strokes) {
+    for (const stroke of snapshot.strokes) {
       for (const [x, y] of stroke.points) {
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -190,18 +210,19 @@ export function useDrawingPersistence() {
     ctx.fillRect(0, 0, w, h);
     ctx.scale(scale, scale);
     ctx.translate(-minX, -minY);
-    renderStrokesToCanvas(ctx, canvas.strokes);
+    renderStrokesToCanvas(ctx, snapshot.strokes);
 
     const thumbnail = tmpCanvas.toDataURL("image/png", 0.7);
-    await db.update(drawings).set({ thumbnail }).where(eq(drawings.id, canvas.drawingId));
+    await db.update(drawings).set({ thumbnail }).where(eq(drawings.id, snapshot.id));
   };
 
   return {
-    saveAsync,
+    snapshotDrawing,
+    writeDrawingAsync,
+    writeThumbnailAsync,
     loadAsync,
     listAsync,
     deleteAsync,
     exportPngAsync,
-    generateThumbnailAsync,
   };
 }

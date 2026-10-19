@@ -17,7 +17,6 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 
 const stencil = toRef(props, "stencil");
@@ -113,16 +112,16 @@ const sizeValue = computed({
       <div>
         <label class="mb-1 block text-xs text-muted-foreground">{{ t("layer") }}</label>
         <div class="grid grid-cols-4 gap-1">
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerBottom')" @click="stencilStore.moveLayerToBottom(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerBottom')" @click="stencilStore.moveLayerToBottom(stencil!.id)">
             <ChevronsDown class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerDown')" @click="stencilStore.moveLayerDown(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerDown')" @click="stencilStore.moveLayerDown(stencil!.id)">
             <ArrowDown class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerUp')" @click="stencilStore.moveLayerUp(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerUp')" @click="stencilStore.moveLayerUp(stencil!.id)">
             <ArrowUp class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerTop')" @click="stencilStore.moveLayerToTop(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerTop')" @click="stencilStore.moveLayerToTop(stencil!.id)">
             <ChevronsUp class="size-4" />
           </button>
         </div>

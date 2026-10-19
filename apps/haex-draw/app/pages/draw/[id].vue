@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import { Undo2, Redo2, History } from "@lucide/vue";
+import { toast } from "vue-sonner";
 
 const route = useRoute();
 const router = useRouter();
@@ -10,7 +11,8 @@ const haexVault = useHaexVaultStore();
 const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const paletteStore = usePaletteStore();
-const { saveAsync, loadAsync, exportPngAsync, generateThumbnailAsync } = useDrawingPersistence();
+const drawingSave = useDrawingSaveStore();
+const { loadAsync, exportPngAsync } = useDrawingPersistence();
 
 const historyVisible = ref(false);
 const cameraVisible = ref(false);
@@ -25,12 +27,15 @@ const rightPanelVisible = computed(() =>
 onMounted(async () => {
   await haexVault.initializeAsync();
   await paletteStore.loadAsync();
+  // A save of the previous page may still be running; load only what it has written.
+  await drawingSave.whenIdleAsync();
 
   const id = route.params.id as string;
 
   if (id === "new") {
     canvas.newDrawing();
     stencilStore.clear();
+    await drawingSave.markSavedAsync();
   } else if (canvas.drawingId === id) {
     // Already loaded (e.g. from store), nothing to do
   } else {
@@ -45,6 +50,7 @@ onMounted(async () => {
       if (drawing.stencils && Array.isArray(drawing.stencils)) {
         stencilStore.loadStencils(drawing.stencils);
       }
+      await drawingSave.markSavedAsync();
     } else {
       router.replace(localePath("/"));
       return;
@@ -54,42 +60,32 @@ onMounted(async () => {
   isLoaded.value = true;
 });
 
+/** Saves pending changes; never rejects, failures are reported to the user. */
+const saveAsync = async () => {
+  const error = await drawingSave.saveAsync();
+  if (!error) return;
+  console.error("[haex-draw] Saving failed:", error);
+  toast.error(t("saveFailed"), { description: error.message });
+};
+
 // Auto-save interval
 const autoSaveInterval = ref<ReturnType<typeof setInterval>>();
 
 onMounted(() => {
-  autoSaveInterval.value = setInterval(async () => {
-    if (canvas.isDirty && canvas.drawingId) {
-      try {
-        await saveAsync();
-        await generateThumbnailAsync();
-        canvas.isDirty = false;
-      } catch (e) {
-        console.error("[haex-draw] Auto-save failed:", e);
-        // TODO: show error toast
-      }
-    }
-  }, 10_000);
+  autoSaveInterval.value = setInterval(() => void saveAsync(), 10_000);
 });
 
 onUnmounted(() => {
   if (autoSaveInterval.value) clearInterval(autoSaveInterval.value);
 });
 
-// Save before leaving
-onBeforeUnmount(async () => {
-  if (canvas.isDirty && canvas.drawingId) {
-    await saveAsync();
-    await generateThumbnailAsync();
-    canvas.isDirty = false;
-  }
+// Save before leaving the page, and when the window is hidden or closed:
+// unmount hooks do not run when the host tears down the extension frame.
+onBeforeUnmount(() => void saveAsync());
+useEventListener(document, "visibilitychange", () => {
+  if (document.visibilityState === "hidden") void saveAsync();
 });
-
-const onSave = async () => {
-  await saveAsync();
-  await generateThumbnailAsync();
-  canvas.isDirty = false;
-};
+useEventListener(window, "pagehide", () => void saveAsync());
 
 const onExportPng = async () => {
   const blob = await exportPngAsync();
@@ -107,13 +103,12 @@ const onExportPng = async () => {
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault();
-    onSave();
+    void saveAsync();
   }
 });
 
 const onDrawingNameUpdate = (name: string) => {
   canvas.drawingName = name;
-  canvas.isDirty = true;
 };
 
 // Camera & Gallery
@@ -141,7 +136,6 @@ const getViewportCenter = () => {
 
 const switchToPanAfterInsert = () => {
   canvas.activeTool = "pan";
-  canvas.isDirty = true;
 };
 
 const onCameraCapture = (dataUrl: string, width: number, height: number) => {
@@ -173,7 +167,7 @@ const onEmojiSelect = (emoji: string) => {
       :history-visible="historyVisible"
       :gallery-visible="galleryVisible"
       :gallery-thumbnail="galleryPreviewThumbnail"
-      @save="onSave"
+      @save="saveAsync"
       @export-png="onExportPng"
       @toggle-history="historyVisible = !historyVisible"
       @toggle-camera="cameraVisible = true"
@@ -261,9 +255,11 @@ de:
   undo: Rückgängig
   redo: Wiederherstellen
   history: Verlauf
+  saveFailed: Zeichnung konnte nicht gespeichert werden
 en:
   title: Draw
   undo: Undo
   redo: Redo
   history: History
+  saveFailed: Could not save the drawing
 </i18n>
