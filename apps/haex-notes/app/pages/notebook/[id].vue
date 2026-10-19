@@ -9,7 +9,6 @@ import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
 const route = useRoute();
 const router = useRouter();
-const localePath = useLocalePath();
 const { t, locale } = useI18n();
 const haexVault = useHaexVaultStore();
 const notebook = useNotebookStore();
@@ -67,7 +66,7 @@ const initAsync = async () => {
     const id = route.params.id as string;
     const success = await notebook.openNotebookAsync(id);
     if (!success) {
-      router.replace(localePath("/"));
+      router.replace("/");
       return;
     }
     selectedAddTemplate.value = (notebook.currentNotebook?.defaultTemplate as PageTemplate) ?? "lined";
@@ -119,7 +118,7 @@ useEventListener(window, "keydown", (e: KeyboardEvent) => {
 
 const goBack = async () => {
   if (notebook.isDirty) await notebook.saveCurrentPageAsync();
-  router.push(localePath("/"));
+  router.push("/");
 };
 
 const onTableSelect = (rows: number, cols: number) => {
@@ -335,7 +334,7 @@ const addPage = async () => {
       </button>
       <button
         class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
-        @click="router.push(localePath('/'))"
+        @click="router.push('/')"
       >
         {{ t("backToList") }}
       </button>

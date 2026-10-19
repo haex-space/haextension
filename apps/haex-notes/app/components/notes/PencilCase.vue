@@ -3,7 +3,6 @@ import { Plus, Settings, Trash2, X } from "@lucide/vue";
 import type { PenSlot } from "~/database/schemas";
 
 const router = useRouter();
-const localePath = useLocalePath();
 const { t, locale } = useI18n();
 const pencilCase = usePencilCaseStore();
 
@@ -72,7 +71,7 @@ const cancelSlotEdit = () => {
     <button
       class="flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
       :title="t('settings')"
-      @click="router.push(localePath('/settings'))"
+      @click="router.push('/settings')"
     >
       <Settings class="size-5" />
     </button>

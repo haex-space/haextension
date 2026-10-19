@@ -5,7 +5,6 @@ import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const notebookStore = useNotebookStore();
 const pencilCaseStore = usePencilCaseStore();
@@ -45,12 +44,12 @@ const createNotebook = async () => {
   if (id) {
     showNewDialog.value = false;
     newName.value = "";
-    router.push(localePath(`/notebook/${id}`));
+    router.push(`/notebook/${id}`);
   }
 };
 
 const openNotebook = (id: string) => {
-  router.push(localePath(`/notebook/${id}`));
+  router.push(`/notebook/${id}`);
 };
 
 const deleteNotebook = async (id: string) => {

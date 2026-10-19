@@ -2,9 +2,8 @@
 import { ArrowLeft } from "@lucide/vue";
 import packageJson from "../../package.json";
 
-const { t, locale, setLocale } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
-const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const pencilCase = usePencilCaseStore();
 
@@ -60,28 +59,6 @@ const onMaxSlotsChange = (val: number) => {
           </div>
         </div>
 
-        <!-- Language -->
-        <div class="rounded-xl border border-border p-4">
-          <h2 class="mb-3 text-sm font-semibold text-foreground">{{ t("language") }}</h2>
-
-          <div class="flex gap-2">
-            <button
-              class="rounded-lg px-4 py-2 text-sm transition-colors"
-              :class="locale === 'de' ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'"
-              @click="setLocale('de')"
-            >
-              Deutsch
-            </button>
-            <button
-              class="rounded-lg px-4 py-2 text-sm transition-colors"
-              :class="locale === 'en' ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'"
-              @click="setLocale('en')"
-            >
-              English
-            </button>
-          </div>
-        </div>
-
         <!-- About -->
         <div class="rounded-xl border border-border p-4">
           <h2 class="mb-2 text-sm font-semibold text-foreground">{{ t("about") }}</h2>
@@ -99,14 +76,12 @@ de:
   title: Einstellungen
   pencilCase: Federkästchen
   maxSlots: Maximale Stift-Anzahl
-  language: Sprache
   about: Über
   aboutDesc: Digitales Notizbuch für handschriftliche Notizen
 en:
   title: Settings
   pencilCase: Pencil Case
   maxSlots: Maximum pen slots
-  language: Language
   about: About
   aboutDesc: Digital notebook for handwritten notes
 </i18n>
