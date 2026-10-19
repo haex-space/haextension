@@ -31,17 +31,10 @@ onMounted(async () => {
   await drawingSave.whenIdleAsync();
 
   const id = route.params.id as string;
+  // Always read the stored row: it may have been renamed in the overview or synced from another device.
+  const drawing = await loadAsync(id);
 
-  if (id === "new") {
-    canvas.newDrawing();
-    stencilStore.clear();
-  } else {
-    // Always read the stored row: it may have been renamed in the overview or synced from another device.
-    const drawing = await loadAsync(id);
-    if (!drawing) {
-      router.replace(localePath("/"));
-      return;
-    }
+  if (drawing) {
     canvas.loadDrawing({
       id: drawing.id,
       name: drawing.name,
@@ -49,6 +42,13 @@ onMounted(async () => {
       viewport: drawing.viewport,
     });
     stencilStore.loadStencils(Array.isArray(drawing.stencils) ? drawing.stencils : []);
+  } else if (route.query.new) {
+    // Not stored until the first change
+    canvas.newDrawing(id);
+    stencilStore.clear();
+  } else {
+    router.replace(localePath("/"));
+    return;
   }
 
   await drawingSave.markSavedAsync();

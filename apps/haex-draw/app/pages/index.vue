@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Paintbrush } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
+import { newDrawingLocation } from "~/utils/drawingRoutes";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -27,7 +28,7 @@ onMounted(async () => {
 });
 
 const createNewDrawing = () => {
-  router.push(localePath("/draw/new"));
+  router.push(localePath(newDrawingLocation()));
 };
 
 const openDrawing = (id: string) => {

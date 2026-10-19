@@ -4,6 +4,7 @@ import {
   FilePlus,
   FolderOpen,
 } from "@lucide/vue";
+import { newDrawingLocation } from "~/utils/drawingRoutes";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -23,7 +24,7 @@ const loadRecent = async () => {
 
 const goToOverview = () => router.push(localePath("/"));
 const openDrawing = (id: string) => router.push(localePath(`/draw/${id}`));
-const newDrawing = () => router.push(localePath("/draw/new"));
+const newDrawing = () => router.push(localePath(newDrawingLocation()));
 </script>
 
 <template>

@@ -90,8 +90,8 @@ export const useCanvasStore = defineStore("canvas", () => {
     viewport.value = drawing.viewport;
   };
 
-  const newDrawing = () => {
-    drawingId.value = crypto.randomUUID();
+  const newDrawing = (id: string) => {
+    drawingId.value = id;
     drawingName.value = "Untitled";
     history.value = [];
     historyIndex.value = -1;
