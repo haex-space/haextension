@@ -96,7 +96,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      debug: true,
+      debug: false,
     },
   },
 
