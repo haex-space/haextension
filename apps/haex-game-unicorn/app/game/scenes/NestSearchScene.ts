@@ -44,6 +44,11 @@ export class NestSearchScene extends Phaser.Scene {
 
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['nest-search-v1'])
+    // Phaser reuses the scene instance, so a replay must start from a clean state
+    this.touchTarget = null
+    this.candidates = []
+    this.inspecting = false
+    this.chosenNest = null
 
     this.createGround()
     this.createNestCandidates()
