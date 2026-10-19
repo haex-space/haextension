@@ -254,41 +254,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
   private handleInput() {
     if (this.isCollectingNectar) return
-
-    // Keyboard
-    if (this.cursors) {
-      const left = this.cursors.left.isDown
-      const right = this.cursors.right.isDown
-      const up = this.cursors.up.isDown
-      const down = this.cursors.down.isDown
-
-      if (left || right || up || down) {
-        this.touchTarget = null
-        let vx = 0
-        let vy = 0
-        if (left) vx = -1
-        if (right) vx = 1
-        if (up) vy = -1
-        if (down) vy = 1
-
-        const speed = this.queen.speed
-        const len = Math.sqrt(vx * vx + vy * vy) || 1
-        const body = this.queen.sprite.body as Phaser.Physics.Arcade.Body
-        body.setVelocity((vx / len) * speed, (vy / len) * speed)
-
-        if (vx < 0) this.queen.sprite.setFlipX(false)
-        else if (vx > 0) this.queen.sprite.setFlipX(true)
-        return
-      }
-    }
-
-    // Touch
-    if (this.touchTarget) {
-      this.queen.moveTo(this.touchTarget.x, this.touchTarget.y)
-      return
-    }
-
-    this.queen.stop()
+    this.touchTarget = this.queen.steer(this.cursors, this.touchTarget)
   }
 
   private checkVibrationInput(delta: number) {

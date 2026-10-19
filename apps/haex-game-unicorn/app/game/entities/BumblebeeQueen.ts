@@ -198,6 +198,45 @@ export class BumblebeeQueen {
     body.setVelocity(0, 0)
   }
 
+  /** Arrow keys win over the touch target. Returns the touch target that is still active. */
+  steer(
+    cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined,
+    touchTarget: { x: number, y: number } | null,
+  ): { x: number, y: number } | null {
+    if (cursors) {
+      const left = cursors.left.isDown
+      const right = cursors.right.isDown
+      const up = cursors.up.isDown
+      const down = cursors.down.isDown
+
+      if (left || right || up || down) {
+        let vx = 0
+        let vy = 0
+        if (left) vx = -1
+        if (right) vx = 1
+        if (up) vy = -1
+        if (down) vy = 1
+
+        const speed = this.speed
+        const len = Math.sqrt(vx * vx + vy * vy) || 1
+        const body = this.sprite.body as Phaser.Physics.Arcade.Body
+        body.setVelocity((vx / len) * speed, (vy / len) * speed)
+
+        if (vx < 0) this.sprite.setFlipX(false)
+        else if (vx > 0) this.sprite.setFlipX(true)
+        return null
+      }
+    }
+
+    if (touchTarget) {
+      this.moveTo(touchTarget.x, touchTarget.y)
+      return touchTarget
+    }
+
+    this.stop()
+    return null
+  }
+
   setDepth(depth: number) {
     this.sprite.setDepth(depth)
     this.shadow.setDepth(depth - 0.1)
