@@ -6,14 +6,14 @@ const { t } = useI18n();
 const editor = useEditorStore();
 const processor = useImageProcessor();
 
-const aspectPresets: AspectRatioPreset[] = [
-  { id: "free", label: "Frei", ratio: null },
+const aspectPresets = computed<AspectRatioPreset[]>(() => [
+  { id: "free", label: t("free"), ratio: null },
   { id: "1:1", label: "1:1", ratio: 1 },
   { id: "4:3", label: "4:3", ratio: 4 / 3 },
   { id: "3:4", label: "3:4", ratio: 3 / 4 },
   { id: "16:9", label: "16:9", ratio: 16 / 9 },
   { id: "9:16", label: "9:16", ratio: 9 / 16 },
-];
+]);
 
 async function confirmCrop() {
   if (editor.cropRect.width > 0 && editor.cropRect.height > 0) {
@@ -51,10 +51,12 @@ async function confirmCrop() {
 
 <i18n lang="yaml">
 de:
+  free: Frei
   aspectRatio: Seitenverhältnis
   cropHint: Ziehe ein Rechteck auf dem Bild
   applyCrop: Zuschnitt anwenden
 en:
+  free: Free
   aspectRatio: Aspect Ratio
   cropHint: Draw a rectangle on the image
   applyCrop: Apply Crop

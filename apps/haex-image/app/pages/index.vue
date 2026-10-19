@@ -71,7 +71,7 @@ async function openFile() {
   try {
     const paths = await client.filesystem.selectFile({
       title: t("openImage"),
-      filters: [["Bilder", ["png", "jpg", "jpeg", "webp", "bmp", "gif"]]],
+      filters: [[t("images"), ["png", "jpg", "jpeg", "webp", "bmp", "gif"]]],
       multiple: false,
     });
     if (!paths || paths.length === 0) return;
@@ -125,7 +125,7 @@ async function saveAs() {
     await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),
       defaultPath: withExtension(editor.filePath || editor.fileName, extension),
-      filters: [{ name: "Bilder", extensions: [extension] }],
+      filters: [{ name: t("images"), extensions: [extension] }],
     });
   } catch (error) {
     console.error("[haex-image] saveAs error:", error);
@@ -205,6 +205,7 @@ de:
   noImage: Kein Bild geladen
   openImage: Bild öffnen
   saveAs: Speichern unter
+  images: Bilder
   initFailed: Die Verbindung zum Vault ist fehlgeschlagen.
   openFailed: Das Bild konnte nicht geöffnet werden.
   saveFailed: Das Bild konnte nicht gespeichert werden.
@@ -212,6 +213,7 @@ en:
   noImage: No image loaded
   openImage: Open Image
   saveAs: Save As
+  images: Images
   initFailed: Connecting to the vault failed.
   openFailed: The image could not be opened.
   saveFailed: The image could not be saved.

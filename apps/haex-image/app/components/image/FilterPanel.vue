@@ -6,15 +6,8 @@ const { t } = useI18n();
 const editor = useEditorStore();
 const processor = useImageProcessor();
 
-const filterPresets: { id: FilterType; label: string }[] = [
-  { id: "none", label: "Original" },
-  { id: "grayscale", label: "Graustufen" },
-  { id: "sepia", label: "Sepia" },
-  { id: "invert", label: "Invertieren" },
-  { id: "warm", label: "Warm" },
-  { id: "cool", label: "Kühl" },
-  { id: "vintage", label: "Vintage" },
-];
+const filterTypes: FilterType[] = ["none", "grayscale", "sepia", "invert", "warm", "cool", "vintage"];
+const filterPresets = computed(() => filterTypes.map((id) => ({ id, label: t(`filters.${id}`) })));
 
 async function confirmFilter() {
   await processor.applyFilter(editor.activeFilter);
@@ -50,7 +43,23 @@ async function confirmFilter() {
 de:
   filter: Filter
   applyFilter: Filter anwenden
+  filters:
+    none: Original
+    grayscale: Graustufen
+    sepia: Sepia
+    invert: Invertieren
+    warm: Warm
+    cool: Kühl
+    vintage: Vintage
 en:
   filter: Filter
   applyFilter: Apply Filter
+  filters:
+    none: Original
+    grayscale: Grayscale
+    sepia: Sepia
+    invert: Invert
+    warm: Warm
+    cool: Cool
+    vintage: Vintage
 </i18n>
