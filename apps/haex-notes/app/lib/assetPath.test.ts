@@ -32,8 +32,17 @@ describe("extensionFor", () => {
   });
 });
 
+const HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
 describe("assetRelPath", () => {
   it("shards by the first two hash characters", () => {
-    expect(assetRelPath("abcdef1234", "pdf")).toBe("ab/abcdef1234.pdf");
+    expect(assetRelPath(HASH, "pdf")).toBe(`e3/${HASH}.pdf`);
+  });
+
+  it("rejects a hash that is not 64 lowercase hex characters", () => {
+    // Asset-Zeilen kommen auch aus Shared Spaces; der Hash darf den Pfad nicht verlassen.
+    expect(() => assetRelPath("../../../../home/u/secret", "txt")).toThrow();
+    expect(() => assetRelPath(HASH.toUpperCase(), "pdf")).toThrow();
+    expect(() => assetRelPath("abcdef1234", "pdf")).toThrow();
   });
 });
