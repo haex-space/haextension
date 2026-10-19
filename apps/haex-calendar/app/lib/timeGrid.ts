@@ -19,19 +19,9 @@ function toMinutesSinceMidnight(dtstring: string): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-/**
- * Get the local date string (YYYY-MM-DD) from a datetime string.
- * Always uses local timezone to avoid UTC date shift issues.
- */
+/** Local date key of a stored value: date-only values as-is, instants in local time. */
 export function toDateKey(dtstring: string): string {
-  // Date-only strings (e.g. "2026-03-10") — return as-is
-  if (!dtstring.includes("T")) return dtstring.slice(0, 10);
-  // Full datetime strings — parse and extract local date
-  const d = new Date(dtstring);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return dtstring.includes("T") ? toLocalDateKey(new Date(dtstring)) : dtstring.slice(0, 10);
 }
 
 /** Last local day a timed event touches; an end at midnight belongs to the day before. */

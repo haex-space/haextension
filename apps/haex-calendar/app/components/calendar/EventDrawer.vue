@@ -112,7 +112,7 @@
           <label class="text-sm font-medium mb-1 block">{{ t('fields.color') }}</label>
           <div class="flex gap-2">
             <button
-              v-for="c in presetColors"
+              v-for="c in PRESET_COLORS"
               :key="c"
               :class="[
                 'w-8 h-8 rounded-full border-2 transition-transform',
@@ -257,6 +257,7 @@
 <script setup lang="ts">
 import { parseLocalDate } from "~/lib/dates";
 import type { EventDrawerInitialValues } from "~/stores/eventDrawer";
+import { PRESET_COLORS } from "~/lib/colors";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
@@ -270,7 +271,6 @@ const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventTypesStore = useEventTypesStore();
 
-const presetColors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6b7280"];
 
 const isNew = computed(() => !props.eventId);
 

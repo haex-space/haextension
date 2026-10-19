@@ -120,9 +120,8 @@ import {
   positionEventsInDay,
   getAllDayEvents,
   eventSpansDate,
-  toDateKey,
 } from "~/lib/timeGrid";
-import { eventSpan, formatClock, formatHour } from "~/lib/dates";
+import { eventSpan, formatClock, formatHour, toLocalDateKey } from "~/lib/dates";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
@@ -157,11 +156,11 @@ onMounted(() => {
   });
 });
 
-const currentDateKey = computed(() => toDateKey(calendarView.currentDate.toISOString()));
+const currentDateKey = computed(() => toLocalDateKey(calendarView.currentDate));
 
 const isToday = computed(() => {
   const today = new Date();
-  return toDateKey(today.toISOString()) === currentDateKey.value;
+  return toLocalDateKey(today) === currentDateKey.value;
 });
 
 const currentTimePosition = computed(() => {

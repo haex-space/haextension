@@ -161,9 +161,8 @@ import {
   groupEventsByDay,
   getAllDayEvents,
   packBars,
-  toDateKey,
 } from "~/lib/timeGrid";
-import { addDays, eventSpan, formatClock, formatHour, isoWeek } from "~/lib/dates";
+import { addDays, eventSpan, formatClock, formatHour, isoWeek, toLocalDateKey } from "~/lib/dates";
 
 const { t, locale } = useI18n();
 const calendarView = useCalendarViewStore();
@@ -208,7 +207,7 @@ const weekDays = computed(() => {
   const range = calendarView.visibleRange;
   const start = new Date(range.start);
   const today = new Date();
-  const todayKey = toDateKey(today.toISOString());
+  const todayKey = toLocalDateKey(today);
   const formatter = new Intl.DateTimeFormat(locale.value, { weekday: "short" });
   const days = [];
 
@@ -217,7 +216,7 @@ const weekDays = computed(() => {
     d.setDate(d.getDate() + i);
     const dow = d.getDay();
     if (!settingsStore.showWeekends && (dow === 0 || dow === 6)) continue;
-    const key = toDateKey(d.toISOString());
+    const key = toLocalDateKey(d);
     days.push({
       date: new Date(d),
       key,

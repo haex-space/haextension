@@ -61,7 +61,7 @@
             <label class="text-sm font-medium mb-1 block">{{ t("form.color") }}</label>
             <div class="flex gap-2 flex-wrap">
               <button
-                v-for="c in presetColors"
+                v-for="c in PRESET_COLORS"
                 :key="c"
                 type="button"
                 :class="[
@@ -124,17 +124,17 @@ import { Pencil, Plus, Trash2 } from "@lucide/vue";
 import { formatRemindersShort } from "~/lib/reminders";
 import { rruleFrequency } from "~/lib/rrule";
 import type { SelectEventType } from "~/stores/eventTypes";
+import { PRESET_COLORS } from "~/lib/colors";
 
 const { t } = useI18n();
 const eventTypes = useEventTypesStore();
 
-const presetColors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6b7280"];
 
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
 const form = reactive({
   name: "",
-  color: presetColors[0]!,
+  color: PRESET_COLORS[0]!,
   defaultRrule: null as string | null,
   reminderOffsets: [] as number[],
 });
@@ -155,7 +155,7 @@ function previewFor(type: SelectEventType): string {
 function openNew() {
   editingId.value = null;
   form.name = "";
-  form.color = presetColors[0]!;
+  form.color = PRESET_COLORS[0]!;
   form.defaultRrule = null;
   form.reminderOffsets = [];
   showForm.value = true;
