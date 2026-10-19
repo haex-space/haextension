@@ -10,7 +10,7 @@ Haextension ist eine Sammlung von Extensions für [HaexVault](https://haex.space
 
 ### HaexPass - Passwort-Manager (in HaexVault integriert)
 
-> **Hinweis:** HaexPass wurde vollständig in [HaexVault](https://haex.space) integriert und wird nicht mehr als separate Extension veröffentlicht. Das Verzeichnis `apps/haex-pass/` bleibt nur als Archiv erhalten.
+> **Hinweis:** HaexPass ist vollständig in [HaexVault](https://haex.space) integriert. Die frühere separate Extension wurde aus diesem Repository entfernt; die Browser-Extension spricht direkt mit HaexVault.
 
 ### HaexPass Browser - Browser-Extension
 
@@ -36,7 +36,6 @@ Browser-Extension für HaexPass zum automatischen Ausfüllen von Login-Formulare
 ```
 haextension/
 ├── apps/
-│   ├── haex-pass/           # Passwort-Manager Extension
 │   ├── haex-pass-browser/   # Browser-Extension für Autofill
 │   └── haex-files/          # File-Sync Extension (WIP)
 └── packages/
@@ -65,9 +64,6 @@ pnpm install
 ### Development
 
 ```bash
-# haex-pass entwickeln
-pnpm --filter haex-pass dev
-
 # haex-files entwickeln
 pnpm --filter haex-files dev
 
@@ -81,9 +77,6 @@ pnpm --filter haex-pass-browser dev-firefox
 ### Build
 
 ```bash
-# haex-pass bauen und signieren
-pnpm --filter haex-pass build:release
-
 # haex-files bauen und signieren
 pnpm --filter haex-files build:release
 
@@ -234,9 +227,6 @@ Extensions können in zwei Modi laufen:
 ### Tests ausführen
 
 ```bash
-# haex-pass Tests
-pnpm --filter haex-pass test
-
 # haex-files Tests
 pnpm --filter haex-files test
 
@@ -250,13 +240,13 @@ Extensions nutzen semantisches Versioning:
 
 ```bash
 # Patch-Release (1.0.0 → 1.0.1)
-pnpm --filter haex-pass build:patch
+pnpm release:haex-calendar patch
 
 # Minor-Release (1.0.0 → 1.1.0)
-pnpm --filter haex-pass build:minor
+pnpm release:haex-calendar minor
 
 # Major-Release (1.0.0 → 2.0.0)
-pnpm --filter haex-pass build:major
+pnpm release:haex-calendar major
 ```
 
 ## Beitragen
