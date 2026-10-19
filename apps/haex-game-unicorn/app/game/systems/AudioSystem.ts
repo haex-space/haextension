@@ -20,11 +20,15 @@ export class AudioSystem {
   private currentSeason: Season = 'spring'
 
   // Active sounds
-  private ambienceOscillators: OscillatorNode[] = []
+  private windSource: AudioBufferSourceNode | null = null
+  private chirpTimer: ReturnType<typeof setTimeout> | null = null
   private birdTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
+    // The timers and the AudioContext live outside Phaser, so they must end with the scene
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this)
+    scene.events.once(Phaser.Scenes.Events.DESTROY, this.destroy, this)
   }
 
   /**
@@ -200,6 +204,7 @@ export class AudioSystem {
     filter.connect(gain)
     gain.connect(this.ambienceGain!)
     source.start()
+    this.windSource = source
   }
 
   private createInsectAmbience(ctx: AudioContext) {
@@ -224,7 +229,7 @@ export class AudioSystem {
     const scheduleChirp = () => {
       if (!this.isInitialized) return
       chirp()
-      this.birdTimer = setTimeout(scheduleChirp, 200 + Math.random() * 1500)
+      this.chirpTimer = setTimeout(scheduleChirp, 200 + Math.random() * 1500)
     }
     scheduleChirp()
   }
@@ -259,18 +264,19 @@ export class AudioSystem {
     const scheduleBird = () => {
       if (!this.isInitialized) return
       birdCall()
-      setTimeout(scheduleBird, 3000 + Math.random() * 8000)
+      this.birdTimer = setTimeout(scheduleBird, 3000 + Math.random() * 8000)
     }
-    setTimeout(scheduleBird, 2000 + Math.random() * 3000)
+    this.birdTimer = setTimeout(scheduleBird, 2000 + Math.random() * 3000)
   }
 
   private stopAmbience() {
-    for (const osc of this.ambienceOscillators) {
-      try { osc.stop() }
-      catch { /* already stopped */ }
-    }
-    this.ambienceOscillators = []
+    this.windSource?.stop()
+    this.windSource = null
 
+    if (this.chirpTimer) {
+      clearTimeout(this.chirpTimer)
+      this.chirpTimer = null
+    }
     if (this.birdTimer) {
       clearTimeout(this.birdTimer)
       this.birdTimer = null
@@ -278,6 +284,8 @@ export class AudioSystem {
   }
 
   destroy() {
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this)
+    this.scene.events.off(Phaser.Scenes.Events.DESTROY, this.destroy, this)
     this.stopAmbience()
     this.isInitialized = false
     if (this.audioContext) {
