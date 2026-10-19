@@ -73,7 +73,6 @@ const newFile = () => {
     name: "Untitled",
     content: "",
     language: "plaintext",
-    isDirty: false,
   });
 };
 
@@ -127,7 +126,6 @@ const openFileFromDisk = async () => {
           name,
           content,
           language: detectLanguage(filePath),
-          isDirty: false,
         });
       }
       if (isMobile.value) sidebarVisible.value = false;
@@ -196,15 +194,13 @@ const openFile = async (entry: FileEntry) => {
     const data = await haexVault.client.filesystem.readFile(entry.path);
     const content = new TextDecoder().decode(data);
 
-    const tab: EditorTab = {
+    editorStore.openTab({
       id: crypto.randomUUID(),
       path: entry.path,
       name: entry.name,
       content,
       language: detectLanguage(entry.path),
-      isDirty: false,
-    };
-    editorStore.openTab(tab);
+    });
     // Close sidebar on mobile after opening a file
     if (isMobile.value) sidebarVisible.value = false;
   } catch (e) {

@@ -13,6 +13,8 @@ export interface EditorTab {
   name: string;
   content: string;
   language: string;
+  /** Content as last read from or written to the file; `isDirty` compares against it. */
+  savedContent: string;
   isDirty: boolean;
 }
 

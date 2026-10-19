@@ -9,13 +9,13 @@ export const useEditorStore = defineStore("editor", () => {
     tabs.value.find((t) => t.id === activeTabId.value) ?? null
   );
 
-  const openTab = (tab: EditorTab) => {
+  const openTab = (tab: Omit<EditorTab, "savedContent" | "isDirty">) => {
     const existing = tabs.value.find((t) => t.path === tab.path);
     if (existing) {
       activeTabId.value = existing.id;
       return;
     }
-    tabs.value.push(tab);
+    tabs.value.push({ ...tab, savedContent: tab.content, isDirty: false });
     activeTabId.value = tab.id;
   };
 
@@ -34,7 +34,7 @@ export const useEditorStore = defineStore("editor", () => {
     const tab = tabs.value.find((t) => t.id === tabId);
     if (tab) {
       tab.content = content;
-      tab.isDirty = true;
+      tab.isDirty = content !== tab.savedContent;
     }
   };
 
@@ -43,8 +43,11 @@ export const useEditorStore = defineStore("editor", () => {
     const tab = tabs.value.find((t) => t.id === tabId);
     if (!tab) return;
     if (!tab.path) throw new Error(`"${tab.name}" has no file path yet`);
-    await haexVault.client.filesystem.writeFile(tab.path, new TextEncoder().encode(tab.content));
-    tab.isDirty = false;
+    const content = tab.content;
+    await haexVault.client.filesystem.writeFile(tab.path, new TextEncoder().encode(content));
+    tab.savedContent = content;
+    // Edits made while the write was in flight are not on disk yet.
+    tab.isDirty = tab.content !== content;
   };
 
   const moveTab = (fromIndex: number, toIndex: number) => {
