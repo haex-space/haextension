@@ -7,6 +7,8 @@ const props = defineProps<{
   activeTabId: string | null;
 }>();
 
+const { t } = useI18n();
+
 const emit = defineEmits<{
   select: [tabId: string];
   close: [tabId: string];
@@ -87,10 +89,17 @@ const onDragEnd = () => {
     </div>
     <button
       class="shrink-0 rounded-md p-2 text-primary hover:bg-primary/10 active:bg-primary/20"
-      title="New File"
+      :title="t('newFile')"
       @click="emit('newFile')"
     >
       <Plus class="size-4" />
     </button>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  newFile: Neue Datei
+en:
+  newFile: New File
+</i18n>

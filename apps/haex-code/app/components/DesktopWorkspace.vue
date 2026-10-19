@@ -119,7 +119,7 @@ const terminalSize = ref(30);
             @click="sidebarTab = 'explorer'"
           >
             <FolderOpen class="size-3.5" />
-            Explorer
+            {{ t("explorer") }}
           </button>
           <button
             class="flex flex-1 items-center justify-center gap-1 py-2 text-xs"
@@ -127,7 +127,7 @@ const terminalSize = ref(30);
             @click="sidebarTab = 'git'"
           >
             <GitCommit class="size-3.5" />
-            Source Control
+            {{ t("sourceControl") }}
             <span v-if="gitStore.files.length > 0" class="rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
               {{ gitStore.files.length }}
             </span>
@@ -274,7 +274,7 @@ const terminalSize = ref(30);
       <button
         v-if="gitStore.isRepo && gitStore.branch"
         class="flex items-center gap-1 rounded px-1 opacity-80 hover:bg-primary-foreground/20 hover:opacity-100"
-        :title="'Branch: ' + gitStore.branch"
+        :title="t('branch', { name: gitStore.branch })"
         @click="sidebarVisible = true; sidebarTab = 'git'"
       >
         <GitBranch class="size-3" />
@@ -314,6 +314,8 @@ const terminalSize = ref(30);
 <i18n lang="yaml">
 de:
   explorer: Explorer
+  sourceControl: Quellcodeverwaltung
+  branch: "Branch: {name}"
   openFile: Datei öffnen
   openFolder: Ordner öffnen
   hideSidebar: Sidebar ausblenden
@@ -325,6 +327,8 @@ de:
   settings: Einstellungen
 en:
   explorer: Explorer
+  sourceControl: Source Control
+  branch: "Branch: {name}"
   openFile: Open File
   openFolder: Open Folder
   hideSidebar: Hide sidebar

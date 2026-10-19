@@ -17,15 +17,15 @@ const emit = defineEmits<{
 }>();
 
 const WORD_WRAP_OPTIONS = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "On" },
-  { value: "wordWrapColumn", label: "Column" },
+  { value: "off", label: "options.off" },
+  { value: "on", label: "options.on" },
+  { value: "wordWrapColumn", label: "options.column" },
 ] as const;
 
 const LINE_NUMBER_OPTIONS = [
-  { value: "on", label: "On" },
-  { value: "off", label: "Off" },
-  { value: "relative", label: "Relative" },
+  { value: "on", label: "options.on" },
+  { value: "off", label: "options.off" },
+  { value: "relative", label: "options.relative" },
 ] as const;
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -162,7 +162,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </ShadcnSelectTrigger>
                 <ShadcnSelectContent>
                   <ShadcnSelectItem v-for="w in WORD_WRAP_OPTIONS" :key="w.value" :value="w.value">
-                    {{ w.label }}
+                    {{ t(w.label) }}
                   </ShadcnSelectItem>
                 </ShadcnSelectContent>
               </ShadcnSelect>
@@ -186,7 +186,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </ShadcnSelectTrigger>
                 <ShadcnSelectContent>
                   <ShadcnSelectItem v-for="l in LINE_NUMBER_OPTIONS" :key="l.value" :value="l.value">
-                    {{ l.label }}
+                    {{ t(l.label) }}
                   </ShadcnSelectItem>
                 </ShadcnSelectContent>
               </ShadcnSelect>
@@ -254,6 +254,11 @@ de:
   minimap: Minimap
   minimapDesc: Code-Vorschau am rechten Rand
   lineNumbers: Zeilennummern
+  options:
+    "off": Aus
+    "on": An
+    column: Spalte
+    relative: Relativ
   terminal: Terminal
 en:
   settings: Settings
@@ -271,5 +276,10 @@ en:
   minimap: Minimap
   minimapDesc: Code preview on the right edge
   lineNumbers: Line Numbers
+  options:
+    "off": "Off"
+    "on": "On"
+    column: Column
+    relative: Relative
   terminal: Terminal
 </i18n>

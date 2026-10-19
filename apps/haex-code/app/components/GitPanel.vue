@@ -121,7 +121,7 @@ const handleCommit = async () => {
           @click="handleCommit"
         >
           <GitCommit class="size-3" />
-          {{ isCommitting ? t('committing') : "Commit" }}
+          {{ isCommitting ? t('committing') : t('commit') }}
         </button>
         <button
           class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -145,7 +145,7 @@ const handleCommit = async () => {
         >
           <ChevronDown v-if="stagedExpanded" class="size-3" />
           <ChevronRight v-else class="size-3" />
-          Staged ({{ gitStore.stagedFiles.length }})
+          {{ t('staged') }} ({{ gitStore.stagedFiles.length }})
         </button>
 
         <template v-if="stagedExpanded">
@@ -175,7 +175,7 @@ const handleCommit = async () => {
             </span>
             <button
               class="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
-              title="Unstage"
+              :title="t('unstage')"
               @click="unstageFile(file.path)"
             >
               <Minus class="size-3" />
@@ -232,7 +232,7 @@ const handleCommit = async () => {
             </button>
             <button
               class="shrink-0 rounded p-1 opacity-0 hover:bg-accent hover:text-green-500 group-hover:opacity-100"
-              title="Stage"
+              :title="t('stage')"
               @click="stageFile(file.path)"
             >
               <Plus class="size-3.5" />
@@ -278,6 +278,10 @@ const handleCommit = async () => {
 <i18n lang="yaml">
 de:
   commitMessage: Commit-Nachricht
+  commit: Commit
+  staged: Gestagt
+  stage: Stagen
+  unstage: Unstagen
   committing: Commit...
   refresh: Aktualisieren
   changes: Änderungen
@@ -293,6 +297,10 @@ de:
     confirm: Verwerfen
 en:
   commitMessage: Commit message
+  commit: Commit
+  staged: Staged
+  stage: Stage
+  unstage: Unstage
   committing: Committing...
   refresh: Refresh
   changes: Changes

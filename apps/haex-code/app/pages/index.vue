@@ -94,7 +94,7 @@ const newFile = () => {
   editorStore.openTab({
     id: crypto.randomUUID(),
     path: "",
-    name: "Untitled",
+    name: t("untitled"),
     content: "",
     language: "plaintext",
   });
@@ -328,6 +328,7 @@ de:
   openFile: Datei öffnen
   openFolder: Ordner öffnen
   newTerminal: Neues Terminal
+  untitled: Unbenannt
   saveFailed: "{name} konnte nicht gespeichert werden."
   openFileFailed: Datei konnte nicht geöffnet werden
   openFolderFailed: Ordner konnte nicht geöffnet werden
@@ -338,6 +339,7 @@ en:
   openFile: Open File
   openFolder: Open Folder
   newTerminal: New Terminal
+  untitled: Untitled
   saveFailed: "Could not save {name}."
   openFileFailed: Could not open the file
   openFolderFailed: Could not open the folder

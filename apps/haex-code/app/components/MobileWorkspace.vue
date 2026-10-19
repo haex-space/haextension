@@ -159,7 +159,7 @@ const gitStore = useGitStore();
             @click="sidebarTab = 'explorer'"
           >
             <FolderOpen class="size-4" />
-            Explorer
+            {{ t("explorer") }}
           </button>
           <button
             class="flex flex-1 items-center justify-center gap-1.5 py-3 text-sm"
@@ -167,7 +167,7 @@ const gitStore = useGitStore();
             @click="sidebarTab = 'git'"
           >
             <GitCommit class="size-4" />
-            Source Control
+            {{ t("sourceControl") }}
             <span v-if="gitStore.files.length > 0" class="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
               {{ gitStore.files.length }}
             </span>
@@ -266,6 +266,7 @@ const gitStore = useGitStore();
 <i18n lang="yaml">
 de:
   explorer: Explorer
+  sourceControl: Quellcodeverwaltung
   openFile: Datei öffnen
   openFolder: Ordner öffnen
   noFolder: Kein Ordner geöffnet
@@ -273,6 +274,7 @@ de:
   terminal: Terminal
 en:
   explorer: Explorer
+  sourceControl: Source Control
   openFile: Open File
   openFolder: Open Folder
   noFolder: No folder opened

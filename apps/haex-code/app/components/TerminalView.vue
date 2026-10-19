@@ -207,7 +207,7 @@ const initTerminal = async () => {
     });
   } catch (e) {
     console.error("[haex-code] Failed to create shell session:", e);
-    term.writeln("\x1b[1;31mFailed to start shell\x1b[0m");
+    term.writeln(`\x1b[1;31m${t("shellFailed")}\x1b[0m`);
     term.writeln(`\x1b[90m${e}\x1b[0m`);
 
     const platform = haexVault.state.context?.platform;
@@ -283,9 +283,11 @@ onUnmounted(() => {
 
 <i18n lang="yaml">
 de:
+  shellFailed: Shell konnte nicht gestartet werden
   termuxHint: "Tipp: Installiere Termux (F-Droid) für eine vollwertige Shell."
   androidLimited: Android bietet nur eine eingeschränkte System-Shell.
 en:
+  shellFailed: Failed to start shell
   termuxHint: "Tip: Install Termux (F-Droid) for a full-featured shell."
   androidLimited: Android only provides a limited system shell.
 </i18n>
