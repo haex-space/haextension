@@ -30,6 +30,17 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const canvas = useCanvasStore();
+const haexVault = useHaexVaultStore();
+
+// Clearing drops the stroke history, so it cannot be undone; stencils stay.
+const onClearAsync = async () => {
+  const sure = await haexVault.client.dialog.confirm({
+    message: t("confirmClear"),
+    confirmLabel: t("clear"),
+    destructive: true,
+  });
+  if (sure) canvas.clear();
+};
 
 const tools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
   { id: "pan", icon: Hand, label: "pan", shortcut: "H" },
@@ -127,7 +138,7 @@ const tools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
       <button
         class="rounded-lg p-2 text-destructive transition-colors hover:bg-destructive/10"
         :title="t('clear')"
-        @click="canvas.clear()"
+        @click="onClearAsync"
       >
         <Trash2 class="size-6" />
       </button>
@@ -151,6 +162,7 @@ de:
   save: Speichern
   exportPng: Als PNG exportieren
   clear: Alles löschen
+  confirmClear: Alle Striche dieser Zeichnung löschen? Das lässt sich nicht rückgängig machen.
 en:
   brushPreset: Brush
   tip: Tip
@@ -165,4 +177,5 @@ en:
   save: Save
   exportPng: Export as PNG
   clear: Clear all
+  confirmClear: Delete all strokes of this drawing? This cannot be undone.
 </i18n>
