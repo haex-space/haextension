@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { GripHorizontal } from "@lucide/vue";
+import { toast } from "vue-sonner";
 import type { FileEntry, EditorTab } from "~/types";
 
 const { t } = useI18n();
@@ -38,17 +39,21 @@ const requestCloseTab = (tabId: string) => {
   }
 };
 
-const onSaveThenClose = async () => {
-  if (!pendingCloseTab.value) return;
-  const tab = pendingCloseTab.value;
-  if (tab.path) {
-    try {
-      const data = new TextEncoder().encode(tab.content);
-      await haexVault.client.filesystem.writeFile(tab.path, data);
-    } catch (e) {
-      console.error("[haex-code] Failed to save file:", e);
-    }
+const saveTabReportingErrorsAsync = async (tab: EditorTab): Promise<boolean> => {
+  try {
+    await editorStore.saveTabAsync(tab.id);
+    return true;
+  } catch (e) {
+    console.error("[haex-code] Failed to save file:", e);
+    toast.error(t("saveFailed", { name: tab.name }));
+    return false;
   }
+};
+
+const onSaveThenClose = async () => {
+  const tab = pendingCloseTab.value;
+  if (!tab) return;
+  if (!(await saveTabReportingErrorsAsync(tab))) return;
   editorStore.closeTab(tab.id);
   pendingCloseTabId.value = null;
 };
@@ -211,15 +216,7 @@ const saveActiveFile = async () => {
   const tab = editorStore.activeTab;
   if (!tab) return;
 
-  if (tab.isDirty) {
-    try {
-      const data = new TextEncoder().encode(tab.content);
-      await haexVault.client.filesystem.writeFile(tab.path, data);
-      editorStore.markTabClean(tab.id);
-    } catch (e) {
-      console.error("[haex-code] Failed to save file:", e);
-    }
-  }
+  if (tab.isDirty) await saveTabReportingErrorsAsync(tab);
 
   if (workspace.rootPath) gitStore.refresh(workspace.rootPath);
 };
@@ -307,8 +304,10 @@ de:
   openFile: Datei öffnen
   openFolder: Ordner öffnen
   newTerminal: Neues Terminal
+  saveFailed: "{name} konnte nicht gespeichert werden."
 en:
   openFile: Open File
   openFolder: Open Folder
   newTerminal: New Terminal
+  saveFailed: "Could not save {name}."
 </i18n>

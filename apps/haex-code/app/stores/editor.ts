@@ -1,6 +1,7 @@
 import type { EditorTab } from "~/types";
 
 export const useEditorStore = defineStore("editor", () => {
+  const haexVault = useHaexVaultStore();
   const tabs = ref<EditorTab[]>([]);
   const activeTabId = ref<string | null>(null);
 
@@ -37,9 +38,13 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
-  const markTabClean = (tabId: string) => {
+  /** Writes the tab to its file. Throws when the write fails, so callers can keep the tab open. */
+  const saveTabAsync = async (tabId: string): Promise<void> => {
     const tab = tabs.value.find((t) => t.id === tabId);
-    if (tab) tab.isDirty = false;
+    if (!tab) return;
+    if (!tab.path) throw new Error(`"${tab.name}" has no file path yet`);
+    await haexVault.client.filesystem.writeFile(tab.path, new TextEncoder().encode(tab.content));
+    tab.isDirty = false;
   };
 
   const moveTab = (fromIndex: number, toIndex: number) => {
@@ -55,7 +60,7 @@ export const useEditorStore = defineStore("editor", () => {
     openTab,
     closeTab,
     updateTabContent,
-    markTabClean,
+    saveTabAsync,
     moveTab,
   };
 });
