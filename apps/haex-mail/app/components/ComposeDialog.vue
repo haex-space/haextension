@@ -189,10 +189,10 @@ const sendAsync = async () => {
 /**
  * Save the current draft to the account's Drafts folder via IMAP APPEND.
  * Snapshots field values up-front so async gaps don't race with reset().
- * Best-effort — failures are logged but not surfaced to the user.
+ * Returns false, with `error` set, when the draft could not be stored.
  */
-const saveDraftAsync = async () => {
-  if (!isDirty.value) return;
+const saveDraftAsync = async (): Promise<boolean> => {
+  if (!isDirty.value) return true;
 
   // Snapshot before any async gap.
   const snap = {
@@ -207,12 +207,18 @@ const saveDraftAsync = async () => {
   isSavingDraft.value = true;
   try {
     const account = await resolveAccount();
-    if (!account) return;
+    if (!account) {
+      error.value = t("errors.noFromAccount");
+      return false;
+    }
 
     const draftsMailbox = mailStore.mailboxes.find(
       (m) => m.accountId === account.account.id && m.role === "drafts",
     );
-    if (!draftsMailbox) return;
+    if (!draftsMailbox) {
+      error.value = t("errors.noDraftsFolder");
+      return false;
+    }
 
     const message: OutgoingMessage = {
       from: { email: account.account.email, name: account.account.displayName },
@@ -234,18 +240,18 @@ const saveDraftAsync = async () => {
       ["\\Draft", "\\Seen"],
     );
     toast.success(t("draftSaved"));
+    return true;
   } catch (err) {
-    console.warn("[haex-mail] failed to save draft", err);
+    error.value = t("errors.draftFailed", { error: getErrorMessage(err) });
+    return false;
   } finally {
     isSavingDraft.value = false;
   }
 };
 
-/** Close and save draft if the form has content. */
+/** Close, saving a draft if the form has content; stays open if that fails. */
 const closeAsync = async () => {
-  if (isDirty.value) {
-    await saveDraftAsync();
-  }
+  if (!(await saveDraftAsync())) return;
   reset();
   open.value = false;
 };
@@ -409,6 +415,8 @@ de:
   errors:
     noFromAccount: Kein Absenderkonto gewählt.
     noSmtp: Dieses Konto hat keine SMTP-Konfiguration.
+    noDraftsFolder: "Kein Entwürfe-Ordner gefunden – Entwurf nicht gespeichert. Mit „Verwerfen“ schließen."
+    draftFailed: "Entwurf nicht gespeichert: {error}"
 en:
   title: New message
   close: Close
@@ -428,4 +436,6 @@ en:
   errors:
     noFromAccount: No sender account selected.
     noSmtp: This account has no SMTP configuration.
+    noDraftsFolder: "No drafts folder found – draft not saved. Use “Discard” to close."
+    draftFailed: "Draft not saved: {error}"
 </i18n>
