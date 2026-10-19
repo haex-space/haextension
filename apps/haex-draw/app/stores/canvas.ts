@@ -31,17 +31,6 @@ export const useCanvasStore = defineStore("canvas", () => {
   const isDrawing = ref(false);
   const currentStroke = ref<StrokeData | null>(null);
 
-  // Progressive rendering: frozen path segments for the current live stroke.
-  // Every CHUNK points, the outline up to that point is frozen so the
-  // beginning of the stroke stops changing.
-  const frozenPath = ref<string | null>(null);
-  const frozenUpTo = ref(0);
-
-  const resetFrozen = () => {
-    frozenPath.value = null;
-    frozenUpTo.value = 0;
-  };
-
   // Active strokes = all entries up to and including historyIndex
   const strokes = computed(() =>
     history.value.slice(0, historyIndex.value + 1).map((e) => e.stroke)
@@ -113,9 +102,6 @@ export const useCanvasStore = defineStore("canvas", () => {
     lastStencilPreset,
     isDrawing,
     currentStroke,
-    frozenPath,
-    frozenUpTo,
-    resetFrozen,
     addStroke,
     undo,
     redo,

@@ -1,13 +1,9 @@
-import getStroke from "perfect-freehand";
 import { useEventListener } from "@vueuse/core";
 import type { StrokeData } from "~/database/schemas";
 import type { Stencil } from "~/types/stencil";
 import type { StencilShapeType } from "~/types/stencil";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 import { isNearStencilCorner } from "~/utils/canvas/stencilHitTest";
-
-const FREEZE_CHUNK = 12;
-const FREEZE_OVERLAP = 5;
 
 /**
  * Handles all mouse/touch/pen input on the canvas.
@@ -86,7 +82,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     isPanning.value = false;
     canvas.currentStroke = null;
     canvas.isDrawing = false;
-    canvas.resetFrozen();
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -187,7 +182,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       // 3. Otherwise draw
       const activePreset = BRUSH_PRESETS.find(p => p.id === canvas.activeBrushPreset) ?? BRUSH_PRESETS[0];
 
-      canvas.resetFrozen();
       // Compute next zIndex across strokes + stencils
       const maxStrokeZ = canvas.strokes.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
       const maxStencilZ = stencilStore.stencils.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
@@ -329,35 +323,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       }
 
       canvas.currentStroke.points.push([drawX, drawY, pressure]);
-
-      // Progressive freeze: once we have enough new points, freeze the outline
-      // so the beginning of the stroke stops shifting.
-      const pts = canvas.currentStroke.points;
-      if (pts.length - canvas.frozenUpTo >= FREEZE_CHUNK) {
-        const preset = BRUSH_PRESETS.find(p => p.id === canvas.currentStroke!.brushPreset) ?? BRUSH_PRESETS[0];
-        const hasPressure = pts.some(p => p[2] !== 0.5);
-        const freezeEnd = pts.length - FREEZE_OVERLAP;
-        const freezePoints = pts.slice(0, freezeEnd);
-        const outlinePoints = getStroke(freezePoints, {
-          size: canvas.currentStroke.size,
-          ...preset.options,
-          simulatePressure: preset.options.simulatePressure && !hasPressure,
-          last: false,
-        });
-        if (outlinePoints.length >= 2) {
-          // Build SVG path for the frozen portion
-          const d: string[] = [];
-          const first = outlinePoints[0]!;
-          d.push(`M ${first[0]} ${first[1]}`);
-          for (let i = 1; i < outlinePoints.length; i++) {
-            const pt = outlinePoints[i]!;
-            d.push(`L ${pt[0]} ${pt[1]}`);
-          }
-          d.push("Z");
-          canvas.frozenPath = d.join(" ");
-          canvas.frozenUpTo = freezeEnd;
-        }
-      }
       return;
     }
 
@@ -427,7 +392,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       canvas.addStroke(stroke, label);
       canvas.currentStroke = null;
       canvas.isDrawing = false;
-      canvas.resetFrozen();
     }
   };
 
