@@ -74,3 +74,38 @@ describe("mail iframe document", () => {
     }
   });
 });
+
+const frameOf = (html: string) => new DOMParser().parseFromString(html, "text/html");
+
+// DOMParser hoists a leading <style> into <head>; the frame must keep it.
+describe("sender styles", () => {
+  it("keeps <style> blocks the parser moved into <head>", async () => {
+    const fragment = "<style>.pre{display:none}</style><p class=\"pre\">preheader</p>";
+    const full =
+      "<html><head><style>p{color:red}</style></head><body><p>x</p></body></html>";
+    for (const html of [
+      stripExternalHtml(fragment).html,
+      await inlineExternalHtml(fragment, async () => "data:,"),
+    ]) {
+      expect(frameOf(html).querySelector("style:not(:first-of-type)")?.textContent).toBe(
+        ".pre{display:none}",
+      );
+    }
+    expect(frameOf(stripExternalHtml(full).html).head.textContent).toContain("p{color:red}");
+  });
+
+  it("puts the default styles first so the sender's override them", () => {
+    const { html } = stripExternalHtml("<style>body{background:#000}</style><p>x</p>");
+    const styles = [...frameOf(html).querySelectorAll("style")].map((s) => s.textContent);
+    expect(styles[0]).toContain("background:#fff");
+    expect(styles[1]).toBe("body{background:#000}");
+  });
+
+  it("keeps the sender's body attributes", () => {
+    const { html } = stripExternalHtml(
+      '<html><body style="margin:4px" bgcolor="#eeeeee"><p>x</p></body></html>',
+    );
+    const body = frameOf(html).body;
+    expect(body.getAttribute("style")).toBe("background-color:#eeeeee;margin:4px");
+  });
+});

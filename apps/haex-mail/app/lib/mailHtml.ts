@@ -97,8 +97,12 @@ const parseSrcset = (
 // to load URL … from origin null"); in CORS mode holzi's
 // `Access-Control-Allow-Origin: *` lets it through, as for the app's own
 // module scripts.
-const linkBridge = (): string =>
-  `<script src="${new URL("mail-bridge.js", document.baseURI).href}" crossorigin></script>`;
+const appendLinkBridge = (doc: Document) => {
+  const bridge = doc.createElement("script");
+  bridge.setAttribute("src", new URL("mail-bridge.js", document.baseURI).href);
+  bridge.setAttribute("crossorigin", "");
+  doc.body.append(bridge);
+};
 
 /** Neutralise active content before the body renders in a script-enabled
  *  iframe: strip script-bearing elements, inline event handlers and
@@ -129,18 +133,39 @@ const hardenDoc = (doc: Document) => {
   });
 };
 
-/** Wrap a body fragment for the sandboxed iframe: emails are authored for a
- *  white surface, so force `color-scheme: light` and a light background (fixes
- *  dark-text-on-dark-theme). A bridge script forwards link clicks to the host,
- *  which opens them in the system browser. */
-const wrapEmailHtml = (bodyHtml: string): string =>
-  `<!doctype html><html><head><meta charset="utf-8">` +
-  `<meta name="color-scheme" content="light">` +
-  `<style>html{color-scheme:light}` +
-  `body{margin:0;padding:12px;background:#fff;color:#111;` +
-  `font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}` +
-  `a{color:#2563eb}img{max-width:100%;height:auto}</style>` +
-  `</head><body>${bodyHtml}${linkBridge()}</body></html>`;
+const FRAME_CSS =
+  "html{color-scheme:light}" +
+  "body{margin:0;padding:12px;background:#fff;color:#111;" +
+  "font-family:system-ui,-apple-system,sans-serif;overflow-wrap:break-word}" +
+  "a{color:#2563eb}img{max-width:100%;height:auto}";
+
+/** Serialize the hardened mail as the sandboxed iframe's document. The whole
+ *  document is kept: the parser moves leading `<style>` blocks into `<head>`
+ *  and the sender's `<body>` carries attributes. Emails are authored for a
+ *  white surface, so `color-scheme: light` and a light background come first
+ *  (fixes dark-text-on-dark-theme) — the sender's own styles still override
+ *  them. A bridge script forwards link clicks to the host, which opens them
+ *  in the system browser. */
+const toFrameHtml = (doc: Document): string => {
+  const charset = doc.createElement("meta");
+  charset.setAttribute("charset", "utf-8");
+  const colorScheme = doc.createElement("meta");
+  colorScheme.setAttribute("name", "color-scheme");
+  colorScheme.setAttribute("content", "light");
+  const defaults = doc.createElement("style");
+  defaults.textContent = FRAME_CSS;
+  doc.head.prepend(charset, colorScheme, defaults);
+  // An author style sheet (the defaults) outranks the legacy attribute.
+  const bgcolor = doc.body.getAttribute("bgcolor");
+  if (bgcolor) {
+    doc.body.setAttribute(
+      "style",
+      `background-color:${bgcolor};${doc.body.getAttribute("style") ?? ""}`,
+    );
+  }
+  appendLinkBridge(doc);
+  return `<!doctype html>${doc.documentElement.outerHTML}`;
+};
 
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault
@@ -182,7 +207,7 @@ export const stripExternalHtml = (
       el.textContent = stripped;
     }
   });
-  return { html: wrapEmailHtml(doc.body?.innerHTML ?? ""), hasExternal };
+  return { html: toFrameHtml(doc), hasExternal };
 };
 
 /** Replace remote resource references with `data:` URLs fetched through the
@@ -267,5 +292,5 @@ export const inlineExternalHtml = async (
       },
     );
   });
-  return wrapEmailHtml(doc.body?.innerHTML ?? "");
+  return toFrameHtml(doc);
 };
