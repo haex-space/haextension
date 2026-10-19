@@ -8,6 +8,7 @@ import type {
 } from "~/types/document";
 import { getPageSize } from "~/utils/pageTemplates";
 import { computeBbox } from "./bbox";
+import { clonePlain } from "./clone";
 import type { PageDoc } from "./commands";
 
 /** Strichform der Spalte `pages.strokes` vor dem Element-Modell. */
@@ -151,10 +152,10 @@ export function migratePageRow(row: LegacyPageRow): MigratedPage {
  * gespeichert wird — Dokumentmodell plus die Legacy-Spalten.
  */
 export function serializePageDoc(doc: PageDoc) {
-  // structuredClone entfernt die Vue-Proxies; Drizzle serialisiert sonst
-  // Reactive-Wrapper mit in das JSON.
-  const layers = structuredClone(toRaw(doc.layers));
-  const background = structuredClone(toRaw(doc.background));
+  // Die Seite liegt im reaktiven Store-Zustand; auch unter toRaw() können noch
+  // Proxies stecken (z.B. aus filter() auf einem reaktiven Array).
+  const layers = clonePlain(toRaw(doc.layers));
+  const background = clonePlain(toRaw(doc.background));
   const strokes = layers.flatMap((layer) =>
     layer.elements
       .filter((element): element is StrokeElement => element.type === "stroke")

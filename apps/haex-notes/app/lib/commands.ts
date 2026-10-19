@@ -1,4 +1,5 @@
 import type { PageBackground, PageElement, PageLayer } from "~/types/document";
+import { clonePlain } from "./clone";
 
 /**
  * Der veränderliche Seitenzustand, auf dem Kommandos arbeiten.
@@ -32,8 +33,6 @@ interface MutateCommand extends Command {
   readonly mutators: Mutator[];
 }
 
-const clone = <T>(value: T): T => structuredClone(value);
-
 function findLayer(page: PageDoc, layerId: string): PageLayer {
   const layer = page.layers.find((l) => l.id === layerId);
   if (!layer) throw new Error(`Layer ${layerId} not found on page ${page.id}`);
@@ -60,13 +59,13 @@ export function addElements(
   elements: PageElement[],
   label: string,
 ): Command {
-  const added = clone(elements);
+  const added = clonePlain(elements);
   const addedIds = new Set(added.map((e) => e.id));
   return {
     label,
     pageId: page.id,
     apply() {
-      findLayer(page, layerId).elements.push(...clone(added));
+      findLayer(page, layerId).elements.push(...clonePlain(added));
     },
     revert() {
       const layer = findLayer(page, layerId);
@@ -94,7 +93,7 @@ export function removeElements(page: PageDoc, elementIds: string[], label: strin
         for (let i = layer.elements.length - 1; i >= 0; i--) {
           const element = layer.elements[i]!;
           if (!wanted.has(element.id)) continue;
-          removed.push({ layerId: layer.id, index: i, element: clone(element) });
+          removed.push({ layerId: layer.id, index: i, element: clonePlain(element) });
           layer.elements.splice(i, 1);
         }
       }
@@ -102,7 +101,7 @@ export function removeElements(page: PageDoc, elementIds: string[], label: strin
     revert() {
       // Aufsteigend einsetzen, damit jeder Index wieder dort landet, wo er herkam.
       for (const ref of [...removed].sort((a, b) => a.index - b.index)) {
-        findLayer(page, ref.layerId).elements.splice(ref.index, 0, clone(ref.element));
+        findLayer(page, ref.layerId).elements.splice(ref.index, 0, clonePlain(ref.element));
       }
     },
   };
@@ -160,7 +159,7 @@ export function mutateElements(
     apply() {
       if (before === null) {
         const snapshot: { layerId: string; element: PageElement }[] = [];
-        forEachTarget((element, layer) => snapshot.push({ layerId: layer.id, element: clone(element) }));
+        forEachTarget((element, layer) => snapshot.push({ layerId: layer.id, element: clonePlain(element) }));
         before = snapshot;
       }
       forEachTarget((element) => {
@@ -172,7 +171,7 @@ export function mutateElements(
       for (const { layerId, element } of before) {
         const layer = findLayer(page, layerId);
         const index = layer.elements.findIndex((e) => e.id === element.id);
-        if (index >= 0) layer.elements[index] = clone(element);
+        if (index >= 0) layer.elements[index] = clonePlain(element);
       }
     },
     merge(next) {
@@ -190,13 +189,13 @@ export function addLayer(
   index: number | undefined,
   label: string,
 ): Command {
-  const snapshot = clone(layer);
+  const snapshot = clonePlain(layer);
   const at = index ?? page.layers.length;
   return {
     label,
     pageId: page.id,
     apply() {
-      page.layers.splice(at, 0, clone(snapshot));
+      page.layers.splice(at, 0, clonePlain(snapshot));
     },
     revert() {
       page.layers = page.layers.filter((l) => l.id !== snapshot.id);
@@ -210,7 +209,7 @@ export function removeLayer(page: PageDoc, layerId: string, label: string): Comm
   }
   const index = page.layers.findIndex((l) => l.id === layerId);
   if (index < 0) throw new Error(`Layer ${layerId} not found on page ${page.id}`);
-  const snapshot = clone(page.layers[index]!);
+  const snapshot = clonePlain(page.layers[index]!);
   return {
     label,
     pageId: page.id,
@@ -218,7 +217,7 @@ export function removeLayer(page: PageDoc, layerId: string, label: string): Comm
       page.layers = page.layers.filter((l) => l.id !== layerId);
     },
     revert() {
-      page.layers.splice(index, 0, clone(snapshot));
+      page.layers.splice(index, 0, clonePlain(snapshot));
     },
   };
 }
@@ -267,17 +266,17 @@ export function mutateLayer(
 }
 
 export function setPageBackground(page: PageDoc, next: PageBackground, label: string): Command {
-  const after = clone(next);
+  const after = clonePlain(next);
   let before: PageBackground | null = null;
   return {
     label,
     pageId: page.id,
     apply() {
-      before ??= clone(page.background);
-      page.background = clone(after);
+      before ??= clonePlain(page.background);
+      page.background = clonePlain(after);
     },
     revert() {
-      if (before) page.background = clone(before);
+      if (before) page.background = clonePlain(before);
     },
   };
 }
