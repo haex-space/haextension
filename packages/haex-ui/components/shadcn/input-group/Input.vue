@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, type HTMLAttributes } from "vue";
+import { onMounted, ref, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 
 const props = defineProps<{
@@ -10,6 +10,11 @@ const props = defineProps<{
 const model = defineModel<string | number | null>();
 
 const inputElement = ref<HTMLInputElement | null>(null);
+
+// The native attribute only acts on page load, so inputs mounted later (drawers, dialogs) focus here
+onMounted(() => {
+  if (props.autofocus) inputElement.value?.focus();
+});
 
 // Methode nach außen freigeben
 defineExpose({
