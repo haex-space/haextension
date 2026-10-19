@@ -19,11 +19,16 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
     const width = el.clientWidth;
     const height = el.clientHeight;
 
-    // Size canvas to match display
-    if (el.width !== width * dpr || el.height !== height * dpr) {
-      el.width = width * dpr;
-      el.height = height * dpr;
+    // Size the backing store in whole device pixels; with a fractional ratio
+    // (125 %, 150 %) comparing against `width * dpr` would resize it every frame.
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
+    if (el.width !== pixelWidth || el.height !== pixelHeight) {
+      el.width = pixelWidth;
+      el.height = pixelHeight;
     }
+    const scaleX = width > 0 ? pixelWidth / width : dpr;
+    const scaleY = height > 0 ? pixelHeight / height : dpr;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#ffffff";
@@ -31,7 +36,7 @@ export function useCanvasRenderer(canvasEl: Ref<HTMLCanvasElement | null>) {
 
     // Apply DPR + viewport transform
     const { x: panX, y: panY, zoom } = canvas.viewport;
-    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
+    ctx.setTransform(scaleX * zoom, 0, 0, scaleY * zoom, scaleX * panX, scaleY * panY);
 
     // Grid (infinite, adaptive)
     drawGrid(ctx, width, height, canvas.viewport);
