@@ -35,28 +35,23 @@ onMounted(async () => {
   if (id === "new") {
     canvas.newDrawing();
     stencilStore.clear();
-    await drawingSave.markSavedAsync();
-  } else if (canvas.drawingId === id) {
-    // Already loaded (e.g. from store), nothing to do
   } else {
+    // Always read the stored row: it may have been renamed in the overview or synced from another device.
     const drawing = await loadAsync(id);
-    if (drawing) {
-      canvas.loadDrawing({
-        id: drawing.id,
-        name: drawing.name,
-        strokes: drawing.strokes,
-        viewport: drawing.viewport,
-      });
-      if (drawing.stencils && Array.isArray(drawing.stencils)) {
-        stencilStore.loadStencils(drawing.stencils);
-      }
-      await drawingSave.markSavedAsync();
-    } else {
+    if (!drawing) {
       router.replace(localePath("/"));
       return;
     }
+    canvas.loadDrawing({
+      id: drawing.id,
+      name: drawing.name,
+      strokes: drawing.strokes,
+      viewport: drawing.viewport,
+    });
+    stencilStore.loadStencils(Array.isArray(drawing.stencils) ? drawing.stencils : []);
   }
 
+  await drawingSave.markSavedAsync();
   isLoaded.value = true;
 });
 
