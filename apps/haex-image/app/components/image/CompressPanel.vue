@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { watchDebounced } from "@vueuse/core";
 import { Check } from "@lucide/vue";
 
 const emit = defineEmits<{
@@ -15,22 +16,27 @@ const compressEstimatedSize = ref<number | null>(null);
 const compressOriginalSize = ref<number | null>(null);
 const compressEstimating = ref(false);
 
+// Only the newest estimate may update the display: slower, older ones are dropped
+let estimateSeq = 0;
 async function updateCompressEstimate() {
   if (!editor.current) return;
+  const seq = ++estimateSeq;
   compressEstimating.value = true;
   compressOriginalSize.value = editor.current.blob.size;
-  compressEstimatedSize.value = await processor.estimateCompressedSize(
-    compressFormat.value,
-    compressQuality.value / 100,
-  );
-  compressEstimating.value = false;
+  try {
+    const size = await processor.estimateCompressedSize(compressFormat.value, compressQuality.value / 100);
+    if (seq === estimateSeq) compressEstimatedSize.value = size;
+  } catch (error) {
+    console.error("[haex-image] compress estimate failed:", error);
+    if (seq === estimateSeq) compressEstimatedSize.value = null;
+  } finally {
+    if (seq === estimateSeq) compressEstimating.value = false;
+  }
 }
 
-watch([compressFormat, compressQuality], () => {
-  if (editor.activeTool === "compress") updateCompressEstimate();
-});
-
-updateCompressEstimate();
+// Each estimate encodes the full image, so wait until the slider rests
+watchDebounced([compressFormat, compressQuality], updateCompressEstimate, { debounce: 250 });
+onMounted(updateCompressEstimate);
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

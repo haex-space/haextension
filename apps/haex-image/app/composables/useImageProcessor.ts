@@ -144,7 +144,7 @@ export function useImageProcessor() {
   const backgroundFor = (format: "jpeg" | "webp" | "png") => (format === "jpeg" ? "#ffffff" : undefined);
 
   async function estimateCompressedSize(format: "jpeg" | "webp" | "png", quality: number): Promise<number> {
-    const { canvas } = await drawCurrent();
+    const { canvas } = await drawCurrent(backgroundFor(format));
     const blob = await canvasToBlob(canvas, `image/${format}`, quality);
     return blob.size;
   }
