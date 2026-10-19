@@ -38,26 +38,30 @@ const handleClick = (event: MouseEvent) => {
 <template>
   <Button
     :as
+    :as-child="asChild"
     :class="
       cn('cursor-pointer', buttonVariants({ variant, size }), props.class)
     "
     :disabled="disabled || loading"
-    :style="{ display: 'inline-flex' }"
     :title="tooltip"
     @click="handleClick"
     :variant
   >
-    <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-    <component
-      v-else-if="icon || prependIcon"
-      :is="icon || prependIcon"
-      :class="iconClass"
-    />
-    <slot />
-    <component
-      v-if="appendIcon && !loading"
-      :is="appendIcon"
-      :class="iconClass"
-    />
+    <!-- As child, the slotted element becomes the button, so it must be the only child -->
+    <slot v-if="asChild" />
+    <template v-else>
+      <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
+      <component
+        v-else-if="icon || prependIcon"
+        :is="icon || prependIcon"
+        :class="iconClass"
+      />
+      <slot />
+      <component
+        v-if="appendIcon && !loading"
+        :is="appendIcon"
+        :class="iconClass"
+      />
+    </template>
   </Button>
 </template>

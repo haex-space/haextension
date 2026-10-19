@@ -1,42 +1,45 @@
 <template>
-  <div :class="['relative w-full', props.class]" :style="labelStyle">
-    <ShadcnSelect
-      v-model="model"
-      :disabled="disabled"
-      @update:open="open = $event"
-    >
-      <ShadcnSelectTrigger
-        :id="fieldId"
-        :class="[
-          'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
-          error ? 'border-destructive' : '',
-        ]"
-        :aria-invalid="error ? 'true' : undefined"
-        :aria-describedby="error ? errorId : undefined"
-        :aria-label="label ? undefined : ariaLabel"
+  <div :class="['w-full', props.class]" :style="labelStyle">
+    <!-- The label centres on the trigger, so it must not share a box with the error text below -->
+    <div class="relative">
+      <ShadcnSelect
+        v-model="model"
+        :disabled="disabled"
+        @update:open="open = $event"
       >
-        <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
-      </ShadcnSelectTrigger>
-      <ShadcnSelectContent>
-        <ShadcnSelectItem
-          v-for="option in options"
-          :key="option.value"
-          :value="option.value"
-          :disabled="option.disabled"
+        <ShadcnSelectTrigger
+          :id="fieldId"
+          :class="[
+            'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
+            error ? 'border-destructive' : '',
+          ]"
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="describedBy"
+          :aria-label="label ? undefined : ariaLabel"
         >
-          {{ option.label }}
-        </ShadcnSelectItem>
-      </ShadcnSelectContent>
-    </ShadcnSelect>
+          <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
+        </ShadcnSelectTrigger>
+        <ShadcnSelectContent>
+          <ShadcnSelectItem
+            v-for="option in options"
+            :key="option.value"
+            :value="option.value"
+            :disabled="option.disabled"
+          >
+            {{ option.label }}
+          </ShadcnSelectItem>
+        </ShadcnSelectContent>
+      </ShadcnSelect>
 
-    <label
-      v-if="label"
-      :for="fieldId"
-      :class="labelClass"
-      data-slot="floating-label"
-    >
-      {{ label }}
-    </label>
+      <label
+        v-if="label"
+        :for="fieldId"
+        :class="labelClass"
+        data-slot="floating-label"
+      >
+        {{ label }}
+      </label>
+    </div>
 
     <p v-if="error" :id="errorId" class="mt-1 px-1 text-xs text-destructive" role="alert">
       {{ error }}
@@ -45,13 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { useId, type HTMLAttributes } from "vue";
+import type { HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import {
-  LABEL_BG_VAR,
-  floatingLabelBase,
-  floatingLabelRestSingle,
-} from "../../../lib/floating-label";
+import { floatingLabelBase, floatingLabelRestSingle } from "../../../lib/floating-label";
+import { useLabelledField } from "../../../lib/useLabelledField";
 
 export type UiSelectOption = {
   value: string;
@@ -77,10 +77,11 @@ const props = defineProps<{
 
 const model = defineModel<string | null | undefined>();
 
-// Ties the label and the error text to the trigger even when the consumer passes no id.
-const generatedId = useId();
-const fieldId = computed(() => props.id ?? generatedId);
-const errorId = `${generatedId}-error`;
+const { fieldId, errorId, describedBy, labelStyle } = useLabelledField({
+  id: () => props.id,
+  error: () => props.error,
+  labelBg: () => props.labelBg,
+});
 
 const open = ref(false);
 const floated = computed(
@@ -91,9 +92,8 @@ const labelClass = computed(() =>
     floatingLabelBase,
     floated.value
       ? ["top-0 left-2 -translate-y-1/2 text-xs font-medium", open.value ? "text-primary" : "text-foreground"]
-      : [floatingLabelRestSingle, "left-2"],
+      : [floatingLabelRestSingle, "left-2", "text-muted-foreground"],
     props.error && "text-destructive",
   ),
 );
-const labelStyle = computed(() => (props.labelBg ? { [LABEL_BG_VAR]: props.labelBg } : undefined));
 </script>

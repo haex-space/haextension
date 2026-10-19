@@ -26,7 +26,7 @@
           floatingLabelRestMulti,
           'left-2',
           floatingLabelFloated,
-          error ? 'text-destructive peer-focus:text-destructive' : '',
+          floatingLabelColor(error),
         ]"
         data-slot="floating-label"
       >
@@ -35,15 +35,12 @@
 
       <div class="absolute top-2 right-2 flex flex-col gap-1">
         <slot name="actions">
-          <UiButton
+          <UiButtonCopy
             v-if="withCopy"
-            type="button"
-            :icon="copied ? Check : Copy"
-            :tooltip="copied ? props.labels.copied : props.labels.copy"
-            variant="ghost"
+            :value="modelValue"
+            :labels="props.labels"
             size="icon-sm"
             data-slot="button"
-            @click.prevent="handleCopy"
           />
         </slot>
       </div>
@@ -56,17 +53,16 @@
 </template>
 
 <script setup lang="ts">
-import { useId, type HTMLAttributes } from "vue";
-import { useClipboard } from "@vueuse/core";
-import { Copy, Check } from "@lucide/vue";
+import type { HTMLAttributes } from "vue";
 import {
-  LABEL_BG_VAR,
   floatingLabelBase,
+  floatingLabelColor,
   floatingLabelFloated,
   floatingLabelRestMulti,
   labelledPlaceholder,
   labelledPlaceholderClass,
 } from "../../../lib/floating-label";
+import { useLabelledField } from "../../../lib/useLabelledField";
 
 defineOptions({ inheritAttrs: false });
 
@@ -97,16 +93,12 @@ const props = withDefaults(
 
 const attrs = useAttrs();
 
-// Ties the label and the error text to the textarea even when the consumer passes no id.
-const generatedId = useId();
-const fieldId = computed(() => (attrs.id as string | undefined) ?? generatedId);
-const errorId = `${generatedId}-error`;
-// Keeps a consumer's aria-describedby and adds the error text while there is one.
-const describedBy = computed(() =>
-  [attrs["aria-describedby"] as string | undefined, props.error ? errorId : undefined]
-    .filter(Boolean)
-    .join(" ") || undefined,
-);
+const { fieldId, errorId, describedBy, labelStyle } = useLabelledField({
+  id: () => attrs.id as string | undefined,
+  describedBy: () => attrs["aria-describedby"] as string | undefined,
+  error: () => props.error,
+  labelBg: () => props.labelBg,
+});
 
 const modelValue = defineModel<string | number | null | undefined>();
 
@@ -116,17 +108,7 @@ const textareaValue = computed({
   set: (val) => { modelValue.value = val; },
 });
 
-const labelStyle = computed(() => (props.labelBg ? { [LABEL_BG_VAR]: props.labelBg } : undefined));
-
-const { copy, copied } = useClipboard();
-
 const textareaRef = useTemplateRef("textareaRef");
-
-const handleCopy = async () => {
-  if (modelValue.value) {
-    await copy(String(modelValue.value));
-  }
-};
 
 const focus = () => {
   textareaRef.value?.$el?.focus();

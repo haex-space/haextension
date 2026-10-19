@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, type HTMLAttributes } from "vue";
+import { onMounted, ref, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 
 const props = defineProps<{
@@ -11,6 +11,11 @@ const model = defineModel<string | number | null>();
 
 const inputElement = ref<HTMLInputElement | null>(null);
 
+// The native attribute only acts on page load, so inputs mounted later (drawers, dialogs) focus here
+onMounted(() => {
+  if (props.autofocus) inputElement.value?.focus();
+});
+
 // Methode nach außen freigeben
 defineExpose({
   focus: () => inputElement.value?.focus(),
@@ -21,11 +26,11 @@ defineExpose({
 <template>
   <input
     :value="model"
-    data-slot="input"
+    data-slot="input-group-control"
     ref="inputElement"
     :class="
       cn(
-        'flex-1 min-w-0 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent px-3 py-1 text-base outline-none md:text-sm transition-[color,box-shadow]   focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]',
+        'flex-1 min-w-0 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent px-3 py-1 text-base outline-none md:text-sm',
         props.class
       )
     "

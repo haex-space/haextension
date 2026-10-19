@@ -10,7 +10,7 @@ export const LABEL_BG_VAR = "--ui-label-bg";
 
 export const floatingLabelBase =
   "pointer-events-none absolute z-10 max-w-[calc(100%-1rem)] truncate rounded-sm px-1 " +
-  "bg-[var(--ui-label-bg,var(--background))] text-muted-foreground transition-all duration-150";
+  "bg-[var(--ui-label-bg,var(--background))] transition-all duration-150";
 
 /** Position and size at rest (inside the field) for a single-line field. */
 export const floatingLabelRestSingle = "top-1/2 -translate-y-1/2 text-sm";
@@ -19,9 +19,18 @@ export const floatingLabelRestMulti = "top-[1.125rem] -translate-y-1/2 text-sm";
 
 /** Position and size once floated, reached by focus or by a value (peer state). */
 export const floatingLabelFloated = [
-  "peer-focus:top-0 peer-focus:left-2 peer-focus:-translate-y-1/2 peer-focus:text-xs peer-focus:font-medium peer-focus:text-primary",
-  "peer-not-placeholder-shown:top-0 peer-not-placeholder-shown:left-2 peer-not-placeholder-shown:-translate-y-1/2 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:font-medium peer-not-placeholder-shown:text-foreground",
+  "peer-focus:top-0 peer-focus:left-2 peer-focus:-translate-y-1/2 peer-focus:text-xs peer-focus:font-medium",
+  "peer-not-placeholder-shown:top-0 peer-not-placeholder-shown:left-2 peer-not-placeholder-shown:-translate-y-1/2 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:font-medium",
 ].join(" ");
+
+/** Colour of a peer-floated label: muted at rest, primary with focus, foreground with a value, destructive
+ * throughout on error. Either set alone: Tailwind orders same-variant colours by name, so adding
+ * `text-destructive` next to the others would lose to them. */
+export function floatingLabelColor(error: string | undefined): string {
+  return error
+    ? "text-destructive"
+    : "text-muted-foreground peer-not-placeholder-shown:text-foreground peer-focus:text-primary";
+}
 
 /** The placeholder to put on the field: a single space while a label is shown (so `:placeholder-shown`
  * works), and the real one stays invisible until the field has focus. */

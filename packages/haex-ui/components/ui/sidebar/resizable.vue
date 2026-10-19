@@ -5,23 +5,27 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 min-h-0 overflow-hidden">
-      <!-- Mobile: Overlay Sidebar via Drawer with swipe-to-close -->
-      <ShadcnDrawer v-model:open="mobileOpen" :direction="side">
-        <ShadcnDrawerContent class="h-full w-80 p-0">
-          <slot name="sidebar" />
-        </ShadcnDrawerContent>
-      </ShadcnDrawer>
+      <!-- Only one layout is mounted, so the slot contents never exist twice -->
+      <template v-if="isSmallScreen">
+        <!-- Mobile: Overlay Sidebar via Drawer with swipe-to-close -->
+        <ShadcnDrawer v-model:open="mobileOpen" :direction="side">
+          <ShadcnDrawerContent class="h-full w-80 p-0">
+            <slot name="sidebar" />
+          </ShadcnDrawerContent>
+        </ShadcnDrawer>
 
-      <!-- Mobile: Content only -->
-      <div class="md:hidden h-full overflow-y-auto">
-        <slot name="content" />
-      </div>
+        <!-- Mobile: Content only -->
+        <div class="h-full overflow-y-auto">
+          <slot name="content" />
+        </div>
+      </template>
 
       <!-- Desktop: Resizable Panels -->
       <ShadcnResizablePanelGroup
+        v-else
         :id="panelGroupId"
         direction="horizontal"
-        class="hidden md:flex h-full"
+        class="flex h-full"
         :auto-save-id="autoSaveId"
       >
         <!-- Sidebar Panel (left or right based on side prop) -->
@@ -74,6 +78,8 @@
 </template>
 
 <script setup lang="ts">
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+
 withDefaults(
   defineProps<{
     /** Unique ID for the panel group (used for localStorage) */
@@ -100,4 +106,12 @@ withDefaults(
 );
 
 const mobileOpen = defineModel<boolean>("mobileOpen", { default: false });
+
+// "smaller('md')" matches Tailwind's breakpoint, so `md:hidden` triggers in the consumer agree with it
+const isSmallScreen = useBreakpoints(breakpointsTailwind).smaller("md");
+
+// The drawer does not exist on desktop; it must not pop up again when the window narrows
+watch(isSmallScreen, (small) => {
+  if (!small) mobileOpen.value = false;
+});
 </script>

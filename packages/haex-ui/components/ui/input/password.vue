@@ -14,23 +14,17 @@
         class="shadow-none"
         @click.prevent="showPassword = !showPassword"
       />
-      <UiButton
-        v-if="copyable"
-        type="button"
-        :icon="copied ? Check : Copy"
-        :tooltip="copied ? labels.copied : labels.copy"
-        variant="ghost"
-        class="shadow-none"
-        @click.prevent="handleCopy"
-      />
+      <UiButtonCopy v-if="copyable" :value="model" :labels="labels" class="shadow-none" />
       <slot name="append" />
     </template>
   </UiInput>
 </template>
 
 <script setup lang="ts">
-import { useClipboard } from "@vueuse/core";
-import { Eye, EyeOff, Copy, Check } from "@lucide/vue";
+import { Eye, EyeOff } from "@lucide/vue";
+
+// Attributes go to UiInput explicitly (v-bind="$attrs"); inheriting them as well would bind them twice
+defineOptions({ inheritAttrs: false });
 
 export type UiInputPasswordLabels = {
   show: string;
@@ -58,12 +52,12 @@ withDefaults(
 
 const model = defineModel<string | null>();
 
+const inputRef = useTemplateRef("inputRef");
 const showPassword = ref(false);
-const { copy, copied } = useClipboard();
 
-const handleCopy = async () => {
-  if (model.value) {
-    await copy(model.value);
-  }
+const focus = () => {
+  inputRef.value?.focus();
 };
+
+defineExpose({ focus });
 </script>
