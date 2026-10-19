@@ -41,8 +41,7 @@ const requestCloseTab = (tabId: string) => {
 
 const saveTabReportingErrorsAsync = async (tab: EditorTab): Promise<boolean> => {
   try {
-    await editorStore.saveTabAsync(tab.id);
-    return true;
+    return await editorStore.saveTabAsync(tab.id);
   } catch (e) {
     console.error("[haex-code] Failed to save file:", e);
     toast.error(t("saveFailed", { name: tab.name }));

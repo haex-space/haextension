@@ -170,6 +170,15 @@ watch(
   () => showTab(props.tab)
 );
 
+// Saving an untitled tab gives it a file name and with that a language.
+watch(
+  () => props.tab.language,
+  (language) => {
+    const model = models.get(props.tab.id);
+    if (model && monacoApi) monacoApi.editor.setModelLanguage(model, language);
+  }
+);
+
 watch(
   () => editorStore.tabs.map((t) => t.id),
   (openIds) => {
