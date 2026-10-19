@@ -14,9 +14,13 @@ function applyBrowserTheme() {
   })
 }
 
-export async function setupApp(app: App) {
-  // Apply browser theme (dark/light mode)
-  applyBrowserTheme()
+/**
+ * `theme: false` for the content script: there `document` is the website's,
+ * and toggling `dark` on its <html> would override the site's own theme.
+ */
+export async function setupApp(app: App, { theme = true }: { theme?: boolean } = {}) {
+  if (theme)
+    applyBrowserTheme()
 
   // Install vue-i18n and load saved locale from storage
   app.use(i18n)

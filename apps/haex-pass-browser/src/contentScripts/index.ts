@@ -31,7 +31,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   shadowDOM.appendChild(root)
   document.body.appendChild(container)
   const app = createApp(App)
-  setupApp(app)
+  setupApp(app, { theme: false }).catch(err => console.error('[haex-pass] Failed to set up the overlay app:', err))
   const vm = app.mount(root)
 
   // Entry type from haex-pass API
