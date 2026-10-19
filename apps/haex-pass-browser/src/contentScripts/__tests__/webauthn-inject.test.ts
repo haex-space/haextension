@@ -111,6 +111,37 @@ describe('webauthn-inject', () => {
     expect(nativeGet).not.toHaveBeenCalled()
   })
 
+  it('builds a registration credential with authenticator data and a JSON form', async () => {
+    const authData = [1, 2, 3, 4]
+    // CBOR { "authData": h'01020304' }
+    const attestationObject = btoa(String.fromCharCode(0xA1, 0x68, ...new TextEncoder().encode('authData'), 0x44, ...authData))
+    const result = navigator.credentials.create({
+      publicKey: {
+        rp: { id: 'example.com', name: 'Example' },
+        user: { id: new Uint8Array([7]), name: 'anna', displayName: 'Anna' },
+        challenge: new Uint8Array([1]),
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      },
+    })
+    const { requestId } = posted.findLast(m => m.type === 'HAEX_PASS_WEBAUTHN_CREATE')!
+    reply({ type: 'HAEX_PASS_WEBAUTHN_ACK', requestId })
+    reply({
+      type: 'HAEX_PASS_WEBAUTHN_RESPONSE_CREATE',
+      requestId,
+      data: { credentialId: btoa('\x0A\x0B'), publicKey: btoa('spki'), publicKeyCose: '', attestationObject, clientDataJson: btoa('{}'), transports: ['internal'] },
+    })
+
+    const credential = await result as PublicKeyCredential & { response: AuthenticatorAttestationResponse }
+    expect([...new Uint8Array(credential.response.getAuthenticatorData())]).toEqual(authData)
+    expect(JSON.parse(JSON.stringify(credential))).toMatchObject({
+      id: 'Cgs',
+      rawId: 'Cgs',
+      type: 'public-key',
+      response: { authenticatorData: 'AQIDBA', transports: ['internal'], publicKeyAlgorithm: -7 },
+      clientExtensionResults: {},
+    })
+  })
+
   it('ignores window messages that carry no object', () => {
     const errors: unknown[] = []
     const onError = (event: ErrorEvent) => errors.push(event.error)

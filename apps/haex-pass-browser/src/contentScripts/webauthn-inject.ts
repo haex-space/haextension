@@ -11,6 +11,7 @@
  * vor dem Laden der Seite zu überschreiben.
  */
 
+import { authDataFromAttestationObject } from './attestation'
 import { mustUseBrowserNative, USER_CANCELLED } from './webauthn-routing'
 
 // Speichere die originalen WebAuthn-Methoden
@@ -112,6 +113,8 @@ if (!originalCreate || !originalGet) {
     const credentialIdBuffer = base64ToArrayBuffer(response.credentialId)
     const attestationObjectBuffer = base64ToArrayBuffer(response.attestationObject)
     const clientDataJsonBuffer = base64ToArrayBuffer(response.clientDataJson)
+    const authenticatorDataBuffer = authDataFromAttestationObject(attestationObjectBuffer)
+    const publicKeyAlgorithm = -7 // ES256
 
     // Erstelle AuthenticatorAttestationResponse
     const attestationResponse = {
@@ -119,8 +122,8 @@ if (!originalCreate || !originalGet) {
       attestationObject: attestationObjectBuffer,
       getTransports: () => response.transports as AuthenticatorTransport[],
       getPublicKey: () => base64ToArrayBuffer(response.publicKey),
-      getPublicKeyAlgorithm: () => -7, // ES256
-      getAuthenticatorData: () => attestationObjectBuffer,
+      getPublicKeyAlgorithm: () => publicKeyAlgorithm,
+      getAuthenticatorData: () => authenticatorDataBuffer,
     }
 
     // Erstelle das PublicKeyCredential-Objekt
@@ -131,6 +134,22 @@ if (!originalCreate || !originalGet) {
       response: attestationResponse,
       authenticatorAttachment: 'platform' as AuthenticatorAttachment,
       getClientExtensionResults: () => ({}),
+      // WebAuthn L3 RegistrationResponseJSON, which pages send to their server
+      toJSON: () => ({
+        id: credential.id,
+        rawId: credential.id,
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment,
+        clientExtensionResults: {},
+        response: {
+          clientDataJSON: arrayBufferToBase64url(clientDataJsonBuffer),
+          authenticatorData: arrayBufferToBase64url(authenticatorDataBuffer),
+          transports: response.transports,
+          publicKey: arrayBufferToBase64url(base64ToArrayBuffer(response.publicKey)),
+          publicKeyAlgorithm,
+          attestationObject: arrayBufferToBase64url(attestationObjectBuffer),
+        },
+      }),
     }
 
     return credential as unknown as PublicKeyCredential
@@ -168,6 +187,20 @@ if (!originalCreate || !originalGet) {
       response: assertionResponse,
       authenticatorAttachment: 'platform' as AuthenticatorAttachment,
       getClientExtensionResults: () => ({}),
+      // WebAuthn L3 AuthenticationResponseJSON, which pages send to their server
+      toJSON: () => ({
+        id: credential.id,
+        rawId: credential.id,
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment,
+        clientExtensionResults: {},
+        response: {
+          clientDataJSON: arrayBufferToBase64url(clientDataJsonBuffer),
+          authenticatorData: arrayBufferToBase64url(authenticatorDataBuffer),
+          signature: arrayBufferToBase64url(signatureBuffer),
+          ...(userHandleBuffer && { userHandle: arrayBufferToBase64url(userHandleBuffer) }),
+        },
+      }),
     }
 
     return credential as unknown as PublicKeyCredential
