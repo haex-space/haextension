@@ -13,6 +13,15 @@ export interface ImageAdjustments {
   saturation: number;  // -100 to 100
 }
 
+export interface HistoryEntry {
+  /** Encoded image: the opened file itself, or what an edit encoded. */
+  blob: Blob;
+  width: number;
+  height: number;
+  /** Encoded by Compress: saving writes these bytes as they are. */
+  compressed?: boolean;
+}
+
 export type FilterType = "none" | "grayscale" | "sepia" | "invert" | "warm" | "cool" | "vintage";
 
 export interface AspectRatioPreset {

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ImagePlus } from "@lucide/vue";
+import { toast } from "vue-sonner";
+import { extensionForType, withExtension } from "~/lib/fileName";
+import { decodeImage } from "~/lib/image";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
@@ -15,19 +18,22 @@ async function applyFreeRotation() {
   if (freeRotationDeg.value === 0) return;
   await processor.applyRotate(freeRotationDeg.value);
   freeRotationDeg.value = 0;
-  nextTick(render);
 }
 
 // Preview state for adjustments
 const previewAdjustments = ref({ brightness: 0, contrast: 0, saturation: 0 });
 
 onMounted(async () => {
-  await haexVault.initializeAsync();
+  try {
+    await haexVault.initializeAsync();
+  } catch (error) {
+    console.error("[haex-image] initialization failed:", error);
+    toast.error(t("initFailed"));
+  }
 });
 
 const { renderScale, render } = useCanvasRenderer(canvasRef, containerRef, previewAdjustments);
 
-watch(() => editor.imageDataUrl, render);
 watch(() => editor.activeTool, (newTool, oldTool) => {
   // Reset filter preview when leaving filter tool without applying
   if (oldTool === "filter" && newTool !== "filter") {
@@ -65,7 +71,7 @@ async function openFile() {
   try {
     const paths = await client.filesystem.selectFile({
       title: t("openImage"),
-      filters: [["Bilder", ["png", "jpg", "jpeg", "webp", "bmp", "gif"]]],
+      filters: [[t("images"), ["png", "jpg", "jpeg", "webp", "bmp", "gif"]]],
       multiple: false,
     });
     if (!paths || paths.length === 0) return;
@@ -78,16 +84,11 @@ async function openFile() {
     const mime = mimeMap[ext] ?? "image/png";
 
     const blob = new Blob([data as BlobPart], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      editor.loadImage(img, name, filePath);
-      URL.revokeObjectURL(url);
-      nextTick(render);
-    };
-    img.src = url;
-  } catch (e) {
-    console.error("[haex-image] openFile error:", e);
+    const img = await decodeImage(blob);
+    editor.loadImage({ blob, width: img.naturalWidth, height: img.naturalHeight }, name, filePath);
+  } catch (error) {
+    console.error("[haex-image] openFile error:", error);
+    toast.error(t("openFailed"));
   }
 }
 
@@ -106,25 +107,29 @@ function resetAdjustments() {
 // Compress
 async function confirmCompress(format: "jpeg" | "webp" | "png", quality: number) {
   await processor.applyCompress(format, quality / 100);
-  nextTick(render);
 }
 
 // Export
 async function saveAs() {
   const client = haexVault.client;
-  if (!client || !editor.imageDataUrl) return;
+  const entry = editor.current;
+  if (!client || !entry) return;
   try {
     const ext = editor.fileName.split(".").pop()?.toLowerCase();
-    const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
-    const blob = await processor.exportImage(format as "png" | "jpeg");
+    // A Compress result is saved byte for byte; anything else is encoded in the opened file's format
+    const blob = entry.compressed
+      ? entry.blob
+      : await processor.exportImage(ext === "jpg" || ext === "jpeg" ? "jpeg" : "png");
+    const extension = extensionForType(blob.type);
     const buffer = await blob.arrayBuffer();
     await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),
-      defaultPath: editor.filePath || editor.fileName,
-      filters: [{ name: "Bilder", extensions: [format === "jpeg" ? "jpg" : "png"] }],
+      defaultPath: withExtension(editor.filePath || editor.fileName, extension),
+      filters: [{ name: t("images"), extensions: [extension] }],
     });
-  } catch (e) {
-    console.error("[haex-image] saveAs error:", e);
+  } catch (error) {
+    console.error("[haex-image] saveAs error:", error);
+    toast.error(t("saveFailed"));
   }
 }
 </script>
@@ -138,23 +143,26 @@ async function saveAs() {
       <!-- Tool Options Sidebar -->
       <aside
         v-if="editor.activeTool"
-        class="flex w-56 flex-col gap-3 overflow-y-auto border-r border-border bg-card p-3"
+        class="flex w-56 flex-col overflow-y-auto border-r border-border bg-card p-3"
       >
-        <ImageCropPanel v-if="editor.activeTool === 'crop'" />
-        <ImageRotatePanel
-          v-if="editor.activeTool === 'rotate'"
-          v-model:free-rotation-deg="freeRotationDeg"
-          @apply-free-rotation="applyFreeRotation"
-        />
-        <ImageResizePanel v-if="editor.activeTool === 'resize'" />
-        <ImageAdjustPanel
-          v-if="editor.activeTool === 'adjust'"
-          v-model:preview-adjustments="previewAdjustments"
-          @reset="resetAdjustments"
-          @confirm="confirmAdjustments"
-        />
-        <ImageCompressPanel v-if="editor.activeTool === 'compress'" @confirm="confirmCompress" />
-        <ImageFilterPanel v-if="editor.activeTool === 'filter'" />
+        <!-- Disables every panel control while an edit runs, so edits never overlap -->
+        <fieldset :disabled="editor.isProcessing" class="flex min-w-0 flex-col gap-3">
+          <ImageCropPanel v-if="editor.activeTool === 'crop'" />
+          <ImageRotatePanel
+            v-if="editor.activeTool === 'rotate'"
+            v-model:free-rotation-deg="freeRotationDeg"
+            @apply-free-rotation="applyFreeRotation"
+          />
+          <ImageResizePanel v-if="editor.activeTool === 'resize'" />
+          <ImageAdjustPanel
+            v-if="editor.activeTool === 'adjust'"
+            v-model:preview-adjustments="previewAdjustments"
+            @reset="resetAdjustments"
+            @confirm="confirmAdjustments"
+          />
+          <ImageCompressPanel v-if="editor.activeTool === 'compress'" @confirm="confirmCompress" />
+          <ImageFilterPanel v-if="editor.activeTool === 'filter'" />
+        </fieldset>
       </aside>
 
       <!-- Canvas Area -->
@@ -185,6 +193,7 @@ async function saveAs() {
           @pointerdown="onCanvasPointerDown"
           @pointermove="onCanvasPointerMove"
           @pointerup="onCanvasPointerUp"
+          @pointercancel="onCanvasPointerUp"
         />
       </div>
     </div>
@@ -196,8 +205,16 @@ de:
   noImage: Kein Bild geladen
   openImage: Bild öffnen
   saveAs: Speichern unter
+  images: Bilder
+  initFailed: Die Verbindung zum Vault ist fehlgeschlagen.
+  openFailed: Das Bild konnte nicht geöffnet werden.
+  saveFailed: Das Bild konnte nicht gespeichert werden.
 en:
   noImage: No image loaded
   openImage: Open Image
   saveAs: Save As
+  images: Images
+  initFailed: Connecting to the vault failed.
+  openFailed: The image could not be opened.
+  saveFailed: The image could not be saved.
 </i18n>

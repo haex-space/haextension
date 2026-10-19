@@ -1,4 +1,5 @@
 import type { Ref, ShallowRef } from "vue";
+import { resizeCropRect, type CropEdge } from "~/lib/cropGeometry";
 
 export function useCropInteraction(
   canvasRef: Readonly<ShallowRef<HTMLCanvasElement | null>>,
@@ -10,7 +11,6 @@ export function useCropInteraction(
   const cropStart = ref<{ x: number; y: number } | null>(null);
   const cropDragging = ref(false);
 
-  type CropEdge = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
   const cropMode = ref<"draw" | "move" | "resize">("draw");
   const cropResizeEdge = ref<CropEdge>("br");
   const cropMoveOffset = ref({ x: 0, y: 0 });
@@ -103,23 +103,10 @@ export function useCropInteraction(
       ny = Math.max(0, Math.min(editor.imageHeight - editor.cropRect.height, ny));
       editor.cropRect = { ...editor.cropRect, x: Math.round(nx), y: Math.round(ny) };
     } else if (cropMode.value === "resize") {
-      const r = { ...editor.cropRect };
-      const edge = cropResizeEdge.value;
-
-      if (edge.includes("l")) { const newX = Math.min(x, r.x + r.width - 1); r.width += r.x - newX; r.x = newX; }
-      if (edge.includes("r")) { r.width = Math.max(1, x - r.x); }
-      if (edge.includes("t")) { const newY = Math.min(y, r.y + r.height - 1); r.height += r.y - newY; r.y = newY; }
-      if (edge.includes("b")) { r.height = Math.max(1, y - r.y); }
-
-      if (editor.cropAspectRatio) {
-        const ratio = editor.cropAspectRatio;
-        if (edge === "t" || edge === "b") { r.width = r.height * ratio; }
-        else if (edge === "l" || edge === "r") { r.height = r.width / ratio; }
-        else if (r.width / r.height > ratio) { r.width = r.height * ratio; }
-        else { r.height = r.width / ratio; }
-      }
-
-      editor.cropRect = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+      editor.cropRect = resizeCropRect(editor.cropRect, cropResizeEdge.value, x, y, editor.cropAspectRatio, {
+        width: editor.imageWidth,
+        height: editor.imageHeight,
+      });
     } else {
       if (!cropStart.value) return;
       const sx = cropStart.value.x;

@@ -1,46 +1,89 @@
+import { toast } from "vue-sonner";
 import type { CropRect, ImageAdjustments, FilterType } from "~/types";
+import { canvasToBlob, decodeImage } from "~/lib/image";
+import { adjustmentsPixelFn, filterPixel, mapPixels } from "~/lib/pixelOps";
 
 export function useImageProcessor() {
   const editor = useEditorStore();
+  const { t } = useI18n({ useScope: "global" });
 
-  async function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = dataUrl;
-    });
+  function createCanvas(width: number, height: number) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return { canvas, ctx: canvas.getContext("2d")! };
+  }
+
+  function drawOnto(img: HTMLImageElement, background?: string) {
+    const { canvas, ctx } = createCanvas(img.naturalWidth, img.naturalHeight);
+    if (background) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0);
+    return { canvas, ctx };
+  }
+
+  /** The current image drawn 1:1 onto a new canvas, over `background` if given. */
+  async function drawCurrent(background?: string) {
+    if (!editor.current) throw new Error("No image loaded");
+    return drawOnto(await decodeImage(editor.current.blob), background);
+  }
+
+  interface Edited {
+    canvas: HTMLCanvasElement;
+    type?: string;
+    quality?: number;
+    compressed?: boolean;
+  }
+
+  /**
+   * Runs one edit at a time. Its result becomes the new current image only if the image it started
+   * from is still current: an undo or a newly opened image while it ran makes the result stale.
+   * Failures are reported to the user. Resolves to whether the result was applied.
+   */
+  async function edit(op: (img: HTMLImageElement) => Edited): Promise<boolean> {
+    const source = editor.current;
+    if (!source || editor.isProcessing) return false;
+    editor.isProcessing = true;
+    try {
+      const { canvas, type = "image/png", quality, compressed } = op(await decodeImage(source.blob));
+      const blob = await canvasToBlob(canvas, type, quality);
+      if (editor.current !== source) return false;
+      editor.pushHistory({ blob, width: canvas.width, height: canvas.height, compressed });
+      return true;
+    } catch (error) {
+      console.error("[haex-image] edit failed:", error);
+      toast.error(t("editFailed"));
+      return false;
+    } finally {
+      editor.isProcessing = false;
+    }
   }
 
   async function applyCrop(rect: CropRect) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, rect.width, rect.height);
-    editor.activeTool = null;
+    const applied = await edit((img) => {
+      const { canvas, ctx } = createCanvas(rect.width, rect.height);
+      ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+      return { canvas };
+    });
+    if (applied) editor.activeTool = null;
   }
 
   async function applyRotate(degrees: number) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const rad = (degrees * Math.PI) / 180;
-    const sin = Math.abs(Math.sin(rad));
-    const cos = Math.abs(Math.cos(rad));
-    const newW = Math.round(img.naturalWidth * cos + img.naturalHeight * sin);
-    const newH = Math.round(img.naturalWidth * sin + img.naturalHeight * cos);
+    await edit((img) => {
+      const rad = (degrees * Math.PI) / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+      const newW = Math.round(img.naturalWidth * cos + img.naturalHeight * sin);
+      const newH = Math.round(img.naturalWidth * sin + img.naturalHeight * cos);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = newW;
-    canvas.height = newH;
-    const ctx = canvas.getContext("2d")!;
-    ctx.translate(newW / 2, newH / 2);
-    ctx.rotate(rad);
-    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, newW, newH);
+      const { canvas, ctx } = createCanvas(newW, newH);
+      ctx.translate(newW / 2, newH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      return { canvas };
+    });
   }
 
   async function applyRotate90(direction: "cw" | "ccw") {
@@ -48,161 +91,75 @@ export function useImageProcessor() {
   }
 
   async function applyFlip(axis: "horizontal" | "vertical") {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    if (axis === "horizontal") {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    } else {
-      ctx.translate(0, canvas.height);
-      ctx.scale(1, -1);
-    }
-    ctx.drawImage(img, 0, 0);
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, canvas.width, canvas.height);
+    await edit((img) => {
+      const { canvas, ctx } = createCanvas(img.naturalWidth, img.naturalHeight);
+      if (axis === "horizontal") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(0, canvas.height);
+        ctx.scale(1, -1);
+      }
+      ctx.drawImage(img, 0, 0);
+      return { canvas };
+    });
   }
 
   async function applyResize(width: number, height: number) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, width, height);
-    editor.activeTool = null;
-  }
-
-  function manipulatePixels(ctx: CanvasRenderingContext2D, w: number, h: number, fn: (r: number, g: number, b: number) => [number, number, number]) {
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const [r, g, b] = fn(d[i]!, d[i + 1]!, d[i + 2]!);
-      d[i] = Math.max(0, Math.min(255, r));
-      d[i + 1] = Math.max(0, Math.min(255, g));
-      d[i + 2] = Math.max(0, Math.min(255, b));
-    }
-    ctx.putImageData(imageData, 0, 0);
+    const applied = await edit((img) => {
+      const { canvas, ctx } = createCanvas(width, height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, width, height);
+      return { canvas };
+    });
+    if (applied) editor.activeTool = null;
   }
 
   async function applyAdjustments(adjustments: ImageAdjustments) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-
-    const br = adjustments.brightness * 2.55;
-    const co = 1 + adjustments.contrast / 100;
-    const sat = 1 + adjustments.saturation / 100;
-    manipulatePixels(ctx, canvas.width, canvas.height, (r, g, b) => {
-      r += br; g += br; b += br;
-      r = ((r / 255 - 0.5) * co + 0.5) * 255;
-      g = ((g / 255 - 0.5) * co + 0.5) * 255;
-      b = ((b / 255 - 0.5) * co + 0.5) * 255;
-      const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      r = gray + (r - gray) * sat;
-      g = gray + (g - gray) * sat;
-      b = gray + (b - gray) * sat;
-      return [r, g, b];
+    const applied = await edit((img) => {
+      const { canvas, ctx } = drawOnto(img);
+      mapPixels(ctx, canvas.width, canvas.height, adjustmentsPixelFn(adjustments));
+      return { canvas };
     });
-
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, canvas.width, canvas.height);
-    editor.adjustments = { brightness: 0, contrast: 0, saturation: 0 };
-    editor.activeTool = null;
+    if (applied) editor.activeTool = null;
   }
 
   async function applyFilter(filter: FilterType) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-
-    if (filter !== "none") {
-      manipulatePixels(ctx, canvas.width, canvas.height, (r, g, b) => {
-        if (filter === "grayscale") {
-          const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-          return [gray, gray, gray];
-        } else if (filter === "sepia") {
-          return [r * 0.393 + g * 0.769 + b * 0.189, r * 0.349 + g * 0.686 + b * 0.168, r * 0.272 + g * 0.534 + b * 0.131];
-        } else if (filter === "invert") {
-          return [255 - r, 255 - g, 255 - b];
-        } else if (filter === "warm") {
-          return [Math.min(255, r * 1.1 + 10), g, Math.max(0, b * 0.9 - 5)];
-        } else if (filter === "cool") {
-          return [Math.max(0, r * 0.9 - 5), g, Math.min(255, b * 1.1 + 10)];
-        } else if (filter === "vintage") {
-          const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-          return [(gray * 0.6 + r * 0.4 + 20) * 0.95, (gray * 0.5 + g * 0.5 + 5) * 0.9, (gray * 0.6 + b * 0.4 - 10) * 0.85];
-        }
-        return [r, g, b];
-      });
-    }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    editor.pushHistory(dataUrl, canvas.width, canvas.height);
+    const applied = await edit((img) => {
+      const { canvas, ctx } = drawOnto(img);
+      if (filter !== "none") {
+        mapPixels(ctx, canvas.width, canvas.height, (r, g, b) => filterPixel(filter, r, g, b));
+      }
+      return { canvas };
+    });
+    if (!applied) return;
     editor.activeFilter = "none";
     editor.activeTool = null;
   }
 
+  // JPEG has no alpha channel: without a background, transparent pixels would turn black.
+  const backgroundFor = (format: "jpeg" | "webp" | "png") => (format === "jpeg" ? "#ffffff" : undefined);
+
   async function estimateCompressedSize(format: "jpeg" | "webp" | "png", quality: number): Promise<number> {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-    return new Promise((resolve) => {
-      canvas.toBlob(
-        (blob) => resolve(blob?.size ?? 0),
-        `image/${format}`,
-        quality,
-      );
-    });
+    const { canvas } = await drawCurrent(backgroundFor(format));
+    const blob = await canvasToBlob(canvas, `image/${format}`, quality);
+    return blob.size;
   }
 
   async function applyCompress(format: "jpeg" | "webp" | "png", quality: number) {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    // Fill white background for JPEG (no alpha support)
-    if (format === "jpeg") {
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    ctx.drawImage(img, 0, 0);
-    const mimeType = `image/${format}`;
-    const dataUrl = canvas.toDataURL(mimeType, quality);
-    editor.pushHistory(dataUrl, canvas.width, canvas.height);
-    editor.activeTool = null;
+    const applied = await edit((img) => ({
+      canvas: drawOnto(img, backgroundFor(format)).canvas,
+      type: `image/${format}`,
+      quality,
+      compressed: true,
+    }));
+    if (applied) editor.activeTool = null;
   }
 
   async function exportImage(format: "png" | "jpeg", quality = 0.92): Promise<Blob> {
-    const img = await loadImageFromDataUrl(editor.imageDataUrl!);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-    return new Promise((resolve) => {
-      canvas.toBlob(
-        (blob) => resolve(blob!),
-        format === "jpeg" ? "image/jpeg" : "image/png",
-        quality,
-      );
-    });
+    const { canvas } = await drawCurrent(backgroundFor(format));
+    return canvasToBlob(canvas, format === "jpeg" ? "image/jpeg" : "image/png", quality);
   }
 
   return {

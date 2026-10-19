@@ -9,6 +9,16 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const processor = useImageProcessor();
+
+// A cleared or invalid field means no rotation instead of a non-numeric model value
+function onDegreesChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const degrees = Number(input.value);
+  freeRotationDeg.value = input.value.trim() !== "" && Number.isFinite(degrees)
+    ? Math.max(-360, Math.min(360, degrees))
+    : 0;
+  input.value = String(freeRotationDeg.value);
+}
 </script>
 
 <template>
@@ -42,12 +52,13 @@ const processor = useImageProcessor();
       <span class="w-10 text-right font-mono text-xs text-foreground">{{ freeRotationDeg }}°</span>
     </div>
     <input
-      v-model.number="freeRotationDeg"
+      :value="freeRotationDeg"
       type="number"
       min="-360"
       max="360"
       step="1"
       class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+      @change="onDegreesChange"
     >
     <button
       :disabled="freeRotationDeg === 0"
