@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { Check } from "@lucide/vue";
+import { clampSide, parseSide } from "~/lib/dimensions";
 
 const { t } = useI18n();
 const editor = useEditorStore();
 const processor = useImageProcessor();
 
-function onResizeWidthChange(w: number) {
+function onResizeWidthChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const w = parseSide(input.value);
+  if (w === null) {
+    input.value = String(editor.resizeWidth);
+    return;
+  }
   editor.resizeWidth = w;
   if (editor.resizeLockAspect) {
-    editor.resizeHeight = Math.round(w / (editor.imageWidth / editor.imageHeight));
+    editor.resizeHeight = clampSide(w / (editor.imageWidth / editor.imageHeight));
   }
 }
-function onResizeHeightChange(h: number) {
+function onResizeHeightChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const h = parseSide(input.value);
+  if (h === null) {
+    input.value = String(editor.resizeHeight);
+    return;
+  }
   editor.resizeHeight = h;
   if (editor.resizeLockAspect) {
-    editor.resizeWidth = Math.round(h * (editor.imageWidth / editor.imageHeight));
+    editor.resizeWidth = clampSide(h * (editor.imageWidth / editor.imageHeight));
   }
 }
 
@@ -34,7 +47,7 @@ async function confirmResize() {
       min="1"
       max="10000"
       class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-      @change="onResizeWidthChange(Number(($event.target as HTMLInputElement).value))"
+      @change="onResizeWidthChange"
     >
     <label class="text-xs text-muted-foreground">{{ t("height") }} (px)</label>
     <input
@@ -44,7 +57,7 @@ async function confirmResize() {
       min="1"
       max="10000"
       class="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-      @change="onResizeHeightChange(Number(($event.target as HTMLInputElement).value))"
+      @change="onResizeHeightChange"
     >
     <label class="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-accent/30 px-3 py-2">
       <span class="text-xs text-foreground">{{ t("lockAspect") }}</span>
