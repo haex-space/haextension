@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
 import { assignRoles } from "~/lib/mailboxRoles";
-import { chunk } from "~/lib/utils";
+import { chunk, getErrorMessage } from "~/lib/utils";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
 import type { AccountWithCredentials } from "../accounts";
@@ -389,7 +389,7 @@ export const useMailSync = (state: MailSyncState) => {
   /**
    * Unified refresh: for every account, sync mailboxes and fetch the
    * latest envelopes of its role mailbox. Per-account failures don't
-   * abort the others.
+   * abort the others; they are thrown together (AggregateError) at the end.
    */
   const refreshUnifiedAsync = async (
     role: schema.MailboxRole,
@@ -424,17 +424,18 @@ export const useMailSync = (state: MailSyncState) => {
           await purgeDeletedMessagesAsync(acc, roleName, new Set(envelopes.map((e) => e.uid)));
         }),
       );
-      results.forEach((r, i) => {
-        if (r.status === "rejected") {
-          console.warn(
-            "[haex-mail] unified refresh failed for account",
-            accounts[i]?.account.id,
-            r.reason,
-          );
-        }
-      });
       await loadMailboxesAsync();
       await loadUnifiedMessagesAsync(role);
+      // Reported after the reload, so the accounts that worked still show.
+      const failed = results.flatMap((r, i) =>
+        r.status === "rejected" ? [{ email: accounts[i]!.account.email, reason: r.reason }] : [],
+      );
+      if (failed.length > 0) {
+        throw new AggregateError(
+          failed.map((f) => f.reason),
+          failed.map((f) => `${f.email}: ${getErrorMessage(f.reason)}`).join("\n"),
+        );
+      }
     } finally {
       if (mailboxSeq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
       if (listSeq === listRefreshSeq) isLoadingMessages.value = false;
