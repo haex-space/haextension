@@ -233,7 +233,6 @@ export const useAccountsStore = defineStore("accounts", () => {
         smtpHost: input.smtpHost ?? null,
         smtpPort: input.smtpPort ?? null,
         smtpSecurity: input.smtpSecurity ?? null,
-        updatedAt: new Date(),
       })
       .where(eq(schema.accounts.id, accountId));
 
