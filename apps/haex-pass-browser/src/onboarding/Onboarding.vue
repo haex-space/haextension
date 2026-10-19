@@ -6,15 +6,16 @@ import { ExternalConnectionState } from '@haex-space/vault-sdk'
 import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
 import { validateTrimmedText } from '~/bookmarks/model'
 import { detectBrowserFamily } from '~/bookmarks/realEnvironment'
+import { useVaultConnectionState } from '~/composables/useVaultConnectionState'
 import { useI18n } from '~/locales'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 
 const { t } = useI18n()
 
 type Mode = 'choose' | 'create' | 'activate'
 
-const connectionState = ref<ExternalConnectionState>(ExternalConnectionState.DISCONNECTED)
+const { connection, refresh: fetchConnectionState, connect } = useVaultConnectionState()
+const connectionState = computed(() => connection.value.state)
 const mode = ref<Mode>('choose')
 
 const collections = ref<BookmarkCollectionSummary[]>([])
@@ -66,24 +67,6 @@ function browserLabel(family: BrowserFamily): string {
   }
 }
 
-async function fetchConnectionState() {
-  try {
-    const response = (await browser.runtime.sendMessage({
-      type: MSG_GET_CONNECTION_STATE,
-    })) as { state?: ExternalConnectionState }
-    connectionState.value = response?.state ?? ExternalConnectionState.DISCONNECTED
-  } catch {
-    connectionState.value = ExternalConnectionState.DISCONNECTED
-  }
-}
-
-browser.runtime.onMessage.addListener((message: unknown) => {
-  const msg = message as { type?: string, state?: { state?: ExternalConnectionState } }
-  if (msg.type === MSG_CONNECTION_STATE && msg.state?.state !== undefined) {
-    connectionState.value = msg.state.state
-  }
-})
-
 async function loadCollections() {
   collectionsError.value = null
   try {
@@ -119,12 +102,7 @@ onMounted(async () => {
   if (connectionState.value !== ExternalConnectionState.PAIRED) {
     // Onboarding always opens right after a fresh install/reconnect; kick a
     // connect attempt so pairing can proceed without the user visiting Options first.
-    try {
-      await browser.runtime.sendMessage({ type: MSG_CONNECT })
-    } catch {
-      // ignore — status polling below will reflect the real state
-    }
-    await fetchConnectionState()
+    await connect()
   }
   if (connectionState.value === ExternalConnectionState.PAIRED) {
     await loadCollections()
