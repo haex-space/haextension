@@ -71,11 +71,11 @@
           </button>
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent align="end" class="w-56">
-          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleImport">
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="openIcsDialog('import')">
             <Upload class="w-5 h-5 mr-2" />
             {{ t('menu.import') }}
           </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleExport">
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="openIcsDialog('export')">
             <Download class="w-5 h-5 mr-2" />
             {{ t('menu.export') }}
           </ShadcnDropdownMenuItem>
@@ -194,17 +194,7 @@
       </template>
     </UiDrawerModal>
 
-    <!-- Toast notifications -->
-    <ShadcnSonnerToaster position="bottom-right" />
-
-    <!-- Hidden file input for import -->
-    <input
-      ref="fileInput"
-      type="file"
-      accept=".ics,.ical"
-      class="hidden"
-      @change="onFileSelected"
-    >
+    <CalendarIcsTransferDialog v-model:open="showIcsDialog" :mode="icsMode" />
   </div>
 </template>
 
@@ -221,7 +211,10 @@ import {
   Upload,
 } from "@lucide/vue";
 import { watchDebounced, useMediaQuery } from "@vueuse/core";
+import { toast } from "vue-sonner";
 import { calendars } from "~/database/schemas";
+import { parseEventInstant } from "~/lib/dates";
+import { parseEventDeepLink } from "~/lib/deepLink";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -247,7 +240,6 @@ const initialized = ref(false);
 
 const showCreateCalendar = ref(false);
 const showCaldavDialog = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
 
 const caldavSync = useCaldavSyncStore();
 const caldavAccounts = useCaldavAccountsStore();
@@ -291,6 +283,7 @@ onMounted(async () => {
     }
   }
 
+  await eventsStore.normalizeLegacyTimesAsync();
   await eventsStore.loadEventsAsync();
 
   // Load CalDAV accounts and trigger initial sync
@@ -304,14 +297,26 @@ onMounted(async () => {
   // chained so it is a no-op against SDKs without the notifications API.
   unsubscribeNotificationClick =
     haexVault.client.notifications?.onClick?.((e) => {
-      const path = e.path;
-      if (!path?.startsWith("/event/")) return;
-      const id = path.slice("/event/".length).split("?")[0];
-      if (id) eventPreview.open(id);
+      void openEventFromNotificationAsync(e.path);
     }) ?? null;
 
   initialized.value = true;
 });
+
+/**
+ * Reminders usually point outside the loaded range (tomorrow, next week), so
+ * move the view to the occurrence before opening its preview.
+ */
+async function openEventFromNotificationAsync(path: string | undefined) {
+  const link = parseEventDeepLink(path);
+  if (!link) return;
+  const event = await eventsStore.findEventAsync(link.eventId);
+  if (!event) return;
+  const occurrence = link.occurrence ?? event.dtstart;
+  calendarView.currentDate = parseEventInstant(occurrence, event.allDay);
+  await eventsStore.loadEventsAsync();
+  eventPreview.open(event.id, occurrence);
+}
 
 onUnmounted(() => {
   reminderScheduler.stop();
@@ -339,31 +344,42 @@ watchDebounced(
   { debounce: 500, deep: true }
 );
 
-// iCal import
-function handleImport() {
-  fileInput.value?.click();
+function calendarName(calendarId: string) {
+  return calendarsStore.getCalendar(calendarId)?.name ?? "";
 }
 
-async function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
+// Background sync runs on every navigation. Toast an error only when it first
+// shows up (or changes); the sidebar keeps indicating it until a sync succeeds.
+const toastedSyncErrors = new Map<string, string>();
+watch(
+  () => [...caldavSync.syncErrors.entries()],
+  (entries) => {
+    for (const [calendarId, message] of entries) {
+      if (toastedSyncErrors.get(calendarId) === message) continue;
+      toast.error(t("sync.failed", { calendar: calendarName(calendarId) }), { description: message });
+    }
+    toastedSyncErrors.clear();
+    for (const [calendarId, message] of entries) toastedSyncErrors.set(calendarId, message);
+  },
+);
 
-  const { importFileAsync } = useIcal();
-  // Import into first calendar (or show picker if multiple)
-  const firstCalendar = calendarsStore.calendars[0];
-  if (!firstCalendar) return;
+watch(
+  () => caldavSync.lastRemoteFailure,
+  (failure) => {
+    if (!failure) return;
+    toast.error(t(`sync.${failure.action}Failed`, { calendar: calendarName(failure.calendarId) }), {
+      description: failure.message,
+    });
+  },
+);
 
-  const result = await importFileAsync(file, firstCalendar.id);
-  console.log(`[haex-calendar] Import: ${result.imported} new, ${result.updated} updated, ${result.skipped} skipped`);
+// iCal import / export
+const icsMode = ref<"import" | "export">("import");
+const showIcsDialog = ref(false);
 
-  // Reset file input
-  input.value = "";
-}
-
-function handleExport() {
-  // TODO: implement .ics export
-  console.log("[haex-calendar] Export not yet implemented");
+function openIcsDialog(mode: "import" | "export") {
+  icsMode.value = mode;
+  showIcsDialog.value = true;
 }
 
 // Share dialog
@@ -424,6 +440,10 @@ de:
     description: Dieser Kalender und alle zugehörigen Termine werden unwiderruflich gelöscht.
     confirm: Löschen
     abort: Abbrechen
+  sync:
+    failed: "Synchronisierung von „{calendar}“ fehlgeschlagen"
+    pushFailed: "Änderung konnte nicht zu „{calendar}“ hochgeladen werden"
+    deleteFailed: "Termin konnte nicht aus „{calendar}“ auf dem Server gelöscht werden"
   menu:
     import: Importieren (.ics)
     export: Exportieren (.ics)
@@ -443,6 +463,10 @@ en:
     description: This calendar and all its events will be permanently deleted.
     confirm: Delete
     abort: Cancel
+  sync:
+    failed: "Syncing \"{calendar}\" failed"
+    pushFailed: "Could not upload the change to \"{calendar}\""
+    deleteFailed: "Could not delete the event from \"{calendar}\" on the server"
   menu:
     import: Import (.ics)
     export: Export (.ics)

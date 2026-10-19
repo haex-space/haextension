@@ -1,3 +1,4 @@
+import { exclusiveEndKey, inclusiveEndKey, toLocalDateKey } from "~/lib/dates";
 import type { EventDrawerInitialValues } from "~/stores/eventDrawer";
 
 /**
@@ -67,18 +68,22 @@ export function useEventForm(
   );
 
   /**
-   * Parse an ISO/all-day dtstring into the {date, time} pair the form uses.
-   * Same logic as the load path below, exposed as a helper so initialValues
-   * (which carry dtstart/dtend strings) can reuse it.
+   * {date, time} pair the form shows for a stored boundary. All-day ends are
+   * stored exclusive but shown as the event's last day.
    */
-  function parseDtToFormPair(dt: string, allDay: boolean, defaultTime: string): { date: string; time: string } {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    if (allDay) return { date: dt.split("T")[0] ?? "", time: defaultTime };
+  function toFormPair(dt: string, allDay: boolean, defaultTime: string): { date: string; time: string } {
+    if (allDay) return { date: dt.slice(0, 10), time: defaultTime };
     const d = new Date(dt);
-    return {
-      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-      time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-    };
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return { date: toLocalDateKey(d), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  }
+
+  function toFormRange(dtstart: string, dtend: string, allDay: boolean) {
+    const start = toFormPair(dtstart, allDay, "09:00");
+    const end = allDay
+      ? { date: inclusiveEndKey(start.date, dtend), time: "10:00" }
+      : toFormPair(dtend, false, "10:00");
+    return { start, end };
   }
 
   // Load event data when eventId changes
@@ -88,12 +93,10 @@ export function useEventForm(
       if (!id) {
         // New-event mode: start from defaults, then layer initialValues on top.
         // Date/time form fields are derived from the optional dtstart/dtend.
-        const startPair = initial?.dtstart
-          ? parseDtToFormPair(initial.dtstart, !!initial.allDay, "09:00")
-          : { date: "", time: "09:00" };
-        const endPair = initial?.dtend
-          ? parseDtToFormPair(initial.dtend, !!initial.allDay, "10:00")
-          : { date: "", time: "10:00" };
+        const { start: startPair, end: endPair } =
+          initial?.dtstart && initial.dtend
+            ? toFormRange(initial.dtstart, initial.dtend, !!initial.allDay)
+            : { start: { date: "", time: "09:00" }, end: { date: "", time: "10:00" } };
 
         Object.assign(form, {
           summary: initial?.summary ?? "",
@@ -121,25 +124,14 @@ export function useEventForm(
         return;
       }
 
-      const event = eventsStore.getEvent(id);
-      if (!event) return;
+      const event = eventsStore.getEvent(id) ?? (await eventsStore.findEventAsync(id));
+      if (!event) {
+        // Deleted meanwhile: an empty form would save garbage over nothing.
+        isOpen.value = false;
+        return;
+      }
 
-      const pad = (n: number) => String(n).padStart(2, "0");
-
-      const parseDateTime = (dt: string) => {
-        const d = new Date(dt);
-        return {
-          date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-          time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-        };
-      };
-
-      const start = event.allDay
-        ? { date: event.dtstart.split("T")[0], time: "09:00" }
-        : parseDateTime(event.dtstart);
-      const end = event.allDay
-        ? { date: event.dtend.split("T")[0], time: "10:00" }
-        : parseDateTime(event.dtend);
+      const { start, end } = toFormRange(event.dtstart, event.dtend, event.allDay);
 
       const ownReminders = await eventsStore.loadEventRemindersAsync(id);
 
@@ -186,12 +178,13 @@ export function useEventForm(
       ? form.startDate
       : new Date(`${form.startDate}T${form.startTime}`).toISOString();
     // Tasks have no end — dtend mirrors dtstart (the due moment).
-    const dtend =
-      form.kind === "task"
-        ? dtstart
-        : form.allDay
-          ? form.endDate
-          : new Date(`${form.endDate}T${form.endTime}`).toISOString();
+    let dtend: string;
+    if (form.kind === "task") dtend = dtstart;
+    else if (form.allDay) dtend = exclusiveEndKey(form.startDate, form.endDate || form.startDate);
+    else {
+      const end = new Date(`${form.endDate || form.startDate}T${form.endTime}`).toISOString();
+      dtend = end < dtstart ? dtstart : end;
+    }
 
     // Override resolution (per field):
     //  - rrule:     with a type, the override flag decides; without a type a set

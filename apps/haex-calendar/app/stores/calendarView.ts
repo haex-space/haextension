@@ -1,30 +1,11 @@
+import { addDays, addMonths, monthGridDays, startOfWeek, type WeekStart } from "~/lib/dates";
+
 export type ViewMode = "month" | "week" | "day";
 
-/**
- * Get the start of the week (Monday) for a given date.
- */
-function startOfWeek(date: Date): Date {
+function endOfDay(date: Date): Date {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday = 1
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfWeek(date: Date): Date {
-  const d = startOfWeek(date);
-  d.setDate(d.getDate() + 6);
   d.setHours(23, 59, 59, 999);
   return d;
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
 function startOfDay(date: Date): Date {
@@ -33,53 +14,31 @@ function startOfDay(date: Date): Date {
   return d;
 }
 
-function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-/**
- * For month view: extend range to fill the grid (start from Monday of first week,
- * end on Sunday of last week).
- */
-function getMonthGridRange(date: Date): { start: string; end: string } {
-  const monthStart = startOfMonth(date);
-  const monthEnd = endOfMonth(date);
-  const gridStart = startOfWeek(monthStart);
-  const gridEnd = endOfWeek(monthEnd);
-  return {
-    start: gridStart.toISOString(),
-    end: gridEnd.toISOString(),
-  };
-}
-
-function getWeekRange(date: Date): { start: string; end: string } {
-  return {
-    start: startOfWeek(date).toISOString(),
-    end: endOfWeek(date).toISOString(),
-  };
-}
-
-function getDayRange(date: Date): { start: string; end: string } {
-  return {
-    start: startOfDay(date).toISOString(),
-    end: endOfDay(date).toISOString(),
-  };
+function toRange(first: Date, last: Date): { start: string; end: string } {
+  return { start: startOfDay(first).toISOString(), end: endOfDay(last).toISOString() };
 }
 
 export const useCalendarViewStore = defineStore("calendarView", () => {
   const viewMode = ref<ViewMode>("month");
   const currentDate = ref(new Date());
+  const settingsStore = useSettingsStore();
+  // Direct $i18n access: the store has no component scope of its own.
+  const { locale } = useNuxtApp().$i18n;
+  const weekStart = computed<WeekStart>(() => settingsStore.weekStart);
+
+  /** The 6 × 7 days the month view renders; the month range covers all of them. */
+  const monthGrid = computed(() => monthGridDays(currentDate.value, weekStart.value));
 
   const visibleRange = computed(() => {
     switch (viewMode.value) {
       case "month":
-        return getMonthGridRange(currentDate.value);
-      case "week":
-        return getWeekRange(currentDate.value);
+        return toRange(monthGrid.value[0]!, monthGrid.value[41]!);
+      case "week": {
+        const first = startOfWeek(currentDate.value, weekStart.value);
+        return toRange(first, addDays(first, 6));
+      }
       case "day":
-        return getDayRange(currentDate.value);
+        return toRange(currentDate.value, currentDate.value);
     }
   });
 
@@ -100,7 +59,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
           d.getDate() === now.getDate()
         );
       case "week": {
-        return startOfWeek(d).getTime() === startOfWeek(now).getTime();
+        return startOfWeek(d, weekStart.value).getTime() === startOfWeek(now, weekStart.value).getTime();
       }
       case "month":
         return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
@@ -112,7 +71,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
    */
   const title = computed(() => {
     const d = currentDate.value;
-    const formatter = new Intl.DateTimeFormat("de-DE", {
+    const formatter = new Intl.DateTimeFormat(locale.value, {
       month: "long",
       year: "numeric",
     });
@@ -123,7 +82,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
       case "week":
         return formatter.format(d);
       case "day":
-        return new Intl.DateTimeFormat("de-DE", {
+        return new Intl.DateTimeFormat(locale.value, {
           weekday: "long",
           day: "numeric",
           month: "long",
@@ -136,8 +95,8 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
     const d = new Date(currentDate.value);
     switch (viewMode.value) {
       case "month":
-        d.setMonth(d.getMonth() + 1);
-        break;
+        currentDate.value = addMonths(d, +1);
+        return;
       case "week":
         d.setDate(d.getDate() + 7);
         break;
@@ -152,8 +111,8 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
     const d = new Date(currentDate.value);
     switch (viewMode.value) {
       case "month":
-        d.setMonth(d.getMonth() - 1);
-        break;
+        currentDate.value = addMonths(d, -1);
+        return;
       case "week":
         d.setDate(d.getDate() - 7);
         break;
@@ -179,6 +138,8 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
   return {
     viewMode,
     currentDate,
+    weekStart,
+    monthGrid,
     visibleRange,
     title,
     isShowingToday,

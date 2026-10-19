@@ -17,7 +17,7 @@
           <label class="text-sm font-medium mb-1 block">{{ t('color') }}</label>
           <div class="flex gap-2 flex-wrap">
             <button
-              v-for="c in presetColors"
+              v-for="c in PRESET_COLORS"
               :key="c"
               :class="[
                 'w-8 h-8 rounded-full border-2 transition-transform',
@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { PRESET_COLORS } from "~/lib/colors";
 const isOpen = defineModel<boolean>("open", { default: false });
 
 const { t } = useI18n();
@@ -61,7 +62,6 @@ const nameInput = ref<HTMLInputElement | null>(null);
 const name = ref("");
 const selectedColor = ref("#3b82f6");
 
-const presetColors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6b7280"];
 
 watch(isOpen, (open) => {
   if (open) {

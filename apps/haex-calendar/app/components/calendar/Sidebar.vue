@@ -3,7 +3,8 @@
     <!-- Mini month calendar -->
     <ShadcnCalendar
       :model-value="selectedCalendarDate"
-      locale="de-DE"
+      :locale="locale"
+      :week-starts-on="settingsStore.weekStart === 'sunday' ? 0 : 1"
       weekday-format="short"
       :show-week-numbers="settingsStore.showWeekNumbers"
       class="p-0 w-full"
@@ -76,6 +77,13 @@
           <Cloud class="w-4 h-4" />
         </span>
         <span
+          v-if="caldavSync.syncErrors.has(cal.id)"
+          class="text-destructive"
+          :title="t('sidebar.syncError', { message: caldavSync.syncErrors.get(cal.id) })"
+        >
+          <TriangleAlert class="w-4 h-4" />
+        </span>
+        <span
           v-if="cal.spaceId"
           class="text-muted-foreground"
           :title="t('sidebar.shared')"
@@ -112,7 +120,7 @@
             </ShadcnDropdownMenuLabel>
             <div class="flex gap-1.5 flex-wrap px-2 py-1.5">
               <button
-                v-for="c in presetColors"
+                v-for="c in PRESET_COLORS"
                 :key="c"
                 :class="[
                   'w-6 h-6 rounded-full border-2 transition-transform',
@@ -147,10 +155,12 @@ import {
   RefreshCw,
   Share2,
   Trash2,
+  TriangleAlert,
   Users,
 } from "@lucide/vue";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { onClickOutside } from "@vueuse/core";
+import { PRESET_COLORS } from "~/lib/colors";
 
 const emit = defineEmits<{
   "add-local": [];
@@ -159,7 +169,7 @@ const emit = defineEmits<{
   delete: [calendarId: string];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const calendarView = useCalendarViewStore();
 const calendarsStore = useCalendarsStore();
@@ -185,7 +195,6 @@ async function syncCalendar(calendarId: string) {
 }
 
 // Calendar context menu
-const presetColors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6b7280"];
 const calendarMenuOpen = reactive<Record<string, boolean>>({});
 
 function openCalendarMenu(calId: string) {
@@ -255,6 +264,7 @@ de:
     color: Farbe
     delete: Löschen
     syncNow: Jetzt synchronisieren
+    syncError: "Synchronisierung fehlgeschlagen: {message}"
 en:
   sidebar:
     calendars: Calendars
@@ -268,4 +278,5 @@ en:
     color: Color
     delete: Delete
     syncNow: Sync now
+    syncError: "Sync failed: {message}"
 </i18n>

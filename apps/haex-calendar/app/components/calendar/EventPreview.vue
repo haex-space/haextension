@@ -17,7 +17,7 @@
         <!-- Time -->
         <div v-if="event && !event.allDay" class="flex items-center gap-2 text-sm">
           <Clock class="w-4 h-4 text-muted-foreground shrink-0" />
-          <span>{{ formatTime(event.dtstart) }} – {{ formatTime(event.dtend) }}</span>
+          <span>{{ formatClock(new Date(event.dtstart), settingsStore.timeFormat) }} – {{ formatClock(new Date(event.dtend), settingsStore.timeFormat) }}</span>
         </div>
         <div v-else-if="event?.allDay" class="flex items-center gap-2 text-sm">
           <Clock class="w-4 h-4 text-muted-foreground shrink-0" />
@@ -42,7 +42,7 @@
         <!-- Status (if not confirmed) -->
         <div v-if="event && event.status !== 'CONFIRMED'" class="flex items-center gap-2 text-sm">
           <Info class="w-4 h-4 text-muted-foreground shrink-0" />
-          <span>{{ t(`status.${event.status.toLowerCase()}`) }}</span>
+          <span>{{ te(`status.${event.status.toLowerCase()}`) ? t(`status.${event.status.toLowerCase()}`) : event.status }}</span>
         </div>
 
         <!-- Description (truncated) -->
@@ -53,9 +53,16 @@
         <!-- URL -->
         <div v-if="event?.url" class="flex items-center gap-2 text-sm">
           <Link class="w-4 h-4 text-muted-foreground shrink-0" />
-          <a :href="event.url" target="_blank" class="text-primary hover:underline truncate">
+          <a
+            v-if="safeUrl"
+            :href="safeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary hover:underline truncate"
+          >
             {{ event.url }}
           </a>
+          <span v-else class="truncate">{{ event.url }}</span>
         </div>
       </div>
     </template>
@@ -119,12 +126,15 @@
 
 <script setup lang="ts">
 import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
+import { formatClock, parseEventInstant } from "~/lib/dates";
+import { safeExternalUrl } from "~/lib/url";
 
-const { t } = useI18n();
+const { t, te, locale } = useI18n();
 const preview = useEventPreviewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventDrawer = useEventDrawerStore();
+const settingsStore = useSettingsStore();
 
 const master = computed(() => {
   if (!preview.eventId) return null;
@@ -138,10 +148,10 @@ const event = computed(() => {
   if (!m) return null;
   const occ = preview.occurrenceStart;
   if (!occ || occ === m.dtstart) return m;
-  const durationMs = new Date(m.dtend).getTime() - new Date(m.dtstart).getTime();
-  const occEnd = new Date(new Date(occ).getTime() + Math.max(0, durationMs));
-  return { ...m, dtstart: occ, dtend: occEnd.toISOString() };
+  return eventsStore.events.find((e) => e.id === m.id && e.dtstart === occ) ?? m;
 });
+
+const safeUrl = computed(() => safeExternalUrl(event.value?.url));
 
 const calendar = computed(() => {
   if (!event.value) return null;
@@ -150,8 +160,8 @@ const calendar = computed(() => {
 
 const dateDescription = computed(() => {
   if (!event.value) return "";
-  const dt = new Date(event.value.dtstart);
-  return new Intl.DateTimeFormat("de-DE", {
+  const dt = parseEventInstant(event.value.dtstart, event.value.allDay);
+  return new Intl.DateTimeFormat(locale.value, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -159,10 +169,6 @@ const dateDescription = computed(() => {
   }).format(dt);
 });
 
-function formatTime(dt: string): string {
-  const d = new Date(dt);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 function handleEdit() {
   const id = preview.eventId;
@@ -205,6 +211,9 @@ de:
   status:
     tentative: Vorläufig
     cancelled: Abgesagt
+    needs-action: Offen
+    in-process: In Bearbeitung
+    completed: Erledigt
   deleteConfirm:
     titleEvent: Termin löschen?
     titleTask: Aufgabe löschen?
@@ -222,6 +231,9 @@ en:
   status:
     tentative: Tentative
     cancelled: Cancelled
+    needs-action: Open
+    in-process: In progress
+    completed: Completed
   deleteConfirm:
     titleEvent: Delete event?
     titleTask: Delete task?

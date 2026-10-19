@@ -104,7 +104,8 @@
 </template>
 
 <script setup lang="ts">
-import { RRule, optionsToRRule, parseRRule, type Frequency, type Options, FREQUENCIES } from "~/lib/rrule";
+import { formToRule, ruleToForm, type RecurrenceForm } from "~/lib/recurrenceForm";
+import { firstOccurrences, parseRRule, type Frequency } from "~/lib/rrule";
 
 const props = defineProps<{
   /** Sample start date used for the preview and weekday/monthday defaults. */
@@ -144,102 +145,72 @@ function toggleWeekday(idx: number) {
     : [...byweekday.value, idx].sort((a, b) => a - b);
 }
 
-/** Build the rrule.js options from the current form state. */
-function currentOptions(): Partial<Options> | null {
-  if (freq.value === "none") return null;
-  const options: Partial<Options> = {
-    freq: FREQUENCIES[freq.value],
-    interval: Math.max(1, interval.value || 1),
+function currentForm(): RecurrenceForm {
+  return {
+    freq: freq.value,
+    interval: interval.value,
+    byweekday: [...byweekday.value],
+    bymonthday: bymonthday.value,
+    endMode: endMode.value,
+    count: count.value,
+    until: until.value,
   };
-  if (freq.value === "weekly" && byweekday.value.length) {
-    options.byweekday = [...byweekday.value];
-  }
-  if (freq.value === "monthly" && bymonthday.value) {
-    options.bymonthday = bymonthday.value;
-  }
-  if (endMode.value === "count") {
-    options.count = Math.max(1, count.value || 1);
-  } else if (endMode.value === "until" && until.value) {
-    // rrule.js treats UNTIL as a UTC instant. Building it from a local-time
-    // string would shift the boundary by the TZ offset and drop / include an
-    // extra tail occurrence depending on the user's zone.
-    options.until = new Date(`${until.value}T23:59:59Z`);
-  }
-  return options;
+}
+
+// The rule as loaded, so unedited parts are written back unchanged.
+let loaded: { rule: string | null; form: RecurrenceForm } = { rule: null, form: ruleToForm(null) };
+
+/**
+ * Populate the form from the model. Runs on mount and whenever the parent
+ * replaces the rule (e.g. once the edited event has been loaded), so the
+ * form never writes a stale rule back.
+ */
+function loadFromModel(rule: string | null | undefined) {
+  const form = ruleToForm(rule);
+  loaded = { rule: form.freq === "none" ? null : (rule ?? null), form };
+  freq.value = form.freq;
+  interval.value = form.interval;
+  byweekday.value = form.byweekday;
+  bymonthday.value = form.bymonthday;
+  endMode.value = form.endMode;
+  count.value = form.count;
+  until.value = form.until;
 }
 
 const previewDates = ref<string[]>([]);
 const previewMore = ref(false);
 
-function recompute() {
-  const options = currentOptions();
+function refreshPreview() {
+  const options = model.value ? parseRRule(model.value) : null;
   if (!options) {
-    model.value = null;
     previewDates.value = [];
     return;
   }
-  model.value = optionsToRRule(options);
-
-  // Live preview: next occurrences from the sample start.
-  try {
-    const rule = new RRule({ ...options, dtstart: sampleStart.value });
-    const dates: Date[] = [];
-    rule.all((date, i) => {
-      if (i < 5) dates.push(date);
-      return i < 5;
-    });
-    previewMore.value = endMode.value === "never" || dates.length === 5;
-    const fmt = new Intl.DateTimeFormat(locale.value, { day: "2-digit", month: "2-digit" });
-    previewDates.value = dates.map((d) => fmt.format(d));
-  } catch {
-    previewDates.value = [];
-  }
+  const dates = firstOccurrences(options, sampleStart.value, 5);
+  previewMore.value = endMode.value === "never" || dates.length === 5;
+  const fmt = new Intl.DateTimeFormat(locale.value, { day: "2-digit", month: "2-digit" });
+  previewDates.value = dates.map((d) => fmt.format(d));
 }
 
-/** Populate the form from an incoming RRULE body. */
-function loadFromModel(rule: string | null | undefined) {
-  if (!rule) {
-    freq.value = "none";
-    return;
-  }
-  const opts = parseRRule(rule);
-  if (!opts || opts.freq == null) {
-    freq.value = "none";
-    return;
-  }
-  const reverse: Record<number, Frequency> = {
-    [RRule.DAILY]: "daily",
-    [RRule.WEEKLY]: "weekly",
-    [RRule.MONTHLY]: "monthly",
-    [RRule.YEARLY]: "yearly",
-  };
-  freq.value = reverse[opts.freq] ?? "none";
-  interval.value = opts.interval ?? 1;
-  const wd = opts.byweekday;
-  byweekday.value = Array.isArray(wd)
-    ? wd.map((d) => (typeof d === "number" ? d : (d as { weekday: number }).weekday))
-    : [];
-  const md = opts.bymonthday;
-  bymonthday.value = Array.isArray(md) ? (md[0] ?? null) : (md ?? null);
-  if (opts.count != null) {
-    endMode.value = "count";
-    count.value = opts.count;
-  } else if (opts.until) {
-    endMode.value = "until";
-    const u = opts.until as Date;
-    until.value = `${u.getFullYear()}-${String(u.getMonth() + 1).padStart(2, "0")}-${String(u.getDate()).padStart(2, "0")}`;
-  } else {
-    endMode.value = "never";
-  }
-}
-
-// Initialise from the incoming model once, then keep the model in sync.
 loadFromModel(model.value);
-recompute();
+refreshPreview();
 
-watch([freq, interval, byweekday, bymonthday, endMode, count, until, sampleStart], recompute, {
-  deep: true,
+watch(model, (rule) => {
+  if (rule !== formToRule(currentForm(), loaded)) loadFromModel(rule);
+  refreshPreview();
 });
+
+// Only user edits write the model; loading the form reproduces the same rule.
+watch(
+  [freq, interval, byweekday, bymonthday, endMode, count, until],
+  () => {
+    const rule = formToRule(currentForm(), loaded);
+    if (rule !== (model.value ?? null)) model.value = rule;
+  },
+  { deep: true },
+);
+
+watch(sampleStart, refreshPreview);
 </script>
 
 <i18n lang="yaml">

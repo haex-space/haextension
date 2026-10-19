@@ -104,7 +104,8 @@
 
 <script setup lang="ts">
 import { Loader2 } from "@lucide/vue";
-import { discoverAsync, type CaldavCalendarInfo, type CaldavDiscoveryResult } from "~/composables/useCaldav";
+import type { CaldavCalendarInfo, CaldavDiscoveryResult } from "~/lib/caldav";
+import { getErrorMessage } from "~/lib/errors";
 import { calendars, type InsertCalendar } from "~/database/schemas";
 
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -114,6 +115,7 @@ const haexVault = useHaexVaultStore();
 const caldavAccountsStore = useCaldavAccountsStore();
 const calendarsStore = useCalendarsStore();
 const caldavSyncStore = useCaldavSyncStore();
+const { discoverAsync } = useCaldav();
 
 const nameInput = ref<HTMLInputElement | null>(null);
 const step = ref<"connect" | "select">("connect");
@@ -206,7 +208,9 @@ async function handleSubscribe() {
         color: cal.color || "#3b82f6",
         caldavAccountId: accountId,
         caldavPath: cal.path,
-        caldavCtag: cal.ctag,
+        // Left empty so the first sync doesn't take the discovery CTag as
+        // "already in sync" and skip importing the existing events.
+        caldavCtag: null,
       };
       await haexVault.orm.insert(calendars).values(entry);
     }
@@ -220,7 +224,7 @@ async function handleSubscribe() {
     isOpen.value = false;
   } catch (err) {
     console.error("[haex-calendar] CalDAV subscribe failed:", err);
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = getErrorMessage(err);
     errorMessage.value = `${t("errors.subscribe")} (${detail})`;
   } finally {
     isProcessing.value = false;

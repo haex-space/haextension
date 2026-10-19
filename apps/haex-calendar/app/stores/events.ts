@@ -1,4 +1,4 @@
-import { and, or, gte, lte, inArray, isNotNull, eq } from "drizzle-orm";
+import { and, or, gte, lte, inArray, isNotNull, eq, notLike } from "drizzle-orm";
 import {
   events,
   eventReminders,
@@ -6,9 +6,20 @@ import {
   type SelectEvent,
 } from "~/database/schemas";
 import { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE } from "~/stores/calendars";
-import { expandOccurrences, nextOccurrence } from "~/lib/rrule";
+import {
+  addDays,
+  daysBetween,
+  eventSpan,
+  normalizeOffsetlessDateTime,
+  parseEventInstant,
+  parseLocalDate,
+  toLocalDateKey,
+} from "~/lib/dates";
+import { expandOccurrences, nextOccurrence, pinCount } from "~/lib/rrule";
 
 export type { SelectEvent, InsertEvent };
+
+const DEFAULT_EVENT_COLOR = "#3b82f6";
 
 /**
  * A concrete occurrence of an event in a view. For recurring events the same
@@ -41,12 +52,21 @@ export const useEventsStore = defineStore("events", () => {
   const visibleEvents = ref<SelectEvent[]>([]);
   const isLoading = ref(false);
 
+  function widenIso(iso: string, days: number): string {
+    return addDays(new Date(iso), days).toISOString();
+  }
+
   /**
    * Load events for the current visible range and visible calendars.
    * Called reactively when visibleRange or visibleCalendarIds change.
    */
+  // Loads overlap (navigation, saves, background sync); only the newest may
+  // write its result, or an older range could replace the current one.
+  let loadRequest = 0;
+
   async function loadEventsAsync() {
     if (!haexVault.orm) return;
+    const request = ++loadRequest;
     const { start, end } = calendarView.visibleRange;
     const calendarIds = calendarsStore.visibleCalendarIds;
     if (calendarIds.length === 0) {
@@ -69,17 +89,17 @@ export const useEventsStore = defineStore("events", () => {
         .filter((t) => t.defaultRrule)
         .map((t) => t.id);
 
-      visibleEvents.value = await haexVault.orm
+      const rows = await haexVault.orm
         .select()
         .from(events)
         .where(
           and(
             inArray(events.calendarId, calendarIds),
             or(
-              and(
-                lte(events.dtstart, end), // starts before range ends
-                gte(events.dtend, start)  // ends after range starts
-              ),
+              // All-day rows hold local dates, which don't compare exactly
+              // against UTC bounds; a day of slack on both sides keeps them in,
+              // expandedEventsInRange applies the precise check.
+              and(lte(events.dtstart, widenIso(end, 1)), gte(events.dtend, widenIso(start, -1))),
               isNotNull(events.rrule),
               typeIdsWithRrule.length > 0
                 ? inArray(events.eventTypeId, typeIdsWithRrule)
@@ -87,8 +107,29 @@ export const useEventsStore = defineStore("events", () => {
             )
           )
         );
+      if (request === loadRequest) visibleEvents.value = rows;
     } finally {
-      isLoading.value = false;
+      if (request === loadRequest) isLoading.value = false;
+    }
+  }
+
+  /**
+   * Older imports stored zoned times as wall-clock strings without offset.
+   * Rewrite them as UTC instants where the stored TZID makes that unambiguous;
+   * the rest keeps its value until the next import or CalDAV update.
+   */
+  async function normalizeLegacyTimesAsync() {
+    if (!haexVault.orm) return;
+    const rows = await haexVault.orm
+      .select({ id: events.id, dtstart: events.dtstart, dtend: events.dtend, timezone: events.timezone })
+      .from(events)
+      .where(and(eq(events.allDay, false), or(notLike(events.dtstart, "%Z"), notLike(events.dtend, "%Z"))));
+
+    for (const row of rows) {
+      const dtstart = row.dtstart.endsWith("Z") ? row.dtstart : normalizeOffsetlessDateTime(row.dtstart, row.timezone);
+      const dtend = row.dtend.endsWith("Z") ? row.dtend : normalizeOffsetlessDateTime(row.dtend, row.timezone);
+      if (!dtstart || !dtend) continue;
+      await haexVault.orm.update(events).set({ dtstart, dtend }).where(eq(events.id, row.id));
     }
   }
 
@@ -101,6 +142,17 @@ export const useEventsStore = defineStore("events", () => {
     if (event.rruleOverride) return event.rrule ?? null;
     const type = eventTypesStore.getType(event.eventTypeId);
     return type?.defaultRrule ?? null;
+  }
+
+  /**
+   * Display colour after override resolution: an explicitly picked colour,
+   * else the type's colour, else the calendar's. Untyped events have nothing
+   * to inherit from, so a stored colour (older rows, CalDAV COLOR) still wins.
+   */
+  function effectiveColor(event: SelectEvent): string {
+    const type = eventTypesStore.getType(event.eventTypeId);
+    if (event.color && (event.colorOverride || !type)) return event.color;
+    return type?.color ?? calendarsStore.getCalendar(event.calendarId)?.color ?? DEFAULT_EVENT_COLOR;
   }
 
   /**
@@ -118,42 +170,37 @@ export const useEventsStore = defineStore("events", () => {
 
       const rule = effectiveRrule(event);
 
+      const span = eventSpan(event);
       if (!rule) {
-        const s = new Date(event.dtstart);
-        const e = new Date(event.dtend);
-        if (s <= end && e >= start) result.push(event);
+        if (span.start <= end && span.end > start) result.push(event);
         continue;
       }
 
-      const baseStart = new Date(event.dtstart);
-      const baseEnd = new Date(event.dtend);
-      const durationMs = Math.max(0, baseEnd.getTime() - baseStart.getTime());
-
-      for (const occ of expandOccurrences(rule, baseStart, start, end)) {
-        const occEnd = new Date(occ.getTime() + durationMs);
-        // rrule.js anchors all-day occurrences at UTC midnight; using local
-        // getters here would shift the date by one in non-UTC timezones.
-        const dtstart = event.allDay
-          ? toDateOnlyUTC(occ)
-          : occ.toISOString();
-        const dtend = event.allDay ? toDateOnlyUTC(occEnd) : occEnd.toISOString();
-        result.push({ ...event, dtstart, dtend, occurrenceStart: occ.toISOString() });
+      // Occurrences that begin before the range can still reach into it.
+      const duration = span.end.getTime() - span.start.getTime();
+      const from = new Date(start.getTime() - duration);
+      for (const occ of expandOccurrences(rule, span.start, from, end)) {
+        const boundaries = shiftedBoundaries(event, occ);
+        if (eventSpan({ ...boundaries, allDay: event.allDay }).end > start) {
+          result.push({ ...event, ...boundaries, occurrenceStart: occ.toISOString() });
+        }
       }
     }
 
     return result;
   }
 
-  /** Local YYYY-MM-DD (for all-day occurrence date strings). */
-  function toDateOnly(d: Date): string {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  }
-
-  /** UTC YYYY-MM-DD — for rrule.js outputs which anchor at UTC midnight. */
-  function toDateOnlyUTC(d: Date): string {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  /**
+   * dtstart/dtend of an occurrence starting at `occ`, keeping the master's
+   * duration (whole days for all-day events, so DST doesn't shift the end).
+   */
+  function shiftedBoundaries(event: SelectEvent, occ: Date): { dtstart: string; dtend: string } {
+    if (event.allDay) {
+      const days = Math.max(0, daysBetween(parseLocalDate(event.dtstart), parseLocalDate(event.dtend)));
+      return { dtstart: toLocalDateKey(occ), dtend: toLocalDateKey(addDays(occ, days)) };
+    }
+    const durationMs = Math.max(0, new Date(event.dtend).getTime() - new Date(event.dtstart).getTime());
+    return { dtstart: occ.toISOString(), dtend: new Date(occ.getTime() + durationMs).toISOString() };
   }
 
   /** Occurrences for the currently visible range — what the views render. */
@@ -223,18 +270,28 @@ export const useEventsStore = defineStore("events", () => {
     }
 
     // Push to CalDAV server if this is a remote calendar
-    const calendar = calendarsStore.getCalendar(data.calendarId);
-    if (calendar?.caldavAccountId) {
+    if (isRemoteCalendar(data.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
       try {
-        const caldavSync = useCaldavSyncStore();
         await caldavSync.pushEventAsync(id);
       } catch (err) {
-        console.warn("[haex-calendar] Failed to push new event to CalDAV:", err);
+        caldavSync.reportRemoteFailure(data.calendarId, "push", err);
       }
     }
 
     await loadEventsAsync();
     return id;
+  }
+
+  /** The stored row, independent of the currently loaded view range. */
+  async function findEventAsync(id: string): Promise<SelectEvent | undefined> {
+    if (!haexVault.orm) return undefined;
+    const [row] = await haexVault.orm.select().from(events).where(eq(events.id, id)).limit(1);
+    return row;
+  }
+
+  function isRemoteCalendar(calendarId: string) {
+    return !!calendarsStore.getCalendar(calendarId)?.caldavAccountId;
   }
 
   async function updateEventAsync(
@@ -245,13 +302,34 @@ export const useEventsStore = defineStore("events", () => {
 
     const { reminderOffsets, ...eventData } = data;
 
-    // Increment SEQUENCE on every update (CalDAV standard)
-    const existing = visibleEvents.value.find((event) => event.id === id);
-    const newSequence = (existing?.sequence ?? 0) + 1;
+    const existing = await findEventAsync(id);
+    if (!existing) return;
+
+    // SEQUENCE grows on every local change (CalDAV standard); an import may
+    // hand in a higher remote value, which must not be lowered.
+    const sequence = Math.max(existing.sequence + 1, eventData.sequence ?? 0);
+
+    // The old resource belongs to the previous calendar's collection. Leaving
+    // href/etag in place would push into the wrong collection, and the
+    // leftover remote copy would come back as a second event with the same UID.
+    const movedCalendar =
+      eventData.calendarId !== undefined && eventData.calendarId !== existing.calendarId;
+    if (movedCalendar && existing.href && isRemoteCalendar(existing.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
+      try {
+        await caldavSync.deleteRemoteEventAsync(existing);
+      } catch (err) {
+        caldavSync.reportRemoteFailure(existing.calendarId, "delete", err);
+      }
+    }
 
     await haexVault.orm
       .update(events)
-      .set({ ...eventData, sequence: newSequence })
+      .set({
+        ...eventData,
+        sequence,
+        ...(movedCalendar ? { href: null, etag: null } : {}),
+      })
       .where(eq(events.id, id));
 
     // `undefined` leaves reminders untouched; an array (incl. empty) replaces them.
@@ -259,16 +337,13 @@ export const useEventsStore = defineStore("events", () => {
       await replaceEventRemindersAsync(id, reminderOffsets);
     }
 
-    // Push to CalDAV server if this is a remote calendar event
-    if (existing) {
-      const calendar = calendarsStore.getCalendar(existing.calendarId);
-      if (calendar?.caldavAccountId) {
-        try {
-          const caldavSync = useCaldavSyncStore();
-          await caldavSync.pushEventAsync(id);
-        } catch (err) {
-          console.warn("[haex-calendar] Failed to push event update to CalDAV:", err);
-        }
+    const targetCalendarId = eventData.calendarId ?? existing.calendarId;
+    if (isRemoteCalendar(targetCalendarId)) {
+      const caldavSync = useCaldavSyncStore();
+      try {
+        await caldavSync.pushEventAsync(id);
+      } catch (err) {
+        caldavSync.reportRemoteFailure(targetCalendarId, "push", err);
       }
     }
 
@@ -279,16 +354,13 @@ export const useEventsStore = defineStore("events", () => {
     if (!haexVault.orm) return;
 
     // Delete from CalDAV server first if this is a remote calendar event
-    const existing = visibleEvents.value.find((event) => event.id === id);
-    if (existing) {
-      const calendar = calendarsStore.getCalendar(existing.calendarId);
-      if (calendar?.caldavAccountId) {
-        try {
-          const caldavSync = useCaldavSyncStore();
-          await caldavSync.deleteRemoteEventAsync(id);
-        } catch (err) {
-          console.warn("[haex-calendar] Failed to delete event from CalDAV:", err);
-        }
+    const existing = await findEventAsync(id);
+    if (existing?.href && isRemoteCalendar(existing.calendarId)) {
+      const caldavSync = useCaldavSyncStore();
+      try {
+        await caldavSync.deleteRemoteEventAsync(existing);
+      } catch (err) {
+        caldavSync.reportRemoteFailure(existing.calendarId, "delete", err);
       }
     }
 
@@ -316,19 +388,16 @@ export const useEventsStore = defineStore("events", () => {
       // Advance from the LATER of "now" and the stored dtstart. Otherwise an
       // old master row (e.g. yearly task created in 2020) advances by one
       // occurrence (→ 2021) instead of jumping to the next upcoming one.
-      const dtstart = new Date(ev.dtstart);
+      const dtstart = parseEventInstant(ev.dtstart, ev.allDay);
       const cursor = new Date(Math.max(Date.now(), dtstart.getTime()));
-      const next = nextOccurrence(rule, dtstart, cursor);
+      // COUNT is counted from dtstart, which is about to move.
+      const pinnedRule = pinCount(rule, dtstart);
+      const next = nextOccurrence(pinnedRule, dtstart, cursor);
       if (next) {
-        const durationMs = Math.max(
-          0,
-          new Date(ev.dtend).getTime() - new Date(ev.dtstart).getTime(),
-        );
-        const nextEnd = new Date(next.getTime() + durationMs);
         await updateEventAsync(id, {
-          dtstart: ev.allDay ? toDateOnlyUTC(next) : next.toISOString(),
-          dtend: ev.allDay ? toDateOnlyUTC(nextEnd) : nextEnd.toISOString(),
+          ...shiftedBoundaries(ev, next),
           completedAt: null,
+          ...(pinnedRule !== rule ? { rrule: pinnedRule, rruleOverride: true } : {}),
         });
         return;
       }
@@ -353,14 +422,17 @@ export const useEventsStore = defineStore("events", () => {
     rawEvents: visibleEvents,
     isLoading,
     loadEventsAsync,
+    normalizeLegacyTimesAsync,
     createEventAsync,
     updateEventAsync,
     deleteEventAsync,
     getEvent,
+    findEventAsync,
     completeTaskAsync,
     loadEventRemindersAsync,
     replaceEventRemindersAsync,
     expandedEventsInRange,
     effectiveRrule,
+    effectiveColor,
   };
 });

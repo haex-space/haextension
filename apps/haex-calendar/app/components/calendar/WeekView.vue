@@ -48,12 +48,12 @@
             :style="{
               gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
               gridRow: bar.row + 1,
-              backgroundColor: getEventColor(bar.event),
+              backgroundColor: eventsStore.effectiveColor(bar.event),
               color: 'white',
             }"
             @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
           >
-            {{ bar.showTitle ? bar.event.summary : '' }}
+            {{ bar.event.summary }}
           </div>
         </div>
       </div>
@@ -70,7 +70,7 @@
             class="absolute text-xs text-muted-foreground text-right pr-2 w-full -translate-y-1/2"
             :style="{ top: `${(hour - 1) * HOUR_HEIGHT}px` }"
           >
-            {{ String(hour - 1).padStart(2, '0') }}:00
+            {{ formatHour(hour - 1, settingsStore.timeFormat) }}
           </div>
         </div>
 
@@ -127,15 +127,15 @@
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
               left: `${pe.left}%`,
               width: `${pe.width}%`,
-              backgroundColor: getEventColor(pe.event) + '20',
-              borderColor: getEventColor(pe.event),
-              color: getEventColor(pe.event),
+              backgroundColor: eventsStore.effectiveColor(pe.event) + '20',
+              borderColor: eventsStore.effectiveColor(pe.event),
+              color: eventsStore.effectiveColor(pe.event),
             }"
             @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
             <div class="font-medium truncate">{{ pe.event.summary }}</div>
             <div class="truncate">
-              {{ formatTime(pe.event.dtstart) }} – {{ formatTime(pe.event.dtend) }}
+              {{ formatClock(new Date(pe.event.dtstart), settingsStore.timeFormat) }} – {{ formatClock(new Date(pe.event.dtend), settingsStore.timeFormat) }}
             </div>
           </div>
         </div>
@@ -160,32 +160,23 @@ import {
   positionEventsInDay,
   groupEventsByDay,
   getAllDayEvents,
-  toDateKey,
-} from "~/composables/useTimeGrid";
+  packBars,
+} from "~/lib/timeGrid";
+import { addDays, eventSpan, formatClock, formatHour, isoWeek, toLocalDateKey } from "~/lib/dates";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
-const calendarsStore = useCalendarsStore();
 const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
 const dayCount = computed(() => settingsStore.showWeekends ? 7 : 5);
 
-function getISOWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-}
-
-const weekNumber = computed(() => {
-  const range = calendarView.visibleRange;
-  return getISOWeekNumber(new Date(range.start));
-});
+// The week's middle day decides the ISO week for either week start.
+const weekNumber = computed(() => isoWeek(addDays(new Date(calendarView.visibleRange.start), 3)));
 
 function isEventPast(event: SelectEvent): boolean {
-  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+  return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
 const gridCols = computed(() => `3.5rem repeat(${dayCount.value}, 1fr)`);
 
@@ -216,8 +207,8 @@ const weekDays = computed(() => {
   const range = calendarView.visibleRange;
   const start = new Date(range.start);
   const today = new Date();
-  const todayKey = toDateKey(today.toISOString());
-  const formatter = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
+  const todayKey = toLocalDateKey(today);
+  const formatter = new Intl.DateTimeFormat(locale.value, { weekday: "short" });
   const days = [];
 
   for (let i = 0; i < 7; i++) {
@@ -225,7 +216,7 @@ const weekDays = computed(() => {
     d.setDate(d.getDate() + i);
     const dow = d.getDay();
     if (!settingsStore.showWeekends && (dow === 0 || dow === 6)) continue;
-    const key = toDateKey(d.toISOString());
+    const key = toLocalDateKey(d);
     days.push({
       date: new Date(d),
       key,
@@ -245,89 +236,13 @@ const currentTimePosition = computed(() => {
 
 const eventsByDay = computed(() => groupEventsByDay(eventsStore.events));
 
-interface AllDayBar {
-  event: SelectEvent;
-  startCol: number;
-  span: number;
-  row: number;
-  showTitle: boolean;
-}
-
-const allDayBars = computed(() => {
-  const days = weekDays.value;
-  if (days.length === 0) return { bars: [] as AllDayBar[], rowCount: 0 };
-
-  const allDayEventsList = getAllDayEvents(eventsStore.events);
-  const weekStartKey = days[0]!.key;
-  const weekEndDate = new Date(days[days.length - 1]!.date);
-  weekEndDate.setDate(weekEndDate.getDate() + 1);
-  const weekEndKey = toDateKey(weekEndDate.toISOString());
-
-  const bars: AllDayBar[] = [];
-  const rowSlots: string[][] = [];
-
-  for (const event of allDayEventsList) {
-    const eventStartKey = toDateKey(event.dtstart);
-    const eventEndKey = toDateKey(event.dtend);
-
-    // Check overlap with this week
-    if (eventStartKey >= weekEndKey || eventEndKey <= weekStartKey) continue;
-
-    // Calculate column positions
-    const clampedStartKey = eventStartKey < weekStartKey ? weekStartKey : eventStartKey;
-    const clampedEndKey = eventEndKey > weekEndKey ? weekEndKey : eventEndKey;
-
-    const startCol = days.findIndex((day) => day.key === clampedStartKey);
-    const endCol = days.findIndex((day) => day.key >= clampedEndKey);
-    const effectiveEndCol = endCol === -1 ? days.length : endCol;
-    const span = Math.max(1, effectiveEndCol - Math.max(0, startCol));
-
-    // Always show title — WeekView only renders one week at a time
-    const showTitle = true;
-
-    // Find first available row
-    let assignedRow = 0;
-    while (assignedRow < rowSlots.length) {
-      const rowOccupied = rowSlots[assignedRow]!;
-      const hasConflict = rowOccupied.some((id) => {
-        const existing = bars.find((bar) => bar.event.id === id);
-        if (!existing) return false;
-        const existingEnd = existing.startCol + existing.span;
-        return Math.max(0, startCol) < existingEnd && (Math.max(0, startCol) + span) > existing.startCol;
-      });
-      if (!hasConflict) break;
-      assignedRow++;
-    }
-
-    if (!rowSlots[assignedRow]) rowSlots[assignedRow] = [];
-    rowSlots[assignedRow]!.push(event.id);
-
-    bars.push({
-      event,
-      startCol: Math.max(0, startCol),
-      span,
-      row: assignedRow,
-      showTitle,
-    });
-  }
-
-  return { bars, rowCount: rowSlots.length };
-});
+const allDayBars = computed(() =>
+  packBars(getAllDayEvents(eventsStore.events), weekDays.value.map((day) => day.key)),
+);
 
 function getPositionedEvents(dateKey: string) {
   const dayEvents = eventsByDay.value.get(dateKey) ?? [];
-  return positionEventsInDay(dayEvents);
-}
-
-function getEventColor(event: SelectEvent): string {
-  if (event.color) return event.color;
-  const cal = calendarsStore.getCalendar(event.calendarId);
-  return cal?.color ?? "#3b82f6";
-}
-
-function formatTime(dt: string): string {
-  const d = new Date(dt);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return positionEventsInDay(dayEvents, dateKey);
 }
 
 // --- Drag-to-select ---

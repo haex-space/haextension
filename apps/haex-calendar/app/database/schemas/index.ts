@@ -14,7 +14,9 @@ const tableName = (name: string) => getTableName(manifest.publicKey, packageJson
 // Reusable timestamp columns
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
 };
 
 /**

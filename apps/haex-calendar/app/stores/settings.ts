@@ -1,12 +1,10 @@
 import { watchDebounced } from "@vueuse/core";
 import { eq } from "drizzle-orm";
-import { toast } from "vue-sonner";
 import { settings, type SelectSettings } from "~/database/schemas";
+import type { TimeFormat, WeekStart } from "~/lib/dates";
 import type { ViewMode } from "./calendarView";
 
-export type WeekStart = "monday" | "sunday";
 export type DefaultEventDuration = 15 | 30 | 60 | 120;
-export type TimeFormat = "24h" | "12h";
 export type DateFormat = "dd.MM.yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd";
 
 const SETTINGS_ID = "default";
@@ -70,17 +68,30 @@ export const useSettingsStore = defineStore("settings", () => {
     sideBySideDayView: sideBySideDayView.value,
   }));
 
+  /**
+   * Outcome of the last auto-save, for the settings page to toast (stores
+   * have no i18n scope).
+   */
+  const lastSave = ref<{ ok: boolean; at: number } | null>(null);
+
+  // What the DB holds. Loading fires the watcher below with the loaded values;
+  // comparing against this keeps that from writing (and toasting) on start.
+  let persisted = "";
+
   // Auto-persist: debounced write to DB when any setting changes
   watchDebounced(
     allSettings,
     async (data) => {
       if (!isLoaded.value || !haexVault.orm) return;
+      const serialized = JSON.stringify(data);
+      if (serialized === persisted) return;
       try {
         await haexVault.orm.update(settings).set(data).where(eq(settings.id, SETTINGS_ID));
-        toast.success(locale.value === "de" ? "Einstellungen gespeichert" : "Settings saved");
+        persisted = serialized;
+        lastSave.value = { ok: true, at: Date.now() };
       } catch (error) {
         console.error("[haex-calendar] Failed to save settings:", error);
-        toast.error(locale.value === "de" ? "Fehler beim Speichern" : "Failed to save settings");
+        lastSave.value = { ok: false, at: Date.now() };
       }
     },
     { debounce: 300, deep: true },
@@ -115,11 +126,13 @@ export const useSettingsStore = defineStore("settings", () => {
         ...defaults,
       });
     }
+    persisted = JSON.stringify(allSettings.value);
     isLoaded.value = true;
   }
 
   return {
     isLoaded,
+    lastSave,
     defaultView,
     weekStart,
     defaultEventDuration,

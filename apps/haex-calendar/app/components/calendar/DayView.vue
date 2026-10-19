@@ -10,7 +10,7 @@
         v-for="event in allDayEventsForDay"
         :key="`${event.id}-${event.dtstart}`"
         :class="['text-xs px-2 py-1 rounded cursor-pointer', isEventPast(event) && 'opacity-40']"
-        :style="{ backgroundColor: getEventColor(event), color: 'white' }"
+        :style="{ backgroundColor: eventsStore.effectiveColor(event), color: 'white' }"
         @click="eventPreview.open(event.id, event.dtstart)"
       >
         {{ event.summary }}
@@ -28,7 +28,7 @@
             class="absolute text-xs text-muted-foreground text-right pr-2 w-full -translate-y-1/2"
             :style="{ top: `${(hour - 1) * HOUR_HEIGHT}px` }"
           >
-            {{ String(hour - 1).padStart(2, '0') }}:00
+            {{ formatHour(hour - 1, settingsStore.timeFormat) }}
           </div>
         </div>
 
@@ -84,15 +84,15 @@
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
               left: `${pe.left}%`,
               width: `${pe.width}%`,
-              backgroundColor: getEventColor(pe.event) + '20',
-              borderColor: getEventColor(pe.event),
-              color: getEventColor(pe.event),
+              backgroundColor: eventsStore.effectiveColor(pe.event) + '20',
+              borderColor: eventsStore.effectiveColor(pe.event),
+              color: eventsStore.effectiveColor(pe.event),
             }"
             @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
             <div class="font-medium">{{ pe.event.summary }}</div>
             <div>
-              {{ formatTime(pe.event.dtstart) }} – {{ formatTime(pe.event.dtend) }}
+              {{ formatClock(new Date(pe.event.dtstart), settingsStore.timeFormat) }} – {{ formatClock(new Date(pe.event.dtend), settingsStore.timeFormat) }}
             </div>
             <div v-if="pe.event.location" class="text-xs opacity-75 truncate">
               {{ pe.event.location }}
@@ -120,18 +120,17 @@ import {
   positionEventsInDay,
   getAllDayEvents,
   eventSpansDate,
-  toDateKey,
-} from "~/composables/useTimeGrid";
+} from "~/lib/timeGrid";
+import { eventSpan, formatClock, formatHour, toLocalDateKey } from "~/lib/dates";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
-const calendarsStore = useCalendarsStore();
 const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
 function isEventPast(event: SelectEvent): boolean {
-  return settingsStore.dimPastEvents && new Date(event.dtend) < new Date();
+  return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
 
 const scrollAreaRef = ref<ComponentPublicInstance | null>(null);
@@ -157,11 +156,11 @@ onMounted(() => {
   });
 });
 
-const currentDateKey = computed(() => toDateKey(calendarView.currentDate.toISOString()));
+const currentDateKey = computed(() => toLocalDateKey(calendarView.currentDate));
 
 const isToday = computed(() => {
   const today = new Date();
-  return toDateKey(today.toISOString()) === currentDateKey.value;
+  return toLocalDateKey(today) === currentDateKey.value;
 });
 
 const currentTimePosition = computed(() => {
@@ -177,18 +176,7 @@ const allDayEventsForDay = computed(() =>
   getAllDayEvents(eventsStore.events).filter((event) => eventSpansDate(event, currentDateKey.value))
 );
 
-const positionedEvents = computed(() => positionEventsInDay(timedEvents.value));
-
-function getEventColor(event: SelectEvent): string {
-  if (event.color) return event.color;
-  const cal = calendarsStore.getCalendar(event.calendarId);
-  return cal?.color ?? "#3b82f6";
-}
-
-function formatTime(dt: string): string {
-  const date = new Date(dt);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
+const positionedEvents = computed(() => positionEventsInDay(timedEvents.value, currentDateKey.value));
 
 // --- Drag-to-select ---
 const drag = reactive({

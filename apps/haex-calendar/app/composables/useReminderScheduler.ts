@@ -1,5 +1,7 @@
 import { or, inArray } from "drizzle-orm";
 import { events, eventReminders } from "~/database/schemas";
+import { parseEventInstant, toLocalDateKey } from "~/lib/dates";
+import { eventDeepLink } from "~/lib/deepLink";
 import { expandOccurrences } from "~/lib/rrule";
 
 /**
@@ -64,7 +66,7 @@ export function useReminderScheduler() {
     } finally {
       rebuilding = false;
     }
-    if (rebuildQueued) {
+    if (rebuildQueued && running) {
       void rebuildAsync();
     }
   }
@@ -128,9 +130,8 @@ export function useReminderScheduler() {
       if (!offsets.length) continue;
 
       const rule = eventsStore.effectiveRrule(ev);
-      const starts = rule
-        ? expandOccurrences(rule, new Date(ev.dtstart), new Date(now), expandEnd)
-        : [new Date(ev.dtstart)];
+      const dtstart = parseEventInstant(ev.dtstart, ev.allDay);
+      const starts = rule ? expandOccurrences(rule, dtstart, new Date(now), expandEnd) : [dtstart];
 
       // Queue any reminder whose event falls within the look-ahead window;
       // the fireAt itself may sit before the event time (e.g. a 1-week
@@ -165,6 +166,8 @@ export function useReminderScheduler() {
       clearTimeout(fireTimer);
       fireTimer = null;
     }
+    // A rebuild still in flight when the page unmounted must not re-arm.
+    if (!running) return;
     const head = queue[0];
     if (!head) return;
     // Lookahead caps the delay at 24h, well under setTimeout's overflow limit.
@@ -183,13 +186,18 @@ export function useReminderScheduler() {
       await haexVault.client.notifications.show({
         title: entry.summary,
         body: formatBody(entry),
-        primary: { path: `/event/${entry.eventId}` },
+        primary: { path: eventDeepLink(entry.eventId, occurrenceKey(entry)) },
         // Re-firing the same occurrence+offset replaces the previous one.
         tag: `reminder:${entry.eventId}:${entry.occurrenceStart.toISOString()}:${entry.offsetMinutes}`,
       });
     } catch (error) {
       console.warn("[haex-calendar] Failed to show reminder notification:", error);
     }
+  }
+
+  /** The occurrence as the views key it: a date for all-day, else the instant. */
+  function occurrenceKey(entry: ReminderEntry): string {
+    return entry.allDay ? toLocalDateKey(entry.occurrenceStart) : entry.occurrenceStart.toISOString();
   }
 
   function formatBody(entry: ReminderEntry): string {
@@ -208,6 +216,7 @@ export function useReminderScheduler() {
 
   function stop() {
     running = false;
+    rebuildQueued = false;
     if (fireTimer) clearTimeout(fireTimer);
     if (refillTimer) clearInterval(refillTimer);
     fireTimer = null;

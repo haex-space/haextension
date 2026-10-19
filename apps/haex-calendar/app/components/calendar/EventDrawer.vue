@@ -51,11 +51,11 @@
             <label class="text-sm font-medium mb-1 block">
               {{ form.kind === 'task' ? t('fields.due') : t('fields.start') }}
             </label>
-            <ShadcnDatePicker v-model="form.startDate" :clearable="false" locale="de-DE" />
+            <ShadcnDatePicker v-model="form.startDate" :clearable="false" :locale="locale" />
           </div>
           <div v-if="form.kind === 'event'">
             <label class="text-sm font-medium mb-1 block">{{ t('fields.end') }}</label>
-            <ShadcnDatePicker v-model="form.endDate" :clearable="false" locale="de-DE" />
+            <ShadcnDatePicker v-model="form.endDate" :clearable="false" :locale="locale" />
           </div>
         </div>
 
@@ -112,7 +112,7 @@
           <label class="text-sm font-medium mb-1 block">{{ t('fields.color') }}</label>
           <div class="flex gap-2">
             <button
-              v-for="c in presetColors"
+              v-for="c in PRESET_COLORS"
               :key="c"
               :class="[
                 'w-8 h-8 rounded-full border-2 transition-transform',
@@ -255,7 +255,9 @@
 </template>
 
 <script setup lang="ts">
+import { parseLocalDate } from "~/lib/dates";
 import type { EventDrawerInitialValues } from "~/stores/eventDrawer";
+import { PRESET_COLORS } from "~/lib/colors";
 
 const isOpen = defineModel<boolean>("open", { default: false });
 
@@ -264,12 +266,11 @@ const props = defineProps<{
   initialValues?: EventDrawerInitialValues | null;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventTypesStore = useEventTypesStore();
 
-const presetColors = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6b7280"];
 
 const isNew = computed(() => !props.eventId);
 
@@ -286,8 +287,7 @@ const eventTypeIdStr = computed({
 /** Sample dtstart for the recurrence preview. */
 const recurrenceSampleStart = computed(() => {
   if (!form.startDate) return new Date();
-  const iso = form.allDay ? form.startDate : `${form.startDate}T${form.startTime}`;
-  const d = new Date(iso);
+  const d = form.allDay ? parseLocalDate(form.startDate) : new Date(`${form.startDate}T${form.startTime}`);
   return isNaN(d.getTime()) ? new Date() : d;
 });
 
