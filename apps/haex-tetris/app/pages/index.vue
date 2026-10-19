@@ -70,12 +70,24 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
+function pauseWhilePlaying() {
+  if (gameState.value === 'playing') togglePause()
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) pauseWhilePlaying()
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('blur', pauseWhilePlaying)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('blur', pauseWhilePlaying)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
