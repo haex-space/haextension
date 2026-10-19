@@ -10,7 +10,6 @@
 
 import type { BookmarkStatus } from './messages'
 import type { BrowserFamily } from './model'
-import type { NativeBookmarkNode } from './nativeAdapter'
 import type { BookmarkSyncSettingsActive, BookmarkSyncState } from './storage'
 import type { SyncServiceDeps } from './syncDeps'
 import { activateCollection, seedCollectionFromNative } from './nativeAdapter'
@@ -50,19 +49,6 @@ export type SwitchResult
 // Background work started from browser events has no caller to report to.
 function reportFailure(work: Promise<unknown>, what: string): void {
   work.catch(err => console.error(`[haex-pass] ${what}:`, err))
-}
-
-function findNodeById(roots: NativeBookmarkNode[], id: string): NativeBookmarkNode | null {
-  for (const node of roots) {
-    if (node.id === id)
-      return node
-    if (node.children) {
-      const found = findNodeById(node.children, id)
-      if (found)
-        return found
-    }
-  }
-  return null
 }
 
 export class BookmarkSyncService {
@@ -486,6 +472,3 @@ export class BookmarkSyncService {
     return this.applyGuardActive
   }
 }
-
-// Re-exported so callers (main.ts) don't need to know the internal shape.
-export { findNodeById as findNativeNodeById }
