@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
-import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
+import { createBackButton } from '../ui/backButton'
 import { createHudCamera } from '../ui/hudCamera'
+import { fadeToScene } from './transition'
 
 const TILE_SIZE = 16
 const SCENE_WIDTH = 50
@@ -55,7 +56,7 @@ export class NestSearchScene extends Phaser.Scene {
     this.createNestCandidates()
     this.createScenery()
     this.createQueen()
-    createHudCamera(this, this.createBackButton())
+    createHudCamera(this, createBackButton(this, DEPTH.UI))
     this.setupCamera()
     this.setupInput()
 
@@ -351,45 +352,16 @@ export class NestSearchScene extends Phaser.Scene {
       ease: 'Power2',
       onComplete: () => {
         // Fade out
-        this.cameras.main.fadeOut(1000, 0, 0, 0)
-        this.cameras.main.once('camerafadeoutcomplete', () => {
-          this.game.events.emit('task-complete', {
-            taskId: 'nest-search',
-            chapter: 2,
-          })
-          this.scene.start('NestInteriorScene')
+        fadeToScene(this, 'NestInteriorScene', {
+          duration: 1000,
+          beforeStart: () => {
+            this.game.events.emit('task-complete', {
+              taskId: 'nest-search',
+              chapter: 2,
+            })
+          },
         })
       },
-    })
-  }
-
-  // ── Navigation ──────────────────────────────────
-
-  private createBackButton() {
-    const btn = this.add.graphics()
-    btn.setScrollFactor(0)
-    btn.setDepth(DEPTH.UI)
-
-    btn.fillStyle(0x000000, 0.3)
-    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
-    btn.lineStyle(2, 0xffffff, 0.7)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
-
-    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
-    hitZone.setScrollFactor(0)
-    hitZone.setDepth(DEPTH.UI)
-    hitZone.setInteractive({ useHandCursor: true })
-    hitZone.on('pointerdown', () => this.returnToOverworld())
-    return [btn, hitZone]
-  }
-
-  private returnToOverworld() {
-    this.input.removeAllListeners()
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('OverworldScene')
     })
   }
 

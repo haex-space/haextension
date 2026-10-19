@@ -9,6 +9,7 @@ import { DEPTH, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, UNICORN_SPEED } from './overwo
 import type { AmbientCreature, WorldFlower, WorldTree } from './overworld/constants'
 import { createAmbientCreature } from './overworld/ambientCreatures'
 import { createFlowers, createGrassDetails, createGround, createTrees } from './overworld/world'
+import { fadeToScene } from './transition'
 
 export class OverworldScene extends Phaser.Scene {
   private unicorn!: Phaser.Physics.Arcade.Sprite
@@ -214,10 +215,7 @@ export class OverworldScene extends Phaser.Scene {
     this.emitEvent('nest-interact', { nestType: 'bumblebee' })
 
     // Start cutscene transition to Chapter 1
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('CutsceneScene', createQueenEmergenceCutscene())
-    })
+    fadeToScene(this, 'CutsceneScene', { data: createQueenEmergenceCutscene() })
   }
 
   // ── Unicorn ─────────────────────────────────────

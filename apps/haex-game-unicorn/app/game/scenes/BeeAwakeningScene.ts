@@ -7,6 +7,8 @@ import { DEPTH, SCENE_HEIGHT, SCENE_WIDTH, TILE_SIZE } from './bee-awakening/con
 import type { EarlyFlower } from './bee-awakening/constants'
 import { createEarlySpringFlowers, createEmergencePoint, createGround } from './bee-awakening/world'
 import { createHudCamera } from '../ui/hudCamera'
+import { createBackButton } from '../ui/backButton'
+import { fadeToScene } from './transition'
 
 export class BeeAwakeningScene extends Phaser.Scene {
   private queen!: BumblebeeQueen
@@ -122,7 +124,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
   private createUI() {
     // Back button — top-right, arrow pointing left with unicorn hint
-    const backButton = this.createBackButton()
+    const backButton = createBackButton(this, DEPTH.UI)
 
     // Temperature indicator — top-left, small thermometer visual
     this.temperatureIndicator = this.add.graphics()
@@ -425,46 +427,17 @@ export class BeeAwakeningScene extends Phaser.Scene {
       ease: 'Power1',
       onComplete: () => {
         // Fade and return to overworld
-        this.cameras.main.fadeOut(1000, 0, 0, 0)
-        this.cameras.main.once('camerafadeoutcomplete', () => {
-          this.game.events.emit('task-complete', {
-            taskId: 'bee-awakening',
-            chapter: 1,
-          })
-          this.scene.start('CutsceneScene', createNestFoundCutscene())
+        fadeToScene(this, 'CutsceneScene', {
+          data: createNestFoundCutscene(),
+          duration: 1000,
+          beforeStart: () => {
+            this.game.events.emit('task-complete', {
+              taskId: 'bee-awakening',
+              chapter: 1,
+            })
+          },
         })
       },
-    })
-  }
-
-  // ── Navigation ──────────────────────────────────
-
-  private createBackButton() {
-    const btn = this.add.graphics()
-    btn.setScrollFactor(0)
-    btn.setDepth(DEPTH.UI)
-
-    // Circular button with left arrow
-    btn.fillStyle(0x000000, 0.3)
-    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
-    btn.lineStyle(2, 0xffffff, 0.7)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
-
-    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
-    hitZone.setScrollFactor(0)
-    hitZone.setDepth(DEPTH.UI)
-    hitZone.setInteractive({ useHandCursor: true })
-    hitZone.on('pointerdown', () => this.returnToOverworld())
-    return [btn, hitZone]
-  }
-
-  private returnToOverworld() {
-    this.input.removeAllListeners()
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('OverworldScene')
     })
   }
 }

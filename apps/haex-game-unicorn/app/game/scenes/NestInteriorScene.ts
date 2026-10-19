@@ -6,6 +6,7 @@ import type { DraggableItem, Phase, WaxCell } from './nest-interior/constants'
 import { drawHexagon, drawHexFilled } from './nest-interior/hexagon'
 import { NestInteriorHud } from './nest-interior/NestInteriorHud'
 import { ensurePollenBallTexture, ensureQueenInteriorTexture, ensureWaxPieceTexture } from './nest-interior/textures'
+import { fadeToScene } from './transition'
 
 export class NestInteriorScene extends Phaser.Scene {
   private queenSprite!: Phaser.GameObjects.Sprite
@@ -363,13 +364,14 @@ export class NestInteriorScene extends Phaser.Scene {
 
     // Victory! Chapter 3 complete
     this.time.delayedCall(2000, () => {
-      this.cameras.main.fadeOut(1000, 0, 0, 0)
-      this.cameras.main.once('camerafadeoutcomplete', () => {
-        this.game.events.emit('task-complete', {
-          taskId: 'nest-build',
-          chapter: 3,
-        })
-        this.scene.start('OverworldScene')
+      fadeToScene(this, 'OverworldScene', {
+        duration: 1000,
+        beforeStart: () => {
+          this.game.events.emit('task-complete', {
+            taskId: 'nest-build',
+            chapter: 3,
+          })
+        },
       })
     })
   }
