@@ -38,11 +38,6 @@ export function getPreset(presetId?: string): BrushPreset {
   return BRUSH_PRESETS.find((p) => p.id === presetId) ?? BRUSH_PRESETS[0]!;
 }
 
-/** Get the centerline of a stroke (average of input points, smoothed) */
-export function getCenterline(points: [number, number, number][]): [number, number, number][] {
-  return points;
-}
-
 /** Returns the effective fill color — white for eraser presets, otherwise the stroke color */
 export function getStrokeColor(stroke: StrokeData, preset: BrushPreset): string {
   return preset.isEraser ? "#ffffff" : stroke.color;

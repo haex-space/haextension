@@ -15,7 +15,7 @@ onMounted(() => {
 
   const picker = new Picker({
     data,
-    onEmojiSelect: (emoji: any) => {
+    onEmojiSelect: (emoji: { native: string }) => {
       emit("select", emoji.native);
     },
     theme: currentThemeName.value,

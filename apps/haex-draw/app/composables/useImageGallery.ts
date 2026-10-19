@@ -1,4 +1,4 @@
-import type { DirEntry } from "@haex-space/vault-sdk";
+import type { DirEntry, KnownPaths } from "@haex-space/vault-sdk";
 import { bytesToDataUrl, imageMimeType } from "~/utils/image/dataUrl";
 
 export interface ImageEntry {
@@ -64,9 +64,9 @@ export function useImageGallery() {
     const fs = haexVault.client.filesystem;
 
     // Use SDK knownPaths to get platform-resolved directories
-    let paths: Record<string, string>;
+    let paths: KnownPaths;
     try {
-      paths = await fs.knownPaths() as Record<string, string>;
+      paths = await fs.knownPaths();
     } catch {
       isScanning.value = false;
       return;

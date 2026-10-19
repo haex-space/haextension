@@ -1,12 +1,10 @@
 <script setup lang="ts">
+import type { Component } from "vue";
 import {
   Hand,
-  Undo2,
-  Redo2,
   Trash2,
   Download,
   Save,
-  History,
   Camera,
   Images,
   Smile,
@@ -42,7 +40,7 @@ const onClearAsync = async () => {
   if (sure) canvas.clear();
 };
 
-const tools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
+const tools: { id: Tool; icon: Component; label: string; shortcut: string }[] = [
   { id: "pan", icon: Hand, label: "pan", shortcut: "H" },
 ];
 </script>

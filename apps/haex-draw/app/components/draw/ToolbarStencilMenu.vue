@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Component } from "vue";
 import {
   ChevronRight,
   Frame,
@@ -21,7 +22,7 @@ const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const { dinPresets, geometricPresets, socialPresets, adsPresets, screenPresets } = useStencilPresets();
 
-const stencilShapeIcons: Record<string, any> = {
+const stencilShapeIcons: Record<string, Component> = {
   rectangle: RectangleHorizontal,
   circle: Circle,
   star: Star,

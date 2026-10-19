@@ -89,7 +89,7 @@ export const useCanvasStore = defineStore("canvas", () => {
     drawingId.value = drawing.id;
     drawingName.value = drawing.name;
     // Rebuild history from strokes (no preset label info, use tool name)
-    history.value = drawing.strokes.map((s, i) => ({
+    history.value = drawing.strokes.map((s) => ({
       stroke: s,
       label: s.brushPreset ?? s.tool,
     }));

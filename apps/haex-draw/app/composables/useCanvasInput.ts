@@ -1,7 +1,4 @@
 import { useEventListener } from "@vueuse/core";
-import type { StrokeData } from "~/database/schemas";
-import type { Stencil } from "~/types/stencil";
-import type { StencilShapeType } from "~/types/stencil";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 import { isNearStencilCorner } from "~/utils/canvas/stencilHitTest";
 
@@ -44,9 +41,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   // Stencil placing state (drag-to-configure after placement)
   const isPlacing = ref(false);
   const placingBaseSize = ref({ w: 0, h: 0 });
-
-  // Stencil clipboard
-  const clipboardStencil = ref<Stencil | null>(null);
 
   // Only one pointer drives an interaction; a second finger turns the gesture into a pinch.
   let activePointerId: number | null = null;

@@ -11,43 +11,15 @@ interface ParsedSvg {
  * coordinate space the path is expressed in.
  */
 export function useSvgImport() {
-  /**
-   * Import SVG either from a file path (vault-sdk) or via file picker dialog.
-   * @param filePath Optional: absolute path to SVG file (reads via vault-sdk)
-   */
-  const importSvgAsync = async (filePath?: string): Promise<(ParsedSvg & { name: string }) | null> => {
-    if (filePath) {
-      // Read SVG via vault-sdk filesystem
-      const haexVault = useHaexVaultStore();
-      const data = await haexVault.client.filesystem.readFile(filePath);
-      const text = new TextDecoder().decode(data);
-      const result = parseSvg(text);
-      if (!result) return null;
-      const name = filePath.split("/").pop()?.replace(/\.svg$/i, "") ?? "SVG";
-      return { ...result, name };
-    }
+  const haexVault = useHaexVaultStore();
 
-    // Fallback: HTML file picker
-    return new Promise((resolve) => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = ".svg,image/svg+xml";
-
-      input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file) return resolve(null);
-
-        const text = await file.text();
-        const result = parseSvg(text);
-        if (!result) return resolve(null);
-
-        const name = file.name.replace(/\.svg$/i, "");
-        resolve({ ...result, name });
-      };
-
-      input.oncancel = () => resolve(null);
-      input.click();
-    });
+  /** Reads an SVG file through the vault filesystem and extracts its path data. */
+  const importSvgAsync = async (filePath: string): Promise<(ParsedSvg & { name: string }) | null> => {
+    const data = await haexVault.client.filesystem.readFile(filePath);
+    const result = parseSvg(new TextDecoder().decode(data));
+    if (!result) return null;
+    const name = filePath.split("/").pop()?.replace(/\.svg$/i, "") ?? "SVG";
+    return { ...result, name };
   };
 
   return { importSvgAsync };

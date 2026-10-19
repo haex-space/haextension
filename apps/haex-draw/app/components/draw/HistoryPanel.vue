@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ComponentPublicInstance } from "vue";
 import { History, FileIcon } from "@lucide/vue";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 import { localized } from "~/utils/localized";
@@ -13,11 +14,11 @@ const getLabel = (label: string) => {
 };
 
 // Scroll to active entry when historyIndex changes
-const listEl = useTemplateRef("listEl");
+const listEl = useTemplateRef<ComponentPublicInstance>("listEl");
 watch(() => canvas.historyIndex, () => {
   nextTick(() => {
-    const el = (listEl.value as any)?.$el as HTMLElement | undefined;
-    if (!el?.querySelector) return;
+    const el: unknown = listEl.value?.$el;
+    if (!(el instanceof HTMLElement)) return;
     const active = el.querySelector("[data-active='true']");
     active?.scrollIntoView({ block: "nearest" });
   });
