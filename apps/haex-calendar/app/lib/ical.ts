@@ -1,5 +1,6 @@
 import ICAL from "ical.js";
 import type { SelectEvent, SelectEventType } from "~/database/schemas";
+import { zonedWallClockToDate } from "~/lib/dates";
 
 export interface ParsedEvent {
   uid: string;
@@ -55,6 +56,37 @@ function rruleString(component: any): string | null {
   return recur ? recur.toString() : null;
 }
 
+type IcalTime = InstanceType<typeof ICAL.Time>;
+
+/**
+ * TZID of a date-time. ical.js leaves a TZID without matching VTIMEZONE as a
+ * "floating" zone, so fall back to the property's TZID parameter.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function timeZoneId(time: IcalTime, component: any, propName: string): string | null {
+  const tzid = time.zone?.tzid;
+  if (tzid && tzid !== "floating") return tzid;
+  const param = component.getFirstProperty(propName)?.getParameter("tzid");
+  return typeof param === "string" ? param : null;
+}
+
+/**
+ * Stored form of an iCal time: "YYYY-MM-DD" for dates, a UTC instant for
+ * date-times. Floating times with a TZID are resolved through the IANA zone
+ * database; truly floating times take the importing device's zone.
+ */
+function toStoredDateTime(time: IcalTime, tzid: string | null): string {
+  if (time.isDate) return time.toString();
+  if (tzid && time.zone?.tzid === "floating") {
+    const resolved = zonedWallClockToDate(
+      { year: time.year, month: time.month, day: time.day, hour: time.hour, minute: time.minute, second: time.second },
+      tzid,
+    );
+    if (resolved) return resolved.toISOString();
+  }
+  return time.toJSDate().toISOString();
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseVevent(vevent: any): ParsedEvent | null {
   const event = new ICAL.Event(vevent);
@@ -64,15 +96,17 @@ function parseVevent(vevent: any): ParsedEvent | null {
   // Same UID-required guard as VTODO — see parseVtodo.
   if (!event.uid) return null;
 
+  const startZone = timeZoneId(startDate, vevent, "dtstart");
+
   return {
     uid: event.uid,
     summary: event.summary || "Untitled",
     description: event.description || null,
     location: event.location || null,
-    dtstart: startDate.toString(),
-    dtend: endDate.toString(),
+    dtstart: toStoredDateTime(startDate, startZone),
+    dtend: toStoredDateTime(endDate, timeZoneId(endDate, vevent, vevent.hasProperty("dtend") ? "dtend" : "dtstart")),
     allDay: startDate.isDate,
-    timezone: startDate.zone?.tzid || "UTC",
+    timezone: startZone ?? "UTC",
     status: vevent.getFirstPropertyValue("status") || "CONFIRMED",
     sequence: vevent.getFirstPropertyValue("sequence") || 0,
     url: vevent.getFirstPropertyValue("url") || null,
@@ -90,7 +124,9 @@ function parseVtodo(vtodo: any): ParsedEvent | null {
   // A task's due date maps to DUE (fall back to DTSTART). There is no end.
   const due = vtodo.getFirstPropertyValue("due") ?? vtodo.getFirstPropertyValue("dtstart");
   const allDay = due?.isDate ?? false;
-  const dtstart = due ? due.toString() : new Date().toISOString();
+  const dueProp = vtodo.hasProperty("due") ? "due" : "dtstart";
+  const dueZone = due ? timeZoneId(due, vtodo, dueProp) : null;
+  const dtstart = due ? toStoredDateTime(due, dueZone) : new Date().toISOString();
   const completed = vtodo.getFirstPropertyValue("completed");
 
   // Skip UID-less VTODOs: importFileAsync upserts by UID, so a random
@@ -106,7 +142,7 @@ function parseVtodo(vtodo: any): ParsedEvent | null {
     dtstart,
     dtend: dtstart, // tasks mirror dtstart into dtend (NOT NULL column)
     allDay,
-    timezone: due?.zone?.tzid || "UTC",
+    timezone: dueZone ?? "UTC",
     status: vtodo.getFirstPropertyValue("status") || "CONFIRMED",
     sequence: vtodo.getFirstPropertyValue("sequence") || 0,
     url: vtodo.getFirstPropertyValue("url") || null,
@@ -159,7 +195,9 @@ function setDate(component: any, prop: string, value: string, allDay: boolean) {
   if (allDay) {
     component.updatePropertyWithValue(prop, ICAL.Time.fromDateString(value.split("T")[0] ?? value));
   } else {
-    component.updatePropertyWithValue(prop, ICAL.Time.fromString(value, "UTC"));
+    // Values from older imports lack an offset; Date reads them as local time,
+    // exactly as the views display them.
+    component.updatePropertyWithValue(prop, ICAL.Time.fromJSDate(new Date(value), true));
   }
 }
 

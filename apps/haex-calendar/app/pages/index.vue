@@ -292,6 +292,7 @@ onMounted(async () => {
     }
   }
 
+  await eventsStore.normalizeLegacyTimesAsync();
   await eventsStore.loadEventsAsync();
 
   // Load CalDAV accounts and trigger initial sync

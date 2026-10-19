@@ -1,4 +1,4 @@
-import { and, or, gte, lte, inArray, isNotNull, eq } from "drizzle-orm";
+import { and, or, gte, lte, inArray, isNotNull, eq, notLike } from "drizzle-orm";
 import {
   events,
   eventReminders,
@@ -6,6 +6,7 @@ import {
   type SelectEvent,
 } from "~/database/schemas";
 import { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE } from "~/stores/calendars";
+import { normalizeOffsetlessDateTime } from "~/lib/dates";
 import { expandOccurrences, nextOccurrence } from "~/lib/rrule";
 
 export type { SelectEvent, InsertEvent };
@@ -89,6 +90,26 @@ export const useEventsStore = defineStore("events", () => {
         );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /**
+   * Older imports stored zoned times as wall-clock strings without offset.
+   * Rewrite them as UTC instants where the stored TZID makes that unambiguous;
+   * the rest keeps its value until the next import or CalDAV update.
+   */
+  async function normalizeLegacyTimesAsync() {
+    if (!haexVault.orm) return;
+    const rows = await haexVault.orm
+      .select({ id: events.id, dtstart: events.dtstart, dtend: events.dtend, timezone: events.timezone })
+      .from(events)
+      .where(and(eq(events.allDay, false), or(notLike(events.dtstart, "%Z"), notLike(events.dtend, "%Z"))));
+
+    for (const row of rows) {
+      const dtstart = row.dtstart.endsWith("Z") ? row.dtstart : normalizeOffsetlessDateTime(row.dtstart, row.timezone);
+      const dtend = row.dtend.endsWith("Z") ? row.dtend : normalizeOffsetlessDateTime(row.dtend, row.timezone);
+      if (!dtstart || !dtend) continue;
+      await haexVault.orm.update(events).set({ dtstart, dtend }).where(eq(events.id, row.id));
     }
   }
 
@@ -372,6 +393,7 @@ export const useEventsStore = defineStore("events", () => {
     rawEvents: visibleEvents,
     isLoading,
     loadEventsAsync,
+    normalizeLegacyTimesAsync,
     createEventAsync,
     updateEventAsync,
     deleteEventAsync,
