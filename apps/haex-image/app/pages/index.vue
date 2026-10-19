@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ImagePlus } from "@lucide/vue";
 import { toast } from "vue-sonner";
+import { withExtension } from "~/lib/fileName";
 import { decodeImage } from "~/lib/image";
 
 const { t } = useI18n();
@@ -115,12 +116,13 @@ async function saveAs() {
   try {
     const ext = editor.fileName.split(".").pop()?.toLowerCase();
     const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
-    const blob = await processor.exportImage(format as "png" | "jpeg");
+    const extension = format === "jpeg" ? "jpg" : "png";
+    const blob = await processor.exportImage(format);
     const buffer = await blob.arrayBuffer();
     await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),
-      defaultPath: editor.filePath || editor.fileName,
-      filters: [{ name: "Bilder", extensions: [format === "jpeg" ? "jpg" : "png"] }],
+      defaultPath: withExtension(editor.filePath || editor.fileName, extension),
+      filters: [{ name: "Bilder", extensions: [extension] }],
     });
   } catch (error) {
     console.error("[haex-image] saveAs error:", error);

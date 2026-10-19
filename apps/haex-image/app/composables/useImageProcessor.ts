@@ -158,7 +158,7 @@ export function useImageProcessor() {
   }
 
   async function exportImage(format: "png" | "jpeg", quality = 0.92): Promise<Blob> {
-    const { canvas } = await drawCurrent();
+    const { canvas } = await drawCurrent(backgroundFor(format));
     return canvasToBlob(canvas, format === "jpeg" ? "image/jpeg" : "image/png", quality);
   }
 
