@@ -18,9 +18,11 @@ export interface HistoryEntry {
   blob: Blob;
   width: number;
   height: number;
+  /** Encoded by Compress: saving writes these bytes as they are. */
+  compressed?: boolean;
 }
 
-export type FilterType ="none" | "grayscale" | "sepia" | "invert" | "warm" | "cool" | "vintage";
+export type FilterType = "none" | "grayscale" | "sepia" | "invert" | "warm" | "cool" | "vintage";
 
 export interface AspectRatioPreset {
   id: string;

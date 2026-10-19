@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withExtension } from "./fileName";
+import { extensionForType, withExtension } from "./fileName";
 
 describe("withExtension", () => {
   it("replaces the extension of a file name", () => {
@@ -20,5 +20,13 @@ describe("withExtension", () => {
 
   it("keeps a leading dot of a hidden file", () => {
     expect(withExtension("/tmp/.cover", "png")).toBe("/tmp/.cover.png");
+  });
+});
+
+describe("extensionForType", () => {
+  it("maps the encodable image types to their usual extension", () => {
+    expect(extensionForType("image/jpeg")).toBe("jpg");
+    expect(extensionForType("image/webp")).toBe("webp");
+    expect(extensionForType("image/png")).toBe("png");
   });
 });

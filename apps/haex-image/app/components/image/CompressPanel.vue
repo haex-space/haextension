@@ -74,7 +74,7 @@ function formatFileSize(bytes: number): string {
     <p v-else class="text-xs text-muted-foreground">{{ t("pngLossless") }}</p>
     <div v-if="compressOriginalSize != null" class="rounded-md bg-accent/30 p-2 text-xs">
       <div class="flex justify-between">
-        <span class="text-muted-foreground">{{ t("original") }}</span>
+        <span class="text-muted-foreground">{{ t("current") }}</span>
         <span class="font-mono text-foreground">{{ formatFileSize(compressOriginalSize) }}</span>
       </div>
       <div class="mt-1 flex justify-between">
@@ -102,7 +102,7 @@ de:
   compress: Komprimieren
   format: Format
   quality: Qualität
-  original: Original
+  current: Aktuell
   compressed: Komprimiert
   savings: Ersparnis
   applyCompress: Komprimieren
@@ -111,7 +111,7 @@ en:
   compress: Compress
   format: Format
   quality: Quality
-  original: Original
+  current: Current
   compressed: Compressed
   savings: Savings
   applyCompress: Compress

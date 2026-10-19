@@ -5,3 +5,10 @@ export function withExtension(path: string, ext: string): string {
   const stem = dot > nameStart ? path.slice(0, dot) : path;
   return `${stem}.${ext}`;
 }
+
+/** File extension for an image type the canvas encodes; PNG is also the canvas fallback for unsupported types. */
+export function extensionForType(type: string): string {
+  if (type === "image/jpeg") return "jpg";
+  if (type === "image/webp") return "webp";
+  return "png";
+}

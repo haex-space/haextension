@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ImagePlus } from "@lucide/vue";
 import { toast } from "vue-sonner";
-import { withExtension } from "~/lib/fileName";
+import { extensionForType, withExtension } from "~/lib/fileName";
 import { decodeImage } from "~/lib/image";
 
 const { t } = useI18n();
@@ -112,12 +112,15 @@ async function confirmCompress(format: "jpeg" | "webp" | "png", quality: number)
 // Export
 async function saveAs() {
   const client = haexVault.client;
-  if (!client || !editor.hasImage) return;
+  const entry = editor.current;
+  if (!client || !entry) return;
   try {
     const ext = editor.fileName.split(".").pop()?.toLowerCase();
-    const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";
-    const extension = format === "jpeg" ? "jpg" : "png";
-    const blob = await processor.exportImage(format);
+    // A Compress result is saved byte for byte; anything else is encoded in the opened file's format
+    const blob = entry.compressed
+      ? entry.blob
+      : await processor.exportImage(ext === "jpg" || ext === "jpeg" ? "jpeg" : "png");
+    const extension = extensionForType(blob.type);
     const buffer = await blob.arrayBuffer();
     await client.filesystem.saveFileAsync(new Uint8Array(buffer), {
       title: t("saveAs"),

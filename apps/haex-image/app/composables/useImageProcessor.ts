@@ -34,6 +34,7 @@ export function useImageProcessor() {
     canvas: HTMLCanvasElement;
     type?: string;
     quality?: number;
+    compressed?: boolean;
   }
 
   /**
@@ -46,10 +47,10 @@ export function useImageProcessor() {
     if (!source || editor.isProcessing) return false;
     editor.isProcessing = true;
     try {
-      const { canvas, type = "image/png", quality } = op(await decodeImage(source.blob));
+      const { canvas, type = "image/png", quality, compressed } = op(await decodeImage(source.blob));
       const blob = await canvasToBlob(canvas, type, quality);
       if (editor.current !== source) return false;
-      editor.pushHistory({ blob, width: canvas.width, height: canvas.height });
+      editor.pushHistory({ blob, width: canvas.width, height: canvas.height, compressed });
       return true;
     } catch (error) {
       console.error("[haex-image] edit failed:", error);
@@ -153,6 +154,7 @@ export function useImageProcessor() {
       canvas: drawOnto(img, backgroundFor(format)).canvas,
       type: `image/${format}`,
       quality,
+      compressed: true,
     }));
     if (applied) editor.activeTool = null;
   }
