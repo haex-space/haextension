@@ -51,6 +51,19 @@ const reportError = (title: string, error: unknown) => {
   });
 };
 
+// Saving writes UTF-8, so a file in another encoding (or a binary file) would be silently rewritten.
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/** The file's text, or null (reported) when it is not valid UTF-8. */
+const decodeTextFile = (data: Uint8Array, name: string): string | null => {
+  try {
+    return utf8.decode(data);
+  } catch {
+    toast.error(t("notUtf8", { name }));
+    return null;
+  }
+};
+
 const saveTabReportingErrorsAsync = async (tab: EditorTab): Promise<boolean> => {
   try {
     return await editorStore.saveTabAsync(tab.id);
@@ -124,8 +137,9 @@ const openFileFromDisk = async () => {
     if (files && files.length > 0) {
       for (const filePath of files) {
         const data = await haexVault.client.filesystem.readFile(filePath);
-        const content = new TextDecoder().decode(data);
         const name = filePath.split("/").pop() || filePath;
+        const content = decodeTextFile(data, name);
+        if (content === null) continue;
         editorStore.openTab({
           id: crypto.randomUUID(),
           path: filePath,
@@ -190,7 +204,8 @@ const openFile = async (entry: FileEntry) => {
 
   try {
     const data = await haexVault.client.filesystem.readFile(entry.path);
-    const content = new TextDecoder().decode(data);
+    const content = decodeTextFile(data, entry.name);
+    if (content === null) return;
 
     editorStore.openTab({
       id: crypto.randomUUID(),
@@ -317,6 +332,7 @@ de:
   openFolderFailed: Ordner konnte nicht geöffnet werden
   readFolderFailed: Ordnerinhalt konnte nicht gelesen werden
   permissionDenied: Zugriff verweigert
+  notUtf8: "{name} ist keine UTF-8-Textdatei und wird nicht geöffnet."
 en:
   openFile: Open File
   openFolder: Open Folder
@@ -326,4 +342,5 @@ en:
   openFolderFailed: Could not open the folder
   readFolderFailed: Could not read the folder
   permissionDenied: Permission denied
+  notUtf8: "{name} is not a UTF-8 text file and was not opened."
 </i18n>
