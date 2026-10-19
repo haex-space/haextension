@@ -123,6 +123,8 @@ export class CutsceneScene extends Phaser.Scene {
 
   private advance() {
     if (!this.canAdvance || this.transitioning) return
+    // A second tap during the fade-out would otherwise advance twice and skip a frame
+    this.canAdvance = false
 
     if (this.currentFrame < this.config.frames.length - 1) {
       // Fade out current, show next
