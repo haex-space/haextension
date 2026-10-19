@@ -71,11 +71,11 @@
           </button>
         </ShadcnDropdownMenuTrigger>
         <ShadcnDropdownMenuContent align="end" class="w-56">
-          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleImport">
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="openIcsDialog('import')">
             <Upload class="w-5 h-5 mr-2" />
             {{ t('menu.import') }}
           </ShadcnDropdownMenuItem>
-          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="handleExport">
+          <ShadcnDropdownMenuItem class="py-2.5 text-base" @click="openIcsDialog('export')">
             <Download class="w-5 h-5 mr-2" />
             {{ t('menu.export') }}
           </ShadcnDropdownMenuItem>
@@ -194,14 +194,7 @@
       </template>
     </UiDrawerModal>
 
-    <!-- Hidden file input for import -->
-    <input
-      ref="fileInput"
-      type="file"
-      accept=".ics,.ical"
-      class="hidden"
-      @change="onFileSelected"
-    >
+    <CalendarIcsTransferDialog v-model:open="showIcsDialog" :mode="icsMode" />
   </div>
 </template>
 
@@ -247,7 +240,6 @@ const initialized = ref(false);
 
 const showCreateCalendar = ref(false);
 const showCaldavDialog = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
 
 const caldavSync = useCaldavSyncStore();
 const caldavAccounts = useCaldavAccountsStore();
@@ -381,31 +373,13 @@ watch(
   },
 );
 
-// iCal import
-function handleImport() {
-  fileInput.value?.click();
-}
+// iCal import / export
+const icsMode = ref<"import" | "export">("import");
+const showIcsDialog = ref(false);
 
-async function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  const { importFileAsync } = useIcal();
-  // Import into first calendar (or show picker if multiple)
-  const firstCalendar = calendarsStore.calendars[0];
-  if (!firstCalendar) return;
-
-  const result = await importFileAsync(file, firstCalendar.id);
-  console.log(`[haex-calendar] Import: ${result.imported} new, ${result.updated} updated, ${result.skipped} skipped`);
-
-  // Reset file input
-  input.value = "";
-}
-
-function handleExport() {
-  // TODO: implement .ics export
-  console.log("[haex-calendar] Export not yet implemented");
+function openIcsDialog(mode: "import" | "export") {
+  icsMode.value = mode;
+  showIcsDialog.value = true;
 }
 
 // Share dialog
