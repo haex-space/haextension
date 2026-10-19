@@ -40,7 +40,7 @@ const initAsync = async () => {
 onMounted(initAsync);
 
 const createNotebook = async () => {
-  const name = newName.value.trim() || "Notizbuch";
+  const name = newName.value.trim() || t("defaultName");
   const id = await notebookStore.createNotebookAsync(name, newTemplate.value, newColor.value);
   if (id) {
     showNewDialog.value = false;
@@ -249,6 +249,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
 
 <i18n lang="yaml">
 de:
+  defaultName: Notizbuch
   newNotebook: Neues Notizbuch
   emptyState: Noch keine Notizbücher vorhanden
   createFirst: Erstelle dein erstes Notizbuch
@@ -264,6 +265,7 @@ de:
   share: Teilen
   shared: In einem Space geteilt
 en:
+  defaultName: Notebook
   newNotebook: New Notebook
   emptyState: No notebooks yet
   createFirst: Create your first notebook

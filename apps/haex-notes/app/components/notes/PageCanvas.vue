@@ -10,6 +10,7 @@ const contentCanvasEl = useTemplateRef<HTMLCanvasElement>("contentCanvasEl");
 const overlayCanvasEl = useTemplateRef<HTMLCanvasElement>("overlayCanvasEl");
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
+const { t } = useI18n();
 
 const pageSize = computed(() => {
   const doc = notebook.currentDoc;
@@ -438,13 +439,13 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         @click="notebook.addTableRow(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Zeile hinzufügen
+        {{ t("addRow") }}
       </button>
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         @click="notebook.addTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Spalte hinzufügen
+        {{ t("addColumn") }}
       </button>
       <div class="my-1 h-px bg-border" />
       <button
@@ -452,22 +453,37 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
         :class="tableContextMenu!.table.rows <= 1 ? 'opacity-30 pointer-events-none' : ''"
         @click="notebook.removeTableRow(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Zeile entfernen
+        {{ t("removeRow") }}
       </button>
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         :class="tableContextMenu!.table.columns <= 1 ? 'opacity-30 pointer-events-none' : ''"
         @click="notebook.removeTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Spalte entfernen
+        {{ t("removeColumn") }}
       </button>
       <div class="my-1 h-px bg-border" />
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
         @click="notebook.removeTable(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Tabelle löschen
+        {{ t("deleteTable") }}
       </button>
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  addRow: Zeile hinzufügen
+  addColumn: Spalte hinzufügen
+  removeRow: Zeile entfernen
+  removeColumn: Spalte entfernen
+  deleteTable: Tabelle löschen
+en:
+  addRow: Add row
+  addColumn: Add column
+  removeRow: Remove row
+  removeColumn: Remove column
+  deleteTable: Delete table
+</i18n>

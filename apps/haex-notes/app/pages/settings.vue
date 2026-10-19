@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft } from "@lucide/vue";
+import packageJson from "../../package.json";
 
 const { t, locale, setLocale } = useI18n();
 const router = useRouter();
@@ -84,7 +85,7 @@ const onMaxSlotsChange = (val: number) => {
         <!-- About -->
         <div class="rounded-xl border border-border p-4">
           <h2 class="mb-2 text-sm font-semibold text-foreground">{{ t("about") }}</h2>
-          <p class="text-xs text-muted-foreground">haex-notes v0.1.0</p>
+          <p class="text-xs text-muted-foreground">haex-notes v{{ packageJson.version }}</p>
           <p class="text-xs text-muted-foreground">{{ t("aboutDesc") }}</p>
         </div>
 
