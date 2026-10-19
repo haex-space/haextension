@@ -105,6 +105,7 @@
 <script setup lang="ts">
 import { Loader2 } from "@lucide/vue";
 import type { CaldavCalendarInfo, CaldavDiscoveryResult } from "~/lib/caldav";
+import { getErrorMessage } from "~/lib/errors";
 import { calendars, type InsertCalendar } from "~/database/schemas";
 
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -223,7 +224,7 @@ async function handleSubscribe() {
     isOpen.value = false;
   } catch (err) {
     console.error("[haex-calendar] CalDAV subscribe failed:", err);
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = getErrorMessage(err);
     errorMessage.value = `${t("errors.subscribe")} (${detail})`;
   } finally {
     isProcessing.value = false;
