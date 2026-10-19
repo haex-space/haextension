@@ -1,7 +1,7 @@
 import getStroke from "perfect-freehand";
 import type { StrokeData } from "~/database/schemas";
 import type { BrushPreset } from "~/types";
-import { getCenterline, getStrokeColor, getSvgPathFromStroke, seededRandom } from "./strokeHelpers";
+import { getStrokeColor, getSvgPathFromStroke, seededRandom } from "./strokeHelpers";
 
 export function renderFillStroke(ctx: CanvasRenderingContext2D, stroke: StrokeData, preset: BrushPreset) {
   const hasPressure = stroke.points.some(p => p[2] !== 0.5);
@@ -25,7 +25,7 @@ export function renderFillStroke(ctx: CanvasRenderingContext2D, stroke: StrokeDa
 }
 
 export function renderLineStroke(ctx: CanvasRenderingContext2D, stroke: StrokeData, preset: BrushPreset) {
-  const pts = getCenterline(stroke.points);
+  const pts = stroke.points;
   if (pts.length < 2) return;
 
   ctx.save();
@@ -46,7 +46,7 @@ export function renderLineStroke(ctx: CanvasRenderingContext2D, stroke: StrokeDa
 }
 
 export function renderDashedStroke(ctx: CanvasRenderingContext2D, stroke: StrokeData, preset: BrushPreset) {
-  const pts = getCenterline(stroke.points);
+  const pts = stroke.points;
   if (pts.length < 2) return;
 
   ctx.save();

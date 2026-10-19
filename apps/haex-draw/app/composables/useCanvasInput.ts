@@ -1,13 +1,6 @@
-import getStroke from "perfect-freehand";
 import { useEventListener } from "@vueuse/core";
-import type { StrokeData } from "~/database/schemas";
-import type { Stencil } from "~/types/stencil";
-import type { StencilShapeType } from "~/types/stencil";
 import { BRUSH_PRESETS } from "~/utils/brushPresets";
 import { isNearStencilCorner } from "~/utils/canvas/stencilHitTest";
-
-const FREEZE_CHUNK = 12;
-const FREEZE_OVERLAP = 5;
 
 /**
  * Handles all mouse/touch/pen input on the canvas.
@@ -49,8 +42,9 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   const isPlacing = ref(false);
   const placingBaseSize = ref({ w: 0, h: 0 });
 
-  // Stencil clipboard
-  const clipboardStencil = ref<Stencil | null>(null);
+  // Only one pointer drives an interaction; a second finger turns the gesture into a pinch.
+  let activePointerId: number | null = null;
+  const touchPointers = new Set<number>();
 
   const screenToWorld = (screenX: number, screenY: number) => {
     const { x: panX, y: panY, zoom } = canvas.viewport;
@@ -69,8 +63,34 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     };
   };
 
+  /** Abandons the running interaction without committing it. */
+  const cancelInteraction = () => {
+    activePointerId = null;
+    isPlacing.value = false;
+    stencilStore.placingId = null;
+    isResizing.value = false;
+    resizingId.value = null;
+    isRotating.value = false;
+    rotatingId.value = null;
+    stencilStore.draggingId = null;
+    isPanning.value = false;
+    canvas.currentStroke = null;
+    canvas.isDrawing = false;
+  };
+
   const onPointerDown = (e: PointerEvent) => {
     if (!canvasEl.value) return;
+
+    if (e.pointerType === "touch") {
+      touchPointers.add(e.pointerId);
+      // Multi-touch belongs to pinch zoom (useCanvasZoom), not to drawing or panning.
+      if (touchPointers.size > 1) {
+        cancelInteraction();
+        return;
+      }
+    }
+    if (activePointerId !== null) return;
+    activePointerId = e.pointerId;
     canvasEl.value.setPointerCapture(e.pointerId);
 
     const { screenX, screenY, pressure } = getPointerPos(e);
@@ -101,7 +121,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       if (canvas.activeTool === "pan") {
         // Check corner handles: resize + rotate simultaneously
         const selected = stencilStore.selectedId ? stencilStore.getStencil(stencilStore.selectedId) : null;
-        if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected)) {
+        if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected, canvas.viewport.zoom)) {
           isResizing.value = true;
           resizingId.value = selected.id;
           resizeStartDist.value = Math.hypot(world.x - selected.x, world.y - selected.y);
@@ -156,12 +176,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       // 3. Otherwise draw
       const activePreset = BRUSH_PRESETS.find(p => p.id === canvas.activeBrushPreset) ?? BRUSH_PRESETS[0];
 
-      canvas.resetFrozen();
-      // Compute next zIndex across strokes + stencils
-      const maxStrokeZ = canvas.strokes.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
-      const maxStencilZ = stencilStore.stencils.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
-      const nextZ = Math.max(maxStrokeZ, maxStencilZ) + 1;
-
       canvas.currentStroke = {
         id: crypto.randomUUID(),
         points: [[world.x, world.y, pressure]],
@@ -170,7 +184,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
         tool: activePreset.isEraser ? "eraser" : "brush",
         brushPreset: canvas.activeBrushPreset,
         brushTip: canvas.brushTip,
-        zIndex: nextZ,
+        zIndex: stencilStore.nextZIndex(),
       };
       canvas.isDrawing = true;
 
@@ -184,6 +198,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
 
   const onPointerMove = (e: PointerEvent) => {
     if (!canvasEl.value) return;
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
 
     const { screenX, screenY, pressure } = getPointerPos(e);
     const world = screenToWorld(screenX, screenY);
@@ -297,35 +312,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       }
 
       canvas.currentStroke.points.push([drawX, drawY, pressure]);
-
-      // Progressive freeze: once we have enough new points, freeze the outline
-      // so the beginning of the stroke stops shifting.
-      const pts = canvas.currentStroke.points;
-      if (pts.length - canvas.frozenUpTo >= FREEZE_CHUNK) {
-        const preset = BRUSH_PRESETS.find(p => p.id === canvas.currentStroke!.brushPreset) ?? BRUSH_PRESETS[0];
-        const hasPressure = pts.some(p => p[2] !== 0.5);
-        const freezeEnd = pts.length - FREEZE_OVERLAP;
-        const freezePoints = pts.slice(0, freezeEnd);
-        const outlinePoints = getStroke(freezePoints, {
-          size: canvas.currentStroke.size,
-          ...preset.options,
-          simulatePressure: preset.options.simulatePressure && !hasPressure,
-          last: false,
-        });
-        if (outlinePoints.length >= 2) {
-          // Build SVG path for the frozen portion
-          const d: string[] = [];
-          const first = outlinePoints[0]!;
-          d.push(`M ${first[0]} ${first[1]}`);
-          for (let i = 1; i < outlinePoints.length; i++) {
-            const pt = outlinePoints[i]!;
-            d.push(`L ${pt[0]} ${pt[1]}`);
-          }
-          d.push("Z");
-          canvas.frozenPath = d.join(" ");
-          canvas.frozenUpTo = freezeEnd;
-        }
-      }
       return;
     }
 
@@ -336,7 +322,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Update cursor
     if (canvas.activeTool === "pan") {
       const selected = stencilStore.selectedId ? stencilStore.getStencil(stencilStore.selectedId) : null;
-      if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected)) {
+      if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected, canvas.viewport.zoom)) {
         canvasEl.value!.style.cursor = "crosshair";
       } else if (hit && !hit.pinned) {
         canvasEl.value!.style.cursor = "move";
@@ -348,7 +334,20 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     }
   };
 
-  const onPointerUp = (_e: PointerEvent) => {
+  const releaseTouch = (e: PointerEvent) => {
+    if (e.pointerType === "touch") touchPointers.delete(e.pointerId);
+  };
+
+  const onPointerCancel = (e: PointerEvent) => {
+    releaseTouch(e);
+    if (e.pointerId === activePointerId) cancelInteraction();
+  };
+
+  const onPointerUp = (e: PointerEvent) => {
+    releaseTouch(e);
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+
     if (isPlacing.value) {
       isPlacing.value = false;
       stencilStore.placingId = null;
@@ -360,7 +359,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       resizingId.value = null;
       isRotating.value = false;
       rotatingId.value = null;
-      canvas.isDirty = true;
       return;
     }
 
@@ -383,7 +381,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       canvas.addStroke(stroke, label);
       canvas.currentStroke = null;
       canvas.isDrawing = false;
-      canvas.resetFrozen();
     }
   };
 
@@ -392,6 +389,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   useEventListener(canvasEl, "pointermove", onPointerMove);
   useEventListener(canvasEl, "pointerup", onPointerUp);
   useEventListener(canvasEl, "pointerleave", onPointerUp);
+  useEventListener(canvasEl, "pointercancel", onPointerCancel);
   useEventListener(canvasEl, "contextmenu", (e) => e.preventDefault());
   useCanvasZoom(canvasEl);
   useCanvasKeyboard({ spaceHeld, shiftHeld, constrainAngle, constrainOrigin });

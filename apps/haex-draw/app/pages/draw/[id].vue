@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import { Undo2, Redo2, History } from "@lucide/vue";
+import { toast } from "vue-sonner";
 
 const route = useRoute();
 const router = useRouter();
@@ -10,7 +11,8 @@ const haexVault = useHaexVaultStore();
 const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const paletteStore = usePaletteStore();
-const { saveAsync, loadAsync, exportPngAsync, generateThumbnailAsync } = useDrawingPersistence();
+const drawingSave = useDrawingSaveStore();
+const { loadAsync, exportPngAsync } = useDrawingPersistence();
 
 const historyVisible = ref(false);
 const cameraVisible = ref(false);
@@ -25,71 +27,60 @@ const rightPanelVisible = computed(() =>
 onMounted(async () => {
   await haexVault.initializeAsync();
   await paletteStore.loadAsync();
+  // A save of the previous page may still be running; load only what it has written.
+  await drawingSave.whenIdleAsync();
 
   const id = route.params.id as string;
+  // Always read the stored row: it may have been renamed in the overview or synced from another device.
+  const drawing = await loadAsync(id);
 
-  if (id === "new") {
-    canvas.newDrawing();
+  if (drawing) {
+    canvas.loadDrawing({
+      id: drawing.id,
+      name: drawing.name,
+      strokes: drawing.strokes,
+      viewport: drawing.viewport,
+    });
+    stencilStore.loadStencils(Array.isArray(drawing.stencils) ? drawing.stencils : []);
+  } else if (route.query.new) {
+    // Not stored until the first change
+    canvas.newDrawing(id);
     stencilStore.clear();
-  } else if (canvas.drawingId === id) {
-    // Already loaded (e.g. from store), nothing to do
   } else {
-    const drawing = await loadAsync(id);
-    if (drawing) {
-      canvas.loadDrawing({
-        id: drawing.id,
-        name: drawing.name,
-        strokes: drawing.strokes,
-        viewport: drawing.viewport,
-      });
-      if (drawing.stencils && Array.isArray(drawing.stencils)) {
-        stencilStore.loadStencils(drawing.stencils);
-      }
-    } else {
-      router.replace(localePath("/"));
-      return;
-    }
+    router.replace(localePath("/"));
+    return;
   }
 
+  await drawingSave.markSavedAsync();
   isLoaded.value = true;
 });
+
+/** Saves pending changes; never rejects, failures are reported to the user. */
+const saveAsync = async () => {
+  const error = await drawingSave.saveAsync();
+  if (!error) return;
+  console.error("[haex-draw] Saving failed:", error);
+  toast.error(t("saveFailed"), { description: error.message });
+};
 
 // Auto-save interval
 const autoSaveInterval = ref<ReturnType<typeof setInterval>>();
 
 onMounted(() => {
-  autoSaveInterval.value = setInterval(async () => {
-    if (canvas.isDirty && canvas.drawingId) {
-      try {
-        await saveAsync();
-        await generateThumbnailAsync();
-        canvas.isDirty = false;
-      } catch (e) {
-        console.error("[haex-draw] Auto-save failed:", e);
-        // TODO: show error toast
-      }
-    }
-  }, 10_000);
+  autoSaveInterval.value = setInterval(() => void saveAsync(), 10_000);
 });
 
 onUnmounted(() => {
   if (autoSaveInterval.value) clearInterval(autoSaveInterval.value);
 });
 
-// Save before leaving
-onBeforeUnmount(async () => {
-  if (canvas.isDirty && canvas.drawingId) {
-    await saveAsync();
-    await generateThumbnailAsync();
-    canvas.isDirty = false;
-  }
+// Save before leaving the page, and when the window is hidden or closed:
+// unmount hooks do not run when the host tears down the extension frame.
+onBeforeUnmount(() => void saveAsync());
+useEventListener(document, "visibilitychange", () => {
+  if (document.visibilityState === "hidden") void saveAsync();
 });
-
-const onSave = async () => {
-  await saveAsync();
-  await generateThumbnailAsync();
-  canvas.isDirty = false;
-};
+useEventListener(window, "pagehide", () => void saveAsync());
 
 const onExportPng = async () => {
   const blob = await exportPngAsync();
@@ -98,8 +89,8 @@ const onExportPng = async () => {
   const buffer = await blob.arrayBuffer();
   await haexVault.client.filesystem.saveFileAsync(new Uint8Array(buffer), {
     defaultPath: `${canvas.drawingName || "drawing"}.png`,
-    title: "Export as PNG",
-    filters: [{ name: "PNG Image", extensions: ["png"] }],
+    title: t("exportPng"),
+    filters: [{ name: t("pngImage"), extensions: ["png"] }],
   });
 };
 
@@ -107,13 +98,12 @@ const onExportPng = async () => {
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault();
-    onSave();
+    void saveAsync();
   }
 });
 
 const onDrawingNameUpdate = (name: string) => {
   canvas.drawingName = name;
-  canvas.isDirty = true;
 };
 
 // Camera & Gallery
@@ -128,38 +118,26 @@ onMounted(async () => {
   }
 });
 
-const getViewportCenter = () => {
-  const { x: panX, y: panY, zoom } = canvas.viewport;
-  const el = document.querySelector("canvas");
-  const w = el?.clientWidth ?? 800;
-  const h = el?.clientHeight ?? 600;
-  return {
-    x: (w / 2 - panX) / zoom,
-    y: (h / 2 - panY) / zoom,
-  };
-};
-
 const switchToPanAfterInsert = () => {
   canvas.activeTool = "pan";
-  canvas.isDirty = true;
 };
 
 const onCameraCapture = (dataUrl: string, width: number, height: number) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addImageStencil(dataUrl, width, height, "Camera", center.x, center.y);
   cameraVisible.value = false;
   switchToPanAfterInsert();
 };
 
 const onGallerySelect = (dataUrl: string, width: number, height: number, name: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addImageStencil(dataUrl, width, height, name, center.x, center.y);
   galleryVisible.value = false;
   switchToPanAfterInsert();
 };
 
 const onEmojiSelect = (emoji: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addEmojiStencil(emoji, center.x, center.y);
   emojiPickerVisible.value = false;
   switchToPanAfterInsert();
@@ -173,7 +151,7 @@ const onEmojiSelect = (emoji: string) => {
       :history-visible="historyVisible"
       :gallery-visible="galleryVisible"
       :gallery-thumbnail="galleryPreviewThumbnail"
-      @save="onSave"
+      @save="saveAsync"
       @export-png="onExportPng"
       @toggle-history="historyVisible = !historyVisible"
       @toggle-camera="cameraVisible = true"
@@ -261,9 +239,15 @@ de:
   undo: Rückgängig
   redo: Wiederherstellen
   history: Verlauf
+  saveFailed: Zeichnung konnte nicht gespeichert werden
+  exportPng: Als PNG exportieren
+  pngImage: PNG-Bild
 en:
   title: Draw
   undo: Undo
   redo: Redo
   history: History
+  saveFailed: Could not save the drawing
+  exportPng: Export as PNG
+  pngImage: PNG image
 </i18n>

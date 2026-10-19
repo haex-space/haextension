@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Component } from "vue";
 import {
   ChevronRight,
   Frame,
@@ -13,13 +14,15 @@ import {
   Heart,
   Hexagon,
 } from "@lucide/vue";
+import { bytesToDataUrl, imageMimeType } from "~/utils/image/dataUrl";
+import { localized } from "~/utils/localized";
 
 const { t, locale } = useI18n();
 const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const { dinPresets, geometricPresets, socialPresets, adsPresets, screenPresets } = useStencilPresets();
 
-const stencilShapeIcons: Record<string, any> = {
+const stencilShapeIcons: Record<string, Component> = {
   rectangle: RectangleHorizontal,
   circle: Circle,
   star: Star,
@@ -37,8 +40,8 @@ const importFile = async () => {
     if (!client) return;
 
     const paths = await client.filesystem.selectFile({
-      title: locale.value === "de" ? "Datei importieren" : "Import File",
-      filters: [["Bilder & SVG", ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"]]],
+      title: t("importFile"),
+      filters: [[t("imageFilter"), ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"]]],
       multiple: false,
     });
 
@@ -51,26 +54,19 @@ const importFile = async () => {
     if (ext === "svg") {
       const result = await importSvgAsync(filePath);
       if (!result) return;
-      const center = getViewportCenter();
-      stencilStore.addCustomStencil(result.svgPath, result.width, result.height, result.name, center.x, center.y);
+      const center = canvas.viewportCenter;
+      stencilStore.addCustomStencil(result.svgPath, result.viewBox, result.name, center.x, center.y);
       stencilPopoverOpen.value = false;
       return;
     }
 
     // Image → image stencil
     const data = await client.filesystem.readFile(filePath);
-    const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
-    const mime = mimeMap[ext] ?? "image/png";
-
-    let binary = "";
-    for (let i = 0; i < data.length; i++) {
-      binary += String.fromCharCode(data[i]!);
-    }
-    const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+    const dataUrl = bytesToDataUrl(data, imageMimeType(filePath));
 
     const img = new Image();
     img.onload = () => {
-      const center = getViewportCenter();
+      const center = canvas.viewportCenter;
       stencilStore.addImageStencil(dataUrl, img.naturalWidth, img.naturalHeight, fileName, center.x, center.y);
       stencilPopoverOpen.value = false;
     };
@@ -82,20 +78,9 @@ const importFile = async () => {
 
 const stencilPopoverOpen = ref(false);
 
-const getViewportCenter = () => {
-  const { x: panX, y: panY, zoom } = canvas.viewport;
-  const el = document.querySelector("canvas");
-  const w = el?.clientWidth ?? 800;
-  const h = el?.clientHeight ?? 600;
-  return {
-    x: (w / 2 - panX) / zoom,
-    y: (h / 2 - panY) / zoom,
-  };
-};
-
 
 const placeStencil = (presetId: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addStencil(presetId, center.x, center.y);
   canvas.lastStencilPreset = presetId;
   canvas.activeTool = "stencil";
@@ -125,7 +110,7 @@ const placeStencil = (presetId: string) => {
         </ShadcnDropdownMenuSubTrigger>
         <ShadcnDropdownMenuSubContent>
           <ShadcnDropdownMenuItem v-for="preset in dinPresets" :key="preset.id" @click="placeStencil(preset.id)">
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -136,7 +121,7 @@ const placeStencil = (presetId: string) => {
         <ShadcnDropdownMenuSubContent>
           <ShadcnDropdownMenuItem v-for="preset in geometricPresets" :key="preset.id" @click="placeStencil(preset.id)">
             <component :is="stencilShapeIcons[preset.shapeType] ?? Frame" class="mr-2 size-4" />
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -146,7 +131,7 @@ const placeStencil = (presetId: string) => {
         </ShadcnDropdownMenuSubTrigger>
         <ShadcnDropdownMenuSubContent>
           <ShadcnDropdownMenuItem v-for="preset in socialPresets" :key="preset.id" @click="placeStencil(preset.id)">
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -156,7 +141,7 @@ const placeStencil = (presetId: string) => {
         </ShadcnDropdownMenuSubTrigger>
         <ShadcnDropdownMenuSubContent>
           <ShadcnDropdownMenuItem v-for="preset in adsPresets" :key="preset.id" @click="placeStencil(preset.id)">
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -166,7 +151,7 @@ const placeStencil = (presetId: string) => {
         </ShadcnDropdownMenuSubTrigger>
         <ShadcnDropdownMenuSubContent>
           <ShadcnDropdownMenuItem v-for="preset in screenPresets" :key="preset.id" @click="placeStencil(preset.id)">
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -186,6 +171,7 @@ de:
   digitalAds: Digitale Werbung
   screens: Bildschirmgrößen
   importFile: Datei importieren
+  imageFilter: Bilder & SVG
 en:
   stencils: Stencils
   shapes: Shapes
@@ -193,4 +179,5 @@ en:
   digitalAds: Digital Ads
   screens: Screen Sizes
   importFile: Import File
+  imageFilter: Images & SVG
 </i18n>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Plus, Paintbrush } from "@lucide/vue";
 import type { SelectDrawing } from "~/database/schemas";
+import { newDrawingLocation } from "~/utils/drawingRoutes";
 
 const { t } = useI18n();
 const router = useRouter();
 const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const paletteStore = usePaletteStore();
-const { listAsync, deleteAsync, loadAsync } = useDrawingPersistence();
+const drawingSave = useDrawingSaveStore();
+const { listAsync, deleteAsync, renameAsync, duplicateAsync } = useDrawingPersistence();
 
 const drawings = ref<SelectDrawing[]>([]);
 const isLoaded = ref(false);
@@ -19,12 +21,14 @@ const loadDrawings = async () => {
 onMounted(async () => {
   await haexVault.initializeAsync();
   await paletteStore.loadAsync();
+  // The editor saves on unmount; list the drawings once that save has landed.
+  await drawingSave.whenIdleAsync();
   await loadDrawings();
   isLoaded.value = true;
 });
 
 const createNewDrawing = () => {
-  router.push(localePath("/draw/new"));
+  router.push(localePath(newDrawingLocation()));
 };
 
 const openDrawing = (id: string) => {
@@ -32,29 +36,12 @@ const openDrawing = (id: string) => {
 };
 
 const renameDrawing = async (id: string, name: string) => {
-  const db = haexVault.orm;
-  if (!db) return;
-  const { drawings: drawingsTable } = await import("~/database/schemas");
-  const { eq } = await import("drizzle-orm");
-  await db.update(drawingsTable).set({ name }).where(eq(drawingsTable.id, id));
+  await renameAsync(id, name);
   await loadDrawings();
 };
 
 const duplicateDrawing = async (id: string) => {
-  const original = await loadAsync(id);
-  if (!original) return;
-  const db = haexVault.orm;
-  if (!db) return;
-  const { drawings: drawingsTable } = await import("~/database/schemas");
-  const newId = crypto.randomUUID();
-  await db.insert(drawingsTable).values({
-    id: newId,
-    name: `${original.name} (Kopie)`,
-    strokes: original.strokes,
-    stencils: original.stencils,
-    viewport: original.viewport,
-    thumbnail: original.thumbnail,
-  });
+  await duplicateAsync(id, t("copySuffix"));
   await loadDrawings();
 };
 
@@ -156,10 +143,12 @@ de:
   createFirst: Erstelle deine erste Zeichnung
   confirmDelete: Diese Zeichnung wirklich löschen?
   delete: Löschen
+  copySuffix: (Kopie)
 en:
   newDrawing: New Drawing
   emptyState: No drawings yet
   createFirst: Create your first drawing
   confirmDelete: Really delete this drawing?
   delete: Delete
+  copySuffix: (copy)
 </i18n>

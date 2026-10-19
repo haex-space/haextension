@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ChevronRight } from "@lucide/vue";
+import { localized } from "~/utils/localized";
 
 const { t, locale } = useI18n();
 const canvas = useCanvasStore();
 const { presets, getPreset } = useBrushPresets();
 
 const activePreset = computed(() => getPreset(canvas.activeBrushPreset));
-const activePresetLabel = computed(() =>
-  locale.value === "de" ? activePreset.value.i18n.de : activePreset.value.i18n.en
-);
+const activePresetLabel = computed(() => localized(activePreset.value.i18n, locale.value));
 
 const selectPreset = (id: string) => {
   canvas.activeBrushPreset = id;
@@ -37,7 +36,7 @@ const tipLabels: Record<string, { de: string; en: string }> = {
 
 const activeTipLabel = computed(() => {
   const tip = tipLabels[canvas.brushTip];
-  return locale.value === "de" ? tip?.de : tip?.en;
+  return tip && localized(tip, locale.value);
 });
 
 const brushSizes = [2, 4, 8, 16, 32];
@@ -74,7 +73,7 @@ const brushSizes = [2, 4, 8, 16, 32];
             @click="selectPreset(preset.id)"
           >
             <DrawBrushIcon :brush-id="preset.id" :size="20" class="mr-2" />
-            {{ locale === 'de' ? preset.i18n.de : preset.i18n.en }}
+            {{ localized(preset.i18n, locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>
@@ -101,7 +100,7 @@ const brushSizes = [2, 4, 8, 16, 32];
               <ellipse v-else-if="tip === 'flat'" cx="10" cy="10" rx="7" ry="2.5" fill="currentColor" />
               <polygon v-else points="10,3 17,14 3,14" fill="currentColor" />
             </svg>
-            {{ locale === 'de' ? tipLabels[tip]?.de : tipLabels[tip]?.en }}
+            {{ tipLabels[tip] && localized(tipLabels[tip], locale) }}
           </ShadcnDropdownMenuItem>
         </ShadcnDropdownMenuSubContent>
       </ShadcnDropdownMenuSub>

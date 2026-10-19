@@ -1,28 +1,45 @@
+const stopTracks = (stream: MediaStream) => {
+  for (const track of stream.getTracks()) {
+    track.stop();
+  }
+};
+
 export function useCamera() {
   const stream = ref<MediaStream | null>(null);
   const isActive = ref(false);
   const facingMode = ref<"user" | "environment">("environment");
   const error = ref<string | null>(null);
 
+  // getUserMedia can resolve after the overlay closed or a newer start began;
+  // such a late stream must be stopped, or the camera stays on.
+  let startToken = 0;
+  let disposed = false;
+
   const startAsync = async () => {
+    const token = ++startToken;
     error.value = null;
     try {
-      stream.value = await navigator.mediaDevices.getUserMedia({
+      const started = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: facingMode.value },
         audio: false,
       });
+      if (disposed || token !== startToken) {
+        stopTracks(started);
+        return;
+      }
+      stream.value = started;
       isActive.value = true;
-    } catch (e: any) {
-      error.value = e.name === "NotAllowedError" ? "permission-denied" : "unavailable";
+    } catch (e) {
+      if (token !== startToken) return;
+      error.value = e instanceof DOMException && e.name === "NotAllowedError" ? "permission-denied" : "unavailable";
       console.error("[useCamera] Failed to start camera:", e);
     }
   };
 
   const stop = () => {
+    startToken++;
     if (stream.value) {
-      for (const track of stream.value.getTracks()) {
-        track.stop();
-      }
+      stopTracks(stream.value);
       stream.value = null;
     }
     isActive.value = false;
@@ -30,13 +47,11 @@ export function useCamera() {
 
   const switchCamera = async () => {
     facingMode.value = facingMode.value === "user" ? "environment" : "user";
-    if (isActive.value) {
-      stop();
-      await startAsync();
-    }
+    stop();
+    await startAsync();
   };
 
-  const captureAsync = (videoEl: HTMLVideoElement): { dataUrl: string; width: number; height: number } | null => {
+  const capture = (videoEl: HTMLVideoElement): { dataUrl: string; width: number; height: number } | null => {
     if (!videoEl.videoWidth || !videoEl.videoHeight) return null;
 
     const canvas = document.createElement("canvas");
@@ -53,7 +68,10 @@ export function useCamera() {
     };
   };
 
-  onUnmounted(() => stop());
+  onUnmounted(() => {
+    disposed = true;
+    stop();
+  });
 
   return {
     stream,
@@ -63,6 +81,6 @@ export function useCamera() {
     startAsync,
     stop,
     switchCamera,
-    captureAsync,
+    capture,
   };
 }

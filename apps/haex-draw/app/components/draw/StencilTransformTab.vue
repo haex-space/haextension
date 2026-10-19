@@ -17,7 +17,6 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 
 const stencil = toRef(props, "stencil");
@@ -43,13 +42,7 @@ const sizeValue = computed({
   get: () => stencil.value ? Math.round(Math.max(stencil.value.width, stencil.value.height)) : 60,
   set: (val: number) => {
     if (!stencil.value) return;
-    const v = Math.max(10, val);
-    if (stencil.value.shapeType === "circle" || stencil.value.shapeType === "star" || stencil.value.shapeType === "hexagon") {
-      stencilStore.resizeStencil(stencil.value.id, v, v);
-    } else {
-      const ratio = stencil.value.height / stencil.value.width;
-      stencilStore.resizeStencil(stencil.value.id, v, Math.round(v * ratio));
-    }
+    stencilStore.resizeStencilToSize(stencil.value.id, val);
   },
 });
 </script>
@@ -113,16 +106,16 @@ const sizeValue = computed({
       <div>
         <label class="mb-1 block text-xs text-muted-foreground">{{ t("layer") }}</label>
         <div class="grid grid-cols-4 gap-1">
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerBottom')" @click="stencilStore.moveLayerToBottom(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerBottom')" @click="stencilStore.moveLayerToBottom(stencil!.id)">
             <ChevronsDown class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerDown')" @click="stencilStore.moveLayerDown(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerDown')" @click="stencilStore.moveLayerDown(stencil!.id)">
             <ArrowDown class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerUp')" @click="stencilStore.moveLayerUp(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerUp')" @click="stencilStore.moveLayerUp(stencil!.id)">
             <ArrowUp class="size-4" />
           </button>
-          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerTop')" @click="stencilStore.moveLayerToTop(stencil!.id); canvas.isDirty = true">
+          <button class="flex h-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent active:bg-accent/70" :title="t('layerTop')" @click="stencilStore.moveLayerToTop(stencil!.id)">
             <ChevronsUp class="size-4" />
           </button>
         </div>
@@ -145,6 +138,7 @@ en:
   rotation: Rotation
   diameter: Diameter
   size: Size
+  layer: Layer
   layerUp: Up
   layerDown: Down
   layerTop: To top

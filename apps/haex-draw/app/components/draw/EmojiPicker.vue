@@ -8,16 +8,17 @@ const emit = defineEmits<{
 }>();
 
 const pickerRef = useTemplateRef<HTMLElement>("pickerRef");
+const { currentThemeName } = storeToRefs(useUiStore());
 
 onMounted(() => {
   if (!pickerRef.value) return;
 
   const picker = new Picker({
     data,
-    onEmojiSelect: (emoji: any) => {
+    onEmojiSelect: (emoji: { native: string }) => {
       emit("select", emoji.native);
     },
-    theme: "dark",
+    theme: currentThemeName.value,
     set: "native",
     previewPosition: "none",
     skinTonePosition: "search",

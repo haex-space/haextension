@@ -18,14 +18,7 @@ export function useCanvasZoom(canvasEl: Ref<HTMLCanvasElement | null>) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const oldZoom = canvas.viewport.zoom;
-    const newZoom = Math.min(Math.max(oldZoom * zoomFactor, 0.01), 100);
-
-    // Zoom towards cursor
-    canvas.viewport.x = mouseX - (mouseX - canvas.viewport.x) * (newZoom / oldZoom);
-    canvas.viewport.y = mouseY - (mouseY - canvas.viewport.y) * (newZoom / oldZoom);
-    canvas.viewport.zoom = newZoom;
+    canvas.zoomAt(mouseX, mouseY, e.deltaY < 0 ? 1.1 : 0.9);
   };
 
   // Touch: pinch-to-zoom
@@ -67,13 +60,7 @@ export function useCanvasZoom(canvasEl: Ref<HTMLCanvasElement | null>) {
         const localX = centerX - rect.left;
         const localY = centerY - rect.top;
 
-        const scale = dist / lastPinchDist.value;
-        const oldZoom = canvas.viewport.zoom;
-        const newZoom = Math.min(Math.max(oldZoom * scale, 0.01), 100);
-
-        canvas.viewport.x = localX - (localX - canvas.viewport.x) * (newZoom / oldZoom);
-        canvas.viewport.y = localY - (localY - canvas.viewport.y) * (newZoom / oldZoom);
-        canvas.viewport.zoom = newZoom;
+        canvas.zoomAt(localX, localY, dist / lastPinchDist.value);
 
         const panDx = centerX - lastPinchCenter.value.x;
         const panDy = centerY - lastPinchCenter.value.y;

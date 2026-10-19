@@ -1,70 +1,38 @@
+import type { SvgViewBox } from "~/types/stencil";
+import { parseSvgViewBox } from "~/utils/canvas/svgStencil";
+
+interface ParsedSvg {
+  svgPath: string;
+  viewBox: SvgViewBox;
+}
+
 /**
- * Parses an SVG file, extracts all path data, normalizes it to be
- * centered at origin, and returns the combined path string + dimensions.
+ * Parses an SVG file and returns its combined path data together with the
+ * coordinate space the path is expressed in.
  */
 export function useSvgImport() {
-  /**
-   * Import SVG either from a file path (vault-sdk) or via file picker dialog.
-   * @param filePath Optional: absolute path to SVG file (reads via vault-sdk)
-   */
-  const importSvgAsync = async (filePath?: string): Promise<{ svgPath: string; width: number; height: number; name: string } | null> => {
-    if (filePath) {
-      // Read SVG via vault-sdk filesystem
-      const haexVault = useHaexVaultStore();
-      const data = await haexVault.client.filesystem.readFile(filePath);
-      const text = new TextDecoder().decode(data);
-      const result = parseSvg(text);
-      if (!result) return null;
-      const name = filePath.split("/").pop()?.replace(/\.svg$/i, "") ?? "SVG";
-      return { ...result, name };
-    }
+  const haexVault = useHaexVaultStore();
 
-    // Fallback: HTML file picker
-    return new Promise((resolve) => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = ".svg,image/svg+xml";
-
-      input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file) return resolve(null);
-
-        const text = await file.text();
-        const result = parseSvg(text);
-        if (!result) return resolve(null);
-
-        const name = file.name.replace(/\.svg$/i, "");
-        resolve({ ...result, name });
-      };
-
-      input.oncancel = () => resolve(null);
-      input.click();
-    });
+  /** Reads an SVG file through the vault filesystem and extracts its path data. */
+  const importSvgAsync = async (filePath: string): Promise<(ParsedSvg & { name: string }) | null> => {
+    const data = await haexVault.client.filesystem.readFile(filePath);
+    const result = parseSvg(new TextDecoder().decode(data));
+    if (!result) return null;
+    const name = filePath.split("/").pop()?.replace(/\.svg$/i, "") ?? "SVG";
+    return { ...result, name };
   };
 
   return { importSvgAsync };
 }
 
-function parseSvg(svgText: string): { svgPath: string; width: number; height: number } | null {
+function parseSvg(svgText: string): ParsedSvg | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
   const svg = doc.querySelector("svg");
   if (!svg) return null;
 
-  // Get viewBox or width/height for coordinate space
-  const viewBox = svg.getAttribute("viewBox");
-  let svgWidth = parseFloat(svg.getAttribute("width") ?? "0");
-  let svgHeight = parseFloat(svg.getAttribute("height") ?? "0");
-
-  if (viewBox) {
-    const parts = viewBox.split(/[\s,]+/).map(Number);
-    if (parts.length === 4) {
-      svgWidth = parts[2] ?? svgWidth;
-      svgHeight = parts[3] ?? svgHeight;
-    }
-  }
-
-  if (!svgWidth || !svgHeight) return null;
+  const viewBox = parseSvgViewBox(svg.getAttribute("viewBox"), svg.getAttribute("width"), svg.getAttribute("height"));
+  if (!viewBox) return null;
 
   // Collect all path data
   const pathSegments: string[] = [];
@@ -122,37 +90,6 @@ function parseSvg(svgText: string): { svgPath: string; width: number; height: nu
 
   if (pathSegments.length === 0) return null;
 
-  // Combine all paths and normalize to center at origin
-  // Scale to fit within a reasonable size (use SVG dimensions)
-  const combinedPath = pathSegments.join(" ");
-
-  // Transform: shift by -svgWidth/2, -svgHeight/2 to center at origin
-  // We prepend a transform using SVG path commands isn't possible directly,
-  // so we use a matrix transform approach via Path2D + canvas
-  const normalizedPath = normalizePath(combinedPath, svgWidth, svgHeight);
-
-  return {
-    svgPath: normalizedPath,
-    width: Math.round(svgWidth),
-    height: Math.round(svgHeight),
-  };
-}
-
-/**
- * Takes SVG path data in its original coordinate space and returns
- * path data centered at (0,0) by applying a translate transform.
- * Uses a temporary canvas to re-serialize the path.
- */
-function normalizePath(pathData: string, width: number, height: number): string {
-  // We can't easily transform SVG path strings directly.
-  // Instead, we create a DOMMatrix-transformed path and return the original
-  // path data with an M-offset approach.
-  //
-  // Since Path2D doesn't expose path data back, we store the original path
-  // and apply the centering transform at render time via ctx.translate.
-  // The path data stays in its original SVG coordinate space (0,0 = top-left).
-  //
-  // At render time, getStencilClipPath will translate by (-width/2, -height/2)
-  // before using the path, so the stencil center aligns with (0,0).
-  return pathData;
+  // The path stays in SVG coordinates; getStencilClipPath maps the view box onto the stencil.
+  return { svgPath: pathSegments.join(" "), viewBox };
 }

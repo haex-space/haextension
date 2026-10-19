@@ -18,6 +18,24 @@ export const useCanvasStore = defineStore("canvas", () => {
 
   // Viewport (pan/zoom)
   const viewport = ref<ViewportState>({ x: 0, y: 0, zoom: 1 });
+  /** Size of the canvas element in CSS pixels, published by the canvas component */
+  const viewSize = ref({ width: 0, height: 0 });
+
+  /** World point at the centre of the visible canvas, where inserted items are placed. */
+  const viewportCenter = computed(() => ({
+    x: (viewSize.value.width / 2 - viewport.value.x) / viewport.value.zoom,
+    y: (viewSize.value.height / 2 - viewport.value.y) / viewport.value.zoom,
+  }));
+
+  /** Zooms by `factor` while the screen point (screenX, screenY) stays in place. */
+  const zoomAt = (screenX: number, screenY: number, factor: number) => {
+    const oldZoom = viewport.value.zoom;
+    const newZoom = Math.min(Math.max(oldZoom * factor, 0.01), 100);
+    const ratio = newZoom / oldZoom;
+    viewport.value.x = screenX - (screenX - viewport.value.x) * ratio;
+    viewport.value.y = screenY - (screenY - viewport.value.y) * ratio;
+    viewport.value.zoom = newZoom;
+  };
 
   // Tool state
   const activeTool = ref<Tool>("pan");
@@ -30,18 +48,6 @@ export const useCanvasStore = defineStore("canvas", () => {
   // Drawing state
   const isDrawing = ref(false);
   const currentStroke = ref<StrokeData | null>(null);
-  const isDirty = ref(false);
-
-  // Progressive rendering: frozen path segments for the current live stroke.
-  // Every CHUNK points, the outline up to that point is frozen so the
-  // beginning of the stroke stops changing.
-  const frozenPath = ref<string | null>(null);
-  const frozenUpTo = ref(0);
-
-  const resetFrozen = () => {
-    frozenPath.value = null;
-    frozenUpTo.value = 0;
-  };
 
   // Active strokes = all entries up to and including historyIndex
   const strokes = computed(() =>
@@ -53,20 +59,17 @@ export const useCanvasStore = defineStore("canvas", () => {
     history.value = history.value.slice(0, historyIndex.value + 1);
     history.value.push({ stroke, label });
     historyIndex.value = history.value.length - 1;
-    isDirty.value = true;
   };
 
   const undo = () => {
     if (historyIndex.value >= 0) {
       historyIndex.value--;
-      isDirty.value = true;
     }
   };
 
   const redo = () => {
     if (historyIndex.value < history.value.length - 1) {
       historyIndex.value++;
-      isDirty.value = true;
     }
   };
 
@@ -86,7 +89,7 @@ export const useCanvasStore = defineStore("canvas", () => {
     drawingId.value = drawing.id;
     drawingName.value = drawing.name;
     // Rebuild history from strokes (no preset label info, use tool name)
-    history.value = drawing.strokes.map((s, i) => ({
+    history.value = drawing.strokes.map((s) => ({
       stroke: s,
       label: s.brushPreset ?? s.tool,
     }));
@@ -94,8 +97,8 @@ export const useCanvasStore = defineStore("canvas", () => {
     viewport.value = drawing.viewport;
   };
 
-  const newDrawing = () => {
-    drawingId.value = crypto.randomUUID();
+  const newDrawing = (id: string) => {
+    drawingId.value = id;
     drawingName.value = "Untitled";
     history.value = [];
     historyIndex.value = -1;
@@ -109,6 +112,9 @@ export const useCanvasStore = defineStore("canvas", () => {
     historyIndex,
     strokes,
     viewport,
+    viewSize,
+    viewportCenter,
+    zoomAt,
     activeTool,
     activeBrushPreset,
     brushColor,
@@ -116,11 +122,7 @@ export const useCanvasStore = defineStore("canvas", () => {
     brushTip,
     lastStencilPreset,
     isDrawing,
-    isDirty,
     currentStroke,
-    frozenPath,
-    frozenUpTo,
-    resetFrozen,
     addStroke,
     undo,
     redo,

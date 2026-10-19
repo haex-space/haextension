@@ -8,7 +8,9 @@ const tableName = (name: string) => getTableName(manifest.publicKey, packageJson
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
 };
 
 /**
@@ -97,6 +99,7 @@ export interface SerializedStencil {
   rotation: number;
   pinned: boolean;
   svgPath?: string;
+  svgViewBox?: { x: number; y: number; width: number; height: number };
   imageData?: string;
   emoji?: string;
   zIndex?: number;

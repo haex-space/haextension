@@ -14,7 +14,6 @@ import {
 import type { Stencil } from "~/types/stencil";
 
 const { t, locale } = useI18n();
-const canvas = useCanvasStore();
 const stencilStore = useStencilStore();
 const { exportStencilAsync } = useStencilExport();
 
@@ -29,23 +28,18 @@ const stencil = computed<Stencil | null>(() => {
 const isImageStencil = computed(() => stencil.value?.shapeType === "image");
 const isCropping = ref(false);
 
-function onCropApply(imageData: string, cropWidth: number, cropHeight: number) {
+function onCropApply(imageData: string, cropWidth: number, cropHeight: number, sourceWidth: number, sourceHeight: number) {
   const s = stencil.value;
   if (!s) return;
 
-  // Scale crop pixel dimensions to stencil world dimensions
-  // The image may have been scaled when placed on the canvas
-  const img = new Image();
-  img.src = s.imageData!;
-  const imgNaturalWidth = img.naturalWidth || s.width;
-  const imgNaturalHeight = img.naturalHeight || s.height;
-  const scaleX = s.width / imgNaturalWidth;
-  const scaleY = s.height / imgNaturalHeight;
+  // Scale crop pixel dimensions to stencil world dimensions;
+  // the image may have been scaled when placed on the canvas.
+  const scaleX = s.width / sourceWidth;
+  const scaleY = s.height / sourceHeight;
 
   s.imageData = imageData;
   s.width = cropWidth * scaleX;
   s.height = cropHeight * scaleY;
-  canvas.isDirty = true;
   isCropping.value = false;
 }
 
@@ -113,7 +107,7 @@ const close = () => {
         <ShadcnTabsContent value="actions" class="flex-1 overflow-hidden">
           <ShadcnScrollArea class="h-full">
             <div class="flex flex-col gap-1 p-3">
-              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil)">
+              <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="exportStencilAsync(stencil, { title: t('export'), filterName: t('pngImage') })">
                 <Download class="size-4" /> {{ t("export") }}
               </button>
               <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-accent" @click="stencilStore.copySelected()">
@@ -158,6 +152,7 @@ de:
   shape: Form
   shapes: Formen
   export: Als PNG exportieren
+  pngImage: PNG-Bild
   copy: Kopieren
   pin: Fixieren
   unpin: Lösen
@@ -171,6 +166,7 @@ en:
   shape: Shape
   shapes: Shapes
   export: Export as PNG
+  pngImage: PNG image
   copy: Copy
   pin: Pin
   unpin: Unpin
