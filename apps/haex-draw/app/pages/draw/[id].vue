@@ -118,37 +118,26 @@ onMounted(async () => {
   }
 });
 
-const getViewportCenter = () => {
-  const { x: panX, y: panY, zoom } = canvas.viewport;
-  const el = document.querySelector("canvas");
-  const w = el?.clientWidth ?? 800;
-  const h = el?.clientHeight ?? 600;
-  return {
-    x: (w / 2 - panX) / zoom,
-    y: (h / 2 - panY) / zoom,
-  };
-};
-
 const switchToPanAfterInsert = () => {
   canvas.activeTool = "pan";
 };
 
 const onCameraCapture = (dataUrl: string, width: number, height: number) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addImageStencil(dataUrl, width, height, "Camera", center.x, center.y);
   cameraVisible.value = false;
   switchToPanAfterInsert();
 };
 
 const onGallerySelect = (dataUrl: string, width: number, height: number, name: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addImageStencil(dataUrl, width, height, name, center.x, center.y);
   galleryVisible.value = false;
   switchToPanAfterInsert();
 };
 
 const onEmojiSelect = (emoji: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addEmojiStencil(emoji, center.x, center.y);
   emojiPickerVisible.value = false;
   switchToPanAfterInsert();

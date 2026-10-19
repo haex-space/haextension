@@ -1,5 +1,7 @@
+import type { SerializedStencil } from "~/database/schemas";
 import type { Stencil, SvgViewBox } from "~/types/stencil";
 import { STENCIL_PRESETS } from "~/utils/stencilPresets";
+import { fromSerializedStencil } from "~/utils/stencilSerialization";
 
 export const useStencilStore = defineStore("stencils", () => {
   const stencils = ref<Stencil[]>([]);
@@ -205,6 +207,18 @@ export const useStencilStore = defineStore("stencils", () => {
     }
   };
 
+  /** Sets the width to `size` (at least 10); round shapes stay square, others keep their aspect ratio. */
+  const resizeStencilToSize = (id: string, size: number) => {
+    const stencil = stencils.value.find((s) => s.id === id);
+    if (!stencil) return;
+    const v = Math.max(10, size);
+    if (stencil.shapeType === "circle" || stencil.shapeType === "star" || stencil.shapeType === "hexagon") {
+      resizeStencil(id, v, v);
+    } else {
+      resizeStencil(id, v, Math.round(v * (stencil.height / stencil.width)));
+    }
+  };
+
   const getStencil = (id: string) => stencils.value.find((s) => s.id === id);
 
   // Copy/Paste
@@ -292,33 +306,14 @@ export const useStencilStore = defineStore("stencils", () => {
     clipboard.value = [];
   };
 
-  const loadStencils = (serialized: any[]) => {
+  const loadStencils = (serialized: SerializedStencil[]) => {
     clear();
-    stencils.value = serialized.map((s) => ({
-      id: s.id,
-      presetId: s.presetId,
-      shapeType: s.shapeType,
-      label: s.label,
-      x: s.x,
-      y: s.y,
-      width: s.width,
-      height: s.height,
-      rotation: s.rotation ?? 0,
-      pinned: s.pinned ?? false,
-      svgPath: s.svgPath,
-      svgViewBox: s.svgViewBox,
-      imageData: s.imageData,
-      opacity: s.opacity,
-      saturation: s.saturation,
-      brightness: s.brightness,
-      contrast: s.contrast,
-      emoji: s.emoji,
-      zIndex: s.zIndex ?? 0,
-    }));
+    stencils.value = serialized.map(fromSerializedStencil);
   };
 
   return {
     stencils,
+    nextZIndex,
     hoveredId,
     selectedId,
     selectedIds,
@@ -340,6 +335,7 @@ export const useStencilStore = defineStore("stencils", () => {
     togglePin,
     changeShape,
     resizeStencil,
+    resizeStencilToSize,
     getStencil,
     clipboard,
     copySelected,

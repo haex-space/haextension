@@ -37,14 +37,8 @@ const multiSizeValue = computed({
     return allSame ? (sizes[0] ?? 60) : Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length);
   },
   set: (val: number) => {
-    const v = Math.max(10, val);
     for (const s of selectedStencils.value) {
-      if (s.shapeType === "circle" || s.shapeType === "star" || s.shapeType === "hexagon") {
-        stencilStore.resizeStencil(s.id, v, v);
-      } else {
-        const ratio = s.height / s.width;
-        stencilStore.resizeStencil(s.id, v, Math.round(v * ratio));
-      }
+      stencilStore.resizeStencilToSize(s.id, val);
     }
   },
 });

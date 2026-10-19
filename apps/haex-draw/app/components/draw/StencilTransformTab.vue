@@ -42,13 +42,7 @@ const sizeValue = computed({
   get: () => stencil.value ? Math.round(Math.max(stencil.value.width, stencil.value.height)) : 60,
   set: (val: number) => {
     if (!stencil.value) return;
-    const v = Math.max(10, val);
-    if (stencil.value.shapeType === "circle" || stencil.value.shapeType === "star" || stencil.value.shapeType === "hexagon") {
-      stencilStore.resizeStencil(stencil.value.id, v, v);
-    } else {
-      const ratio = stencil.value.height / stencil.value.width;
-      stencilStore.resizeStencil(stencil.value.id, v, Math.round(v * ratio));
-    }
+    stencilStore.resizeStencilToSize(stencil.value.id, val);
   },
 });
 </script>

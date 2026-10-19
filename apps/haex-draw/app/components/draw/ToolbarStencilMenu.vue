@@ -13,6 +13,7 @@ import {
   Heart,
   Hexagon,
 } from "@lucide/vue";
+import { bytesToDataUrl, imageMimeType } from "~/utils/image/dataUrl";
 import { localized } from "~/utils/localized";
 
 const { t, locale } = useI18n();
@@ -52,7 +53,7 @@ const importFile = async () => {
     if (ext === "svg") {
       const result = await importSvgAsync(filePath);
       if (!result) return;
-      const center = getViewportCenter();
+      const center = canvas.viewportCenter;
       stencilStore.addCustomStencil(result.svgPath, result.viewBox, result.name, center.x, center.y);
       stencilPopoverOpen.value = false;
       return;
@@ -60,18 +61,11 @@ const importFile = async () => {
 
     // Image → image stencil
     const data = await client.filesystem.readFile(filePath);
-    const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
-    const mime = mimeMap[ext] ?? "image/png";
-
-    let binary = "";
-    for (let i = 0; i < data.length; i++) {
-      binary += String.fromCharCode(data[i]!);
-    }
-    const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+    const dataUrl = bytesToDataUrl(data, imageMimeType(filePath));
 
     const img = new Image();
     img.onload = () => {
-      const center = getViewportCenter();
+      const center = canvas.viewportCenter;
       stencilStore.addImageStencil(dataUrl, img.naturalWidth, img.naturalHeight, fileName, center.x, center.y);
       stencilPopoverOpen.value = false;
     };
@@ -83,20 +77,9 @@ const importFile = async () => {
 
 const stencilPopoverOpen = ref(false);
 
-const getViewportCenter = () => {
-  const { x: panX, y: panY, zoom } = canvas.viewport;
-  const el = document.querySelector("canvas");
-  const w = el?.clientWidth ?? 800;
-  const h = el?.clientHeight ?? 600;
-  return {
-    x: (w / 2 - panX) / zoom,
-    y: (h / 2 - panY) / zoom,
-  };
-};
-
 
 const placeStencil = (presetId: string) => {
-  const center = getViewportCenter();
+  const center = canvas.viewportCenter;
   stencilStore.addStencil(presetId, center.x, center.y);
   canvas.lastStencilPreset = presetId;
   canvas.activeTool = "stencil";

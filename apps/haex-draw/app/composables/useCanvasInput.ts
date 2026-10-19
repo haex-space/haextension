@@ -182,11 +182,6 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       // 3. Otherwise draw
       const activePreset = BRUSH_PRESETS.find(p => p.id === canvas.activeBrushPreset) ?? BRUSH_PRESETS[0];
 
-      // Compute next zIndex across strokes + stencils
-      const maxStrokeZ = canvas.strokes.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
-      const maxStencilZ = stencilStore.stencils.reduce((max, s) => Math.max(max, s.zIndex ?? 0), 0);
-      const nextZ = Math.max(maxStrokeZ, maxStencilZ) + 1;
-
       canvas.currentStroke = {
         id: crypto.randomUUID(),
         points: [[world.x, world.y, pressure]],
@@ -195,7 +190,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
         tool: activePreset.isEraser ? "eraser" : "brush",
         brushPreset: canvas.activeBrushPreset,
         brushTip: canvas.brushTip,
-        zIndex: nextZ,
+        zIndex: stencilStore.nextZIndex(),
       };
       canvas.isDrawing = true;
 

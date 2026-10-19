@@ -1,4 +1,5 @@
 import type { DirEntry } from "@haex-space/vault-sdk";
+import { bytesToDataUrl, imageMimeType } from "~/utils/image/dataUrl";
 
 export interface ImageEntry {
   path: string;
@@ -27,15 +28,6 @@ export function useImageGallery() {
 
   // Simple LRU cache: Map preserves insertion order, we delete oldest when full
   const thumbnailCache = new Map<string, string>();
-
-  const getMimeType = (path: string): string => {
-    const ext = getExtension(path.split("/").pop() ?? "");
-    const mimeMap: Record<string, string> = {
-      png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-      webp: "image/webp", gif: "image/gif", bmp: "image/bmp",
-    };
-    return mimeMap[ext] ?? "image/png";
-  };
 
   const scanDirRecursive = async (
     dirPath: string,
@@ -121,14 +113,7 @@ export function useImageGallery() {
 
     try {
       const data = await haexVault.client.filesystem.readFile(path);
-      const mime = getMimeType(path);
-
-      // Convert to base64
-      let binary = "";
-      for (let i = 0; i < data.length; i++) {
-        binary += String.fromCharCode(data[i]!);
-      }
-      const fullDataUrl = `data:${mime};base64,${btoa(binary)}`;
+      const fullDataUrl = bytesToDataUrl(data, imageMimeType(path));
 
       // Resize to thumbnail
       const thumbnailUrl = await resizeToThumbnail(fullDataUrl);
@@ -153,13 +138,7 @@ export function useImageGallery() {
   const loadFullImageAsync = async (path: string): Promise<{ dataUrl: string; width: number; height: number } | null> => {
     try {
       const data = await haexVault.client.filesystem.readFile(path);
-      const mime = getMimeType(path);
-
-      let binary = "";
-      for (let i = 0; i < data.length; i++) {
-        binary += String.fromCharCode(data[i]!);
-      }
-      const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+      const dataUrl = bytesToDataUrl(data, imageMimeType(path));
 
       return new Promise((resolve) => {
         const img = new Image();

@@ -21,6 +21,12 @@ export const useCanvasStore = defineStore("canvas", () => {
   /** Size of the canvas element in CSS pixels, published by the canvas component */
   const viewSize = ref({ width: 0, height: 0 });
 
+  /** World point at the centre of the visible canvas, where inserted items are placed. */
+  const viewportCenter = computed(() => ({
+    x: (viewSize.value.width / 2 - viewport.value.x) / viewport.value.zoom,
+    y: (viewSize.value.height / 2 - viewport.value.y) / viewport.value.zoom,
+  }));
+
   /** Zooms by `factor` while the screen point (screenX, screenY) stays in place. */
   const zoomAt = (screenX: number, screenY: number, factor: number) => {
     const oldZoom = viewport.value.zoom;
@@ -107,6 +113,7 @@ export const useCanvasStore = defineStore("canvas", () => {
     strokes,
     viewport,
     viewSize,
+    viewportCenter,
     zoomAt,
     activeTool,
     activeBrushPreset,

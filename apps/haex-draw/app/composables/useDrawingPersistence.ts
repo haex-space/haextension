@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { drawings, type SelectDrawing, type StrokeData, type ViewportState } from "~/database/schemas";
 import type { Stencil } from "~/types/stencil";
 import { rasterizeSceneAsync } from "~/utils/canvas/sceneRenderer";
+import { pickPersistedStencil } from "~/utils/stencilSerialization";
 
 export interface DrawingSnapshot {
   id: string;
@@ -31,34 +32,11 @@ export function useDrawingPersistence() {
   const snapshotDrawing = (): DrawingSnapshot | null => {
     if (!canvas.drawingId) return null;
 
-    // Serialize stencils to plain objects (strip runtime state)
-    const serializedStencils = stencilStore.stencils.map((s): Stencil => ({
-      id: s.id,
-      presetId: s.presetId,
-      shapeType: s.shapeType,
-      label: s.label,
-      x: s.x,
-      y: s.y,
-      width: s.width,
-      height: s.height,
-      rotation: s.rotation,
-      pinned: s.pinned,
-      svgPath: s.svgPath,
-      svgViewBox: s.svgViewBox,
-      imageData: s.imageData,
-      emoji: s.emoji,
-      zIndex: s.zIndex,
-      opacity: s.opacity,
-      saturation: s.saturation,
-      brightness: s.brightness,
-      contrast: s.contrast,
-    }));
-
     return plainCopy({
       id: canvas.drawingId,
       name: canvas.drawingName,
       strokes: canvas.strokes,
-      stencils: serializedStencils,
+      stencils: stencilStore.stencils.map(pickPersistedStencil),
       viewport: canvas.viewport,
     });
   };
