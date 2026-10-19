@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft } from "@lucide/vue";
+import { reportError } from "~/lib/errors";
 import packageJson from "../../package.json";
 
 const { t } = useI18n();
@@ -18,7 +19,7 @@ onMounted(async () => {
 const goBack = () => router.back();
 
 const onMaxSlotsChange = (val: number) => {
-  pencilCase.setMaxSlots(val);
+  pencilCase.setMaxSlots(val).catch(reportError);
 };
 </script>
 

@@ -29,6 +29,13 @@ const saveSlotEdit = async () => {
 const cancelSlotEdit = () => {
   editingSlot.value = null;
 };
+
+const removeEditingSlot = async () => {
+  if (!editingSlot.value) return;
+  const { id } = editingSlot.value;
+  editingSlot.value = null;
+  await pencilCase.removeSlot(id);
+};
 </script>
 
 <template>
@@ -142,7 +149,7 @@ const cancelSlotEdit = () => {
     <div class="flex items-center justify-between">
       <button
         class="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-        @click="pencilCase.removeSlot(editingSlot.id); editingSlot = null"
+        @click="removeEditingSlot"
       >
         <Trash2 class="size-3.5" /> {{ t('deletePen') }}
       </button>

@@ -2,6 +2,7 @@
 import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
+import { reportError } from "~/lib/errors";
 
 const { t, locale } = useI18n();
 const router = useRouter();
@@ -75,7 +76,7 @@ const showShareDialog = computed({
   set: (v) => {
     if (!v) {
       shareNotebookId.value = null;
-      loadNotebooks(); // refresh shared badges after (un)sharing
+      loadNotebooks().catch(reportError); // refresh shared badges after (un)sharing
     }
   },
 });
