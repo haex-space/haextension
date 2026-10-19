@@ -210,11 +210,12 @@ export class BeeAwakeningScene extends Phaser.Scene {
     this.vibrateHintVisible = true
 
     // Hide after queen warms up
-    this.time.addEvent({
+    const warmCheck = this.time.addEvent({
       delay: 500,
       loop: true,
       callback: () => {
         if (this.queen.bodyTemperature > 0.5) {
+          warmCheck.remove()
           this.vibrateHintVisible = false
           this.tweens.add({
             targets: this.vibrateHint,
