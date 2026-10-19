@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { GripHorizontal } from "@lucide/vue";
 import { toast } from "vue-sonner";
-import { isPermissionDeniedError } from "@haex-space/vault-sdk";
+import { isPermissionDeniedError, type DirEntry } from "@haex-space/vault-sdk";
 import { errorMessage } from "~/lib/errors";
+import { basename } from "~/lib/path";
 import type { FileEntry, EditorTab } from "~/types";
 
 const { t } = useI18n();
@@ -137,7 +138,7 @@ const openFileFromDisk = async () => {
     if (files && files.length > 0) {
       for (const filePath of files) {
         const data = await haexVault.client.filesystem.readFile(filePath);
-        const name = filePath.split("/").pop() || filePath;
+        const name = basename(filePath);
         const content = decodeTextFile(data, name);
         if (content === null) continue;
         editorStore.openTab({
@@ -159,7 +160,7 @@ const loadDirectory = async (path: string, target: FileEntry[], depth: number) =
   workspace.isLoading = true;
   try {
     const entries = await haexVault.client.filesystem.readDir(path);
-    const sorted = entries.sort((a: any, b: any) => {
+    const sorted = entries.sort((a: DirEntry, b: DirEntry) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
@@ -168,7 +169,7 @@ const loadDirectory = async (path: string, target: FileEntry[], depth: number) =
     for (const entry of sorted) {
       target.push({
         name: entry.name,
-        path: `${path}/${entry.name}`,
+        path: entry.path,
         isDirectory: entry.isDirectory,
         isExpanded: false,
         children: entry.isDirectory ? [] : undefined,

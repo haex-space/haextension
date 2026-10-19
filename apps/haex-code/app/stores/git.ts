@@ -1,3 +1,5 @@
+import { relativePath } from "~/lib/path";
+
 export interface GitFile {
   path: string;
   status: string;
@@ -26,10 +28,8 @@ export const useGitStore = defineStore("git", () => {
   });
 
   const getFileStatus = (absolutePath: string, rootPath: string): string | null => {
-    const rel = absolutePath.startsWith(rootPath + "/")
-      ? absolutePath.slice(rootPath.length + 1)
-      : absolutePath;
-    return statusMap.value.get(rel) ?? null;
+    const rel = relativePath(rootPath, absolutePath);
+    return rel === null ? null : statusMap.value.get(rel) ?? null;
   };
 
   const refresh = async (dir: string) => {

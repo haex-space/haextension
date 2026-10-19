@@ -1,3 +1,5 @@
+import { basename } from "~/lib/path";
+
 const EXTENSION_MAP: Record<string, string> = {
   ts: "typescript",
   tsx: "typescript",
@@ -63,7 +65,7 @@ const FILENAME_MAP: Record<string, string> = {
 
 export function useLanguageDetection() {
   const detectLanguage = (filePath: string): string => {
-    const fileName = filePath.split("/").pop() || "";
+    const fileName = basename(filePath);
 
     if (FILENAME_MAP[fileName]) return FILENAME_MAP[fileName];
 
