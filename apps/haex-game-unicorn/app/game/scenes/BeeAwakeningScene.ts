@@ -6,6 +6,7 @@ import { lerpColor } from '../utils/color'
 import { DEPTH, SCENE_HEIGHT, SCENE_WIDTH, TILE_SIZE } from './bee-awakening/constants'
 import type { EarlyFlower } from './bee-awakening/constants'
 import { createEarlySpringFlowers, createEmergencePoint, createGround } from './bee-awakening/world'
+import { createHudCamera } from '../ui/hudCamera'
 
 export class BeeAwakeningScene extends Phaser.Scene {
   private queen!: BumblebeeQueen
@@ -121,7 +122,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
   private createUI() {
     // Back button — top-right, arrow pointing left with unicorn hint
-    this.createBackButton()
+    const backButton = this.createBackButton()
 
     // Temperature indicator — top-left, small thermometer visual
     this.temperatureIndicator = this.add.graphics()
@@ -155,6 +156,8 @@ export class BeeAwakeningScene extends Phaser.Scene {
     this.vibrateHint.setDepth(DEPTH.UI)
     this.vibrateHint.setAlpha(0)
     this.vibrateHint.setScale(1.5)
+
+    createHudCamera(this, [...backButton, this.temperatureIndicator, this.energyIndicator, this.vibrateHint])
   }
 
   private updateUI(_delta: number) {
@@ -454,6 +457,7 @@ export class BeeAwakeningScene extends Phaser.Scene {
     hitZone.setDepth(DEPTH.UI)
     hitZone.setInteractive({ useHandCursor: true })
     hitZone.on('pointerdown', () => this.returnToOverworld())
+    return [btn, hitZone]
   }
 
   private returnToOverworld() {

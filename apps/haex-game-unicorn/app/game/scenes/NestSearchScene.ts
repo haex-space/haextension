@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
+import { createHudCamera } from '../ui/hudCamera'
 
 const TILE_SIZE = 16
 const SCENE_WIDTH = 50
@@ -54,7 +55,7 @@ export class NestSearchScene extends Phaser.Scene {
     this.createNestCandidates()
     this.createScenery()
     this.createQueen()
-    this.createBackButton()
+    createHudCamera(this, this.createBackButton())
     this.setupCamera()
     this.setupInput()
 
@@ -381,6 +382,7 @@ export class NestSearchScene extends Phaser.Scene {
     hitZone.setDepth(DEPTH.UI)
     hitZone.setInteractive({ useHandCursor: true })
     hitZone.on('pointerdown', () => this.returnToOverworld())
+    return [btn, hitZone]
   }
 
   private returnToOverworld() {
