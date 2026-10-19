@@ -1,10 +1,15 @@
 import * as schema from "~/database/schemas";
+import { decodeMailboxName } from "~/lib/imap";
 
 /** Read/flagged state from cached IMAP flags (shared: store sort + list UI). */
 export const isMessageUnread = (msg: schema.SelectMessage) =>
   !msg.flags.some((f) => f.toLowerCase().includes("seen"));
 export const isMessageFlagged = (msg: schema.SelectMessage) =>
   msg.flags.some((f) => f.toLowerCase().includes("flagged"));
+
+/** UI label of a mailbox: the localized inbox label, otherwise the decoded name. */
+export const mailboxDisplayName = (name: string, inboxLabel: string) =>
+  name === "INBOX" ? inboxLabel : decodeMailboxName(name);
 
 export const senderText = (msg: schema.SelectMessage) =>
   msg.fromJson[0]?.name || msg.fromJson[0]?.email || "";

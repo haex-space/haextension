@@ -11,7 +11,7 @@ import {
   Settings,
   RefreshCw,
 } from "@lucide/vue";
-import { roleLabelKey } from "~/lib/mail";
+import { mailboxDisplayName, roleLabelKey } from "~/lib/mail";
 import { ALL_ACCOUNTS_ID } from "~/stores/mail";
 import type { MailboxRole } from "~/database/schemas";
 
@@ -72,7 +72,7 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
   const rows: MailboxRow[] = mailStore.mailboxes.map((m) => ({
     id: m.id,
     name: m.name,
-    displayName: m.name === "INBOX" ? tRole("mail.roles.inbox") : m.name,
+    displayName: mailboxDisplayName(m.name, tRole("mail.roles.inbox")),
     role: m.role,
     unseen: m.unseen ?? 0,
   }));
@@ -84,7 +84,7 @@ const sortedMailboxes = computed<MailboxRow[]>(() => {
     if (ai !== -1 && bi !== -1) return ai - bi;
     if (ai !== -1) return -1;
     if (bi !== -1) return 1;
-    return a.name.localeCompare(b.name);
+    return a.displayName.localeCompare(b.displayName);
   });
 });
 

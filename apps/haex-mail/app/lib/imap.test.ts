@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStatusOrdering, quoteImapString } from "./imap";
+import { createStatusOrdering, decodeMailboxName, quoteImapString } from "./imap";
 
 describe("quoteImapString", () => {
   it("wraps a plain name in double quotes", () => {
@@ -37,5 +37,30 @@ describe("createStatusOrdering", () => {
     const newer = ordering.issue();
     expect(ordering.claim("acc::INBOX", newer)).toBe(true);
     expect(ordering.claim("acc::Archive", older)).toBe(true);
+  });
+});
+
+// RFC 3501 §5.1.3 modified UTF-7.
+describe("decodeMailboxName", () => {
+  it("decodes non-ASCII runs", () => {
+    expect(decodeMailboxName("Entw&APw-rfe")).toBe("Entwürfe");
+    expect(decodeMailboxName("Gel&APY-scht")).toBe("Gelöscht");
+    expect(decodeMailboxName("~peter/mail/&U,BTFw-/&ZeVnLIqe-")).toBe("~peter/mail/台北/日本語");
+  });
+
+  it("decodes surrogate pairs", () => {
+    expect(decodeMailboxName("&2D3eAA-")).toBe("😀");
+  });
+
+  it("turns &- into a literal ampersand", () => {
+    expect(decodeMailboxName("Tom &- Jerry")).toBe("Tom & Jerry");
+  });
+
+  it("keeps plain ASCII names unchanged", () => {
+    expect(decodeMailboxName("INBOX.Sent Messages")).toBe("INBOX.Sent Messages");
+  });
+
+  it("keeps a malformed run as it is", () => {
+    expect(decodeMailboxName("a&A-b")).toBe("a&A-b");
   });
 });
