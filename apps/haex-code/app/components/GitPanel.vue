@@ -8,11 +8,17 @@ import {
   ChevronDown,
   ChevronRight,
 } from "@lucide/vue";
+import { toast } from "vue-sonner";
+import { errorMessage } from "~/lib/errors";
+import { GitCommandError } from "~/lib/gitOutput";
+import { GIT_STATUS_COLOR, GIT_STATUS_LABEL } from "~/lib/gitStatus";
+import { relativePath } from "~/lib/path";
 
 const { t } = useI18n();
 const gitStore = useGitStore();
 const workspace = useWorkspaceStore();
 const settings = useSettingsStore();
+const editorStore = useEditorStore();
 const { stage, unstage, discard: doDiscard, commit: doCommit } = useGit();
 
 const commitMessage = ref("");
@@ -20,55 +26,58 @@ const isCommitting = ref(false);
 const stagedExpanded = ref(true);
 const changesExpanded = ref(true);
 
-const statusLabel: Record<string, string> = {
-  modified: "M",
-  deleted: "D",
-  untracked: "U",
-  "staged-added": "A",
-  "staged-modified": "M",
-  "staged-deleted": "D",
-  staged: "M",
-};
-
-const statusColor: Record<string, string> = {
-  modified: "text-yellow-500",
-  deleted: "text-red-500",
-  untracked: "text-green-500",
-  "staged-added": "text-green-500",
-  "staged-modified": "text-yellow-500",
-  "staged-deleted": "text-red-500",
-  staged: "text-yellow-500",
-};
-
 const refresh = () => {
   if (workspace.rootPath) gitStore.refresh(workspace.rootPath);
 };
 
-const stageFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await stage(workspace.rootPath, path);
-  refresh();
+const reportGitError = (title: string, error: unknown) => {
+  console.error("[haex-code] Git command failed:", error);
+  const description = error instanceof GitCommandError ? error.result.output.trim() : errorMessage(error);
+  toast.error(title, { description });
 };
 
-const unstageFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await unstage(workspace.rootPath, path);
-  refresh();
-};
-
-const discardFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await doDiscard(workspace.rootPath, path);
-  refresh();
-};
-
-const stageAll = async () => {
-  if (!workspace.rootPath) return;
-  for (const f of gitStore.unstagedFiles) {
-    if (f.status !== "deleted") await stage(workspace.rootPath, f.path);
+const runGitAction = async (action: (root: string) => Promise<void>) => {
+  const root = workspace.rootPath;
+  if (!root) return;
+  try {
+    await action(root);
+  } catch (error) {
+    reportGitError(t("gitFailed"), error);
+  } finally {
+    refresh();
   }
-  refresh();
 };
+
+const stageFile = (path: string) => runGitAction((root) => stage(root, path));
+
+const unstageFile = (path: string) => runGitAction((root) => unstage(root, path));
+
+const discardFile = (path: string) =>
+  runGitAction(async (root) => {
+    await doDiscard(root, path);
+    // An open tab would otherwise still show, and later save back, the discarded changes.
+    const tab = editorStore.tabs.find((t) => relativePath(root, t.path) === path);
+    if (tab) await editorStore.reloadCleanTabAsync(tab.id);
+  });
+
+// Discarding cannot be undone, so it waits for confirmation. The target is kept apart from the
+// open state because the dialog closes itself before the confirm handler runs.
+const discardTarget = ref<string | null>(null);
+const discardDialogOpen = ref(false);
+const askToDiscard = (path: string) => {
+  discardTarget.value = path;
+  discardDialogOpen.value = true;
+};
+const confirmDiscard = () => {
+  if (discardTarget.value) void discardFile(discardTarget.value);
+};
+
+const stageAll = () =>
+  runGitAction(async (root) => {
+    for (const f of gitStore.unstagedFiles) {
+      await stage(root, f.path);
+    }
+  });
 
 const handleCommit = async () => {
   if (
@@ -81,11 +90,11 @@ const handleCommit = async () => {
   try {
     await doCommit(workspace.rootPath, commitMessage.value.trim());
     commitMessage.value = "";
-    refresh();
   } catch (e) {
-    console.error("[haex-code] Commit failed:", e);
+    reportGitError(t("commitFailed"), e);
   } finally {
     isCommitting.value = false;
+    refresh();
   }
 };
 </script>
@@ -112,7 +121,7 @@ const handleCommit = async () => {
           @click="handleCommit"
         >
           <GitCommit class="size-3" />
-          {{ isCommitting ? t('committing') : "Commit" }}
+          {{ isCommitting ? t('committing') : t('commit') }}
         </button>
         <button
           class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -136,7 +145,7 @@ const handleCommit = async () => {
         >
           <ChevronDown v-if="stagedExpanded" class="size-3" />
           <ChevronRight v-else class="size-3" />
-          Staged ({{ gitStore.stagedFiles.length }})
+          {{ t('staged') }} ({{ gitStore.stagedFiles.length }})
         </button>
 
         <template v-if="stagedExpanded">
@@ -160,13 +169,13 @@ const handleCommit = async () => {
             </span>
             <span
               class="shrink-0 font-mono text-xs"
-              :class="statusColor[file.status] ?? 'text-muted-foreground'"
+              :class="GIT_STATUS_COLOR[file.status]"
             >
-              {{ statusLabel[file.status] ?? "?" }}
+              {{ GIT_STATUS_LABEL[file.status] }}
             </span>
             <button
               class="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
-              title="Unstage"
+              :title="t('unstage')"
               @click="unstageFile(file.path)"
             >
               <Minus class="size-3" />
@@ -217,22 +226,22 @@ const handleCommit = async () => {
               v-if="file.status !== 'untracked'"
               class="shrink-0 rounded p-1 opacity-0 hover:bg-accent hover:text-destructive group-hover:opacity-100"
               :title="t('discardChanges')"
-              @click="discardFile(file.path)"
+              @click="askToDiscard(file.path)"
             >
               <RotateCcw class="size-3.5" />
             </button>
             <button
               class="shrink-0 rounded p-1 opacity-0 hover:bg-accent hover:text-green-500 group-hover:opacity-100"
-              title="Stage"
+              :title="t('stage')"
               @click="stageFile(file.path)"
             >
               <Plus class="size-3.5" />
             </button>
             <span
               class="shrink-0 font-mono text-xs"
-              :class="statusColor[file.status] ?? 'text-muted-foreground'"
+              :class="GIT_STATUS_COLOR[file.status]"
             >
-              {{ statusLabel[file.status] ?? "?" }}
+              {{ GIT_STATUS_LABEL[file.status] }}
             </span>
           </div>
 
@@ -248,24 +257,61 @@ const handleCommit = async () => {
         </template>
       </div>
     </ShadcnScrollArea>
+
+    <ShadcnAlertDialog v-model:open="discardDialogOpen">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t("discardConfirm.title") }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
+            {{ t("discardConfirm.message", { path: discardTarget ?? "" }) }}
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t("discardConfirm.cancel") }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="confirmDiscard">{{ t("discardConfirm.confirm") }}</ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 
 <i18n lang="yaml">
 de:
   commitMessage: Commit-Nachricht
+  commit: Commit
+  staged: Gestagt
+  stage: Stagen
+  unstage: Unstagen
   committing: Commit...
   refresh: Aktualisieren
   changes: Änderungen
   stageAll: Alle stagen
   discardChanges: Änderungen verwerfen
   noChanges: Keine Änderungen
+  gitFailed: Git-Befehl fehlgeschlagen
+  commitFailed: Commit fehlgeschlagen
+  discardConfirm:
+    title: Änderungen verwerfen?
+    message: "Alle nicht gestagten Änderungen an {path} gehen verloren. Das lässt sich nicht rückgängig machen."
+    cancel: Abbrechen
+    confirm: Verwerfen
 en:
   commitMessage: Commit message
+  commit: Commit
+  staged: Staged
+  stage: Stage
+  unstage: Unstage
   committing: Committing...
   refresh: Refresh
   changes: Changes
   stageAll: Stage all
   discardChanges: Discard changes
   noChanges: No changes
+  gitFailed: Git command failed
+  commitFailed: Commit failed
+  discardConfirm:
+    title: Discard changes?
+    message: "All unstaged changes to {path} will be lost. This cannot be undone."
+    cancel: Cancel
+    confirm: Discard
 </i18n>

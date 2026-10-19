@@ -7,7 +7,7 @@ import {
   Code,
   Terminal as TerminalIcon,
 } from "@lucide/vue";
-import { EDITOR_THEMES, FONT_FAMILIES, type UiScale } from "~/stores/settings";
+import { EDITOR_THEMES, FONT_FAMILIES, UI_SCALES } from "~/lib/settingsOptions";
 
 const { t } = useI18n();
 const settings = useSettingsStore();
@@ -16,18 +16,16 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const UI_SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
-
 const WORD_WRAP_OPTIONS = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "On" },
-  { value: "wordWrapColumn", label: "Column" },
+  { value: "off", label: "options.off" },
+  { value: "on", label: "options.on" },
+  { value: "wordWrapColumn", label: "options.column" },
 ] as const;
 
 const LINE_NUMBER_OPTIONS = [
-  { value: "on", label: "On" },
-  { value: "off", label: "Off" },
-  { value: "relative", label: "Relative" },
+  { value: "on", label: "options.on" },
+  { value: "off", label: "options.off" },
+  { value: "relative", label: "options.relative" },
 ] as const;
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -164,7 +162,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </ShadcnSelectTrigger>
                 <ShadcnSelectContent>
                   <ShadcnSelectItem v-for="w in WORD_WRAP_OPTIONS" :key="w.value" :value="w.value">
-                    {{ w.label }}
+                    {{ t(w.label) }}
                   </ShadcnSelectItem>
                 </ShadcnSelectContent>
               </ShadcnSelect>
@@ -176,7 +174,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 <label class="text-sm font-medium">{{ t("minimap") }}</label>
                 <p class="text-xs text-muted-foreground">{{ t("minimapDesc") }}</p>
               </div>
-              <ShadcnSwitch v-model:checked="settings.editorMinimap" />
+              <ShadcnSwitch v-model="settings.editorMinimap" />
             </div>
 
             <!-- Line Numbers -->
@@ -188,7 +186,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 </ShadcnSelectTrigger>
                 <ShadcnSelectContent>
                   <ShadcnSelectItem v-for="l in LINE_NUMBER_OPTIONS" :key="l.value" :value="l.value">
-                    {{ l.label }}
+                    {{ t(l.label) }}
                   </ShadcnSelectItem>
                 </ShadcnSelectContent>
               </ShadcnSelect>
@@ -256,6 +254,11 @@ de:
   minimap: Minimap
   minimapDesc: Code-Vorschau am rechten Rand
   lineNumbers: Zeilennummern
+  options:
+    "off": Aus
+    "on": An
+    column: Spalte
+    relative: Relativ
   terminal: Terminal
 en:
   settings: Settings
@@ -273,5 +276,10 @@ en:
   minimap: Minimap
   minimapDesc: Code preview on the right edge
   lineNumbers: Line Numbers
+  options:
+    "off": "Off"
+    "on": "On"
+    column: Column
+    relative: Relative
   terminal: Terminal
 </i18n>

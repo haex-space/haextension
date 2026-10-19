@@ -7,6 +7,8 @@ const props = defineProps<{
   activeTabId: string | null;
 }>();
 
+const { t } = useI18n();
+
 const emit = defineEmits<{
   select: [tabId: string];
   close: [tabId: string];
@@ -40,6 +42,12 @@ const onDrop = (e: DragEvent, index: number) => {
   overIndex.value = null;
 };
 
+// moveTab inserts at the target index: after the target when dragging right, before it when dragging left.
+const dropIndicatorClass = (index: number) => {
+  if (overIndex.value !== index || dragIndex.value === null || dragIndex.value === index) return "";
+  return dragIndex.value < index ? "border-r-2 border-r-primary" : "border-l-2 border-l-primary";
+};
+
 const onDragEnd = () => {
   dragIndex.value = null;
   overIndex.value = null;
@@ -59,7 +67,7 @@ const onDragEnd = () => {
             ? 'bg-card text-foreground'
             : 'bg-background text-muted-foreground hover:bg-accent',
           dragIndex === index ? 'opacity-30' : '',
-          overIndex === index && dragIndex !== index ? 'border-l-2 border-l-primary' : '',
+          dropIndicatorClass(index),
         ]"
         @click="emit('select', tab.id)"
         @dragstart="onDragStart($event, index)"
@@ -81,10 +89,17 @@ const onDragEnd = () => {
     </div>
     <button
       class="shrink-0 rounded-md p-2 text-primary hover:bg-primary/10 active:bg-primary/20"
-      title="New File"
+      :title="t('newFile')"
       @click="emit('newFile')"
     >
       <Plus class="size-4" />
     </button>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  newFile: Neue Datei
+en:
+  newFile: New File
+</i18n>

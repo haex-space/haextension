@@ -11,10 +11,6 @@ export default defineNuxtConfig({
     runtimeCompiler: false,
   },
 
-  shadcn: {
-    componentDir: "./app/components/shadcn",
-  },
-
   icon: {
     clientBundle: {
       icons: [
@@ -96,7 +92,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      debug: true,
+      debug: false,
     },
   },
 

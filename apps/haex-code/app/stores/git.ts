@@ -1,35 +1,31 @@
-export interface GitFile {
-  path: string;
-  status: string;
-}
+import { isStaged, type GitFileStatus, type GitStatus } from "~/lib/gitStatus";
+import { relativePath } from "~/lib/path";
 
 export const useGitStore = defineStore("git", () => {
   const branch = ref<string | null>(null);
   const isRepo = ref(false);
-  const files = ref<GitFile[]>([]);
+  const files = ref<GitFileStatus[]>([]);
   const isLoading = ref(false);
 
   const { isRepo: checkIsRepo, currentBranch, getStatus } = useGit();
 
   const changedCount = computed(
-    () => files.value.filter((f) => !f.status.startsWith("staged")).length
+    () => files.value.filter((f) => !isStaged(f.status)).length
   );
 
-  const stagedFiles = computed(() => files.value.filter((f) => f.status.startsWith("staged")));
-  const unstagedFiles = computed(() => files.value.filter((f) => !f.status.startsWith("staged")));
+  const stagedFiles = computed(() => files.value.filter((f) => isStaged(f.status)));
+  const unstagedFiles = computed(() => files.value.filter((f) => !isStaged(f.status)));
 
   // Quick lookup: relative path -> status
   const statusMap = computed(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, GitStatus>();
     for (const f of files.value) m.set(f.path, f.status);
     return m;
   });
 
-  const getFileStatus = (absolutePath: string, rootPath: string): string | null => {
-    const rel = absolutePath.startsWith(rootPath + "/")
-      ? absolutePath.slice(rootPath.length + 1)
-      : absolutePath;
-    return statusMap.value.get(rel) ?? null;
+  const getFileStatus = (absolutePath: string, rootPath: string): GitStatus | null => {
+    const rel = relativePath(rootPath, absolutePath);
+    return rel === null ? null : statusMap.value.get(rel) ?? null;
   };
 
   const refresh = async (dir: string) => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronRight, ChevronDown } from "@lucide/vue";
 import type { FileEntry } from "~/types";
+import { GIT_STATUS_COLOR, GIT_STATUS_LABEL } from "~/lib/gitStatus";
 
 const props = defineProps<{
   entry: FileEntry;
@@ -13,21 +14,6 @@ const gitStatus = computed(() => {
   if (!workspace.rootPath || props.entry.isDirectory) return null;
   return gitStore.getFileStatus(props.entry.path, workspace.rootPath);
 });
-
-const gitColor: Record<string, string> = {
-  modified: "text-yellow-500",
-  deleted: "text-red-500",
-  untracked: "text-green-500",
-  "staged-added": "text-green-500",
-  "staged-modified": "text-yellow-500",
-  "staged-deleted": "text-red-500",
-  staged: "text-yellow-500",
-};
-
-const gitLabel: Record<string, string> = {
-  modified: "M", deleted: "D", untracked: "U",
-  "staged-added": "A", "staged-modified": "M", "staged-deleted": "D", staged: "M",
-};
 
 const emit = defineEmits<{
   select: [entry: FileEntry];
@@ -62,9 +48,9 @@ const handleClick = () => {
         <span class="shrink-0" :class="settings.scale.iconSize" />
         <Icon :name="getFileIcon(entry.name)" :class="settings.scale.iconSize" class="shrink-0" />
       </template>
-      <span class="flex-1 truncate" :class="gitStatus ? gitColor[gitStatus] : ''">{{ entry.name }}</span>
-      <span v-if="gitStatus" class="shrink-0 font-mono text-xs" :class="gitColor[gitStatus]">
-        {{ gitLabel[gitStatus] }}
+      <span class="flex-1 truncate" :class="gitStatus ? GIT_STATUS_COLOR[gitStatus] : ''">{{ entry.name }}</span>
+      <span v-if="gitStatus" class="shrink-0 font-mono text-xs" :class="GIT_STATUS_COLOR[gitStatus]">
+        {{ GIT_STATUS_LABEL[gitStatus] }}
       </span>
     </button>
 

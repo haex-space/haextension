@@ -1,4 +1,5 @@
 import type { FileEntry } from "~/types";
+import { basename } from "~/lib/path";
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const rootPath = ref<string | null>(null);
@@ -7,7 +8,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   const workspaceName = computed(() => {
     if (!rootPath.value) return null;
-    return rootPath.value.split("/").pop() || rootPath.value;
+    return basename(rootPath.value);
   });
 
   const setRootPath = (path: string) => {

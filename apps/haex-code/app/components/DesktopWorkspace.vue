@@ -8,16 +8,15 @@ import {
   FolderOpen,
   X,
   Terminal as TerminalIcon,
-  FileCode2,
   ChevronDown as ChevronDownIcon,
   Settings,
   GitBranch,
-  GitCommit,
   FileUp,
   Menu,
 } from "@lucide/vue";
+import type { ComponentPublicInstance } from "vue";
 import type { FileEntry } from "~/types";
-import type { UiScale } from "~/stores/settings";
+import { UI_SCALES } from "~/lib/settingsOptions";
 
 defineProps<{
   shells: { name: string; path: string }[];
@@ -38,6 +37,11 @@ const sidebarVisible = defineModel<boolean>("sidebarVisible", { required: true }
 const terminalVisible = defineModel<boolean>("terminalVisible", { required: true });
 const sidebarTab = defineModel<"explorer" | "git">("sidebarTab", { required: true });
 const sidebarSize = defineModel<number>("sidebarSize", { required: true });
+const terminalHost = defineModel<HTMLElement | null>("terminalHost", { required: true });
+// The page renders the terminals once and teleports them here, so hiding the panel keeps their shells.
+const setTerminalHost = (el: Element | ComponentPublicInstance | null) => {
+  terminalHost.value = el instanceof HTMLElement ? el : null;
+};
 
 const { t } = useI18n();
 const workspace = useWorkspaceStore();
@@ -46,17 +50,16 @@ const terminalStore = useTerminalStore();
 const settings = useSettingsStore();
 const gitStore = useGitStore();
 
-const SCALES: UiScale[] = ["compact", "default", "comfortable", "spacious"];
 const cycleScale = () => {
-  const idx = SCALES.indexOf(settings.uiScale as UiScale);
-  settings.uiScale = SCALES[(idx + 1) % SCALES.length] as UiScale;
+  const idx = UI_SCALES.indexOf(settings.uiScale);
+  settings.uiScale = UI_SCALES[(idx + 1) % UI_SCALES.length]!;
 };
 
 const terminalSize = ref(30);
 </script>
 
 <template>
-  <Splitpanes class="flex-1 min-h-0" @resized="(panes: any[]) => { if (sidebarVisible && panes[0]) sidebarSize = panes[0].size }">
+  <Splitpanes class="flex-1 min-h-0" @resized="(panes: { size: number }[]) => { if (sidebarVisible && panes[0]) sidebarSize = panes[0].size }">
     <!-- Sidebar Toggle (when closed) -->
     <Pane v-if="!sidebarVisible" :size="3" :min-size="3" :max-size="3">
       <div class="flex h-full flex-col items-center border-r border-border bg-sidebar pt-3">
@@ -106,50 +109,12 @@ const terminalSize = ref(30);
           </div>
         </div>
 
-        <!-- Sidebar Tabs -->
-        <div class="flex border-b border-border">
-          <button
-            class="flex flex-1 items-center justify-center gap-1 py-2 text-xs"
-            :class="sidebarTab === 'explorer' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'"
-            @click="sidebarTab = 'explorer'"
-          >
-            <FolderOpen class="size-3.5" />
-            Explorer
-          </button>
-          <button
-            class="flex flex-1 items-center justify-center gap-1 py-2 text-xs"
-            :class="sidebarTab === 'git' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'"
-            @click="sidebarTab = 'git'"
-          >
-            <GitCommit class="size-3.5" />
-            Source Control
-            <span v-if="gitStore.files.length > 0" class="rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
-              {{ gitStore.files.length }}
-            </span>
-          </button>
-        </div>
-
-        <!-- Explorer -->
-        <ShadcnScrollArea v-if="sidebarTab === 'explorer'" class="flex-1 text-sm">
-          <template v-if="workspace.rootPath">
-            <div v-for="entry in workspace.fileTree" :key="entry.path">
-              <FileTreeNode :entry="entry" @select="emit('selectEntry', $event)" @toggle="emit('toggleEntry', $event)" />
-            </div>
-          </template>
-          <div v-else class="flex flex-col items-center gap-3 p-6 text-center text-muted-foreground">
-            <FolderOpen class="size-10 opacity-50" />
-            <p class="text-xs">{{ t("noFolder") }}</p>
-            <button
-              class="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90"
-              @click="emit('openFolder')"
-            >
-              {{ t("openFolder") }}
-            </button>
-          </div>
-        </ShadcnScrollArea>
-
-        <!-- Source Control -->
-        <GitPanel v-else-if="sidebarTab === 'git'" />
+        <ExplorerPanel
+          v-model:sidebar-tab="sidebarTab"
+          @select-entry="emit('selectEntry', $event)"
+          @toggle-entry="emit('toggleEntry', $event)"
+          @open-folder="emit('openFolder')"
+        />
       </div>
     </Pane>
 
@@ -158,39 +123,14 @@ const terminalSize = ref(30);
       <Splitpanes horizontal>
         <!-- Editor Area -->
         <Pane :min-size="20">
-          <div class="flex h-full flex-col">
-            <!-- Tab Bar -->
-            <DraggableTabBar
-              v-if="editorStore.tabs.length > 0"
-              :tabs="editorStore.tabs"
-              :active-tab-id="editorStore.activeTabId"
-              @select="editorStore.activeTabId = $event"
-              @close="emit('closeTab', $event)"
-              @reorder="(from: number, to: number) => editorStore.moveTab(from, to)"
-              @new-file="emit('newFile')"
-            />
-
-            <!-- Editor Content -->
-            <div class="flex-1">
-              <template v-if="editorStore.activeTab">
-                <MonacoEditor
-                  :tab="editorStore.activeTab"
-                  @update:content="(content) => editorStore.updateTabContent(editorStore.activeTabId!, content)"
-                  @save="emit('save')"
-                />
-              </template>
-              <div v-else class="flex h-full items-center justify-center text-muted-foreground">
-                <div class="text-center">
-                  <FileCode2 class="mx-auto mb-3 size-12 opacity-30" />
-                  <p class="text-sm">{{ t('openFileToEdit') }}</p>
-                  <div class="mt-4 space-y-1 text-xs text-muted-foreground/70">
-                    <p><kbd class="rounded bg-muted px-1.5 py-0.5">Ctrl+B</kbd> {{ t('toggleSidebar') }}</p>
-                    <p><kbd class="rounded bg-muted px-1.5 py-0.5">Ctrl+`</kbd> {{ t('toggleTerminal') }}</p>
-                  </div>
-                </div>
+          <EditorPane @close-tab="emit('closeTab', $event)" @new-file="emit('newFile')" @save="emit('save')">
+            <template #empty>
+              <div class="mt-4 space-y-1 text-xs text-muted-foreground/70">
+                <p><kbd class="rounded bg-muted px-1.5 py-0.5">Ctrl+B</kbd> {{ t('toggleSidebar') }}</p>
+                <p><kbd class="rounded bg-muted px-1.5 py-0.5">Ctrl+`</kbd> {{ t('toggleTerminal') }}</p>
               </div>
-            </div>
-          </div>
+            </template>
+          </EditorPane>
         </Pane>
 
         <!-- Terminal Area -->
@@ -233,14 +173,7 @@ const terminalSize = ref(30);
             <!-- Terminal Body: Content + Session List -->
             <div class="flex flex-1">
               <!-- Terminal Content -->
-              <div class="relative flex-1 bg-black">
-                <TerminalView
-                  v-for="tab in terminalStore.tabs"
-                  v-show="tab.id === terminalStore.activeTabId"
-                  :key="tab.id"
-                  :tab="tab"
-                />
-              </div>
+              <div :ref="setTerminalHost" class="relative flex-1 bg-black" />
 
               <!-- Terminal Session List (right sidebar) -->
               <ShadcnScrollArea v-if="terminalStore.tabs.length > 1" class="w-44 border-l border-border bg-background">
@@ -276,7 +209,7 @@ const terminalSize = ref(30);
       <button
         v-if="gitStore.isRepo && gitStore.branch"
         class="flex items-center gap-1 rounded px-1 opacity-80 hover:bg-primary-foreground/20 hover:opacity-100"
-        :title="'Branch: ' + gitStore.branch"
+        :title="t('branch', { name: gitStore.branch })"
         @click="sidebarVisible = true; sidebarTab = 'git'"
       >
         <GitBranch class="size-3" />
@@ -316,22 +249,20 @@ const terminalSize = ref(30);
 <i18n lang="yaml">
 de:
   explorer: Explorer
+  branch: "Branch: {name}"
   openFile: Datei öffnen
   openFolder: Ordner öffnen
   hideSidebar: Sidebar ausblenden
-  noFolder: Kein Ordner geöffnet
-  openFileToEdit: Datei öffnen zum Bearbeiten
   toggleSidebar: Sidebar ein-/ausblenden
   toggleTerminal: Terminal ein-/ausblenden
   terminal: Terminal
   settings: Einstellungen
 en:
   explorer: Explorer
+  branch: "Branch: {name}"
   openFile: Open File
   openFolder: Open Folder
   hideSidebar: Hide sidebar
-  noFolder: No folder opened
-  openFileToEdit: Open a file to start editing
   toggleSidebar: Toggle sidebar
   toggleTerminal: Toggle terminal
   terminal: Terminal

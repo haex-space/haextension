@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { Terminal } from "@xterm/xterm";
+import type { FitAddon } from "@xterm/addon-fit";
+import type { EventCallback, ShellExitEvent, ShellOutputEvent } from "@haex-space/vault-sdk";
 import type { TerminalTab } from "~/types";
-import type { EventCallback } from "@haex-space/vault-sdk";
 
 const props = defineProps<{
   tab: TerminalTab;
@@ -13,8 +15,21 @@ const workspace = useWorkspaceStore();
 const settings = useSettingsStore();
 
 const terminalContainer = ref<HTMLElement | null>(null);
-const terminalInstance = shallowRef<any>(null);
-const fitAddon = shallowRef<any>(null);
+const terminalInstance = shallowRef<Terminal | null>(null);
+const fitAddon = shallowRef<FitAddon | null>(null);
+
+let unmounted = false;
+const cleanups: Array<() => void> = [];
+
+const reportShellError = (error: unknown) => {
+  console.error("[haex-code] Shell request failed:", error);
+};
+
+const closeSession = (sessionId: string) => {
+  haexVault.client.shell.close(sessionId).catch(() => {
+    // The shell may have exited already.
+  });
+};
 
 const scrollbarTrack = ref<HTMLElement | null>(null);
 
@@ -26,7 +41,7 @@ const scrollbar = reactive({
   height: 100,
 });
 
-const updateScrollbar = (term: any) => {
+const updateScrollbar = (term: Terminal) => {
   if (scrollbar.dragging) return;
   const buffer = term.buffer.active;
   const totalLines = buffer.length;
@@ -92,6 +107,7 @@ const initTerminal = async () => {
   const { FitAddon } = await import("@xterm/addon-fit");
   const { WebLinksAddon } = await import("@xterm/addon-web-links");
   await import("@xterm/xterm/css/xterm.css");
+  if (unmounted || !terminalContainer.value) return;
 
   const fit = new FitAddon();
   fitAddon.value = fit;
@@ -125,23 +141,25 @@ const initTerminal = async () => {
       cols: term.cols,
       rows: term.rows,
     });
+    if (unmounted) {
+      closeSession(sessionId);
+      return;
+    }
 
-    console.log("[haex-code] Shell session created:", { sessionId, shellName });
     terminalStore.setSessionId(props.tab.id, sessionId);
     if (shellName) {
       terminalStore.renameTab(props.tab.id, shellName);
     }
 
-    // Listen for PTY output → write to xterm
-    const onOutput = ((event: any) => {
-      console.log("[haex-code] Shell output event received:", event);
+    // The SDK delivers shell events flattened ({ sessionId, data }), not in the HaexHubEvent
+    // shape that EventCallback declares.
+    const onOutput = ((event: ShellOutputEvent) => {
       if (event.sessionId === sessionId) {
         term.write(event.data);
       }
     }) as unknown as EventCallback;
 
-    const onExit = ((event: any) => {
-      console.log("[haex-code] Shell exit event received:", event);
+    const onExit = ((event: ShellExitEvent) => {
       if (event.sessionId === sessionId) {
         term.writeln(`\r\n\x1b[90m[Process exited${event.exitCode != null ? ` with code ${event.exitCode}` : ''}]\x1b[0m`);
         terminalStore.setSessionId(props.tab.id, null);
@@ -150,13 +168,20 @@ const initTerminal = async () => {
 
     haexVault.client.shell.onData(onOutput);
     haexVault.client.shell.onExit(onExit);
-    console.log("[haex-code] Shell event listeners registered for session:", sessionId);
+    cleanups.push(() => {
+      haexVault.client.shell.offData(onOutput);
+      haexVault.client.shell.offExit(onExit);
+    });
 
     // Ctrl+Shift+C → copy selection (like a real Linux terminal)
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === "C") {
         const selection = term.getSelection();
-        if (selection) navigator.clipboard.writeText(selection);
+        if (selection) {
+          navigator.clipboard.writeText(selection).catch((error: unknown) => {
+            console.error("[haex-code] Copy to clipboard failed:", error);
+          });
+        }
         return false;
       }
       return true;
@@ -164,11 +189,8 @@ const initTerminal = async () => {
 
     // Forward xterm input → PTY stdin
     term.onData((data: string) => {
-      console.log("[haex-code] xterm input:", JSON.stringify(data), "sessionId:", props.tab.sessionId);
       if (props.tab.sessionId) {
-        haexVault.client.shell.write(props.tab.sessionId, data);
-      } else {
-        console.warn("[haex-code] No sessionId, input dropped!");
+        haexVault.client.shell.write(props.tab.sessionId, data).catch(reportShellError);
       }
     });
 
@@ -180,12 +202,12 @@ const initTerminal = async () => {
     // Forward resize events → PTY resize
     term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
       if (props.tab.sessionId) {
-        haexVault.client.shell.resize(props.tab.sessionId, cols, rows);
+        haexVault.client.shell.resize(props.tab.sessionId, cols, rows).catch(reportShellError);
       }
     });
   } catch (e) {
     console.error("[haex-code] Failed to create shell session:", e);
-    term.writeln("\x1b[1;31mFailed to start shell\x1b[0m");
+    term.writeln(`\x1b[1;31m${t("shellFailed")}\x1b[0m`);
     term.writeln(`\x1b[90m${e}\x1b[0m`);
 
     const platform = haexVault.state.context?.platform;
@@ -196,11 +218,12 @@ const initTerminal = async () => {
     }
   }
 
-  // Handle container resize → fit terminal
+  if (unmounted || !terminalContainer.value) return;
   const resizeObserver = new ResizeObserver(() => {
     fit.fit();
   });
   resizeObserver.observe(terminalContainer.value);
+  cleanups.push(() => resizeObserver.disconnect());
 };
 
 onMounted(initTerminal);
@@ -217,15 +240,10 @@ watch(
   { deep: true }
 );
 
-onUnmounted(async () => {
-  // Close shell session when component is destroyed
-  if (props.tab.sessionId) {
-    try {
-      await haexVault.client.shell.close(props.tab.sessionId);
-    } catch {
-      // Session may already be closed
-    }
-  }
+onUnmounted(() => {
+  unmounted = true;
+  for (const cleanup of cleanups) cleanup();
+  if (props.tab.sessionId) closeSession(props.tab.sessionId);
   terminalInstance.value?.dispose();
 });
 </script>
@@ -265,9 +283,11 @@ onUnmounted(async () => {
 
 <i18n lang="yaml">
 de:
+  shellFailed: Shell konnte nicht gestartet werden
   termuxHint: "Tipp: Installiere Termux (F-Droid) für eine vollwertige Shell."
   androidLimited: Android bietet nur eine eingeschränkte System-Shell.
 en:
+  shellFailed: Failed to start shell
   termuxHint: "Tip: Install Termux (F-Droid) for a full-featured shell."
   androidLimited: Android only provides a limited system shell.
 </i18n>

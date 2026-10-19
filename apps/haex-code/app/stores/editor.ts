@@ -1,6 +1,9 @@
 import type { EditorTab } from "~/types";
+import { basename } from "~/lib/path";
 
 export const useEditorStore = defineStore("editor", () => {
+  const haexVault = useHaexVaultStore();
+  const { detectLanguage } = useLanguageDetection();
   const tabs = ref<EditorTab[]>([]);
   const activeTabId = ref<string | null>(null);
 
@@ -8,13 +11,14 @@ export const useEditorStore = defineStore("editor", () => {
     tabs.value.find((t) => t.id === activeTabId.value) ?? null
   );
 
-  const openTab = (tab: EditorTab) => {
-    const existing = tabs.value.find((t) => t.path === tab.path);
+  const openTab = (tab: Omit<EditorTab, "savedContent" | "isDirty">) => {
+    // Untitled tabs have no path yet and are never the same file.
+    const existing = tab.path ? tabs.value.find((t) => t.path === tab.path) : undefined;
     if (existing) {
       activeTabId.value = existing.id;
       return;
     }
-    tabs.value.push(tab);
+    tabs.value.push({ ...tab, savedContent: tab.content, isDirty: false });
     activeTabId.value = tab.id;
   };
 
@@ -33,13 +37,44 @@ export const useEditorStore = defineStore("editor", () => {
     const tab = tabs.value.find((t) => t.id === tabId);
     if (tab) {
       tab.content = content;
-      tab.isDirty = true;
+      tab.isDirty = content !== tab.savedContent;
     }
   };
 
-  const markTabClean = (tabId: string) => {
+  /**
+   * Writes the tab to its file; an untitled tab asks for a file first.
+   * Returns false when that dialog is cancelled. Throws when writing fails, so callers can keep the tab open.
+   */
+  const saveTabAsync = async (tabId: string): Promise<boolean> => {
     const tab = tabs.value.find((t) => t.id === tabId);
-    if (tab) tab.isDirty = false;
+    if (!tab) return false;
+    const content = tab.content;
+    const data = new TextEncoder().encode(content);
+    if (tab.path) {
+      await haexVault.client.filesystem.writeFile(tab.path, data);
+    } else {
+      const result = await haexVault.client.filesystem.saveFileAsync(data, { defaultPath: tab.name });
+      if (!result) return false;
+      if (!result.success) throw new Error(`Saving "${tab.name}" failed`);
+      tab.path = result.path;
+      tab.name = basename(result.path);
+      tab.language = detectLanguage(result.path);
+    }
+    tab.savedContent = content;
+    // Edits made while the write was in flight are not on disk yet.
+    tab.isDirty = tab.content !== content;
+    return true;
+  };
+
+  /** Re-reads a tab whose file changed outside the editor. A tab with unsaved edits keeps them. */
+  const reloadCleanTabAsync = async (tabId: string): Promise<void> => {
+    const tab = tabs.value.find((t) => t.id === tabId);
+    if (!tab?.path || tab.isDirty) return;
+    const data = await haexVault.client.filesystem.readFile(tab.path);
+    const content = new TextDecoder("utf-8", { fatal: true }).decode(data);
+    if (tab.isDirty) return;
+    tab.content = content;
+    tab.savedContent = content;
   };
 
   const moveTab = (fromIndex: number, toIndex: number) => {
@@ -55,7 +90,8 @@ export const useEditorStore = defineStore("editor", () => {
     openTab,
     closeTab,
     updateTabContent,
-    markTabClean,
+    saveTabAsync,
+    reloadCleanTabAsync,
     moveTab,
   };
 });
