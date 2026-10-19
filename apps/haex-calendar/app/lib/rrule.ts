@@ -204,5 +204,4 @@ export function rrulesEqual(a: string | null | undefined, b: string | null | und
 }
 
 export const FREQUENCIES = FREQ_MAP;
-export { RRule };
 export type { Options };
