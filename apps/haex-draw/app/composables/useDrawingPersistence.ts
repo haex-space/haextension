@@ -44,6 +44,7 @@ export function useDrawingPersistence() {
       rotation: s.rotation,
       pinned: s.pinned,
       svgPath: s.svgPath,
+      svgViewBox: s.svgViewBox,
       imageData: s.imageData,
       emoji: s.emoji,
       zIndex: s.zIndex,

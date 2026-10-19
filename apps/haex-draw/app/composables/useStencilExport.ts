@@ -24,7 +24,7 @@ export function useStencilExport() {
 
     await preloadStencilImagesAsync(stencilStore.stencils);
 
-    const clipPath = getStencilClipPath(s.shapeType, hw, hh, s.svgPath);
+    const clipPath = getStencilClipPath(s.shapeType, hw, hh, s.svgPath, s.svgViewBox);
 
     // Set up coordinate system: origin at stencil center, clipped to stencil shape
     ctx.translate(hw, hh);

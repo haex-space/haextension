@@ -97,6 +97,7 @@ export interface SerializedStencil {
   rotation: number;
   pinned: boolean;
   svgPath?: string;
+  svgViewBox?: { x: number; y: number; width: number; height: number };
   imageData?: string;
   emoji?: string;
   zIndex?: number;

@@ -1,4 +1,4 @@
-import type { Stencil } from "~/types/stencil";
+import type { Stencil, SvgViewBox } from "~/types/stencil";
 import { STENCIL_PRESETS } from "~/utils/stencilPresets";
 
 export const useStencilStore = defineStore("stencils", () => {
@@ -69,7 +69,7 @@ export const useStencilStore = defineStore("stencils", () => {
     return stencil;
   };
 
-  const addCustomStencil = (svgPath: string, width: number, height: number, name: string, worldX: number, worldY: number) => {
+  const addCustomStencil = (svgPath: string, svgViewBox: SvgViewBox, name: string, worldX: number, worldY: number) => {
     const stencil: Stencil = {
       id: crypto.randomUUID(),
       presetId: "custom",
@@ -77,11 +77,12 @@ export const useStencilStore = defineStore("stencils", () => {
       label: name,
       x: worldX,
       y: worldY,
-      width,
-      height,
+      width: Math.round(svgViewBox.width),
+      height: Math.round(svgViewBox.height),
       rotation: 0,
       pinned: false,
       svgPath,
+      svgViewBox,
       zIndex: nextZIndex(),
     };
 
@@ -305,6 +306,7 @@ export const useStencilStore = defineStore("stencils", () => {
       rotation: s.rotation ?? 0,
       pinned: s.pinned ?? false,
       svgPath: s.svgPath,
+      svgViewBox: s.svgViewBox,
       imageData: s.imageData,
       opacity: s.opacity,
       saturation: s.saturation,

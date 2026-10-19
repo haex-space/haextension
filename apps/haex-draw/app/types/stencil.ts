@@ -12,6 +12,14 @@ export interface StencilPreset {
   defaultHeight: number;
 }
 
+/** Coordinate space of an imported SVG path. */
+export interface SvgViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface Stencil {
   id: string;
   presetId: string;
@@ -28,6 +36,8 @@ export interface Stencil {
   pinned: boolean;
   /** SVG path data for custom shapes */
   svgPath?: string;
+  /** Coordinate space of `svgPath`; missing on custom stencils saved before it was recorded */
+  svgViewBox?: SvgViewBox;
   /** Base64 image data for image stencils */
   imageData?: string;
   /** Emoji character for emoji stencils */

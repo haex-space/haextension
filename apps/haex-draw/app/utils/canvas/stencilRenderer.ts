@@ -195,7 +195,7 @@ export function renderStencil(ctx: CanvasRenderingContext2D, stencil: Stencil, d
     }
   } else if (decoration) {
     const { hovered, selected, zoom } = decoration;
-    const clipPath = getStencilClipPath(stencil.shapeType, hw, hh, stencil.svgPath);
+    const clipPath = getStencilClipPath(stencil.shapeType, hw, hh, stencil.svgPath, stencil.svgViewBox);
 
     // Faint fill so the guide area stays visible
     ctx.save();

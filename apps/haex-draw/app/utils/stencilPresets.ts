@@ -1,4 +1,5 @@
-import type { StencilPreset } from "~/types/stencil";
+import type { StencilPreset, SvgViewBox } from "~/types/stencil";
+import { svgPathMatrix } from "~/utils/canvas/svgStencil";
 
 // DIN formats at 96 DPI (1mm ≈ 3.78px)
 const MM_TO_PX = 3.78;
@@ -200,7 +201,7 @@ export const STENCIL_PRESETS: StencilPreset[] = [
  * Returns a Path2D clip path for a given stencil shape,
  * centered at (0, 0) with the given half-width and half-height.
  */
-export function getStencilClipPath(shapeType: string, hw: number, hh: number, svgPath?: string): Path2D {
+export function getStencilClipPath(shapeType: string, hw: number, hh: number, svgPath?: string, svgViewBox?: SvgViewBox): Path2D {
   const path = new Path2D();
 
   switch (shapeType) {
@@ -209,11 +210,8 @@ export function getStencilClipPath(shapeType: string, hw: number, hh: number, sv
         path.rect(-hw, -hh, hw * 2, hh * 2);
         break;
       }
-      // SVG path data is in original coordinates (0,0 = top-left).
-      // Translate to center the shape at origin.
-      const svgP = new Path2D(svgPath);
       const centered = new Path2D();
-      centered.addPath(svgP, new DOMMatrix().translate(-hw, -hh));
+      centered.addPath(new Path2D(svgPath), new DOMMatrix(svgPathMatrix(hw, hh, svgViewBox)));
       return centered;
     }
 

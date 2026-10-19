@@ -52,7 +52,7 @@ const importFile = async () => {
       const result = await importSvgAsync(filePath);
       if (!result) return;
       const center = getViewportCenter();
-      stencilStore.addCustomStencil(result.svgPath, result.width, result.height, result.name, center.x, center.y);
+      stencilStore.addCustomStencil(result.svgPath, result.viewBox, result.name, center.x, center.y);
       stencilPopoverOpen.value = false;
       return;
     }
