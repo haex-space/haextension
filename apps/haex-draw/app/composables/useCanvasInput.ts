@@ -52,6 +52,10 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   // Stencil clipboard
   const clipboardStencil = ref<Stencil | null>(null);
 
+  // Only one pointer drives an interaction; a second finger turns the gesture into a pinch.
+  let activePointerId: number | null = null;
+  const touchPointers = new Set<number>();
+
   const screenToWorld = (screenX: number, screenY: number) => {
     const { x: panX, y: panY, zoom } = canvas.viewport;
     return {
@@ -69,8 +73,35 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     };
   };
 
+  /** Abandons the running interaction without committing it. */
+  const cancelInteraction = () => {
+    activePointerId = null;
+    isPlacing.value = false;
+    stencilStore.placingId = null;
+    isResizing.value = false;
+    resizingId.value = null;
+    isRotating.value = false;
+    rotatingId.value = null;
+    stencilStore.draggingId = null;
+    isPanning.value = false;
+    canvas.currentStroke = null;
+    canvas.isDrawing = false;
+    canvas.resetFrozen();
+  };
+
   const onPointerDown = (e: PointerEvent) => {
     if (!canvasEl.value) return;
+
+    if (e.pointerType === "touch") {
+      touchPointers.add(e.pointerId);
+      // Multi-touch belongs to pinch zoom (useCanvasZoom), not to drawing or panning.
+      if (touchPointers.size > 1) {
+        cancelInteraction();
+        return;
+      }
+    }
+    if (activePointerId !== null) return;
+    activePointerId = e.pointerId;
     canvasEl.value.setPointerCapture(e.pointerId);
 
     const { screenX, screenY, pressure } = getPointerPos(e);
@@ -184,6 +215,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
 
   const onPointerMove = (e: PointerEvent) => {
     if (!canvasEl.value) return;
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
 
     const { screenX, screenY, pressure } = getPointerPos(e);
     const world = screenToWorld(screenX, screenY);
@@ -348,7 +380,20 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     }
   };
 
-  const onPointerUp = (_e: PointerEvent) => {
+  const releaseTouch = (e: PointerEvent) => {
+    if (e.pointerType === "touch") touchPointers.delete(e.pointerId);
+  };
+
+  const onPointerCancel = (e: PointerEvent) => {
+    releaseTouch(e);
+    if (e.pointerId === activePointerId) cancelInteraction();
+  };
+
+  const onPointerUp = (e: PointerEvent) => {
+    releaseTouch(e);
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+
     if (isPlacing.value) {
       isPlacing.value = false;
       stencilStore.placingId = null;
@@ -391,6 +436,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
   useEventListener(canvasEl, "pointermove", onPointerMove);
   useEventListener(canvasEl, "pointerup", onPointerUp);
   useEventListener(canvasEl, "pointerleave", onPointerUp);
+  useEventListener(canvasEl, "pointercancel", onPointerCancel);
   useEventListener(canvasEl, "contextmenu", (e) => e.preventDefault());
   useCanvasZoom(canvasEl);
   useCanvasKeyboard({ spaceHeld, shiftHeld, constrainAngle, constrainOrigin });
