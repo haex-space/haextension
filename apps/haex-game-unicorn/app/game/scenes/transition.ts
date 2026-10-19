@@ -13,7 +13,12 @@ export function fadeToScene(
   { data, duration = 600, beforeStart }: FadeToSceneOptions = {},
 ): void {
   const camera = scene.cameras.main
-  camera.fadeOut(duration, 0, 0, 0)
+  const fade = camera.fadeEffect
+  // Every extra call would queue another start of the next scene, so only the first one counts
+  if (fade.direction && (fade.isRunning || fade.isComplete)) return
+
+  // force: a fade-in that is still running must not swallow the transition
+  camera.fade(duration, 0, 0, 0, true)
   camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
     beforeStart?.()
     scene.scene.start(key, data)

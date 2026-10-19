@@ -306,7 +306,7 @@ export class NestSearchScene extends Phaser.Scene {
 
         // Any suitable nest can be selected — tap again to choose
         candidate.sprite.setInteractive({ useHandCursor: true })
-        candidate.sprite.once('pointerdown', () => {
+        candidate.sprite.on('pointerdown', () => {
           this.selectNest(candidate)
         })
         this.inspecting = false
@@ -338,6 +338,8 @@ export class NestSearchScene extends Phaser.Scene {
   }
 
   private selectNest(candidate: NestCandidate) {
+    // Also blocks while another candidate is being inspected or a nest was already chosen
+    if (this.inspecting) return
     this.chosenNest = candidate
     this.inspecting = true
 
