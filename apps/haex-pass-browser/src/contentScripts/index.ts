@@ -1,11 +1,14 @@
 /* eslint-disable no-console */
-import { onMessage, sendMessage } from 'webext-bridge/content-script'
+import type { GetTotpResponseData, ItemEntry } from '~/logic/haexPassApi'
+import { sendMessage } from 'webext-bridge/content-script'
 import { createApp } from 'vue'
 import App from './views/App.vue'
 import { setupApp } from '~/logic/common-setup'
-import { DEFAULT_ALIASES, fillAllFields, fillField, shouldShowIconForField } from './autofill'
+import { parseItemEntries } from '~/logic/haexPassApi'
+import { DEFAULT_ALIASES, fillAllFields, isOtpField, shouldShowIconForField } from './autofill'
 import { detectInputFields, type DetectedField } from './detector'
 import { showEntryDropdown } from './entryDropdown'
+import { attachFieldIcon } from './fieldIcon'
 import { initWebAuthnBridge } from './webauthn-bridge'
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
@@ -17,7 +20,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
   // State
   let detectedFields: DetectedField[] = []
-  let matchingEntries: unknown[] = []
+  let matchingEntries: ItemEntry[] = []
 
   // Mount the Vue app for overlay UI (dropdowns, icons)
   const container = document.createElement('div')
@@ -31,22 +34,8 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   shadowDOM.appendChild(root)
   document.body.appendChild(container)
   const app = createApp(App)
-  setupApp(app)
-  const vm = app.mount(root)
-
-  // Entry type from haex-pass API
-  interface EntryWithAliases {
-    fields: Record<string, string>
-    autofillAliases?: Record<string, string[]> | null
-  }
-
-  // Expose state to Vue app
-  ;(window as unknown as { __haexPass: unknown }).__haexPass = {
-    getFields: () => detectedFields,
-    getEntries: () => matchingEntries,
-    fillField: (fieldId: string, value: string) => fillField(fieldId, value),
-    fillAllFields: (entry: EntryWithAliases) => fillAllFields(detectedFields, entry.fields, entry.autofillAliases),
-  }
+  setupApp(app, { theme: false }).catch(err => console.error('[haex-pass] Failed to set up the overlay app:', err))
+  app.mount(root)
 
   // Maps detected field types to canonical vault field keys.
   // 'text' fields pass isLoginField only when inside a login form context,
@@ -56,7 +45,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     email: 'username',
     text: 'username',
     password: 'password',
-    otp: 'otpSecret',
+    otp: 'otp',
   }
 
   // Detect input fields and request matching entries
@@ -91,14 +80,9 @@ import { initWebAuthnBridge } from './webauthn-bridge'
         fields: canonicalFields,
       }, 'background')
 
-      console.log('[haex-pass] Response from background:', response)
-
       if (response && (response as { success: boolean }).success) {
-        // Response structure: { success: true, data: { success: true, data: { entries: [...] } } }
-        // The outer wrapper is from main.ts, the inner is from haex-pass
-        const innerData = (response as { data: { data?: { entries?: unknown[] } } }).data
-        matchingEntries = innerData?.data?.entries || []
-        console.log('[haex-pass] Matching entries:', matchingEntries.length, matchingEntries)
+        matchingEntries = parseItemEntries((response as { data?: unknown }).data)
+        console.log('[haex-pass] Matching entries:', matchingEntries.length)
 
         // Inject icons if we have matches, otherwise show "Add new" button
         if (matchingEntries.length > 0) {
@@ -115,6 +99,22 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     }
   }
 
+  async function fetchTotpCode(entryId: string): Promise<string | null> {
+    try {
+      const response = await sendMessage('get-totp', { entryId }, 'background') as { success?: boolean, data?: Partial<GetTotpResponseData> }
+      return response?.success && typeof response.data?.code === 'string' ? response.data.code : null
+    } catch (err) {
+      console.error('[haex-pass] Failed to get the TOTP code:', err)
+      return null
+    }
+  }
+
+  async function fillEntry(entry: ItemEntry) {
+    const wantsCode = entry.hasTotp && detectedFields.some(field => isOtpField(field, entry.autofillAliases))
+    const otpCode = wantsCode ? await fetchTotpCode(entry.id) : null
+    fillAllFields(detectedFields, entry.fields, entry.autofillAliases, otpCode)
+  }
+
   // Inject "Add new" button when no entries exist for this page
   function injectAddNewButton() {
     // Only inject for username/password fields (primary login fields)
@@ -122,7 +122,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       const identifier = field.identifier.toLowerCase()
       // Check if field matches username or password aliases
       for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
-        if (key === 'otpSecret') continue // Skip OTP for "Add new" button
+        if (key === 'otp') continue // Skip OTP for "Add new" button
         if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
           return true
         }
@@ -133,111 +133,20 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     if (primaryFields.length === 0) return
 
     // Only inject on first field to avoid multiple buttons
-    const field = primaryFields[0]
-    const input = document.querySelector(`[data-haex-field-id="${field.id}"]`) as HTMLInputElement
-      || document.getElementById(field.element.id)
-      || document.querySelector(`[name="${field.element.name}"]`)
+    attachFieldIcon(primaryFields[0], { addNew: true, onClick: icon => void openCreateEntryForm(icon) })
+  }
 
-    if (!input || input.dataset.haexInjected) return
-
-    input.dataset.haexInjected = 'true'
-    input.dataset.haexFieldId = field.id
-
-    // Create icon container with haex-pass logo and + badge
-    const iconContainer = document.createElement('div')
-    iconContainer.className = 'haex-pass-icon haex-pass-add-new'
-    iconContainer.dataset.fieldId = field.id
-
-    const logoImg = document.createElement('img')
-    logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-    logoImg.alt = 'HaexPass'
-    logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
-    iconContainer.appendChild(logoImg)
-
-    // Add a small + badge
-    const badge = document.createElement('div')
-    badge.textContent = '+'
-    badge.style.cssText = `
-      position: absolute;
-      bottom: -2px;
-      right: -2px;
-      width: 14px;
-      height: 14px;
-      background: #10b981;
-      color: white;
-      border-radius: 50%;
-      font-size: 12px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-    `
-    iconContainer.appendChild(badge)
-
-    // Position the icon inside the input - full height, square
-    const inputStyles = window.getComputedStyle(input)
-    const inputHeight = input.offsetHeight
-
-    iconContainer.style.cssText = `
-      position: absolute;
-      right: 8px;
-      top: 8px;
-      width: ${inputHeight - 16}px;
-      height: ${inputHeight - 16}px;
-      cursor: pointer;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-sizing: border-box;
-      transition: all 0.2s;
-    `
-
-    // Wrap input if needed
-    const wrapper = document.createElement('div')
-    wrapper.style.cssText = `
-      position: relative;
-      display: inline-block;
-      width: ${inputStyles.width};
-    `
-
-    input.parentNode?.insertBefore(wrapper, input)
-    wrapper.appendChild(input)
-    wrapper.appendChild(iconContainer)
-
-    // Add padding to input to make room for icon
-    input.style.paddingRight = `${inputHeight + 4}px`
-
-    // Click handler to open popup with CreateEntryForm
-    iconContainer.addEventListener('click', async (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-
-      // Set flag in storage to show CreateEntryForm when popup opens
+  // Opens the popup on its "create entry" form
+  async function openCreateEntryForm(icon: HTMLElement) {
+    try {
       await browser.storage.local.set({ showCreateEntryForm: true })
-
-      // Request background script to open popup
-      try {
-        const response = await sendMessage('open-popup', {}, 'background')
-        if (!(response as { success: boolean }).success) {
-          showAddNewTooltip(iconContainer)
-        }
-      } catch {
-        // Fallback: show a tooltip suggesting to click the extension icon
-        showAddNewTooltip(iconContainer)
-      }
-    })
-
-    // Hover effects
-    iconContainer.addEventListener('mouseenter', () => {
-      iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
-      iconContainer.style.transform = 'scale(1.05)'
-    })
-    iconContainer.addEventListener('mouseleave', () => {
-      iconContainer.style.backgroundColor = 'transparent'
-      iconContainer.style.transform = 'scale(1)'
-    })
+      const response = await sendMessage('open-popup', {}, 'background')
+      if (!(response as { success: boolean }).success)
+        showAddNewTooltip(icon)
+    } catch {
+      // Fallback: show a tooltip suggesting to click the extension icon
+      showAddNewTooltip(icon)
+    }
   }
 
   // Show tooltip when popup can't be opened programmatically
@@ -273,95 +182,14 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
   // Inject haex-pass icons into input fields
   function injectIcons() {
-    detectedFields.forEach((field) => {
-      const input = document.querySelector(`[data-haex-field-id="${field.id}"]`) as HTMLInputElement
-        || document.getElementById(field.element.id)
-        || document.querySelector(`[name="${field.element.name}"]`)
-
-      if (!input || input.dataset.haexInjected)
-        return
-
-      // Check if we should show icon for this field
+    for (const field of detectedFields) {
       if (!shouldShowIconForField(field, matchingEntries))
-        return
-
-      input.dataset.haexInjected = 'true'
-      input.dataset.haexFieldId = field.id
-
-      // Create icon container with haex-pass logo
-      const iconContainer = document.createElement('div')
-      iconContainer.className = 'haex-pass-icon'
-      iconContainer.dataset.fieldId = field.id
-
-      const logoImg = document.createElement('img')
-      logoImg.src = browser.runtime.getURL('assets/haex-pass-logo.png')
-      logoImg.alt = 'HaexPass'
-      logoImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;'
-      iconContainer.appendChild(logoImg)
-
-      // Position the icon inside the input - full height, square
-      const inputStyles = window.getComputedStyle(input)
-      const inputHeight = input.offsetHeight
-
-      iconContainer.style.cssText = `
-        position: absolute;
-        right: 8px;
-        top: 8px;
-        width: ${inputHeight - 16}px;
-        height: ${inputHeight - 16}px;
-        cursor: pointer;
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        transition: all 0.2s;
-      `
-
-      // Wrap input if needed
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = `
-        position: relative;
-        display: inline-block;
-        width: ${inputStyles.width};
-      `
-
-      input.parentNode?.insertBefore(wrapper, input)
-      wrapper.appendChild(input)
-      wrapper.appendChild(iconContainer)
-
-      // Add padding to input to make room for icon
-      input.style.paddingRight = `${inputHeight + 4}px`
-
-      // Click handler to show dropdown
-      iconContainer.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        showEntryDropdown(field.id, iconContainer, matchingEntries, (fields, autofillAliases) => fillAllFields(detectedFields, fields, autofillAliases))
+        continue
+      attachFieldIcon(field, {
+        onClick: icon => showEntryDropdown(field.id, icon, matchingEntries, shadowDOM, entry => void fillEntry(entry)),
       })
-
-      // Hover effects
-      iconContainer.addEventListener('mouseenter', () => {
-        iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
-        iconContainer.style.transform = 'scale(1.05)'
-      })
-      iconContainer.addEventListener('mouseleave', () => {
-        iconContainer.style.backgroundColor = 'transparent'
-        iconContainer.style.transform = 'scale(1)'
-      })
-    })
+    }
   }
-
-  // Listen for messages from background
-  onMessage('page-loaded', () => {
-    console.log('[haex-pass] Page loaded, scanning for fields')
-    scanAndRequest()
-  })
-
-  onMessage('fill-field', ({ data }) => {
-    const { fieldId, value } = data as { fieldId: string, value: string }
-    fillField(fieldId, value)
-  })
 
   // Initial scan after DOM is ready
   if (document.readyState === 'complete') {

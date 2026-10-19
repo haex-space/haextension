@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import type { SupportedLocale } from '~/locales'
 import type { PasskeyPrefs } from '~/logic/settings'
-import { canExternalClientSendRequests, ExternalConnectionState } from '@haex-space/vault-sdk'
 import { PlugZap } from '@lucide/vue'
+import { useVaultConnectionState } from '~/composables/useVaultConnectionState'
 import { getLocaleSetting, setLocale, useI18n } from '~/locales'
-import {
-  MSG_CONNECT,
-  MSG_CONNECTION_STATE,
-  MSG_DISCONNECT,
-  MSG_GET_CONNECTION_STATE,
-} from '~/logic/messages'
 import {
   getAllPasskeyPrefs,
   getWebSocketPort,
@@ -27,8 +21,15 @@ const currentPort = ref<number>(19455)
 const portInput = ref<string>('19455')
 const portError = ref<string | null>(null)
 const portSaved = ref(false)
-const connectionState = ref<ExternalConnectionState>(ExternalConnectionState.DISCONNECTED)
-const isConnecting = ref(false)
+const {
+  isConnecting,
+  canSendRequests,
+  statusText,
+  statusClass,
+  refresh: fetchConnectionState,
+  connect: handleConnect,
+  disconnect: handleDisconnect,
+} = useVaultConnectionState()
 const passkeyPrefs = ref<PasskeyPrefs>({})
 
 const passkeyPrefList = computed(() => {
@@ -45,82 +46,6 @@ async function handleRemovePref(rpId: string) {
   await removePasskeyPref(rpId)
   await reloadPasskeyPrefs()
 }
-
-// Show disconnect button only when paired
-const showDisconnectButton = computed(() => canExternalClientSendRequests(connectionState.value))
-
-const statusText = computed(() => {
-  switch (connectionState.value) {
-    case ExternalConnectionState.PAIRED:
-      return t('status.connected')
-    case ExternalConnectionState.PENDING_APPROVAL:
-      return t('status.pendingApproval')
-    case ExternalConnectionState.CONNECTED:
-      return t('status.connectedNotPaired')
-    case ExternalConnectionState.CONNECTING:
-      return t('status.connecting')
-    default:
-      return t('status.disconnected')
-  }
-})
-
-const statusClass = computed(() => {
-  switch (connectionState.value) {
-    case ExternalConnectionState.PAIRED:
-      return 'text-green-500'
-    case ExternalConnectionState.PENDING_APPROVAL:
-      return 'text-orange-500'
-    case ExternalConnectionState.CONNECTED:
-      return 'text-yellow-500'
-    case ExternalConnectionState.CONNECTING:
-      return 'text-blue-500'
-    default:
-      return 'text-red-500'
-  }
-})
-
-async function fetchConnectionState() {
-  try {
-    const response = (await browser.runtime.sendMessage({
-      type: MSG_GET_CONNECTION_STATE,
-    })) as { state?: ExternalConnectionState }
-    connectionState.value = response?.state ?? ExternalConnectionState.DISCONNECTED
-  } catch {
-    connectionState.value = ExternalConnectionState.DISCONNECTED
-  }
-}
-
-async function handleDisconnect() {
-  try {
-    await browser.runtime.sendMessage({ type: MSG_DISCONNECT })
-    connectionState.value = ExternalConnectionState.DISCONNECTED
-  } catch (err) {
-    console.error('Failed to disconnect:', err)
-  }
-}
-
-async function handleConnect() {
-  isConnecting.value = true
-  try {
-    await browser.runtime.sendMessage({ type: MSG_CONNECT })
-    await fetchConnectionState()
-  } catch (err) {
-    console.error('Failed to connect:', err)
-  } finally {
-    isConnecting.value = false
-  }
-}
-
-// Listen for connection state updates
-browser.runtime.onMessage.addListener((message: unknown) => {
-  const msg = message as {
-    type?: string
-    state?: { state?: ExternalConnectionState }
-  }
-  if (msg.type === MSG_CONNECTION_STATE && msg.state?.state !== undefined) {
-    connectionState.value = msg.state.state
-  }
-})
 
 const languageOptions = computed(() => [
   { value: 'auto', label: t('settings.language.auto') },
@@ -267,7 +192,7 @@ onMounted(async () => {
               <span class="text-sm" :class="statusClass">{{ statusText }}</span>
             </div>
             <button
-              v-if="!showDisconnectButton"
+              v-if="!canSendRequests"
               class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
               :disabled="isConnecting"
               @click="handleConnect"

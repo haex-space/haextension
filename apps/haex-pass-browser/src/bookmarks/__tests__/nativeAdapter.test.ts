@@ -1,11 +1,12 @@
 import type { BookmarkNodeRow } from '../model'
-import type { NativeBookmarkNode, NativeBookmarksApi } from '../nativeAdapter'
 import type { BookmarkIdBinding, PendingBrowserOperation } from '../storage'
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
 
+import { recoverJournal } from '../journalRecovery'
 import { diffForests } from '../model'
-import { activateCollection, applyDiff, recoverJournal, seedCollectionFromNative } from '../nativeAdapter'
+import { activateCollection, applyDiff, seedCollectionFromNative } from '../nativeAdapter'
+import { chromiumTree, createFakeJournal, FakeNativeApi, findInTree, firefoxTree, row } from './nativeAdapterFixtures'
 
 // nativeAdapter.ts imports storage.ts, which auto-imports the real
 // `webextension-polyfill` (it references `browser.storage.local`) — that
@@ -15,166 +16,6 @@ vi.mock('webextension-polyfill', () => {
   const fake = createFakeBrowser()
   return { default: fake, ...fake }
 })
-
-/** Recursive lookup — `chromiumTree()` nests the real roots under a synthetic id "0". */
-function findInTree(nodes: NativeBookmarkNode[], id: string): NativeBookmarkNode | undefined {
-  for (const node of nodes) {
-    if (node.id === id)
-      return node
-    if (node.children) {
-      const found = findInTree(node.children, id)
-      if (found)
-        return found
-    }
-  }
-  return undefined
-}
-
-function cloneTree(nodes: NativeBookmarkNode[]): NativeBookmarkNode[] {
-  return nodes.map(n => ({ ...n, children: n.children ? cloneTree(n.children) : undefined }))
-}
-
-class FakeNativeApi implements NativeBookmarksApi {
-  supportsSeparators: boolean
-  roots: NativeBookmarkNode[]
-  private index = new Map<string, { node: NativeBookmarkNode, parent: NativeBookmarkNode | null }>()
-  private nextId: number
-
-  constructor(roots: NativeBookmarkNode[], opts: { supportsSeparators?: boolean, startId?: number } = {}) {
-    this.roots = roots
-    this.supportsSeparators = opts.supportsSeparators ?? false
-    this.nextId = opts.startId ?? 1000
-    this.reindex()
-  }
-
-  private reindex() {
-    this.index.clear()
-    const visit = (nodes: NativeBookmarkNode[], parent: NativeBookmarkNode | null) => {
-      for (const node of nodes) {
-        this.index.set(node.id, { node, parent })
-        if (node.children)
-          visit(node.children, node)
-      }
-    }
-    visit(this.roots, null)
-  }
-
-  async getTree() {
-    return cloneTree(this.roots)
-  }
-
-  async create(details: { parentId: string, title: string, url?: string, index: number, kind: 'folder' | 'bookmark' | 'separator' }): Promise<NativeBookmarkNode> {
-    const entry = this.index.get(details.parentId)
-    if (!entry)
-      throw new Error(`parent ${details.parentId} not found`)
-    const node: NativeBookmarkNode = {
-      id: String(this.nextId++),
-      parentId: details.parentId,
-      title: details.title,
-      url: details.kind === 'bookmark' ? details.url : undefined,
-      type: details.kind,
-      children: details.kind === 'folder' ? [] : undefined,
-    }
-    entry.node.children ??= []
-    entry.node.children.splice(details.index, 0, node)
-    this.reindex()
-    return { ...node }
-  }
-
-  async update(id: string, changes: { title?: string, url?: string }): Promise<void> {
-    const entry = this.index.get(id)
-    if (!entry)
-      throw new Error('not found')
-    if (changes.title !== undefined)
-      entry.node.title = changes.title
-    if (changes.url !== undefined)
-      entry.node.url = changes.url
-  }
-
-  async move(id: string, destination: { parentId: string, index: number }): Promise<void> {
-    const entry = this.index.get(id)
-    if (!entry)
-      throw new Error('not found')
-    const oldSiblings = entry.parent ? (entry.parent.children ?? []) : this.roots
-    const idx = oldSiblings.indexOf(entry.node)
-    if (idx >= 0)
-      oldSiblings.splice(idx, 1)
-    const newParentEntry = this.index.get(destination.parentId)
-    const newSiblings = newParentEntry ? (newParentEntry.node.children ??= []) : this.roots
-    newSiblings.splice(destination.index, 0, entry.node)
-    entry.node.parentId = destination.parentId
-    this.reindex()
-  }
-
-  async removeTree(id: string): Promise<void> {
-    const entry = this.index.get(id)
-    if (!entry)
-      return // idempotent: already gone
-    const siblings = entry.parent ? (entry.parent.children ?? []) : this.roots
-    const idx = siblings.indexOf(entry.node)
-    if (idx >= 0)
-      siblings.splice(idx, 1)
-    this.reindex()
-  }
-
-  findId(id: string) {
-    return this.index.get(id)?.node ?? null
-  }
-}
-
-function createFakeJournal() {
-  const pending: PendingBrowserOperation[] = []
-  return {
-    pending,
-    appendPending: async (op: PendingBrowserOperation) => { pending.push(op) },
-    resolvePending: async (opId: string) => {
-      const idx = pending.findIndex(p => p.opId === opId)
-      if (idx >= 0)
-        pending.splice(idx, 1)
-    },
-  }
-}
-
-function chromiumTree(): NativeBookmarkNode[] {
-  return [
-    {
-      id: '0',
-      title: 'root',
-      children: [
-        { id: '1', title: 'Bookmarks bar', children: [
-          { id: '10', title: 'Example', url: 'https://example.com', children: undefined },
-        ] },
-        { id: '2', title: 'Other bookmarks', children: [] },
-        { id: '3', title: 'Mobile bookmarks', children: [], unmodifiable: 'managed' },
-      ],
-    },
-  ]
-}
-
-function firefoxTree(): NativeBookmarkNode[] {
-  return [
-    { id: 'toolbar_____', title: 'Toolbar', children: [
-      { id: 'ff10', title: 'Existing', url: 'https://existing.example', children: undefined },
-      { id: 'ff-managed', title: 'Managed', url: 'https://managed.example', children: undefined, unmodifiable: 'policy' },
-    ] },
-    { id: 'menu________', title: 'Menu', children: [] },
-    { id: 'unfiled_____', title: 'Other', children: [] },
-    { id: 'mobile______', title: 'Mobile', children: [] },
-  ]
-}
-
-function row(partial: Partial<BookmarkNodeRow> & { id: string }): BookmarkNodeRow {
-  return {
-    collectionId: 'c1',
-    parentId: null,
-    rootKind: null,
-    kind: 'bookmark',
-    title: null,
-    url: null,
-    position: 0,
-    ...partial,
-  }
-}
 
 describe('seedCollectionFromNative', () => {
   it('uploads existing bookmarks as the new collection, without deleting anything', async () => {
@@ -322,7 +163,7 @@ describe('applyDiff', () => {
     const before = await api.getTree()
 
     const diff = diffForests([], [])
-    const result = await applyDiff(api, journal, bindings, diff)
+    const result = await applyDiff(api, journal, bindings, diff, 'chromium')
 
     expect(result.bindings).toEqual(bindings)
     expect(await api.getTree()).toEqual(before)
@@ -341,7 +182,7 @@ describe('applyDiff', () => {
       row({ id: 'bm1', parentId: 'root-toolbar', title: 'New', url: 'https://new.example', position: 0 }),
     ]
     const diff = diffForests(prev, next)
-    const { bindings: afterCreate } = await applyDiff(api, journal, bindings, diff)
+    const { bindings: afterCreate } = await applyDiff(api, journal, bindings, diff, 'chromium')
 
     const tree1 = await api.getTree()
     expect(findInTree(tree1, '1')!.children!.some(c => c.url === 'https://new.example')).toBe(true)
@@ -351,12 +192,12 @@ describe('applyDiff', () => {
       row({ id: 'bm1', parentId: 'root-toolbar', title: 'Renamed', url: 'https://new.example', position: 0 }),
     ]
     const diff2 = diffForests(next, next2)
-    await applyDiff(api, journal, afterCreate, diff2)
+    await applyDiff(api, journal, afterCreate, diff2, 'chromium')
     const tree2 = await api.getTree()
     expect(findInTree(tree2, '1')!.children![0].title).toBe('Renamed')
 
     const diff3 = diffForests(next2, [row({ id: 'root-toolbar', kind: 'folder', rootKind: 'toolbar', position: 0 })])
-    const { bindings: afterRemove } = await applyDiff(api, journal, afterCreate, diff3)
+    const { bindings: afterRemove } = await applyDiff(api, journal, afterCreate, diff3, 'chromium')
     const tree3 = await api.getTree()
     // Only the diff-owned "bm1" is gone; the pre-existing "Example" bookmark
     // (never part of any vault-side row) is untouched — applyDiff only acts

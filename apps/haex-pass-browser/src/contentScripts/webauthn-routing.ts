@@ -1,3 +1,6 @@
+/** Error the bridge sends when the user dismissed the haex-pass prompt. */
+export const USER_CANCELLED = 'USER_CANCELLED'
+
 // Transports haex-vault advertises for the passkeys it creates. A credential
 // listed with transports outside this set lives on a roaming authenticator
 // (YubiKey and friends), which haex-vault can never answer for.

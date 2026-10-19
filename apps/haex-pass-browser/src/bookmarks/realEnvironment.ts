@@ -7,18 +7,15 @@ import type { BrowserFamily } from './model'
 import type { NativeBookmarkNode, NativeBookmarksApi, NativeCreateDetails } from './nativeAdapter'
 import type { AlarmsApi, BookmarkEvents } from './syncDeps'
 
-/** Feature-detects the current browser family (Firefox's `getBrowserInfo`, else UA sniffing). */
-export async function detectBrowserFamily(): Promise<BrowserFamily> {
-  const getBrowserInfo = (browser.runtime as unknown as { getBrowserInfo?: () => Promise<{ name: string }> }).getBrowserInfo
-  if (typeof getBrowserInfo === 'function') {
-    try {
-      const info = await getBrowserInfo()
-      if (/firefox/i.test(info.name))
-        return 'firefox'
-    } catch {
-      // fall through to UA sniffing
-    }
-  }
+/**
+ * Feature-detects the current browser family: `runtime.getBrowserInfo` exists
+ * only in Gecko, else UA sniffing. Synchronous so the background can build the
+ * sync service in its first turn (see `BookmarkSyncService.attachListeners`).
+ */
+export function detectBrowserFamily(): BrowserFamily {
+  const { getBrowserInfo } = browser.runtime as unknown as { getBrowserInfo?: unknown }
+  if (typeof getBrowserInfo === 'function')
+    return 'firefox'
   const ua = navigator.userAgent
   if (/firefox/i.test(ua))
     return 'firefox'
@@ -36,6 +33,11 @@ export function createRealNativeBookmarksApi(browserFamily: BrowserFamily): Nati
     async getTree() {
       const tree = await browser.bookmarks.getTree()
       return tree as unknown as NativeBookmarkNode[]
+    },
+
+    async getChildren(id) {
+      const children = await browser.bookmarks.getChildren(id)
+      return children as unknown as NativeBookmarkNode[]
     },
 
     async create(details: NativeCreateDetails) {

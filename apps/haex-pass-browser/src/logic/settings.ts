@@ -33,13 +33,6 @@ export async function setWebSocketPort(port: number): Promise<void> {
 }
 
 /**
- * Get the default WebSocket port
- */
-export function getDefaultPort(): number {
-  return DEFAULT_PORT
-}
-
-/**
  * Load all stored passkey decisions, keyed by relying-party id.
  */
 export async function getAllPasskeyPrefs(): Promise<PasskeyPrefs> {

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import type { BookmarkStatus } from '~/bookmarks/messages'
-import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import { Plus, Settings } from '@lucide/vue'
-import { BOOKMARKS_GET_STATUS, BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_SWITCH_COLLECTION, BOOKMARKS_SYNC_NOW } from '~/bookmarks/messages'
+import { useBookmarkSync } from '~/composables/useBookmarkSync'
 import { useI18n } from '~/locales'
 import logoUrl from '../../extension/assets/haex-pass-logo.png'
 import ConnectionStatus from './components/ConnectionStatus.vue'
@@ -14,21 +12,6 @@ const connectionStatusRef = ref<InstanceType<typeof ConnectionStatus> | null>(nu
 const showCreateForm = ref(false)
 
 const isPaired = computed(() => connectionStatusRef.value?.canSendRequests ?? false)
-
-// Check if we should show CreateEntryForm on mount (set by content script)
-onMounted(async () => {
-  try {
-    const result = await browser.storage.local.get('showCreateEntryForm')
-    if (result.showCreateEntryForm) {
-      showCreateForm.value = true
-      // Clear the flag
-      await browser.storage.local.remove('showCreateEntryForm')
-    }
-  } catch (err) {
-    console.error('Failed to check showCreateEntryForm flag:', err)
-  }
-  await loadBookmarkStatus()
-})
 
 function openOptions() {
   browser.runtime.openOptionsPage()
@@ -46,83 +29,49 @@ function closeCreateForm() {
 // Bookmark quick switcher
 // -----------------------------------------------------------------------
 
-const bookmarkStatus = ref<BookmarkStatus | null>(null)
-const bookmarkSyncing = ref(false)
+const {
+  status: bookmarkStatus,
+  switchTargetId: bookmarkSwitchTargetId,
+  switchError: bookmarkSwitchError,
+  switching: bookmarkSwitching,
+  syncing: bookmarkSyncing,
+  otherCollections: otherBookmarkCollections,
+  switchTarget: bookmarkSwitchTarget,
+  switchLocked: bookmarkSwitchLocked,
+  loadStatus: loadBookmarkStatus,
+  loadCollections: loadBookmarkCollections,
+  syncNow: handleBookmarkSyncNow,
+  confirmSwitch,
+} = useBookmarkSync()
 const bookmarkSwitcherOpen = ref(false)
-const bookmarkCollections = ref<BookmarkCollectionSummary[]>([])
-const bookmarkSwitchTargetId = ref<string | null>(null)
-const bookmarkSwitching = ref(false)
-const bookmarkSwitchError = ref<string | null>(null)
-
-const bookmarkActiveCollectionId = computed(() => (bookmarkStatus.value?.mode === 'active' ? bookmarkStatus.value.collectionId : null))
-const otherBookmarkCollections = computed(() => bookmarkCollections.value.filter(c => c.id !== bookmarkActiveCollectionId.value))
-const bookmarkSwitchTarget = computed(() => bookmarkCollections.value.find(c => c.id === bookmarkSwitchTargetId.value) ?? null)
-const bookmarkSwitchLocked = computed(() => bookmarkStatus.value?.mode === 'active' && bookmarkStatus.value.dirty)
-
-async function loadBookmarkStatus() {
-  try {
-    const response = (await browser.runtime.sendMessage({ type: BOOKMARKS_GET_STATUS })) as {
-      success: boolean
-      data?: { status: BookmarkStatus | null }
-    }
-    bookmarkStatus.value = response?.data?.status ?? null
-  } catch {
-    bookmarkStatus.value = null
-  }
-}
-
-async function handleBookmarkSyncNow() {
-  bookmarkSyncing.value = true
-  try {
-    await browser.runtime.sendMessage({ type: BOOKMARKS_SYNC_NOW })
-    await loadBookmarkStatus()
-  } finally {
-    bookmarkSyncing.value = false
-  }
-}
 
 async function toggleBookmarkSwitcher() {
   bookmarkSwitcherOpen.value = !bookmarkSwitcherOpen.value
   bookmarkSwitchTargetId.value = null
   bookmarkSwitchError.value = null
-  if (bookmarkSwitcherOpen.value) {
-    try {
-      const response = (await browser.runtime.sendMessage({ type: BOOKMARKS_LIST_COLLECTIONS })) as {
-        success: boolean
-        data?: { collections: BookmarkCollectionSummary[] }
-      }
-      if (response?.success && response.data)
-        bookmarkCollections.value = response.data.collections
-    } catch {
-      bookmarkCollections.value = []
-    }
-  }
+  if (bookmarkSwitcherOpen.value)
+    await loadBookmarkCollections()
 }
 
 async function confirmBookmarkSwitch() {
-  const target = bookmarkSwitchTarget.value
-  if (!target)
-    return
-  bookmarkSwitching.value = true
-  bookmarkSwitchError.value = null
+  if (await confirmSwitch())
+    bookmarkSwitcherOpen.value = false
+}
+
+// Check if we should show CreateEntryForm on mount (set by content script)
+onMounted(async () => {
   try {
-    const response = (await browser.runtime.sendMessage({
-      type: BOOKMARKS_SWITCH_COLLECTION,
-      collectionId: target.id,
-      collectionName: target.name,
-    })) as { success: boolean, error?: string }
-    if (response?.success) {
-      bookmarkSwitcherOpen.value = false
-      await loadBookmarkStatus()
-    } else {
-      bookmarkSwitchError.value = response?.error ?? t('settings.bookmarks.error.generic')
+    const result = await browser.storage.local.get('showCreateEntryForm')
+    if (result.showCreateEntryForm) {
+      showCreateForm.value = true
+      // Clear the flag
+      await browser.storage.local.remove('showCreateEntryForm')
     }
   } catch (err) {
-    bookmarkSwitchError.value = String(err)
-  } finally {
-    bookmarkSwitching.value = false
+    console.error('Failed to check showCreateEntryForm flag:', err)
   }
-}
+  await loadBookmarkStatus()
+})
 </script>
 
 <template>

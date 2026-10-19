@@ -8,8 +8,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "paths": {
-      "~/*": ["src/*"],
-      "@haex-pass/api": ["../haex-pass/app/api/external.ts"]
+      "~/*": ["src/*"]
     },
     "resolveJsonModule": true,
     "types": [

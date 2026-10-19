@@ -14,9 +14,10 @@
 
 import type { PasskeyHandler } from '~/logic/settings'
 import { sendMessage } from 'webext-bridge/content-script'
+import { rpIdMatchesOrigin } from '~/background/passkeyOrigin'
 import { getPasskeyPref, setPasskeyPref } from '~/logic/settings'
 import { requestPasskeyConsent } from './passkey-consent'
-import { parseVaultPasskeys, vaultCanAnswerGet } from './webauthn-routing'
+import { parseVaultPasskeys, USER_CANCELLED, vaultCanAnswerGet } from './webauthn-routing'
 
 interface WebAuthnCreateRequest {
   type: 'HAEX_PASS_WEBAUTHN_CREATE'
@@ -60,9 +61,8 @@ type WebAuthnRequest = WebAuthnCreateRequest | WebAuthnGetRequest | WebAuthnAbor
 // page-side abort can close the consent prompt.
 const inFlight = new Map<string, AbortController>()
 
-// Sentinel error consumed by webauthn-inject.ts to trigger the
-// originalCreate/originalGet fallback path. Anything else is treated as a
-// real failure and surfaced to the page.
+// Hands the request to the browser's own WebAuthn. webauthn-inject.ts does
+// that for every error except USER_CANCELLED, which it reports to the page.
 const USE_BROWSER_NATIVE = 'USE_BROWSER_NATIVE'
 
 function sendResponse(requestId: string, type: 'create' | 'get', data?: unknown, error?: string) {
@@ -115,7 +115,7 @@ async function handleWebAuthnCreate(request: WebAuthnCreateRequest, signal: Abor
 
   const handler = await resolveHandler(relyingPartyId, relyingPartyName || relyingPartyId, 'create', signal)
   if (handler === null) {
-    sendResponse(request.requestId, 'create', undefined, 'User cancelled passkey handler selection')
+    sendResponse(request.requestId, 'create', undefined, USER_CANCELLED)
     return
   }
   if (handler === 'browser') {
@@ -140,11 +140,14 @@ async function handleWebAuthnCreate(request: WebAuthnCreateRequest, signal: Abor
 /** Whether the vault holds a passkey that could answer this sign-in; false when it cannot be asked. */
 async function vaultHasPasskeyFor(data: WebAuthnGetRequest['data']): Promise<boolean> {
   try {
-    const response = await sendMessage('passkey-list', { relyingPartyId: data.relyingPartyId }, 'background') as { success?: boolean, passkeys?: unknown }
+    const response = await sendMessage('passkey-list', { relyingPartyId: data.relyingPartyId }, 'background') as {
+      success?: boolean
+      data?: unknown
+    }
     if (!response?.success)
       return false
     const allowedIds = data.allowCredentials?.map(cred => cred.id) ?? []
-    return vaultCanAnswerGet(parseVaultPasskeys(response), allowedIds)
+    return vaultCanAnswerGet(parseVaultPasskeys(response.data), allowedIds)
   } catch {
     return false
   }
@@ -162,7 +165,7 @@ async function handleWebAuthnGet(request: WebAuthnGetRequest, signal: AbortSigna
 
   const handler = await resolveHandler(relyingPartyId, relyingPartyId, 'get', signal)
   if (handler === null) {
-    sendResponse(request.requestId, 'get', undefined, 'User cancelled passkey handler selection')
+    sendResponse(request.requestId, 'get', undefined, USER_CANCELLED)
     return
   }
   if (handler === 'browser') {
@@ -188,8 +191,8 @@ function handleMessage(event: MessageEvent) {
   if (event.source !== window)
     return
 
-  const message = event.data as WebAuthnRequest
-  if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_'))
+  const message = event.data as WebAuthnRequest | null
+  if (typeof message?.type !== 'string' || !message.type.startsWith('HAEX_PASS_WEBAUTHN_'))
     return
 
   if (message.type === 'HAEX_PASS_WEBAUTHN_ABORT') {
@@ -199,10 +202,19 @@ function handleMessage(event: MessageEvent) {
   // Our own ACKs and responses come back through this listener too.
   if (message.type !== 'HAEX_PASS_WEBAUTHN_CREATE' && message.type !== 'HAEX_PASS_WEBAUTHN_GET')
     return
+  if (typeof message.requestId !== 'string' || typeof message.data?.relyingPartyId !== 'string')
+    return
 
   // Tells the inject script someone is listening; without this ack it
   // hands the request to the browser after a short wait.
   window.postMessage({ type: 'HAEX_PASS_WEBAUTHN_ACK', requestId: message.requestId }, '*')
+
+  // Page scripts can post requests here directly, so the rp id is the page's
+  // claim. A foreign one must never reach the prompt or a remembered choice.
+  if (!rpIdMatchesOrigin(message.data.relyingPartyId, location.origin)) {
+    sendResponse(message.requestId, message.type === 'HAEX_PASS_WEBAUTHN_CREATE' ? 'create' : 'get', undefined, USE_BROWSER_NATIVE)
+    return
+  }
 
   const controller = new AbortController()
   inFlight.set(message.requestId, controller)

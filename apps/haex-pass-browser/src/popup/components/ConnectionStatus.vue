@@ -1,29 +1,17 @@
 <script setup lang="ts">
-import type { ExternalConnection } from '@haex-space/vault-sdk'
-import {
-  canExternalClientSendRequests,
-  ExternalConnectionErrorCode,
-  ExternalConnectionState,
-} from '@haex-space/vault-sdk'
+import { ExternalConnectionErrorCode, ExternalConnectionState } from '@haex-space/vault-sdk'
 import { Clock, Loader2, PlugZap, Shield, ShieldOff } from '@lucide/vue'
+import { useVaultConnectionState } from '~/composables/useVaultConnectionState'
 import { useI18n } from '~/locales'
-import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE } from '~/logic/messages'
 
 const { t } = useI18n()
 
-const connection = ref<ExternalConnection>({
-  state: ExternalConnectionState.DISCONNECTED,
-  clientId: null,
-  errorCode: ExternalConnectionErrorCode.NONE,
-  errorMessage: null,
-})
-
-const isConnecting = ref(false)
+const { connection, isConnecting, canSendRequests, statusText, statusClass, refresh, connect, disconnect } = useVaultConnectionState()
 
 // Expose connection state to parent
 defineExpose({
   connection,
-  canSendRequests: computed(() => canExternalClientSendRequests(connection.value.state)),
+  canSendRequests,
 })
 
 // Translate error code to localized message
@@ -47,8 +35,6 @@ const errorText = computed(() => {
   return t(translationKey)
 })
 
-const showDisconnectButton = computed(() => canExternalClientSendRequests(connection.value.state))
-
 const statusIcon = computed(() => {
   switch (connection.value.state) {
     case ExternalConnectionState.PAIRED:
@@ -64,76 +50,8 @@ const statusIcon = computed(() => {
   }
 })
 
-const statusText = computed(() => {
-  switch (connection.value.state) {
-    case ExternalConnectionState.PAIRED:
-      return t('status.connected')
-    case ExternalConnectionState.PENDING_APPROVAL:
-      return t('status.pendingApproval')
-    case ExternalConnectionState.CONNECTED:
-      return t('status.connectedNotPaired')
-    case ExternalConnectionState.CONNECTING:
-      return t('status.connecting')
-    default:
-      return t('status.disconnected')
-  }
-})
-
-const statusClass = computed(() => {
-  switch (connection.value.state) {
-    case ExternalConnectionState.PAIRED:
-      return 'text-green-500'
-    case ExternalConnectionState.PENDING_APPROVAL:
-      return 'text-orange-500'
-    case ExternalConnectionState.CONNECTED:
-      return 'text-yellow-500'
-    case ExternalConnectionState.CONNECTING:
-      return 'text-blue-500'
-    default:
-      return 'text-red-500'
-  }
-})
-
-async function fetchConnectionState() {
-  try {
-    const state = await browser.runtime.sendMessage({ type: MSG_GET_CONNECTION_STATE })
-    connection.value = state as ExternalConnection
-  } catch (err) {
-    console.error('Failed to get connection state:', err)
-  }
-}
-
-async function connect() {
-  isConnecting.value = true
-  try {
-    await browser.runtime.sendMessage({ type: MSG_CONNECT })
-    await fetchConnectionState()
-  } catch (err) {
-    console.error('Failed to connect:', err)
-  } finally {
-    isConnecting.value = false
-  }
-}
-
-async function disconnect() {
-  try {
-    await browser.runtime.sendMessage({ type: MSG_DISCONNECT })
-    await fetchConnectionState()
-  } catch (err) {
-    console.error('Failed to disconnect:', err)
-  }
-}
-
-// Listen for connection state updates
-browser.runtime.onMessage.addListener((message: unknown) => {
-  const msg = message as { type?: string, state?: ExternalConnection }
-  if (msg.type === MSG_CONNECTION_STATE && msg.state) {
-    connection.value = msg.state
-  }
-})
-
 onMounted(() => {
-  fetchConnectionState()
+  void refresh()
 })
 </script>
 
@@ -167,7 +85,7 @@ onMounted(() => {
 
     <div class="flex gap-2">
       <button
-        v-if="!showDisconnectButton"
+        v-if="!canSendRequests"
         class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
         :disabled="isConnecting"
         @click="connect"

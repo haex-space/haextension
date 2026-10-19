@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { PasswordConfig } from '~/logic/passwordGenerator'
-import type { GetPasswordPresetsResponseData, PasswordPreset } from '~/logic/messages'
+import type { GetPasswordPresetsResponseData, PasswordPreset } from '~/logic/haexPassApi'
 import { Check, ChevronLeft, Copy, HelpCircle, RefreshCw } from '@lucide/vue'
 import { useI18n } from '~/locales'
-import { defaultPasswordConfig, generatePassword } from '~/logic/passwordGenerator'
+import { defaultPasswordConfig, fromVaultPasswordConfig, generatePassword } from '~/logic/passwordGenerator'
 import { MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 
 const emit = defineEmits<{
@@ -54,16 +54,7 @@ async function loadRemotePresets() {
 
 function loadPreset(preset: PasswordPreset) {
   selectedPresetId.value = preset.id
-  passwordConfig.value = {
-    length: preset.config.length,
-    uppercase: preset.config.uppercase,
-    lowercase: preset.config.lowercase,
-    numbers: preset.config.numbers,
-    symbols: preset.config.symbols,
-    excludeChars: preset.config.excludeChars ?? '',
-    usePattern: preset.config.usePattern,
-    pattern: preset.config.pattern ?? '',
-  }
+  passwordConfig.value = fromVaultPasswordConfig(preset.config)
   regeneratePassword()
 }
 

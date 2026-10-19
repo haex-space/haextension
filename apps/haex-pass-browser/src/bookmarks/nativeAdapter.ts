@@ -1,6 +1,6 @@
 // Native bookmark tree adapter: seeding a new collection from the current
-// native tree, activating (wipe + materialize) a collection, and crash-safe
-// journal recovery. The WebExtension bookmarks API is injected as
+// native tree, activating (wipe + materialize) a collection and applying a
+// diff, all journaled (recovery is in journalRecovery.ts). The WebExtension bookmarks API is injected as
 // `NativeBookmarksApi` so this whole module is testable with an in-memory
 // fake tree — no `browser` global required.
 //
@@ -41,6 +41,7 @@ export interface NativeBookmarksApi {
   /** Whether this browser can materialize a `kind: 'separator'` node. */
   supportsSeparators: boolean
   getTree: () => Promise<NativeBookmarkNode[]>
+  getChildren: (id: string) => Promise<NativeBookmarkNode[]>
   create: (details: NativeCreateDetails) => Promise<NativeBookmarkNode>
   update: (id: string, changes: { title?: string, url?: string }) => Promise<void>
   move: (id: string, destination: { parentId: string, index: number }) => Promise<void>
@@ -48,7 +49,7 @@ export interface NativeBookmarksApi {
 }
 
 export interface Diagnostic {
-  code: 'UNMODIFIABLE_SKIPPED' | 'SEPARATOR_UNSUPPORTED' | 'ROOT_FALLBACK' | 'CREATE_QUARANTINED'
+  code: 'UNMODIFIABLE_SKIPPED' | 'SEPARATOR_UNSUPPORTED' | 'ROOT_FALLBACK' | 'CREATE_QUARANTINED' | 'APPLY_FAILED'
   haexId?: string
   nativeId?: string
   detail: string
@@ -56,10 +57,15 @@ export interface Diagnostic {
 
 export interface JournalHandle {
   appendPending: (op: PendingBrowserOperation) => Promise<void>
-  resolvePending: (opId: string) => Promise<void>
+  /**
+   * `bindings` is the complete binding list after the op. It must be saved in
+   * the same write as the resolve, or a crash right after would leave a
+   * native node without its binding and the next run would create it again.
+   */
+  resolvePending: (opId: string, bindings?: BookmarkIdBinding[]) => Promise<void>
 }
 
-function findNodeById(roots: NativeBookmarkNode[], id: string): NativeBookmarkNode | null {
+export function findNodeById(roots: NativeBookmarkNode[], id: string): NativeBookmarkNode | null {
   for (const node of roots) {
     if (node.id === id)
       return node
@@ -84,7 +90,41 @@ export function nativeKind(node: NativeBookmarkNode): BookmarkNodeKind {
   return 'folder'
 }
 
-async function journaledRemove(api: NativeBookmarksApi, journal: JournalHandle, browserId: string): Promise<void> {
+/**
+ * Vault positions can point past the parent's current children (skipped
+ * separators, siblings deleted elsewhere, creates in diff order). Chromium
+ * rejects such an index, so append instead.
+ */
+export function clampToChildren(index: number, childCount: number): number {
+  return Math.min(Math.max(index, 0), childCount)
+}
+
+export async function clampIndex(api: NativeBookmarksApi, parentId: string, index: number): Promise<number> {
+  return clampToChildren(index, (await api.getChildren(parentId)).length)
+}
+
+/**
+ * Runs a native write under a journal entry. A write that throws still
+ * resolves its entry: the sync diff retries the change on the next pass,
+ * while a pending entry would make journal recovery repeat it first, forever.
+ * The caller resolves the entry itself after a successful write.
+ */
+async function journaledWrite<T>(journal: JournalHandle, op: PendingBrowserOperation, write: () => Promise<T>): Promise<T> {
+  await journal.appendPending(op)
+  try {
+    return await write()
+  } catch (err) {
+    await journal.resolvePending(op.opId)
+    throw err
+  }
+}
+
+async function journaledRemove(
+  api: NativeBookmarksApi,
+  journal: JournalHandle,
+  browserId: string,
+  bindingsAfter?: BookmarkIdBinding[],
+): Promise<void> {
   const op: PendingBrowserOperation = {
     opId: crypto.randomUUID(),
     type: 'remove',
@@ -94,32 +134,36 @@ async function journaledRemove(api: NativeBookmarksApi, journal: JournalHandle, 
     beforeChildIds: [],
     expected: { title: '', url: null, index: 0 },
   }
-  await journal.appendPending(op)
-  await api.removeTree(browserId)
-  await journal.resolvePending(op.opId)
+  await journaledWrite(journal, op, () => api.removeTree(browserId))
+  await journal.resolvePending(op.opId, bindingsAfter)
 }
 
+/** Creates the native node and binds it to `haexId`; returns the new native id and binding list. */
 async function journaledCreate(
   api: NativeBookmarksApi,
   journal: JournalHandle,
+  bindings: BookmarkIdBinding[],
   haexId: string,
   parentBrowserId: string,
-  beforeChildIds: string[],
   details: Omit<NativeCreateDetails, 'parentId'>,
-): Promise<string> {
+): Promise<{ nativeId: string, bindings: BookmarkIdBinding[] }> {
+  const siblings = await api.getChildren(parentBrowserId)
   const op: PendingBrowserOperation = {
     opId: crypto.randomUUID(),
     type: 'create',
     haexId,
     browserId: null,
     parentBrowserId,
-    beforeChildIds,
+    // Recovery tells the node this op created apart from existing siblings
+    // that happen to share its title and url.
+    beforeChildIds: siblings.map(child => child.id),
     expected: { title: details.title, url: details.url ?? null, index: details.index, kind: details.kind },
   }
-  await journal.appendPending(op)
-  const created = await api.create({ ...details, parentId: parentBrowserId })
-  await journal.resolvePending(op.opId)
-  return created.id
+  const created = await journaledWrite(journal, op, () =>
+    api.create({ ...details, index: clampToChildren(details.index, siblings.length), parentId: parentBrowserId }))
+  const nextBindings = addBinding(bindings, { haexId, browserId: created.id, bindingType: 'node' })
+  await journal.resolvePending(op.opId, nextBindings)
+  return { nativeId: created.id, bindings: nextBindings }
 }
 
 // ---------------------------------------------------------------------------
@@ -228,14 +272,14 @@ export async function activateCollection(
         diagnostics.push({ code: 'SEPARATOR_UNSUPPORTED', haexId: node.id, detail: 'target browser cannot create separators' })
         continue
       }
-      const nativeId = await journaledCreate(api, journal, node.id, nativeParentId, [], {
+      const created = await journaledCreate(api, journal, bindings, node.id, nativeParentId, {
         title: node.title ?? '',
         url: node.kind === 'bookmark' ? (node.url ?? undefined) : undefined,
         index: node.position,
         kind: node.kind,
       })
-      bindings = addBinding(bindings, { haexId: node.id, browserId: nativeId, bindingType: 'node' })
-      await materialize(node.children, nativeId)
+      bindings = created.bindings
+      await materialize(node.children, created.nativeId)
     }
   }
 
@@ -265,6 +309,8 @@ export async function activateCollection(
 export interface ApplyDiffResult {
   bindings: BookmarkIdBinding[]
   diagnostics: Diagnostic[]
+  /** Rows whose native change failed; the caller keeps them out of the applied snapshot so they are retried. */
+  failedIds: string[]
 }
 
 export async function applyDiff(
@@ -272,12 +318,41 @@ export async function applyDiff(
   journal: JournalHandle,
   bindings: BookmarkIdBinding[],
   diff: ForestDiff,
+  browserFamily: BrowserFamily,
 ): Promise<ApplyDiffResult> {
   const diagnostics: Diagnostic[] = []
+  const failedIds: string[] = []
   let nextBindings = bindings
   const { haexToBrowser } = buildBindingMaps(nextBindings)
 
+  // One change the browser refuses (an unsupported URL, a node removed
+  // meanwhile) must not hold back every other change in the diff.
+  async function attempt(haexId: string, change: () => Promise<void>): Promise<void> {
+    try {
+      await change()
+    } catch (err) {
+      diagnostics.push({ code: 'APPLY_FAILED', haexId, detail: String(err) })
+      failedIds.push(haexId)
+    }
+  }
+
   for (const { node } of diff.creates) {
+    // Already created by an interrupted earlier run (its binding was saved
+    // with the journal) or bound by journal recovery.
+    if (haexToBrowser.has(node.id))
+      continue
+    if (node.rootKind) {
+      // A canonical root is never created, only bound to the native root.
+      const resolved = resolveNativeRootId(browserFamily, node.rootKind)
+      if (!resolved) {
+        diagnostics.push({ code: 'CREATE_QUARANTINED', haexId: node.id, detail: `no native root for rootKind "${node.rootKind}"` })
+        failedIds.push(node.id)
+        continue
+      }
+      nextBindings = addBinding(nextBindings, { haexId: node.id, browserId: resolved.nativeId, bindingType: 'root' })
+      haexToBrowser.set(node.id, resolved.nativeId)
+      continue
+    }
     if (node.kind === 'separator' && !api.supportsSeparators) {
       diagnostics.push({ code: 'SEPARATOR_UNSUPPORTED', haexId: node.id, detail: 'target browser cannot create separators' })
       continue
@@ -285,16 +360,19 @@ export async function applyDiff(
     const parentBrowserId = node.parentId ? haexToBrowser.get(node.parentId) : undefined
     if (!parentBrowserId) {
       diagnostics.push({ code: 'CREATE_QUARANTINED', haexId: node.id, detail: 'parent is not locally mapped yet, will retry next run' })
+      failedIds.push(node.id)
       continue
     }
-    const nativeId = await journaledCreate(api, journal, node.id, parentBrowserId, [], {
-      title: node.title ?? '',
-      url: node.kind === 'bookmark' ? (node.url ?? undefined) : undefined,
-      index: node.position,
-      kind: node.kind,
+    await attempt(node.id, async () => {
+      const created = await journaledCreate(api, journal, nextBindings, node.id, parentBrowserId, {
+        title: node.title ?? '',
+        url: node.kind === 'bookmark' ? (node.url ?? undefined) : undefined,
+        index: node.position,
+        kind: node.kind,
+      })
+      nextBindings = created.bindings
+      haexToBrowser.set(node.id, created.nativeId)
     })
-    nextBindings = addBinding(nextBindings, { haexId: node.id, browserId: nativeId, bindingType: 'node' })
-    haexToBrowser.set(node.id, nativeId)
   }
 
   for (const { id, node } of diff.updates) {
@@ -310,9 +388,10 @@ export async function applyDiff(
       beforeChildIds: [],
       expected: { title: node.title ?? '', url: node.url, index: node.position },
     }
-    await journal.appendPending(op)
-    await api.update(browserId, { title: node.title ?? '', url: node.url ?? undefined })
-    await journal.resolvePending(op.opId)
+    await attempt(id, async () => {
+      await journaledWrite(journal, op, () => api.update(browserId, { title: node.title ?? '', url: node.url ?? undefined }))
+      await journal.resolvePending(op.opId)
+    })
   }
 
   for (const { id, node } of diff.moves) {
@@ -329,99 +408,24 @@ export async function applyDiff(
       beforeChildIds: [],
       expected: { title: node.title ?? '', url: node.url, index: node.position },
     }
-    await journal.appendPending(op)
-    await api.move(browserId, { parentId: parentBrowserId, index: node.position })
-    await journal.resolvePending(op.opId)
+    await attempt(id, async () => {
+      const index = await clampIndex(api, parentBrowserId, node.position)
+      await journaledWrite(journal, op, () => api.move(browserId, { parentId: parentBrowserId, index }))
+      await journal.resolvePending(op.opId)
+    })
   }
 
   for (const { id } of diff.removes) {
     const browserId = haexToBrowser.get(id)
     if (!browserId)
       continue
-    await journaledRemove(api, journal, browserId)
-    nextBindings = removeBindingByHaexId(nextBindings, id)
-    haexToBrowser.delete(id)
+    await attempt(id, async () => {
+      const afterRemove = removeBindingByHaexId(nextBindings, id)
+      await journaledRemove(api, journal, browserId, afterRemove)
+      nextBindings = afterRemove
+      haexToBrowser.delete(id)
+    })
   }
 
-  return { bindings: nextBindings, diagnostics }
-}
-
-// ---------------------------------------------------------------------------
-// recoverJournal — resume any operation left pending after a crash, without
-// ever risking a duplicate create.
-// ---------------------------------------------------------------------------
-
-export interface RecoverResult {
-  bindings: BookmarkIdBinding[]
-  diagnostics: Diagnostic[]
-}
-
-export async function recoverJournal(
-  api: NativeBookmarksApi,
-  journal: JournalHandle,
-  pendingOps: PendingBrowserOperation[],
-  existingBindings: BookmarkIdBinding[],
-): Promise<RecoverResult> {
-  const diagnostics: Diagnostic[] = []
-  let bindings = existingBindings
-
-  for (const op of pendingOps) {
-    const tree = await api.getTree()
-
-    if (op.type === 'remove') {
-      const stillPresent = op.browserId && findNodeById(tree, op.browserId)
-      if (stillPresent) {
-        await api.removeTree(op.browserId!)
-      }
-      await journal.resolvePending(op.opId)
-      continue
-    }
-
-    if (op.type === 'create') {
-      const parent = op.parentBrowserId ? findNodeById(tree, op.parentBrowserId) : null
-      const currentChildren = parent?.children ?? []
-      const newChildren = currentChildren.filter(c => !op.beforeChildIds.includes(c.id))
-      const matches = newChildren.filter(c => c.title === op.expected.title && (c.url ?? null) === op.expected.url)
-
-      if (matches.length === 0) {
-        // Create never happened (or its result vanished) — safe to redo.
-        const created = await api.create({
-          parentId: op.parentBrowserId!,
-          title: op.expected.title,
-          url: op.expected.url ?? undefined,
-          index: op.expected.index,
-          kind: op.expected.kind ?? (op.expected.url !== null ? 'bookmark' : 'folder'),
-        })
-        bindings = addBinding(bindings, { haexId: op.haexId, browserId: created.id, bindingType: 'node' })
-      } else if (matches.length === 1) {
-        bindings = addBinding(bindings, { haexId: op.haexId, browserId: matches[0].id, bindingType: 'node' })
-      } else {
-        diagnostics.push({
-          code: 'CREATE_QUARANTINED',
-          haexId: op.haexId,
-          detail: `${matches.length} candidate native nodes matched after crash recovery — left unbound to avoid a wrong duplicate pick`,
-        })
-        // Left unresolved on purpose: do not resolvePending, so this stays
-        // flagged for a human decision instead of guessing.
-        continue
-      }
-      await journal.resolvePending(op.opId)
-      continue
-    }
-
-    // 'update'/'move': compare current state against `expected` and redo if needed.
-    const node = op.browserId ? findNodeById(tree, op.browserId) : null
-    if (node) {
-      const matchesExpected = node.title === op.expected.title && (node.url ?? null) === op.expected.url
-      if (!matchesExpected) {
-        await api.update(op.browserId!, { title: op.expected.title, url: op.expected.url ?? undefined })
-      }
-      if (op.type === 'move' && op.parentBrowserId && node.parentId !== op.parentBrowserId) {
-        await api.move(op.browserId!, { parentId: op.parentBrowserId, index: op.expected.index })
-      }
-    }
-    await journal.resolvePending(op.opId)
-  }
-
-  return { bindings, diagnostics }
+  return { bindings: nextBindings, diagnostics, failedIds }
 }
