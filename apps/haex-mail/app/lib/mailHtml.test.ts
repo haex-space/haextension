@@ -109,3 +109,63 @@ describe("sender styles", () => {
     expect(body.getAttribute("style")).toBe("background-color:#eeeeee;margin:4px");
   });
 });
+
+// The vault CSP blocks what slips through, but then the "external content"
+// banner lies and the bridge may not run.
+describe("sanitizer gaps", () => {
+  it("drops declarative shadow roots the parser never shows to the sanitizer", () => {
+    const { html, hasExternal } = stripExternalHtml(
+      '<div><template shadowrootmode="open"><img src="https://t.example/p.gif" onerror="x()"></template></div>',
+    );
+    expect(html).not.toContain("template");
+    expect(html).not.toContain("t.example");
+    expect(hasExternal).toBe(false);
+  });
+
+  it("keeps the bridge alive after a <plaintext> element", () => {
+    expect(scriptsOf(stripExternalHtml("<p>x</p><plaintext>rest").html)).toHaveLength(1);
+  });
+
+  it("treats SVG href resources as external but keeps link targets", () => {
+    const image = stripExternalHtml('<svg><image href="https://t.example/a.png"/></svg>');
+    expect(image.hasExternal).toBe(true);
+    expect(image.html).not.toContain("t.example");
+    const link = stripExternalHtml('<svg><a href="https://x.example/"><text>x</text></a></svg>');
+    expect(link.hasExternal).toBe(false);
+    expect(link.html).toContain('href="https://x.example/"');
+  });
+
+  it("sees URLs spelled with CSS escapes", async () => {
+    for (const style of [
+      "background:u\\72l(https://t.example/p.gif)",
+      "background:url(\\68ttps://t.example/p.gif)",
+    ]) {
+      const body = `<p style="${style}">x</p>`;
+      const stripped = stripExternalHtml(body);
+      expect(stripped.hasExternal).toBe(true);
+      expect(stripped.html).not.toContain("t.example");
+      const fetched: string[] = [];
+      await inlineExternalHtml(body, async (url) => {
+        fetched.push(url);
+        return "data:,";
+      });
+      expect(fetched).toEqual(["https://t.example/p.gif"]);
+    }
+  });
+
+  it("sees image-set candidates", () => {
+    const { html, hasExternal } = stripExternalHtml(
+      '<style>.a{background-image:image-set("https://t.example/a.png" 1x, "https://t.example/b.png" 2x)}</style>',
+    );
+    expect(hasExternal).toBe(true);
+    expect(html).not.toContain("t.example");
+  });
+
+  it("leaves an SVG namespace inside a data: URL alone", () => {
+    const { html, hasExternal } = stripExternalHtml(
+      `<p style="background:url(&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>&quot;)">x</p>`,
+    );
+    expect(hasExternal).toBe(false);
+    expect(html).toContain("http://www.w3.org/2000/svg");
+  });
+});

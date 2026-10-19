@@ -62,12 +62,51 @@ export const htmlToText = (bodyHtml: string): string => {
 
 // External resource references we neutralise / inline. Protocol-relative
 // (`//host/…`) counts as remote too — mail clients resolve it against https.
-const REMOTE_ATTRS = ["src", "background", "poster", "xlink:href"] as const;
-// Matches both `url(...)` and a bare `@import "…"` (no `url()` wrapper); the
-// URL is in group 1 for the former, group 3 for the latter.
+const REMOTE_ATTRS = ["src", "background", "poster", "xlink:href"];
+// SVG2 resources (`<image href>`, `<use href>`) use a plain `href`; on a link
+// it is the target, which the bridge opens on click.
+const REMOTE_ATTRS_WITH_HREF = [...REMOTE_ATTRS, "href"];
+const remoteAttrsOf = (el: Element): string[] =>
+  el.localName === "a" || el.localName === "area" ? REMOTE_ATTRS : REMOTE_ATTRS_WITH_HREF;
+// Matches `url(...)` and a bare string where CSS takes a URL without the
+// `url()` wrapper — `@import "…"` and `image-set("…" 1x, "…" 2x)`. The URL is
+// in group 2 for the former, group 4 for the latter.
 const STYLE_URL_RE =
-  /url\(\s*['"]?((?:https?:)?\/\/[^'")]+)['"]?\s*\)|(?<=@import\s)(['"])((?:https?:)?\/\/[^'"]+)\2/gi;
-const styleMatchUrl = (m: RegExpMatchArray): string => (m[1] ?? m[3])!;
+  /url\(\s*(['"]?)((?:https?:)?\/\/[^'")]+)\1\s*\)|(?<=(?:@import|image-set\()\s*|,\s*)(['"])((?:https?:)?\/\/[^'"]+)\3/gi;
+const styleMatchUrl = (m: RegExpMatchArray): string => (m[2] ?? m[4])!;
+
+// CSS escapes can spell `url(` or a scheme (`u\72l(`, `\68ttps:`) past the
+// pattern above. Unescaping letters, digits and URL punctuation exposes them;
+// escaped quotes stay, so strings keep their bounds.
+const unescapeCss = (css: string): string =>
+  css.replace(
+    /\\(?:([0-9a-f]{1,6})\s?|([^0-9a-f\r\n\f]))/gi,
+    (escape, hex: string | undefined, char: string | undefined) => {
+      const code = hex ? Number.parseInt(hex, 16) : undefined;
+      if (code !== undefined && code > 0x10ffff) return escape;
+      const c = code !== undefined ? String.fromCodePoint(code) : char!;
+      return /^[\w:/.]$/.test(c) ? c : escape;
+    },
+  );
+
+const cssUrls = (css: string): string[] =>
+  [...unescapeCss(css).matchAll(STYLE_URL_RE)].map(styleMatchUrl);
+
+/** `css` with every remote reference rewritten by `replace`, or null when it
+ *  has none and stays untouched. Rewritten CSS comes back unescaped, which can
+ *  alter an escaped selector (`#\31 23`) — only CSS that loads remote content. */
+const rewriteCssUrls = (css: string, replace: (url: string) => string): string | null => {
+  let found = false;
+  const rewritten = unescapeCss(css).replace(
+    STYLE_URL_RE,
+    (_match, _q1, url1: string | undefined, _q2, url2: string | undefined) => {
+      found = true;
+      return replace((url1 ?? url2)!);
+    },
+  );
+  return found ? rewritten : null;
+};
+
 const isExternalUrl = (url: string | null | undefined): url is string =>
   !!url && /^(?:https?:)?\/\//i.test(url.trim());
 
@@ -111,7 +150,10 @@ const appendLinkBridge = (doc: Document) => {
 const hardenDoc = (doc: Document) => {
   doc
     .querySelectorAll(
-      "script, noscript, iframe, object, embed, link, meta[http-equiv], base",
+      // `template`: DOMParser leaves its content unparsed (invisible to the
+      // passes below), the iframe turns `shadowrootmode` ones into live DOM.
+      // `plaintext`: swallows everything after it, the bridge script included.
+      "script, noscript, iframe, object, embed, link, meta[http-equiv], base, template, plaintext",
     )
     .forEach((el) => el.remove());
   doc.querySelectorAll("*").forEach((el) => {
@@ -177,7 +219,7 @@ export const stripExternalHtml = (
   hardenDoc(doc);
   let hasExternal = false;
   doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
+    for (const attr of remoteAttrsOf(el)) {
       if (isExternalUrl(el.getAttribute(attr))) {
         hasExternal = true;
         el.removeAttribute(attr);
@@ -189,20 +231,17 @@ export const stripExternalHtml = (
       el.removeAttribute("srcset");
     }
     const style = el.getAttribute("style");
-    if (style) {
-      const stripped = style.replace(STYLE_URL_RE, "none");
-      if (stripped !== style) {
-        hasExternal = true;
-        el.setAttribute("style", stripped);
-      }
+    const stripped = style && rewriteCssUrls(style, () => "none");
+    if (stripped) {
+      hasExternal = true;
+      el.setAttribute("style", stripped);
     }
   });
   // <style> blocks (e.g. `background:url(...)` in newsletters) carry remote
   // refs the per-element style attribute pass above never sees.
   doc.querySelectorAll("style").forEach((el) => {
-    const css = el.textContent ?? "";
-    const stripped = css.replace(STYLE_URL_RE, "none");
-    if (stripped !== css) {
+    const stripped = rewriteCssUrls(el.textContent ?? "", () => "none");
+    if (stripped !== null) {
       hasExternal = true;
       el.textContent = stripped;
     }
@@ -221,7 +260,7 @@ export const inlineExternalHtml = async (
   hardenDoc(doc);
   const urls = new Set<string>();
   doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
+    for (const attr of remoteAttrsOf(el)) {
       const v = el.getAttribute(attr);
       if (isExternalUrl(v)) urls.add(v);
     }
@@ -229,11 +268,10 @@ export const inlineExternalHtml = async (
     if (srcset)
       for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
     const style = el.getAttribute("style");
-    if (style) for (const m of style.matchAll(STYLE_URL_RE)) urls.add(styleMatchUrl(m));
+    if (style) for (const url of cssUrls(style)) urls.add(url);
   });
   doc.querySelectorAll("style").forEach((el) => {
-    for (const m of (el.textContent ?? "").matchAll(STYLE_URL_RE))
-      urls.add(styleMatchUrl(m));
+    for (const url of cssUrls(el.textContent ?? "")) urls.add(url);
   });
 
   const resolved = new Map<string, string>();
@@ -247,8 +285,10 @@ export const inlineExternalHtml = async (
     }),
   );
 
+  const inlineUrl = (url: string) =>
+    resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
   doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of REMOTE_ATTRS) {
+    for (const attr of remoteAttrsOf(el)) {
       const v = el.getAttribute(attr);
       if (isExternalUrl(v)) {
         if (resolved.has(v)) el.setAttribute(attr, resolved.get(v)!);
@@ -273,24 +313,12 @@ export const inlineExternalHtml = async (
       else el.removeAttribute("srcset");
     }
     const style = el.getAttribute("style");
-    if (style) {
-      el.setAttribute(
-        "style",
-        style.replace(STYLE_URL_RE, (whole, g1: string, g2: string, g3: string) => {
-          const url = g1 ?? g3;
-          return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
-        }),
-      );
-    }
+    const inlined = style && rewriteCssUrls(style, inlineUrl);
+    if (inlined) el.setAttribute("style", inlined);
   });
   doc.querySelectorAll("style").forEach((el) => {
-    el.textContent = (el.textContent ?? "").replace(
-      STYLE_URL_RE,
-      (whole, g1: string, g2: string, g3: string) => {
-        const url = g1 ?? g3;
-        return resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
-      },
-    );
+    const inlined = rewriteCssUrls(el.textContent ?? "", inlineUrl);
+    if (inlined !== null) el.textContent = inlined;
   });
   return toFrameHtml(doc);
 };
