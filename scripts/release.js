@@ -2,14 +2,18 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
+import { listExtensions } from './extensions.js';
 
-const repoRoot = new URL('..', import.meta.url).pathname;
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const extensionName = process.argv[2];
 const versionType = process.argv[3] || 'patch';
 
-const KNOWN_EXTENSIONS = ['haex-pass-browser', 'haex-calendar', 'haex-code', 'haex-draw', 'haex-notes', 'haex-image', 'haex-tetris', 'haex-mail', 'haex-game-unicorn'];
+// haex-pass-browser has no haextension manifest; its tag triggers
+// browser-extension-release.yml instead of extension-release.yml.
+const KNOWN_EXTENSIONS = [...listExtensions(), 'haex-pass-browser'];
 
 if (!extensionName || !KNOWN_EXTENSIONS.includes(extensionName)) {
   console.error(`Usage: node scripts/release.js <extension> <patch|minor|major>`);

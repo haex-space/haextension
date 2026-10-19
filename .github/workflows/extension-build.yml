@@ -6,12 +6,20 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/extension-build.yml'
     tags-ignore:
       - '*'
   pull_request:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/extension-build.yml'
 
 jobs:
   detect-changes:
@@ -23,6 +31,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Detect changed extensions
         id: changes
@@ -39,9 +52,15 @@ jobs:
 
           CHANGED_FILES=$(git diff --name-only "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
 
+          # A plain assignment so a failing script aborts the step (set -e)
+          # instead of silently yielding an empty matrix.
+          ALL_EXTENSIONS=$(node scripts/extensions.js)
+
+          GLOBAL_CHANGE=$(echo "$CHANGED_FILES" | grep -Eq '^(packages/|scripts/|package.json$|pnpm-lock.yaml$|\.github/workflows/extension-build\.yml$)' && echo true || echo false)
+
           EXTENSIONS=()
-          for ext in haex-calendar haex-code haex-files; do
-            if echo "$CHANGED_FILES" | grep -q "^apps/${ext}/" || echo "$CHANGED_FILES" | grep -q "^packages/"; then
+          for ext in $ALL_EXTENSIONS; do
+            if [ "$GLOBAL_CHANGE" = true ] || echo "$CHANGED_FILES" | grep -q "^apps/${ext}/"; then
               EXTENSIONS+=("\"${ext}\"")
             fi
           done

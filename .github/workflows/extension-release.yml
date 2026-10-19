@@ -7,21 +7,14 @@ on:
       # haex-pass-browser is a plain WebExtension (no Nuxt) and has its own
       # release pipeline in browser-extension-release.yml.
       - '!haex-pass-browser-v*'
-      # haex-pass and haex-files have been fully integrated into haex-vault and
-      # are no longer published as separate extensions. Their apps/ directories
-      # are kept as archives only.
-      - '!haex-pass-v*'
-      - '!haex-files-v*'
+      # Tags of archived apps (package.json "haextension.archived") are
+      # rejected by the "Validate extension" step below.
   workflow_dispatch:
     inputs:
       extension:
-        description: 'Extension name (e.g., haex-calendar)'
+        description: 'Extension name (e.g., haex-calendar); see scripts/extensions.js'
         required: true
-        type: choice
-        options:
-          - haex-calendar
-          - haex-code
-          - haex-tetris
+        type: string
       version:
         description: 'Version (without v prefix, e.g., 1.4.13)'
         required: true
@@ -63,6 +56,11 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
+
+      - name: Validate extension
+        env:
+          EXT_NAME: ${{ steps.parse.outputs.ext_name }}
+        run: node scripts/extensions.js --check "$EXT_NAME"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
