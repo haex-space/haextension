@@ -174,7 +174,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
                 <label class="text-sm font-medium">{{ t("minimap") }}</label>
                 <p class="text-xs text-muted-foreground">{{ t("minimapDesc") }}</p>
               </div>
-              <ShadcnSwitch v-model:checked="settings.editorMinimap" />
+              <ShadcnSwitch v-model="settings.editorMinimap" />
             </div>
 
             <!-- Line Numbers -->
