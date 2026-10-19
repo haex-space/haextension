@@ -122,9 +122,7 @@ export function useImageProcessor() {
       mapPixels(ctx, canvas.width, canvas.height, adjustmentsPixelFn(adjustments));
       return { canvas };
     });
-    if (!applied) return;
-    editor.adjustments = { brightness: 0, contrast: 0, saturation: 0 };
-    editor.activeTool = null;
+    if (applied) editor.activeTool = null;
   }
 
   async function applyFilter(filter: FilterType) {

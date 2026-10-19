@@ -1,4 +1,4 @@
-import type { EditorTool, CropRect, ImageAdjustments, FilterType, HistoryEntry } from "~/types";
+import type { EditorTool, CropRect, FilterType, HistoryEntry } from "~/types";
 
 // Each entry holds a full encoded image, so the depth bounds the memory an editing session uses.
 const MAX_HISTORY = 20;
@@ -16,22 +16,10 @@ export const useEditorStore = defineStore("editor", () => {
   const cropRect = ref<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
   const cropAspectRatio = ref<number | null>(null);
 
-  // Rotate
-  const rotation = ref(0); // degrees
-  const flipH = ref(false);
-  const flipV = ref(false);
-
   // Resize
   const resizeWidth = ref(0);
   const resizeHeight = ref(0);
   const resizeLockAspect = ref(true);
-
-  // Adjustments
-  const adjustments = ref<ImageAdjustments>({
-    brightness: 0,
-    contrast: 0,
-    saturation: 0,
-  });
 
   // Filter
   const activeFilter = ref<FilterType>("none");
@@ -58,10 +46,6 @@ export const useEditorStore = defineStore("editor", () => {
   function loadImage(entry: HistoryEntry, name: string, path: string = "") {
     fileName.value = name;
     filePath.value = path;
-    rotation.value = 0;
-    flipH.value = false;
-    flipV.value = false;
-    adjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
     activeFilter.value = "none";
     activeTool.value = null;
 
@@ -85,26 +69,13 @@ export const useEditorStore = defineStore("editor", () => {
     selectHistory(historyIndex.value + 1);
   }
 
-  function resetAll() {
-    fileName.value = "";
-    activeTool.value = null;
-    rotation.value = 0;
-    flipH.value = false;
-    flipV.value = false;
-    adjustments.value = { brightness: 0, contrast: 0, saturation: 0 };
-    activeFilter.value = "none";
-    history.value = [];
-    historyIndex.value = -1;
-  }
-
   return {
     current, imageWidth, imageHeight, fileName, filePath, hasImage,
     activeTool, isProcessing,
     cropRect, cropAspectRatio,
-    rotation, flipH, flipV,
     resizeWidth, resizeHeight, resizeLockAspect,
-    adjustments, activeFilter,
+    activeFilter,
     history, historyIndex, canUndo, canRedo,
-    loadImage, pushHistory, undo, redo, resetAll,
+    loadImage, pushHistory, undo, redo,
   };
 });
