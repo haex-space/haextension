@@ -73,6 +73,24 @@ export function useDrawingPersistence() {
     return db.select().from(drawings).orderBy(drawings.updatedAt);
   };
 
+  const renameAsync = async (id: string, name: string) => {
+    await requireDb().update(drawings).set({ name }).where(eq(drawings.id, id));
+  };
+
+  /** Stores a copy of a drawing under a new id, named after the original plus `nameSuffix`. */
+  const duplicateAsync = async (id: string, nameSuffix: string) => {
+    const original = await loadAsync(id);
+    if (!original) return;
+    await requireDb().insert(drawings).values({
+      id: crypto.randomUUID(),
+      name: `${original.name} ${nameSuffix}`,
+      strokes: original.strokes,
+      stencils: original.stencils,
+      viewport: original.viewport,
+      thumbnail: original.thumbnail,
+    });
+  };
+
   const deleteAsync = async (id: string) => {
     const db = haexVault.orm;
     if (!db) return;
@@ -104,6 +122,8 @@ export function useDrawingPersistence() {
     writeThumbnailAsync,
     loadAsync,
     listAsync,
+    renameAsync,
+    duplicateAsync,
     deleteAsync,
     exportPngAsync,
   };

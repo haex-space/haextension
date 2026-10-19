@@ -9,7 +9,7 @@ const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const paletteStore = usePaletteStore();
 const drawingSave = useDrawingSaveStore();
-const { listAsync, deleteAsync, loadAsync } = useDrawingPersistence();
+const { listAsync, deleteAsync, renameAsync, duplicateAsync } = useDrawingPersistence();
 
 const drawings = ref<SelectDrawing[]>([]);
 const isLoaded = ref(false);
@@ -36,29 +36,12 @@ const openDrawing = (id: string) => {
 };
 
 const renameDrawing = async (id: string, name: string) => {
-  const db = haexVault.orm;
-  if (!db) return;
-  const { drawings: drawingsTable } = await import("~/database/schemas");
-  const { eq } = await import("drizzle-orm");
-  await db.update(drawingsTable).set({ name }).where(eq(drawingsTable.id, id));
+  await renameAsync(id, name);
   await loadDrawings();
 };
 
 const duplicateDrawing = async (id: string) => {
-  const original = await loadAsync(id);
-  if (!original) return;
-  const db = haexVault.orm;
-  if (!db) return;
-  const { drawings: drawingsTable } = await import("~/database/schemas");
-  const newId = crypto.randomUUID();
-  await db.insert(drawingsTable).values({
-    id: newId,
-    name: `${original.name} ${t("copySuffix")}`,
-    strokes: original.strokes,
-    stencils: original.stencils,
-    viewport: original.viewport,
-    thumbnail: original.thumbnail,
-  });
+  await duplicateAsync(id, t("copySuffix"));
   await loadDrawings();
 };
 
