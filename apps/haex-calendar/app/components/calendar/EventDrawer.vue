@@ -51,11 +51,11 @@
             <label class="text-sm font-medium mb-1 block">
               {{ form.kind === 'task' ? t('fields.due') : t('fields.start') }}
             </label>
-            <ShadcnDatePicker v-model="form.startDate" :clearable="false" locale="de-DE" />
+            <ShadcnDatePicker v-model="form.startDate" :clearable="false" :locale="locale" />
           </div>
           <div v-if="form.kind === 'event'">
             <label class="text-sm font-medium mb-1 block">{{ t('fields.end') }}</label>
-            <ShadcnDatePicker v-model="form.endDate" :clearable="false" locale="de-DE" />
+            <ShadcnDatePicker v-model="form.endDate" :clearable="false" :locale="locale" />
           </div>
         </div>
 
@@ -265,7 +265,7 @@ const props = defineProps<{
   initialValues?: EventDrawerInitialValues | null;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventTypesStore = useEventTypesStore();

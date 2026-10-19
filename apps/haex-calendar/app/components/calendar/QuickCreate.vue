@@ -120,7 +120,7 @@ const emit = defineEmits<{
   created: [];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventDrawer = useEventDrawerStore();
@@ -156,14 +156,13 @@ onMounted(() => {
   nextTick(() => titleInput.value?.focus());
 });
 
-const dateFormatter = new Intl.DateTimeFormat("de-DE", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
 const formattedDate = computed(() => {
+  const dateFormatter = new Intl.DateTimeFormat(locale.value, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
   if (isMultiDay && props.endDate) {
     return `${dateFormatter.format(props.date)} – ${dateFormatter.format(props.endDate)}`;
   }

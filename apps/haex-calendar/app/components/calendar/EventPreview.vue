@@ -129,7 +129,7 @@ import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
 import { formatClock, parseEventInstant } from "~/lib/dates";
 import { safeExternalUrl } from "~/lib/url";
 
-const { t, te } = useI18n();
+const { t, te, locale } = useI18n();
 const preview = useEventPreviewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
@@ -161,7 +161,7 @@ const calendar = computed(() => {
 const dateDescription = computed(() => {
   if (!event.value) return "";
   const dt = parseEventInstant(event.value.dtstart, event.value.allDay);
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(locale.value, {
     weekday: "long",
     day: "numeric",
     month: "long",

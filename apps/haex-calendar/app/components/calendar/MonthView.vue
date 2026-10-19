@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col">
     <!-- Day headers -->
     <div class="grid border-b border-border" :style="{ gridTemplateColumns: headerGridCols }">
-      <div v-if="settingsStore.showWeekNumbers" class="text-center text-xs font-medium text-muted-foreground/60 py-2 w-8">KW</div>
+      <div v-if="settingsStore.showWeekNumbers" class="text-center text-xs font-medium text-muted-foreground/60 py-2 w-8">{{ t('weekShort') }}</div>
       <div
         v-for="day in weekDayNames"
         :key="day"
@@ -155,7 +155,7 @@ import type { SelectEvent } from "~/database/schemas";
 import { eventSpan, formatClock, isoWeek, isWeekend, toLocalDateKey } from "~/lib/dates";
 import { eventDayRange, packBars, toDateKey, type DayBar } from "~/lib/timeGrid";
 
-const { locale } = useI18n();
+const { t, locale } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const settingsStore = useSettingsStore();
@@ -313,3 +313,10 @@ onMounted(() => {
   onUnmounted(() => window.removeEventListener("mouseup", onGlobalMouseUp));
 });
 </script>
+
+<i18n lang="yaml">
+de:
+  weekShort: KW
+en:
+  weekShort: Wk
+</i18n>

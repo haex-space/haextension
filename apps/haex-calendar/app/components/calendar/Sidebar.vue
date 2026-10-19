@@ -3,7 +3,7 @@
     <!-- Mini month calendar -->
     <ShadcnCalendar
       :model-value="selectedCalendarDate"
-      locale="de-DE"
+      :locale="locale"
       :week-starts-on="settingsStore.weekStart === 'sunday' ? 0 : 1"
       weekday-format="short"
       :show-week-numbers="settingsStore.showWeekNumbers"
@@ -168,7 +168,7 @@ const emit = defineEmits<{
   delete: [calendarId: string];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const calendarView = useCalendarViewStore();
 const calendarsStore = useCalendarsStore();

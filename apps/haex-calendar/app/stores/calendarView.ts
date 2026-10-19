@@ -22,6 +22,8 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
   const viewMode = ref<ViewMode>("month");
   const currentDate = ref(new Date());
   const settingsStore = useSettingsStore();
+  // Direct $i18n access: the store has no component scope of its own.
+  const { locale } = useNuxtApp().$i18n;
   const weekStart = computed<WeekStart>(() => settingsStore.weekStart);
 
   /** The 6 × 7 days the month view renders; the month range covers all of them. */
@@ -69,7 +71,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
    */
   const title = computed(() => {
     const d = currentDate.value;
-    const formatter = new Intl.DateTimeFormat("de-DE", {
+    const formatter = new Intl.DateTimeFormat(locale.value, {
       month: "long",
       year: "numeric",
     });
@@ -80,7 +82,7 @@ export const useCalendarViewStore = defineStore("calendarView", () => {
       case "week":
         return formatter.format(d);
       case "day":
-        return new Intl.DateTimeFormat("de-DE", {
+        return new Intl.DateTimeFormat(locale.value, {
           weekday: "long",
           day: "numeric",
           month: "long",
