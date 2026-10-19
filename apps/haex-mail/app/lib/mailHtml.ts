@@ -73,7 +73,6 @@ const remoteAttrsOf = (el: Element): string[] =>
 // in group 2 for the former, group 4 for the latter.
 const STYLE_URL_RE =
   /url\(\s*(['"]?)((?:https?:)?\/\/[^'")]+)\1\s*\)|(?<=(?:@import|image-set\()\s*|,\s*)(['"])((?:https?:)?\/\/[^'"]+)\3/gi;
-const styleMatchUrl = (m: RegExpMatchArray): string => (m[2] ?? m[4])!;
 
 // CSS escapes can spell `url(` or a scheme (`u\72l(`, `\68ttps:`) past the
 // pattern above. Unescaping letters, digits and URL punctuation exposes them;
@@ -88,9 +87,6 @@ const unescapeCss = (css: string): string =>
       return /^[\w:/.]$/.test(c) ? c : escape;
     },
   );
-
-const cssUrls = (css: string): string[] =>
-  [...unescapeCss(css).matchAll(STYLE_URL_RE)].map(styleMatchUrl);
 
 /** `css` with every remote reference rewritten by `replace`, or null when it
  *  has none and stays untouched. Rewritten CSS comes back unescaped, which can
@@ -242,6 +238,50 @@ const showInlineImages = (doc: Document, inlineImages: ReadonlyMap<string, strin
   });
 };
 
+const cssUrlValue = (url: string | null): string => (url === null ? "none" : `url("${url}")`);
+
+/** Apply `map` to every remote resource reference in `doc` — attributes,
+ *  srcset candidates, inline and `<style>` CSS: a URL repoints the reference,
+ *  null drops it. Returns whether there was any. */
+const rewriteRemoteRefs = (doc: Document, map: (url: string) => string | null): boolean => {
+  let found = false;
+  const mapUrl = (url: string) => {
+    found = true;
+    return map(url);
+  };
+  doc.querySelectorAll("*").forEach((el) => {
+    for (const attr of remoteAttrsOf(el)) {
+      const v = el.getAttribute(attr);
+      if (!isExternalUrl(v)) continue;
+      const next = mapUrl(v);
+      if (next === null) el.removeAttribute(attr);
+      else el.setAttribute(attr, next);
+    }
+    const srcset = el.getAttribute("srcset");
+    if (srcset && parseSrcset(srcset).some((c) => isExternalUrl(c.url))) {
+      // base64 data: URLs carry no whitespace, so a ", " join stays a valid
+      // srcset; dropped candidates are left out.
+      const rebuilt = parseSrcset(srcset)
+        .flatMap((c) => {
+          const url = isExternalUrl(c.url) ? mapUrl(c.url) : c.url;
+          if (url === null) return [];
+          return [c.descriptor ? `${url} ${c.descriptor}` : url];
+        })
+        .join(", ");
+      if (rebuilt) el.setAttribute("srcset", rebuilt);
+      else el.removeAttribute("srcset");
+    }
+    const style = el.getAttribute("style");
+    const rewritten = style && rewriteCssUrls(style, (url) => cssUrlValue(mapUrl(url)));
+    if (rewritten) el.setAttribute("style", rewritten);
+  });
+  doc.querySelectorAll("style").forEach((el) => {
+    const rewritten = rewriteCssUrls(el.textContent ?? "", (url) => cssUrlValue(mapUrl(url)));
+    if (rewritten !== null) el.textContent = rewritten;
+  });
+  return found;
+};
+
 /** Remove references to remote resources and report whether any existed, so
  *  the view can offer an explicit "load external content" action. The vault
  *  CSP blocks these regardless; stripping them just avoids broken-image noise. */
@@ -252,35 +292,7 @@ export const stripExternalHtml = (
   const doc = new DOMParser().parseFromString(bodyHtml, "text/html");
   hardenDoc(doc);
   showInlineImages(doc, inlineImages);
-  let hasExternal = false;
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of remoteAttrsOf(el)) {
-      if (isExternalUrl(el.getAttribute(attr))) {
-        hasExternal = true;
-        el.removeAttribute(attr);
-      }
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset && parseSrcset(srcset).some((c) => isExternalUrl(c.url))) {
-      hasExternal = true;
-      el.removeAttribute("srcset");
-    }
-    const style = el.getAttribute("style");
-    const stripped = style && rewriteCssUrls(style, () => "none");
-    if (stripped) {
-      hasExternal = true;
-      el.setAttribute("style", stripped);
-    }
-  });
-  // <style> blocks (e.g. `background:url(...)` in newsletters) carry remote
-  // refs the per-element style attribute pass above never sees.
-  doc.querySelectorAll("style").forEach((el) => {
-    const stripped = rewriteCssUrls(el.textContent ?? "", () => "none");
-    if (stripped !== null) {
-      hasExternal = true;
-      el.textContent = stripped;
-    }
-  });
+  const hasExternal = rewriteRemoteRefs(doc, () => null);
   return { html: toFrameHtml(doc), hasExternal };
 };
 
@@ -296,19 +308,10 @@ export const inlineExternalHtml = async (
   hardenDoc(doc);
   showInlineImages(doc, inlineImages);
   const urls = new Set<string>();
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of remoteAttrsOf(el)) {
-      const v = el.getAttribute(attr);
-      if (isExternalUrl(v)) urls.add(v);
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset)
-      for (const c of parseSrcset(srcset)) if (isExternalUrl(c.url)) urls.add(c.url);
-    const style = el.getAttribute("style");
-    if (style) for (const url of cssUrls(style)) urls.add(url);
-  });
-  doc.querySelectorAll("style").forEach((el) => {
-    for (const url of cssUrls(el.textContent ?? "")) urls.add(url);
+  // Collected on a copy: the rewrite below still needs the references.
+  rewriteRemoteRefs(doc.cloneNode(true) as Document, (url) => {
+    urls.add(url);
+    return null;
   });
 
   const resolved = new Map<string, string>();
@@ -322,40 +325,6 @@ export const inlineExternalHtml = async (
     }),
   );
 
-  const inlineUrl = (url: string) =>
-    resolved.has(url) ? `url("${resolved.get(url)}")` : "none";
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of remoteAttrsOf(el)) {
-      const v = el.getAttribute(attr);
-      if (isExternalUrl(v)) {
-        if (resolved.has(v)) el.setAttribute(attr, resolved.get(v)!);
-        else el.removeAttribute(attr);
-      }
-    }
-    const srcset = el.getAttribute("srcset");
-    if (srcset) {
-      // base64 data: URLs carry no whitespace, so a ", " join stays a valid
-      // srcset; candidates that failed to resolve are dropped.
-      const rebuilt = parseSrcset(srcset)
-        .map((c) => {
-          if (!isExternalUrl(c.url))
-            return c.descriptor ? `${c.url} ${c.descriptor}` : c.url;
-          const data = resolved.get(c.url);
-          if (!data) return null;
-          return c.descriptor ? `${data} ${c.descriptor}` : data;
-        })
-        .filter((c): c is string => c != null)
-        .join(", ");
-      if (rebuilt) el.setAttribute("srcset", rebuilt);
-      else el.removeAttribute("srcset");
-    }
-    const style = el.getAttribute("style");
-    const inlined = style && rewriteCssUrls(style, inlineUrl);
-    if (inlined) el.setAttribute("style", inlined);
-  });
-  doc.querySelectorAll("style").forEach((el) => {
-    const inlined = rewriteCssUrls(el.textContent ?? "", inlineUrl);
-    if (inlined !== null) el.textContent = inlined;
-  });
+  rewriteRemoteRefs(doc, (url) => resolved.get(url) ?? null);
   return toFrameHtml(doc);
 };
