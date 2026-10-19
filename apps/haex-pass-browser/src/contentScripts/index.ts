@@ -132,11 +132,9 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
     // Only inject on first field to avoid multiple buttons
     const field = primaryFields[0]
-    const input = document.querySelector(`[data-haex-field-id="${field.id}"]`) as HTMLInputElement
-      || document.getElementById(field.element.id)
-      || document.querySelector(`[name="${field.element.name}"]`)
+    const input = field.element
 
-    if (!input || input.dataset.haexInjected) return
+    if (!input.isConnected || input.dataset.haexInjected) return
 
     input.dataset.haexInjected = 'true'
     input.dataset.haexFieldId = field.id
@@ -274,11 +272,9 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   // Inject haex-pass icons into input fields
   function injectIcons() {
     detectedFields.forEach((field) => {
-      const input = document.querySelector(`[data-haex-field-id="${field.id}"]`) as HTMLInputElement
-        || document.getElementById(field.element.id)
-        || document.querySelector(`[name="${field.element.name}"]`)
+      const input = field.element
 
-      if (!input || input.dataset.haexInjected)
+      if (!input.isConnected || input.dataset.haexInjected)
         return
 
       // Check if we should show icon for this field

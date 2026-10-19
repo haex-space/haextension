@@ -41,14 +41,17 @@ export function shouldShowIconForField(field: DetectedField, matchingEntries: un
   return false
 }
 
+function setInputValue(input: HTMLInputElement, value: string) {
+  input.value = value
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
 // Fill a single field
 export function fillField(fieldId: string, value: string) {
   const input = document.querySelector(`[data-haex-field-id="${fieldId}"]`) as HTMLInputElement
-  if (input) {
-    input.value = value
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-  }
+  if (input)
+    setInputValue(input, value)
 }
 
 // Fill all fields with entry data, using aliases for matching
@@ -85,8 +88,9 @@ export function fillAllFields(
       value = fields.password || fields.pass || fields.pwd
     }
 
-    if (value) {
-      fillField(field.id, value)
-    }
+    // The detected element itself: the data-haex-field-id marker exists only
+    // on inputs that got an icon, and every rescan hands out new field ids.
+    if (value)
+      setInputValue(field.element, value)
   })
 }
