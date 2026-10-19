@@ -188,8 +188,8 @@ function handleMessage(event: MessageEvent) {
   if (event.source !== window)
     return
 
-  const message = event.data as WebAuthnRequest
-  if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_'))
+  const message = event.data as WebAuthnRequest | null
+  if (typeof message?.type !== 'string' || !message.type.startsWith('HAEX_PASS_WEBAUTHN_'))
     return
 
   if (message.type === 'HAEX_PASS_WEBAUTHN_ABORT') {

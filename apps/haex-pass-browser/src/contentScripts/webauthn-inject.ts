@@ -290,8 +290,8 @@ function handleAck(requestId: string) {
 
 // Empfange Acks und Responses vom Content-Script
 window.addEventListener('message', (event) => {
-  // Ignoriere Nachrichten von anderen Origins
-  if (event.source !== window) return
+  // Only our own window, and only payloads with a string type: a throw here would reach the page's error handler
+  if (event.source !== window || typeof event.data?.type !== 'string') return
 
   const message = event.data as {
     type: string
@@ -306,7 +306,7 @@ window.addEventListener('message', (event) => {
   }
 
   // Nur unsere Response-Nachrichten verarbeiten
-  if (!message.type?.startsWith('HAEX_PASS_WEBAUTHN_RESPONSE_')) return
+  if (!message.type.startsWith('HAEX_PASS_WEBAUTHN_RESPONSE_')) return
 
   // Bei JEDEM Fehler auf Browser-Fallback umschalten
   // Wir können nicht alle möglichen Fehlermeldungen von verschiedenen Seiten vorhersehen,

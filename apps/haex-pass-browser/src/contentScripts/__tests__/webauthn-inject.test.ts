@@ -101,6 +101,17 @@ describe('webauthn-inject', () => {
     expect(nativeGet).not.toHaveBeenCalled()
   })
 
+  it('ignores window messages that carry no object', () => {
+    const errors: unknown[] = []
+    const onError = (event: ErrorEvent) => errors.push(event.error)
+    window.addEventListener('error', onError)
+    window.dispatchEvent(new MessageEvent('message', { data: null, source: window }))
+    window.dispatchEvent(new MessageEvent('message', { data: undefined, source: window }))
+    window.removeEventListener('error', onError)
+
+    expect(errors).toEqual([])
+  })
+
   it('rejects at once for an already aborted signal', async () => {
     const controller = new AbortController()
     controller.abort()
