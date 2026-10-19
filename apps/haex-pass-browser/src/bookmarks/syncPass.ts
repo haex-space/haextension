@@ -49,8 +49,8 @@ export async function doSyncOnce(
       state = { ...state, pendingOps: [...state.pendingOps, op] }
       await deps.storage.saveState(state)
     },
-    resolvePending: async (opId: string) => {
-      state = { ...state, pendingOps: state.pendingOps.filter(p => p.opId !== opId) }
+    resolvePending: async (opId: string, bindings?: BookmarkSyncState['bindings']) => {
+      state = { ...state, pendingOps: state.pendingOps.filter(p => p.opId !== opId), ...(bindings && { bindings }) }
       await deps.storage.saveState(state)
     },
   }
