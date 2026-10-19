@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
 import { assignRoles } from "~/lib/mailboxRoles";
@@ -251,42 +251,47 @@ export const useMailSync = (state: MailSyncState) => {
     envelopes: MessageEnvelope[],
   ) => {
     if (!haexVault.orm) return;
-    for (const env of envelopes) {
-      const id = `${accountId}::${mailboxName}::${env.uid}`;
-      const threadKey = env.references[0] ?? env.inReplyTo ?? env.messageId ?? id;
-      const flags = env.flags.map((f) => f.replace(/^\\/, ""));
-
-      // Envelope fields are immutable per UID — only flags change between
-      // fetches (e.g. \Seen added by another client). Insert the row if it
-      // is new, then always update flags so they stay in sync regardless.
-      // hasAttachments rides along on that same update: rows cached before
-      // this field existed default to false and would otherwise never
-      // self-correct on a later refresh of the same UID.
+    // Envelope fields are immutable per UID — only flags change between
+    // fetches (e.g. \Seen added by another client), so an existing row only
+    // takes the new flags. hasAttachments rides along: rows cached before
+    // this field existed default to false and would otherwise never
+    // self-correct on a later refresh of the same UID.
+    // 50 rows of at most 17 values stay below SQLite's bind-parameter limit.
+    for (const batch of chunk(envelopes, 50)) {
       await haexVault.orm
         .insert(schema.messages)
-        .values({
-          id,
-          accountId,
-          mailboxName,
-          uid: env.uid,
-          threadKey,
-          flags,
-          internalDate: env.internalDate ?? null,
-          subject: env.subject ?? null,
-          fromJson: env.from,
-          toJson: env.to,
-          ccJson: env.cc,
-          messageId: env.messageId ?? null,
-          inReplyTo: env.inReplyTo ?? null,
-          references: env.references,
-          size: env.size ?? null,
-          hasAttachments: env.hasAttachments,
-        })
-        .onConflictDoNothing();
-      await haexVault.orm
-        .update(schema.messages)
-        .set({ flags, hasAttachments: env.hasAttachments })
-        .where(eq(schema.messages.id, id));
+        .values(
+          batch.map((env) => {
+            const id = `${accountId}::${mailboxName}::${env.uid}`;
+            return {
+              id,
+              accountId,
+              mailboxName,
+              uid: env.uid,
+              threadKey: env.references[0] ?? env.inReplyTo ?? env.messageId ?? id,
+              flags: env.flags.map((f) => f.replace(/^\\/, "")),
+              internalDate: env.internalDate ?? null,
+              subject: env.subject ?? null,
+              fromJson: env.from,
+              toJson: env.to,
+              ccJson: env.cc,
+              messageId: env.messageId ?? null,
+              inReplyTo: env.inReplyTo ?? null,
+              references: env.references,
+              size: env.size ?? null,
+              hasAttachments: env.hasAttachments,
+            };
+          }),
+        )
+        .onConflictDoUpdate({
+          // The vault's SQL check accepts only plain column names as conflict
+          // target; a column object renders table-qualified.
+          target: sql`${sql.identifier(schema.messages.id.name)}`,
+          set: {
+            flags: sql`excluded.${sql.identifier(schema.messages.flags.name)}`,
+            hasAttachments: sql`excluded.${sql.identifier(schema.messages.hasAttachments.name)}`,
+          },
+        });
     }
   };
 

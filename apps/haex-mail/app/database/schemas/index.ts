@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { getTableName } from "@haex-space/vault-sdk";
 import manifest from "../../../haextension/manifest.json";
 import packageJson from "../../../package.json";
@@ -101,7 +101,10 @@ export const messages = sqliteTable(tableName("messages"), {
   /** Whether the message has any non-primary-body MIME part (from BODYSTRUCTURE). */
   hasAttachments: integer("has_attachments", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
-});
+}, (t) => [
+  // Every message list reads one mailbox, newest first.
+  index(tableName("messages_mailbox_date_idx")).on(t.accountId, t.mailboxName, t.internalDate),
+]);
 export type InsertMessage = typeof messages.$inferInsert;
 export type SelectMessage = typeof messages.$inferSelect;
 
