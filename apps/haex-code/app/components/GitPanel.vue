@@ -8,6 +8,8 @@ import {
   ChevronDown,
   ChevronRight,
 } from "@lucide/vue";
+import { toast } from "vue-sonner";
+import { GitCommandError } from "~/lib/gitOutput";
 
 const { t } = useI18n();
 const gitStore = useGitStore();
@@ -44,31 +46,36 @@ const refresh = () => {
   if (workspace.rootPath) gitStore.refresh(workspace.rootPath);
 };
 
-const stageFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await stage(workspace.rootPath, path);
-  refresh();
+const reportGitError = (title: string, error: unknown) => {
+  console.error("[haex-code] Git command failed:", error);
+  const description = error instanceof GitCommandError ? error.result.output.trim() : String(error);
+  toast.error(title, { description });
 };
 
-const unstageFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await unstage(workspace.rootPath, path);
-  refresh();
-};
-
-const discardFile = async (path: string) => {
-  if (!workspace.rootPath) return;
-  await doDiscard(workspace.rootPath, path);
-  refresh();
-};
-
-const stageAll = async () => {
-  if (!workspace.rootPath) return;
-  for (const f of gitStore.unstagedFiles) {
-    if (f.status !== "deleted") await stage(workspace.rootPath, f.path);
+const runGitAction = async (action: (root: string) => Promise<void>) => {
+  const root = workspace.rootPath;
+  if (!root) return;
+  try {
+    await action(root);
+  } catch (error) {
+    reportGitError(t("gitFailed"), error);
+  } finally {
+    refresh();
   }
-  refresh();
 };
+
+const stageFile = (path: string) => runGitAction((root) => stage(root, path));
+
+const unstageFile = (path: string) => runGitAction((root) => unstage(root, path));
+
+const discardFile = (path: string) => runGitAction((root) => doDiscard(root, path));
+
+const stageAll = () =>
+  runGitAction(async (root) => {
+    for (const f of gitStore.unstagedFiles) {
+      if (f.status !== "deleted") await stage(root, f.path);
+    }
+  });
 
 const handleCommit = async () => {
   if (
@@ -81,11 +88,11 @@ const handleCommit = async () => {
   try {
     await doCommit(workspace.rootPath, commitMessage.value.trim());
     commitMessage.value = "";
-    refresh();
   } catch (e) {
-    console.error("[haex-code] Commit failed:", e);
+    reportGitError(t("commitFailed"), e);
   } finally {
     isCommitting.value = false;
+    refresh();
   }
 };
 </script>
@@ -260,6 +267,8 @@ de:
   stageAll: Alle stagen
   discardChanges: Änderungen verwerfen
   noChanges: Keine Änderungen
+  gitFailed: Git-Befehl fehlgeschlagen
+  commitFailed: Commit fehlgeschlagen
 en:
   commitMessage: Commit message
   committing: Committing...
@@ -268,4 +277,6 @@ en:
   stageAll: Stage all
   discardChanges: Discard changes
   noChanges: No changes
+  gitFailed: Git command failed
+  commitFailed: Commit failed
 </i18n>

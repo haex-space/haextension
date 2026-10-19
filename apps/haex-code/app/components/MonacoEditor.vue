@@ -7,6 +7,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import CssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import HtmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import { computeLineChanges } from "~/lib/lineChanges";
+import { relativePath } from "~/lib/path";
 
 const props = defineProps<{
   tab: EditorTab;
@@ -46,15 +47,21 @@ const modelFor = (monaco: typeof Monaco, tab: EditorTab): Monaco.editor.ITextMod
 
 const updateGutterDecorations = async () => {
   const editor = editorInstance.value;
-  if (!editor || !gitStore.isRepo || !workspace.rootPath) return;
+  const root = workspace.rootPath;
+  const tab = props.tab;
+  if (!editor || !gitStore.isRepo || !root) return;
 
-  const headContent = await getHeadContent(workspace.rootPath, props.tab.path.slice(workspace.rootPath.length + 1));
+  // Untitled tabs and files outside the opened folder have no HEAD version to compare with.
+  const pathInRepo = relativePath(root, tab.path);
+  const headContent = pathInRepo === null ? null : await getHeadContent(root, pathInRepo);
+  // Another tab may have been shown while git was running.
+  if (editorInstance.value !== editor || shownTabId !== tab.id) return;
   if (headContent === null) {
     gutterDecorations.value?.clear();
     return;
   }
 
-  const changes = computeLineChanges(headContent, props.tab.content);
+  const changes = computeLineChanges(headContent, tab.content);
   const decorations = changes.map(({ line, type }) => ({
     range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
     options: {
@@ -81,7 +88,7 @@ const showTab = (tab: EditorTab) => {
   const viewState = viewStates.get(tab.id);
   if (viewState) editor.restoreViewState(viewState);
   shownTabId = tab.id;
-  updateGutterDecorations();
+  void updateGutterDecorations();
 };
 
 const initEditor = async () => {
@@ -136,7 +143,7 @@ const initEditor = async () => {
     () => emit("save")
   );
 
-  updateGutterDecorations();
+  void updateGutterDecorations();
 };
 
 // Reactively apply settings changes to the editor

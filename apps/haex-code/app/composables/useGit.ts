@@ -1,74 +1,76 @@
-function stripAnsi(str: string): string {
-  return str.replace(/\x1b\[[?0-9;]*[A-Za-z]/g, "").replace(/\r/g, "");
-}
+import type { EventCallback, ShellExitEvent, ShellOutputEvent } from "@haex-space/vault-sdk";
+import { GitCommandError, gitCommandLine, parseGitResult, type GitResult } from "~/lib/gitOutput";
 
-function shellEscape(str: string): string {
-  return `'${str.replace(/'/g, "'\\''")}'`;
-}
+const GIT_TIMEOUT_MS = 10_000;
 
-const SENTINEL = "HAEX_GIT_DONE";
+// Git sees a terminal, so it would page long output through `less` and wait for a key.
+// HISTFILE="" keeps these commands out of the user's shell history.
+const GIT_ENV = { GIT_PAGER: "cat", PAGER: "cat", GIT_TERMINAL_PROMPT: "0", HISTFILE: "" };
 
 async function runGitCommand(
   haexVault: ReturnType<typeof useHaexVaultStore>,
   dir: string,
   args: string[]
-): Promise<string> {
-  let output = "";
-  let settled = false;
-
-  const { sessionId } = await haexVault.client.shell.create({
+): Promise<GitResult> {
+  const shell = haexVault.client.shell;
+  const { sessionId } = await shell.create({
     shell: "/bin/bash",
     cwd: dir,
     cols: 220,
     rows: 50,
+    env: GIT_ENV,
   });
 
-  return new Promise<string>((resolve) => {
-    const finish = (result: string) => {
+  return new Promise<GitResult>((resolve, reject) => {
+    let screen = "";
+    let settled = false;
+
+    const finish = (settle: () => void) => {
       if (settled) return;
       settled = true;
-      haexVault.client.shell.offData(onOutput as any);
-      haexVault.client.shell.offExit(onExit as any);
-      haexVault.client.shell.close(sessionId).catch(() => {});
-      resolve(result);
-    };
-
-    const timeout = setTimeout(() => finish(""), 10000);
-
-    const extractGitOutput = (stripped: string): string => {
-      const lines = stripped.split("\n");
-      const sentinelIdx = lines.findIndex((l) => l.trim() === SENTINEL);
-      // Line 0 is command echo; lines 1..sentinelIdx-1 are git output
-      const slice = sentinelIdx >= 0 ? lines.slice(1, sentinelIdx) : lines.slice(1);
-      const joined = slice.join("\n");
-      // Restore trailing newline lost by split/join (important for file content comparison)
-      return slice.length > 0 ? joined + "\n" : joined;
-    };
-
-    const onOutput = (event: any) => {
-      if (event.sessionId !== sessionId) return;
-      output += event.data;
-      const stripped = stripAnsi(output);
-      // Sentinel appears on its own line after the command echo
-      if (stripped.includes("\n" + SENTINEL)) {
-        clearTimeout(timeout);
-        finish(extractGitOutput(stripped));
-      }
-    };
-
-    // Fallback: if the session exits before sentinel (e.g. git error)
-    const onExit = (event: any) => {
-      if (event.sessionId !== sessionId) return;
       clearTimeout(timeout);
-      setTimeout(() => finish(extractGitOutput(stripAnsi(output))), 50);
+      shell.offData(onOutput);
+      shell.offExit(onExit);
+      shell.close(sessionId).catch(() => {
+        // The shell may have exited already.
+      });
+      settle();
     };
 
-    haexVault.client.shell.onData(onOutput as any);
-    haexVault.client.shell.onExit(onExit as any);
+    // The SDK delivers shell events flattened ({ sessionId, data }), not in the HaexHubEvent
+    // shape that EventCallback declares.
+    const onOutput = ((event: ShellOutputEvent) => {
+      if (event.sessionId !== sessionId) return;
+      screen += event.data;
+      const result = parseGitResult(screen);
+      if (result) finish(() => resolve(result));
+    }) as unknown as EventCallback;
 
-    const cmd = `git -C ${shellEscape(dir)} ${args.map(shellEscape).join(" ")} ; echo ${SENTINEL}\r`;
-    haexVault.client.shell.write(sessionId, cmd);
+    const onExit = ((event: ShellExitEvent) => {
+      if (event.sessionId !== sessionId) return;
+      finish(() => reject(new Error(`Shell exited before git ${args[0]} finished`)));
+    }) as unknown as EventCallback;
+
+    const timeout = setTimeout(
+      () => finish(() => reject(new Error(`git ${args[0]} timed out`))),
+      GIT_TIMEOUT_MS
+    );
+
+    shell.onData(onOutput);
+    shell.onExit(onExit);
+    shell.write(sessionId, gitCommandLine(dir, args)).catch((error: unknown) => finish(() => reject(error)));
   });
+}
+
+/** Runs git and throws a GitCommandError (carrying git's message) when it fails. */
+async function runGitChecked(
+  haexVault: ReturnType<typeof useHaexVaultStore>,
+  dir: string,
+  args: string[]
+): Promise<string> {
+  const result = await runGitCommand(haexVault, dir, args);
+  if (result.exitCode !== 0) throw new GitCommandError(args, result);
+  return result.output;
 }
 
 // ── Parsers ────────────────────────────────────────────────────────────────
@@ -97,12 +99,6 @@ function parseStatus(raw: string): Array<{ path: string; status: string }> {
     });
 }
 
-function parseBranch(raw: string): string | null {
-  const lines = raw.split("\n").map((l) => l.trim());
-  const candidates = lines.filter((l) => l && /^[a-zA-Z0-9._\-/]+$/.test(l));
-  return candidates[candidates.length - 1] ?? null;
-}
-
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function useGit() {
@@ -116,44 +112,41 @@ export function useGit() {
     }
   };
 
+  /** The checked-out branch, or null on a detached HEAD or when git cannot tell. */
   const currentBranch = async (dir: string): Promise<string | null> => {
     try {
-      const out = await runGitCommand(haexVault, dir, ["branch", "--show-current"]);
-      return parseBranch(out);
+      const out = await runGitChecked(haexVault, dir, ["branch", "--show-current"]);
+      return out.trim() || null;
     } catch {
       return null;
     }
   };
 
   const getStatus = async (dir: string): Promise<Array<{ path: string; status: string }>> => {
-    try {
-      const out = await runGitCommand(haexVault, dir, ["status", "--porcelain"]);
-      return parseStatus(out);
-    } catch {
-      return [];
-    }
+    const out = await runGitChecked(haexVault, dir, ["status", "--porcelain"]);
+    return parseStatus(out);
   };
 
   const stage = async (dir: string, filepath: string): Promise<void> => {
-    await runGitCommand(haexVault, dir, ["add", filepath]);
+    await runGitChecked(haexVault, dir, ["add", "--", filepath]);
   };
 
   const unstage = async (dir: string, filepath: string): Promise<void> => {
-    await runGitCommand(haexVault, dir, ["reset", "HEAD", filepath]);
+    await runGitChecked(haexVault, dir, ["reset", "HEAD", "--", filepath]);
   };
 
   const discard = async (dir: string, filepath: string): Promise<void> => {
-    await runGitCommand(haexVault, dir, ["restore", filepath]);
+    await runGitChecked(haexVault, dir, ["restore", "--", filepath]);
   };
 
   const commit = async (dir: string, message: string): Promise<void> => {
-    await runGitCommand(haexVault, dir, ["commit", "-m", message]);
+    await runGitChecked(haexVault, dir, ["commit", "-m", message]);
   };
 
+  /** The file as committed in HEAD, or null when HEAD has no such file. */
   const getHeadContent = async (dir: string, filepath: string): Promise<string | null> => {
     try {
-      const out = await runGitCommand(haexVault, dir, ["show", `HEAD:${filepath}`]);
-      return out || null;
+      return await runGitChecked(haexVault, dir, ["show", `HEAD:${filepath}`]);
     } catch {
       return null;
     }
