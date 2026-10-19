@@ -3,11 +3,16 @@ import type { Command } from "./commands";
 import { createUndoStack } from "./undoStack";
 
 /** Minimalkommando, das einen Zähler hoch- und wieder runterzählt. */
-function counterCommand(state: { value: number }, delta: number, mergeKey?: string): Command {
+function counterCommand(
+  state: { value: number },
+  delta: number,
+  mergeKey?: string,
+  { pageId = "p1", mergeable = true } = {},
+): Command {
   const deltas = [delta];
   return {
     label: `add ${delta}`,
-    pageId: "p1",
+    pageId,
     mergeKey,
     apply() {
       for (const d of deltas) state.value += d;
@@ -16,7 +21,9 @@ function counterCommand(state: { value: number }, delta: number, mergeKey?: stri
       for (const d of deltas) state.value -= d;
     },
     merge(next) {
+      if (!mergeable) return false;
       deltas.push(...((next as unknown as { deltas: number[] }).deltas ?? []));
+      return true;
     },
     // Für den merge-Test von außen erreichbar.
     ...({ deltas } as object),
@@ -73,6 +80,25 @@ describe("createUndoStack", () => {
     const stack = createUndoStack();
     stack.push(counterCommand(state, 1, "drag-a"));
     stack.push(counterCommand(state, 2, "drag-b"));
+    stack.undo();
+    expect(state.value).toBe(1);
+  });
+
+  it("does not coalesce commands of different pages", () => {
+    const state = { value: 0 };
+    const stack = createUndoStack();
+    stack.push(counterCommand(state, 1, "drag", { pageId: "p1" }));
+    stack.push(counterCommand(state, 2, "drag", { pageId: "p2" }));
+    stack.undo();
+    expect(state.value).toBe(1);
+  });
+
+  it("keeps a command separate when the top command refuses the merge", () => {
+    const state = { value: 0 };
+    const stack = createUndoStack();
+    stack.push(counterCommand(state, 1, "drag", { mergeable: false }));
+    stack.push(counterCommand(state, 2, "drag"));
+    expect(stack.commands.value).toHaveLength(2);
     stack.undo();
     expect(state.value).toBe(1);
   });

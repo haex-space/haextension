@@ -111,6 +111,15 @@ describe("mutateElements", () => {
     first.apply();
     expect((page.layers[0]!.elements[0] as StrokeElement).size).toBe(13);
   });
+
+  it("refuses to merge a mutation of other elements", () => {
+    const page = doc(stroke("a"), stroke("b"));
+    const first = mutateElements(page, ["a"], (el) => { if (el.type === "stroke") el.size = 5; }, "Größe", "drag");
+    const second = mutateElements(page, ["b"], (el) => { if (el.type === "stroke") el.size = 9; }, "Größe", "drag");
+    first.apply();
+    second.apply();
+    expect(first.merge!(second)).toBe(false);
+  });
 });
 
 describe("layer commands", () => {

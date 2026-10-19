@@ -23,13 +23,17 @@ export interface Command {
   revert(): void;
   /** Gesetzt, wenn aufeinanderfolgende Kommandos zu einer Geste gehören (z.B. ein Drag). */
   mergeKey?: string;
-  /** Faltet `next` in dieses Kommando. Wird nur bei gleichem mergeKey aufgerufen. */
-  merge?(next: Command): void;
+  /**
+   * Faltet `next` in dieses Kommando. Wird nur bei gleichem mergeKey und gleicher
+   * Seite aufgerufen; `false` heißt, `next` bleibt ein eigener Undo-Schritt.
+   */
+  merge?(next: Command): boolean;
 }
 
 type Mutator = (element: PageElement) => void;
 
 interface MutateCommand extends Command {
+  readonly elementIds: readonly string[];
   readonly mutators: Mutator[];
 }
 
@@ -123,6 +127,11 @@ export function replaceElements(
   );
 }
 
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  const set = new Set(a);
+  return set.size === new Set(b).size && b.every((id) => set.has(id));
+}
+
 /**
  * Ändert Elemente an Ort und Stelle. Deckt Verschieben, Skalieren, Rotieren,
  * Eigenschaftsänderungen und das Vertical-Space-Tool ab — deshalb gibt es dafür
@@ -155,6 +164,7 @@ export function mutateElements(
     label,
     pageId: page.id,
     mergeKey,
+    elementIds,
     mutators,
     apply() {
       if (before === null) {
@@ -175,10 +185,15 @@ export function mutateElements(
       }
     },
     merge(next) {
+      // Der Snapshot deckt nur unsere Elemente ab; Mutatoren für andere Elemente
+      // ließen sich nicht zurücknehmen und liefen beim Redo auf die falschen.
+      const other = next as Partial<MutateCommand>;
+      if (!other.mutators || !sameIds(other.elementIds ?? [], elementIds)) return false;
       // `next` wurde vom Stack bereits angewendet, der Dokumentzustand stimmt also.
       // Wir übernehmen nur seine Mutatoren, damit ein späteres Redo die ganze
       // Geste nachspielt.
-      mutators.push(...(next as MutateCommand).mutators);
+      mutators.push(...other.mutators);
+      return true;
     },
   };
 }

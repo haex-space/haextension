@@ -252,7 +252,9 @@ const onPointerDown = (e: PointerEvent) => {
   // Check table line hit first
   const hit = hitTestTableLines(page.x, page.y);
   if (hit) {
-    const gestureId = String(e.pointerId);
+    // Pro Geste neu: die pointerId der Maus ist immer dieselbe und würde
+    // getrennte Drags zu einem Undo-Schritt verschmelzen.
+    const gestureId = crypto.randomUUID();
     if (hit.type === "col") {
       tableDrag.value = { hit, startVal: hit.table.columnWidths[hit.index]!, startX: page.x, startY: page.y, gestureId };
     } else if (hit.type === "row") {
