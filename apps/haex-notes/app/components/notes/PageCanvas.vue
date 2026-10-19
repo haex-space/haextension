@@ -370,7 +370,8 @@ const onPointerUp = (e: PointerEvent) => {
 
 const onWheel = (e: WheelEvent) => {
   e.preventDefault();
-  if (!overlayCanvasEl.value) return;
+  // Horizontales Wischen auf dem Trackpad ist kein Zoom.
+  if (!overlayCanvasEl.value || e.deltaY === 0) return;
   const rect = overlayCanvasEl.value.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
