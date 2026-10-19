@@ -289,6 +289,7 @@ export interface ImportColumns {
   kind: "event" | "task";
   rrule: string | null;
   rruleOverride: boolean;
+  colorOverride: boolean;
   eventTypeId: string | null;
   categories: string | null;
   completedAt: Date | null;

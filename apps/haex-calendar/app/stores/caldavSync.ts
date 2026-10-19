@@ -135,7 +135,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
                   url: eventData.url,
                   color: eventData.color,
                   // `...columns` carries the type-stripped `categories`, `rrule`,
-                  // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
+                  // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
                   ...columns,
                   etag: fetched.etag,
                   href: fetched.href,
@@ -179,7 +179,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
                 url: eventData.url,
                 color: eventData.color,
                 // `...columns` carries the type-stripped `categories`, `rrule`,
-                // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
+                // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
                 ...columns,
                 etag: fetched.etag,
                 href: fetched.href,

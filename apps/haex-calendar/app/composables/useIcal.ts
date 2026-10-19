@@ -66,10 +66,14 @@ export function useIcal() {
     const rruleOverride = parsed.rrule
       ? !rrulesEqual(parsed.rrule, type?.defaultRrule ?? null)
       : false;
+    // Export writes the effective colour (often the type's); reading that back
+    // must not pin it as an override.
+    const colorOverride = !!parsed.color && parsed.color.toLowerCase() !== type?.color.toLowerCase();
     return {
       kind: parsed.kind,
       rrule: parsed.rrule,
       rruleOverride,
+      colorOverride,
       eventTypeId,
       categories,
       completedAt: parsed.completedAt,
@@ -115,7 +119,7 @@ export function useIcal() {
             url: event.url,
             color: event.color,
             // `...columns` carries the type-stripped `categories`, `rrule`,
-            // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
+            // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
             ...columns,
             reminderOffsets: event.reminderOffsets,
           });
@@ -138,7 +142,7 @@ export function useIcal() {
           url: event.url,
           color: event.color,
           // `...columns` carries the type-stripped `categories`, `rrule`,
-          // `rruleOverride`, `eventTypeId`, `kind`, `completedAt`.
+          // `rruleOverride`, `colorOverride`, `eventTypeId`, `kind`, `completedAt`.
           ...columns,
           reminderOffsets: event.reminderOffsets,
         });

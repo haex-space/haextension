@@ -69,7 +69,7 @@
               :style="{
                 gridColumn: `${bar.startCol + (settingsStore.showWeekNumbers ? 2 : 1)} / span ${bar.span}`,
                 gridRow: bar.row + 1,
-                backgroundColor: getEventColor(bar.event),
+                backgroundColor: eventsStore.effectiveColor(bar.event),
                 color: 'white',
               }"
               @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
@@ -105,9 +105,9 @@
                   isEventPast(event) && 'opacity-40',
                 ]"
                 :style="{
-                  backgroundColor: getEventColor(event) + '20',
-                  color: getEventColor(event),
-                  borderLeft: `3px solid ${getEventColor(event)}`,
+                  backgroundColor: eventsStore.effectiveColor(event) + '20',
+                  color: eventsStore.effectiveColor(event),
+                  borderLeft: `3px solid ${eventsStore.effectiveColor(event)}`,
                 }"
                 @click.stop="eventPreview.open(event.id, event.dtstart)"
               >
@@ -158,7 +158,6 @@ import { eventDayRange, packBars, toDateKey, type DayBar } from "~/lib/timeGrid"
 const { locale } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
-const calendarsStore = useCalendarsStore();
 const settingsStore = useSettingsStore();
 
 const eventPreview = useEventPreviewStore();
@@ -256,12 +255,6 @@ const weeks = computed((): WeekRow[] => {
 
   return weekRows;
 });
-
-function getEventColor(event: SelectEvent): string {
-  if (event.color) return event.color;
-  const cal = calendarsStore.getCalendar(event.calendarId);
-  return cal?.color ?? "#3b82f6";
-}
 
 // --- Drag-to-select ---
 const drag = reactive({

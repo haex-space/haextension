@@ -48,7 +48,7 @@
             :style="{
               gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
               gridRow: bar.row + 1,
-              backgroundColor: getEventColor(bar.event),
+              backgroundColor: eventsStore.effectiveColor(bar.event),
               color: 'white',
             }"
             @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
@@ -127,9 +127,9 @@
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
               left: `${pe.left}%`,
               width: `${pe.width}%`,
-              backgroundColor: getEventColor(pe.event) + '20',
-              borderColor: getEventColor(pe.event),
-              color: getEventColor(pe.event),
+              backgroundColor: eventsStore.effectiveColor(pe.event) + '20',
+              borderColor: eventsStore.effectiveColor(pe.event),
+              color: eventsStore.effectiveColor(pe.event),
             }"
             @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
@@ -168,7 +168,6 @@ import { addDays, eventSpan, formatClock, formatHour, isoWeek } from "~/lib/date
 const { t, locale } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
-const calendarsStore = useCalendarsStore();
 const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
@@ -245,12 +244,6 @@ const allDayBars = computed(() =>
 function getPositionedEvents(dateKey: string) {
   const dayEvents = eventsByDay.value.get(dateKey) ?? [];
   return positionEventsInDay(dayEvents, dateKey);
-}
-
-function getEventColor(event: SelectEvent): string {
-  if (event.color) return event.color;
-  const cal = calendarsStore.getCalendar(event.calendarId);
-  return cal?.color ?? "#3b82f6";
 }
 
 // --- Drag-to-select ---

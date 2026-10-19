@@ -19,6 +19,8 @@ import { expandOccurrences, nextOccurrence, pinCount } from "~/lib/rrule";
 
 export type { SelectEvent, InsertEvent };
 
+const DEFAULT_EVENT_COLOR = "#3b82f6";
+
 /**
  * A concrete occurrence of an event in a view. For recurring events the same
  * master row yields several of these (one per occurrence); `occurrenceStart`
@@ -134,6 +136,17 @@ export const useEventsStore = defineStore("events", () => {
     if (event.rruleOverride) return event.rrule ?? null;
     const type = eventTypesStore.getType(event.eventTypeId);
     return type?.defaultRrule ?? null;
+  }
+
+  /**
+   * Display colour after override resolution: an explicitly picked colour,
+   * else the type's colour, else the calendar's. Untyped events have nothing
+   * to inherit from, so a stored colour (older rows, CalDAV COLOR) still wins.
+   */
+  function effectiveColor(event: SelectEvent): string {
+    const type = eventTypesStore.getType(event.eventTypeId);
+    if (event.color && (event.colorOverride || !type)) return event.color;
+    return type?.color ?? calendarsStore.getCalendar(event.calendarId)?.color ?? DEFAULT_EVENT_COLOR;
   }
 
   /**
@@ -414,5 +427,6 @@ export const useEventsStore = defineStore("events", () => {
     replaceEventRemindersAsync,
     expandedEventsInRange,
     effectiveRrule,
+    effectiveColor,
   };
 });

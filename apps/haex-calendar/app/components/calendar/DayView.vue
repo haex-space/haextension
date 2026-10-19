@@ -10,7 +10,7 @@
         v-for="event in allDayEventsForDay"
         :key="`${event.id}-${event.dtstart}`"
         :class="['text-xs px-2 py-1 rounded cursor-pointer', isEventPast(event) && 'opacity-40']"
-        :style="{ backgroundColor: getEventColor(event), color: 'white' }"
+        :style="{ backgroundColor: eventsStore.effectiveColor(event), color: 'white' }"
         @click="eventPreview.open(event.id, event.dtstart)"
       >
         {{ event.summary }}
@@ -84,9 +84,9 @@
               height: `${(pe.height / 100) * HOUR_HEIGHT * 24}px`,
               left: `${pe.left}%`,
               width: `${pe.width}%`,
-              backgroundColor: getEventColor(pe.event) + '20',
-              borderColor: getEventColor(pe.event),
-              color: getEventColor(pe.event),
+              backgroundColor: eventsStore.effectiveColor(pe.event) + '20',
+              borderColor: eventsStore.effectiveColor(pe.event),
+              color: eventsStore.effectiveColor(pe.event),
             }"
             @click.stop="eventPreview.open(pe.event.id, pe.event.dtstart)"
           >
@@ -127,7 +127,6 @@ import { eventSpan, formatClock, formatHour } from "~/lib/dates";
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
-const calendarsStore = useCalendarsStore();
 const eventPreview = useEventPreviewStore();
 const settingsStore = useSettingsStore();
 
@@ -179,12 +178,6 @@ const allDayEventsForDay = computed(() =>
 );
 
 const positionedEvents = computed(() => positionEventsInDay(timedEvents.value, currentDateKey.value));
-
-function getEventColor(event: SelectEvent): string {
-  if (event.color) return event.color;
-  const cal = calendarsStore.getCalendar(event.calendarId);
-  return cal?.color ?? "#3b82f6";
-}
 
 // --- Drag-to-select ---
 const drag = reactive({
