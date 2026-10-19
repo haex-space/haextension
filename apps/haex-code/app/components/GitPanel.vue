@@ -11,11 +11,13 @@ import {
 import { toast } from "vue-sonner";
 import { errorMessage } from "~/lib/errors";
 import { GitCommandError } from "~/lib/gitOutput";
+import { relativePath } from "~/lib/path";
 
 const { t } = useI18n();
 const gitStore = useGitStore();
 const workspace = useWorkspaceStore();
 const settings = useSettingsStore();
+const editorStore = useEditorStore();
 const { stage, unstage, discard: doDiscard, commit: doCommit } = useGit();
 
 const commitMessage = ref("");
@@ -69,12 +71,30 @@ const stageFile = (path: string) => runGitAction((root) => stage(root, path));
 
 const unstageFile = (path: string) => runGitAction((root) => unstage(root, path));
 
-const discardFile = (path: string) => runGitAction((root) => doDiscard(root, path));
+const discardFile = (path: string) =>
+  runGitAction(async (root) => {
+    await doDiscard(root, path);
+    // An open tab would otherwise still show, and later save back, the discarded changes.
+    const tab = editorStore.tabs.find((t) => relativePath(root, t.path) === path);
+    if (tab) await editorStore.reloadCleanTabAsync(tab.id);
+  });
+
+// Discarding cannot be undone, so it waits for confirmation. The target is kept apart from the
+// open state because the dialog closes itself before the confirm handler runs.
+const discardTarget = ref<string | null>(null);
+const discardDialogOpen = ref(false);
+const askToDiscard = (path: string) => {
+  discardTarget.value = path;
+  discardDialogOpen.value = true;
+};
+const confirmDiscard = () => {
+  if (discardTarget.value) void discardFile(discardTarget.value);
+};
 
 const stageAll = () =>
   runGitAction(async (root) => {
     for (const f of gitStore.unstagedFiles) {
-      if (f.status !== "deleted") await stage(root, f.path);
+      await stage(root, f.path);
     }
   });
 
@@ -225,7 +245,7 @@ const handleCommit = async () => {
               v-if="file.status !== 'untracked'"
               class="shrink-0 rounded p-1 opacity-0 hover:bg-accent hover:text-destructive group-hover:opacity-100"
               :title="t('discardChanges')"
-              @click="discardFile(file.path)"
+              @click="askToDiscard(file.path)"
             >
               <RotateCcw class="size-3.5" />
             </button>
@@ -256,6 +276,21 @@ const handleCommit = async () => {
         </template>
       </div>
     </ShadcnScrollArea>
+
+    <ShadcnAlertDialog v-model:open="discardDialogOpen">
+      <ShadcnAlertDialogContent>
+        <ShadcnAlertDialogHeader>
+          <ShadcnAlertDialogTitle>{{ t("discardConfirm.title") }}</ShadcnAlertDialogTitle>
+          <ShadcnAlertDialogDescription>
+            {{ t("discardConfirm.message", { path: discardTarget ?? "" }) }}
+          </ShadcnAlertDialogDescription>
+        </ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogFooter>
+          <ShadcnAlertDialogCancel>{{ t("discardConfirm.cancel") }}</ShadcnAlertDialogCancel>
+          <ShadcnAlertDialogAction @click="confirmDiscard">{{ t("discardConfirm.confirm") }}</ShadcnAlertDialogAction>
+        </ShadcnAlertDialogFooter>
+      </ShadcnAlertDialogContent>
+    </ShadcnAlertDialog>
   </div>
 </template>
 
@@ -270,6 +305,11 @@ de:
   noChanges: Keine Änderungen
   gitFailed: Git-Befehl fehlgeschlagen
   commitFailed: Commit fehlgeschlagen
+  discardConfirm:
+    title: Änderungen verwerfen?
+    message: "Alle nicht gestagten Änderungen an {path} gehen verloren. Das lässt sich nicht rückgängig machen."
+    cancel: Abbrechen
+    confirm: Verwerfen
 en:
   commitMessage: Commit message
   committing: Committing...
@@ -280,4 +320,9 @@ en:
   noChanges: No changes
   gitFailed: Git command failed
   commitFailed: Commit failed
+  discardConfirm:
+    title: Discard changes?
+    message: "All unstaged changes to {path} will be lost. This cannot be undone."
+    cancel: Cancel
+    confirm: Discard
 </i18n>

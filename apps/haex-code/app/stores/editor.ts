@@ -66,6 +66,17 @@ export const useEditorStore = defineStore("editor", () => {
     return true;
   };
 
+  /** Re-reads a tab whose file changed outside the editor. A tab with unsaved edits keeps them. */
+  const reloadCleanTabAsync = async (tabId: string): Promise<void> => {
+    const tab = tabs.value.find((t) => t.id === tabId);
+    if (!tab?.path || tab.isDirty) return;
+    const data = await haexVault.client.filesystem.readFile(tab.path);
+    const content = new TextDecoder("utf-8", { fatal: true }).decode(data);
+    if (tab.isDirty) return;
+    tab.content = content;
+    tab.savedContent = content;
+  };
+
   const moveTab = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
     const moved = tabs.value.splice(fromIndex, 1)[0];
@@ -80,6 +91,7 @@ export const useEditorStore = defineStore("editor", () => {
     closeTab,
     updateTabContent,
     saveTabAsync,
+    reloadCleanTabAsync,
     moveTab,
   };
 });

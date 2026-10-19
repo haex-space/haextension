@@ -35,6 +35,8 @@ const models = new Map<string, Monaco.editor.ITextModel>();
 const viewStates = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
 let shownTabId: string | null = null;
 let unmounted = false;
+// Set while the store's content is written into a model, so that write is not echoed back as an edit.
+let applyingStoreContent = false;
 
 const modelFor = (monaco: typeof Monaco, tab: EditorTab): Monaco.editor.ITextModel => {
   let model = models.get(tab.id);
@@ -43,6 +45,17 @@ const modelFor = (monaco: typeof Monaco, tab: EditorTab): Monaco.editor.ITextMod
     models.set(tab.id, model);
   }
   return model;
+};
+
+/** Takes over content that changed in the store without an edit in this editor (e.g. a reload). */
+const syncModelWithTab = (model: Monaco.editor.ITextModel, tab: EditorTab) => {
+  if (model.getValue() === tab.content) return;
+  applyingStoreContent = true;
+  try {
+    model.setValue(tab.content);
+  } finally {
+    applyingStoreContent = false;
+  }
 };
 
 const updateGutterDecorations = async () => {
@@ -84,7 +97,9 @@ const showTab = (tab: EditorTab) => {
   if (shownTabId && models.has(shownTabId)) viewStates.set(shownTabId, editor.saveViewState());
   gutterDecorations.value?.clear();
   gutterDecorations.value = null;
-  editor.setModel(modelFor(monacoApi, tab));
+  const model = modelFor(monacoApi, tab);
+  syncModelWithTab(model, tab);
+  editor.setModel(model);
   const viewState = viewStates.get(tab.id);
   if (viewState) editor.restoreViewState(viewState);
   shownTabId = tab.id;
@@ -135,7 +150,7 @@ const initEditor = async () => {
   shownTabId = props.tab.id;
 
   editor.onDidChangeModelContent(() => {
-    if (shownTabId) emit("update:content", shownTabId, editor.getValue());
+    if (shownTabId && !applyingStoreContent) emit("update:content", shownTabId, editor.getValue());
   });
 
   editor.addCommand(
@@ -175,6 +190,14 @@ watch(
 watch(
   () => props.tab.id,
   () => showTab(props.tab)
+);
+
+watch(
+  () => props.tab.content,
+  () => {
+    const model = models.get(props.tab.id);
+    if (model) syncModelWithTab(model, props.tab);
+  }
 );
 
 // Saving an untitled tab gives it a file name and with that a language.
