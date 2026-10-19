@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Pause, Play, RotateCcw } from '@lucide/vue'
 
+const { t } = useI18n()
+
 const {
   board,
   nextPiece,
@@ -110,15 +112,15 @@ onUnmounted(() => {
           >
             <template v-if="gameState === 'gameover'">
               <p class="text-2xl font-bold mb-2">
-                Game Over
+                {{ t('gameOver') }}
               </p>
               <p class="text-muted-foreground mb-4">
-                Score: {{ score.toLocaleString() }}
+                {{ t('finalScore', { score: score.toLocaleString() }) }}
               </p>
             </template>
             <template v-else-if="gameState === 'paused'">
               <p class="text-2xl font-bold mb-4">
-                Paused
+                {{ t('paused') }}
               </p>
             </template>
             <template v-else>
@@ -136,7 +138,7 @@ onUnmounted(() => {
               @click="startGame"
             >
               <Play class="w-5 h-5 mr-2" />
-              {{ gameState === 'gameover' ? 'Play Again' : 'Start Game' }}
+              {{ gameState === 'gameover' ? t('playAgain') : t('startGame') }}
             </ShadcnButton>
             <ShadcnButton
               v-if="gameState === 'paused'"
@@ -144,7 +146,7 @@ onUnmounted(() => {
               @click="togglePause"
             >
               <Play class="w-5 h-5 mr-2" />
-              Resume
+              {{ t('resume') }}
             </ShadcnButton>
           </div>
         </div>
@@ -172,23 +174,56 @@ onUnmounted(() => {
         <div v-if="gameState === 'playing'" class="flex flex-col gap-2 pt-2">
           <ShadcnButton variant="outline" size="sm" @click="togglePause">
             <Pause class="w-4 h-4 mr-2" />
-            Pause
+            {{ t('pause') }}
           </ShadcnButton>
           <ShadcnButton variant="ghost" size="sm" @click="startGame">
             <RotateCcw class="w-4 h-4 mr-2" />
-            Restart
+            {{ t('restart') }}
           </ShadcnButton>
         </div>
 
         <!-- Keyboard hints -->
         <div class="hidden md:block text-xs text-muted-foreground space-y-1 pt-2 border-t border-border">
-          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&larr;&rarr;</kbd> Move</p>
-          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&uarr;</kbd> Rotate</p>
-          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&darr;</kbd> Soft Drop</p>
-          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">Space</kbd> Hard Drop</p>
-          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">P</kbd> Pause</p>
+          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&larr;&rarr;</kbd> {{ t('keys.move') }}</p>
+          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&uarr;</kbd> {{ t('keys.rotate') }}</p>
+          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">&darr;</kbd> {{ t('keys.softDrop') }}</p>
+          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">{{ t('keys.space') }}</kbd> {{ t('keys.hardDrop') }}</p>
+          <p><kbd class="px-1 py-0.5 rounded bg-muted font-mono text-[10px]">P</kbd> {{ t('pause') }}</p>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  gameOver: Spiel vorbei
+  finalScore: "Punkte: {score}"
+  paused: Pausiert
+  playAgain: Nochmal spielen
+  startGame: Spiel starten
+  resume: Weiter
+  pause: Pause
+  restart: Neu starten
+  keys:
+    move: Bewegen
+    rotate: Drehen
+    softDrop: Schneller fallen
+    space: Leertaste
+    hardDrop: Sofort ablegen
+en:
+  gameOver: Game Over
+  finalScore: "Score: {score}"
+  paused: Paused
+  playAgain: Play Again
+  startGame: Start Game
+  resume: Resume
+  pause: Pause
+  restart: Restart
+  keys:
+    move: Move
+    rotate: Rotate
+    softDrop: Soft Drop
+    space: Space
+    hardDrop: Hard Drop
+</i18n>

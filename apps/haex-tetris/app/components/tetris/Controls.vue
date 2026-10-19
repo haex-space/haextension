@@ -8,6 +8,8 @@ const emit = defineEmits<{
   rotate: []
   drop: []
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -30,7 +32,14 @@ const emit = defineEmits<{
     </div>
     <ShadcnButton size="lg" variant="outline" class="w-full max-w-[11.5rem] h-12" @click="emit('drop')">
       <ChevronsDown class="w-6 h-6 mr-2" />
-      Drop
+      {{ t('drop') }}
     </ShadcnButton>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  drop: Ablegen
+en:
+  drop: Drop
+</i18n>

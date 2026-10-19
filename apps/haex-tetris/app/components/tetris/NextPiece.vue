@@ -3,6 +3,8 @@ const props = defineProps<{
   piece: { type: string; shape: readonly (readonly number[])[]; color: string } | null
 }>()
 
+const { t } = useI18n()
+
 const displayGrid = computed(() => {
   if (!props.piece) return []
   return props.piece.shape
@@ -12,7 +14,7 @@ const displayGrid = computed(() => {
 <template>
   <div class="space-y-2">
     <p class="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-      Next
+      {{ t('next') }}
     </p>
     <div class="p-3 rounded-lg border border-border bg-background/50">
       <div
@@ -33,3 +35,10 @@ const displayGrid = computed(() => {
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  next: Nächster
+en:
+  next: Next
+</i18n>
