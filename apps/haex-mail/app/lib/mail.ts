@@ -1,5 +1,6 @@
 import * as schema from "~/database/schemas";
 import { decodeMailboxName } from "~/lib/imap";
+import type { MailAttachment } from "@haex-space/vault-sdk";
 
 /**
  * Pseudo-account id for the unified view across all accounts. Folder
@@ -32,6 +33,20 @@ export const mailboxDisplayName = (name: string, inboxLabel: string) =>
 
 export const senderText = (msg: schema.SelectMessage) =>
   msg.fromJson[0]?.name || msg.fromJson[0]?.email || "";
+
+/** "Name <email>, email, …" for headers and quotes. */
+export const formatAddressList = (addrs: schema.MailAddressJson[] | undefined) =>
+  (addrs ?? []).map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
+
+/** The attachment metadata kept in the body cache (bytes are fetched on demand). */
+export const toAttachmentJson = (a: MailAttachment): schema.AttachmentJson => ({
+  partIndex: a.partIndex,
+  filename: a.filename,
+  contentType: a.contentType,
+  size: a.size,
+  contentId: a.contentId,
+  isInline: a.isInline,
+});
 
 const ROLE_LABEL_KEYS = new Set<string>(schema.MAILBOX_ROLES);
 

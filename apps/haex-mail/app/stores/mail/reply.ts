@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
-import { senderText } from "~/lib/mail";
+import { formatAddressList, senderText, toAttachmentJson } from "~/lib/mail";
 import type { MailMessage, OutgoingAttachment } from "@haex-space/vault-sdk";
 
 /**
@@ -30,9 +30,6 @@ export const useReplyBuilder = (
   const haexVault = useHaexVaultStore();
   const accountsStore = useAccountsStore();
   const { $i18n } = useNuxtApp();
-
-  const formatAddressList = (addrs: schema.MailAddressJson[]) =>
-    addrs.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
 
   /**
    * The original body text + attachment metadata for a message — from the
@@ -70,14 +67,7 @@ export const useReplyBuilder = (
     await persistMessageBodyAsync(msg.id, full).catch(() => {});
     return {
       bodyText: full.bodyText,
-      attachments: full.attachments.map((a) => ({
-        partIndex: a.partIndex,
-        filename: a.filename,
-        contentType: a.contentType,
-        size: a.size,
-        contentId: a.contentId,
-        isInline: a.isInline,
-      })),
+      attachments: full.attachments.map(toAttachmentJson),
     };
   };
 

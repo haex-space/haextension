@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { toAttachmentJson } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
 import type { MailMessage } from "@haex-space/vault-sdk";
 import type { Ref } from "vue";
@@ -29,14 +30,7 @@ export const useMessageBody = (
 
   const persistMessageBodyAsync = async (messageId: string, msg: MailMessage) => {
     if (!haexVault.orm) return;
-    const attachmentsJson: schema.AttachmentJson[] = msg.attachments.map((a) => ({
-      partIndex: a.partIndex,
-      filename: a.filename,
-      contentType: a.contentType,
-      size: a.size,
-      contentId: a.contentId,
-      isInline: a.isInline,
-    }));
+    const attachmentsJson = msg.attachments.map(toAttachmentJson);
     await haexVault.orm
       .insert(schema.messageBodies)
       .values({
