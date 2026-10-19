@@ -27,7 +27,8 @@
     "errors": {
       "accountNotFound": "Konto nicht gefunden",
       "passwordMissing": "Passwort fehlt",
-      "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden"
+      "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden",
+      "importInvalid": "Port oder Verschlüsselung dieses Tresor-Eintrags sind ungültig, er kann nicht importiert werden"
     },
     "testMail": {
       "subject": "haex-mail Verbindungstest {token}",

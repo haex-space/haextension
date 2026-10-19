@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import * as schema from "~/database/schemas";
+import { parseConnectionSecurity, parsePort } from "~/lib/connection";
 import { useAccountConnectionTest } from "./accounts/connectionTest";
 import type {
   ConnectionSecurity,
@@ -157,6 +158,20 @@ export const useAccountsStore = defineStore("accounts", () => {
     if (!item.username || !kv.imapHost) {
       throw new Error($i18n.t("accounts.errors.importIncomplete"));
     }
+    // The item is editable outside haex-mail; unset values take the defaults,
+    // malformed ones refuse the import.
+    const imapPort = kv.imapPort ? parsePort(kv.imapPort) : 993;
+    const imapSecurity = kv.imapSecurity ? parseConnectionSecurity(kv.imapSecurity) : "tls";
+    const smtpPort = kv.smtpPort ? parsePort(kv.smtpPort) : null;
+    const smtpSecurity = kv.smtpSecurity ? parseConnectionSecurity(kv.smtpSecurity) : null;
+    if (
+      imapPort === null ||
+      imapSecurity === null ||
+      (kv.smtpPort && smtpPort === null) ||
+      (kv.smtpSecurity && smtpSecurity === null)
+    ) {
+      throw new Error($i18n.t("accounts.errors.importInvalid"));
+    }
 
     const id = crypto.randomUUID();
     await haexVault.orm.insert(schema.accounts).values({
@@ -164,11 +179,11 @@ export const useAccountsStore = defineStore("accounts", () => {
       displayName: item.title || item.username,
       email: item.username,
       imapHost: kv.imapHost,
-      imapPort: kv.imapPort ? Number(kv.imapPort) : 993,
-      imapSecurity: (kv.imapSecurity as ConnectionSecurity) ?? "tls",
-      smtpHost: kv.smtpHost ?? null,
-      smtpPort: kv.smtpPort ? Number(kv.smtpPort) : null,
-      smtpSecurity: (kv.smtpSecurity as ConnectionSecurity) ?? null,
+      imapPort,
+      imapSecurity,
+      smtpHost: kv.smtpHost || null,
+      smtpPort,
+      smtpSecurity,
       passwordItemId: item.id,
       sortOrder: accounts.value.length,
     });
