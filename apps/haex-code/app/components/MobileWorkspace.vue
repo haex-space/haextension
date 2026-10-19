@@ -88,7 +88,7 @@ const gitStore = useGitStore();
       <template v-if="editorStore.activeTab">
         <MonacoEditor
           :tab="editorStore.activeTab"
-          @update:content="(content) => editorStore.updateTabContent(editorStore.activeTabId!, content)"
+          @update:content="editorStore.updateTabContent"
           @save="emit('save')"
         />
       </template>

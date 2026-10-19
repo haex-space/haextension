@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type * as Monaco from "monaco-editor";
 import type { EditorTab } from "~/types";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
@@ -12,18 +13,36 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:content": [content: string];
+  "update:content": [tabId: string, content: string];
   save: [];
 }>();
 
 const settings = useSettingsStore();
 const gitStore = useGitStore();
 const workspace = useWorkspaceStore();
+const editorStore = useEditorStore();
 const { getHeadContent } = useGit();
 
 const editorContainer = ref<HTMLElement | null>(null);
-const editorInstance = shallowRef<any>(null);
-const gutterDecorations = shallowRef<any>(null);
+const editorInstance = shallowRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+const gutterDecorations = shallowRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
+
+// One model per tab keeps undo history and view state across tab switches.
+// The models are owned here (Monaco only disposes models it created itself).
+let monacoApi: typeof Monaco | null = null;
+const models = new Map<string, Monaco.editor.ITextModel>();
+const viewStates = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
+let shownTabId: string | null = null;
+let unmounted = false;
+
+const modelFor = (monaco: typeof Monaco, tab: EditorTab): Monaco.editor.ITextModel => {
+  let model = models.get(tab.id);
+  if (!model) {
+    model = monaco.editor.createModel(tab.content, tab.language);
+    models.set(tab.id, model);
+  }
+  return model;
+};
 
 const updateGutterDecorations = async () => {
   const editor = editorInstance.value;
@@ -52,6 +71,19 @@ const updateGutterDecorations = async () => {
   }
 };
 
+const showTab = (tab: EditorTab) => {
+  const editor = editorInstance.value;
+  if (!editor || !monacoApi) return;
+  if (shownTabId && models.has(shownTabId)) viewStates.set(shownTabId, editor.saveViewState());
+  gutterDecorations.value?.clear();
+  gutterDecorations.value = null;
+  editor.setModel(modelFor(monacoApi, tab));
+  const viewState = viewStates.get(tab.id);
+  if (viewState) editor.restoreViewState(viewState);
+  shownTabId = tab.id;
+  updateGutterDecorations();
+};
+
 const initEditor = async () => {
   if (!editorContainer.value) return;
 
@@ -68,10 +100,11 @@ const initEditor = async () => {
   }
 
   const monaco = await import("monaco-editor");
+  if (unmounted || !editorContainer.value) return;
+  monacoApi = monaco;
 
-  editorInstance.value = monaco.editor.create(editorContainer.value, {
-    value: props.tab.content,
-    language: props.tab.language,
+  const editor = monaco.editor.create(editorContainer.value, {
+    model: modelFor(monaco, props.tab),
     theme: settings.editorTheme,
     automaticLayout: true,
     minimap: { enabled: settings.editorMinimap },
@@ -91,12 +124,14 @@ const initEditor = async () => {
     smoothScrolling: true,
     cursorSmoothCaretAnimation: "on",
   });
+  editorInstance.value = editor;
+  shownTabId = props.tab.id;
 
-  editorInstance.value.onDidChangeModelContent(() => {
-    emit("update:content", editorInstance.value.getValue());
+  editor.onDidChangeModelContent(() => {
+    if (shownTabId) emit("update:content", shownTabId, editor.getValue());
   });
 
-  editorInstance.value.addCommand(
+  editor.addCommand(
     monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
     () => emit("save")
   );
@@ -115,10 +150,9 @@ watch(
     minimap: settings.editorMinimap,
     lineNumbers: settings.editorLineNumbers,
   }),
-  async (newSettings) => {
-    if (!editorInstance.value) return;
-    const monaco = await import("monaco-editor");
-    monaco.editor.setTheme(newSettings.theme);
+  (newSettings) => {
+    if (!editorInstance.value || !monacoApi) return;
+    monacoApi.editor.setTheme(newSettings.theme);
     editorInstance.value.updateOptions({
       fontSize: newSettings.fontSize,
       fontFamily: newSettings.fontFamily,
@@ -132,15 +166,18 @@ watch(
 );
 
 watch(
-  () => props.tab.path,
-  async () => {
-    if (editorInstance.value) {
-      gutterDecorations.value?.clear();
-      gutterDecorations.value = null;
-      const monaco = await import("monaco-editor");
-      const model = monaco.editor.createModel(props.tab.content, props.tab.language);
-      editorInstance.value.setModel(model);
-      updateGutterDecorations();
+  () => props.tab.id,
+  () => showTab(props.tab)
+);
+
+watch(
+  () => editorStore.tabs.map((t) => t.id),
+  (openIds) => {
+    for (const [tabId, model] of models) {
+      if (openIds.includes(tabId)) continue;
+      model.dispose();
+      models.delete(tabId);
+      viewStates.delete(tabId);
     }
   }
 );
@@ -151,8 +188,11 @@ watch(() => gitStore.statusMap, updateGutterDecorations, { deep: true });
 onMounted(initEditor);
 
 onUnmounted(() => {
+  unmounted = true;
   gutterDecorations.value?.clear();
   editorInstance.value?.dispose();
+  for (const model of models.values()) model.dispose();
+  models.clear();
 });
 </script>
 
