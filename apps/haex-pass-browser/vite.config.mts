@@ -4,7 +4,6 @@ import { dirname, relative } from 'node:path'
 import type { UserConfig } from 'vite'
 import { defineConfig } from 'vite'
 import Vue from '@vitejs/plugin-vue'
-import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { isDev, port, r } from './scripts/utils'
@@ -15,7 +14,6 @@ export const sharedConfig: UserConfig = {
   resolve: {
     alias: {
       '~/': `${r('src')}/`,
-      '@haex/ui': r('../../packages/haex-ui'),
     },
   },
   define: {
@@ -35,15 +33,6 @@ export const sharedConfig: UserConfig = {
         },
       ],
       dts: r('src/auto-imports.d.ts'),
-    }),
-
-    // https://github.com/antfu/unplugin-vue-components
-    Components({
-      dirs: [
-        r('src/components'),
-        r('../../packages/haex-ui/components/shadcn'),
-      ],
-      dts: r('src/components.d.ts'),
     }),
 
     // Tailwind CSS
