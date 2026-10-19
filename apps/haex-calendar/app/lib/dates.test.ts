@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOffsetlessDateTime, zonedWallClockCandidates, zonedWallClockToDate } from "./dates";
+import {
+  exclusiveEndKey,
+  inclusiveEndKey,
+  normalizeOffsetlessDateTime,
+  zonedWallClockCandidates,
+  zonedWallClockToDate,
+} from "./dates";
 
 const wall = (iso: string) => {
   const [date, time] = iso.split("T") as [string, string];
@@ -51,5 +57,26 @@ describe("normalizeOffsetlessDateTime", () => {
     expect(normalizeOffsetlessDateTime("2026-03-09T14:00:00", "floating")).toBeNull();
     expect(normalizeOffsetlessDateTime("2026-03-09T14:00:00.000Z", "Europe/Berlin")).toBeNull();
     expect(normalizeOffsetlessDateTime("2026-03-09", "Europe/Berlin")).toBeNull();
+  });
+});
+
+describe("all-day end conversion", () => {
+  it("shows the exclusive stored end as the last day of the event", () => {
+    expect(inclusiveEndKey("2026-03-09", "2026-03-10")).toBe("2026-03-09");
+    expect(inclusiveEndKey("2026-03-09", "2026-03-12")).toBe("2026-03-11");
+  });
+
+  it("treats zero-length legacy rows as one day", () => {
+    expect(inclusiveEndKey("2026-03-09", "2026-03-09")).toBe("2026-03-09");
+  });
+
+  it("stores the day after the chosen last day, never before the start", () => {
+    expect(exclusiveEndKey("2026-03-09", "2026-03-09")).toBe("2026-03-10");
+    expect(exclusiveEndKey("2026-03-09", "2026-03-11")).toBe("2026-03-12");
+    expect(exclusiveEndKey("2026-03-09", "2026-03-01")).toBe("2026-03-10");
+  });
+
+  it("crosses the DST change by calendar days", () => {
+    expect(exclusiveEndKey("2026-10-24", "2026-10-25")).toBe("2026-10-26");
   });
 });

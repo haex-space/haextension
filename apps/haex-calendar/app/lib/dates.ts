@@ -140,3 +140,15 @@ export function daysBetween(from: Date, to: Date): number {
   const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
   return Math.round((b - a) / MS_PER_DAY);
 }
+
+/** Last day of an all-day event, from its stored (exclusive) end. */
+export function inclusiveEndKey(startKey: string, exclusiveEnd: string): string {
+  const last = toLocalDateKey(addDays(parseLocalDate(exclusiveEnd), -1));
+  return last < startKey ? startKey : last;
+}
+
+/** Stored (exclusive) end of an all-day event whose last day is `lastDayKey`. */
+export function exclusiveEndKey(startKey: string, lastDayKey: string): string {
+  const last = lastDayKey < startKey ? startKey : lastDayKey;
+  return toLocalDateKey(addDays(parseLocalDate(last), 1));
+}

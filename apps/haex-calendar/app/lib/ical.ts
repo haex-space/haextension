@@ -1,6 +1,6 @@
 import ICAL from "ical.js";
 import type { SelectEvent, SelectEventType } from "~/database/schemas";
-import { zonedWallClockToDate } from "~/lib/dates";
+import { exclusiveEndKey, inclusiveEndKey, zonedWallClockToDate } from "~/lib/dates";
 
 export interface ParsedEvent {
   uid: string;
@@ -229,7 +229,11 @@ export function generateICS(items: IcalExportItem[], calendarName: string): stri
       }
     } else {
       setDate(vcomp, "dtstart", event.dtstart, event.allDay);
-      setDate(vcomp, "dtend", event.dtend, event.allDay);
+      // Older rows may hold a zero-length all-day range; DTEND must be later.
+      const dtend = event.allDay
+        ? exclusiveEndKey(event.dtstart, inclusiveEndKey(event.dtstart, event.dtend))
+        : event.dtend;
+      setDate(vcomp, "dtend", dtend, event.allDay);
     }
 
     if (event.description) vcomp.updatePropertyWithValue("description", event.description);
