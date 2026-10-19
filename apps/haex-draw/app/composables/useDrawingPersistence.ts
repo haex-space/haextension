@@ -1,43 +1,13 @@
 import { eq } from "drizzle-orm";
-import getStroke from "perfect-freehand";
-import { drawings, type SelectDrawing, type SerializedStencil, type StrokeData, type ViewportState } from "~/database/schemas";
-import { BRUSH_PRESETS } from "~/utils/brushPresets";
-
-function renderStrokesToCanvas(ctx: CanvasRenderingContext2D, strokes: StrokeData[]) {
-  for (const stroke of strokes) {
-    if (stroke.tool === "eraser") continue;
-
-    const preset = BRUSH_PRESETS.find((p) => p.id === stroke.brushPreset) ?? BRUSH_PRESETS[0];
-    const hasPressure = stroke.points.some(p => p[2] !== 0.5);
-
-    const outlinePoints = getStroke(stroke.points, {
-      size: stroke.size,
-      thinning: preset.options.thinning,
-      smoothing: preset.options.smoothing,
-      streamline: preset.options.streamline,
-      simulatePressure: preset.options.simulatePressure && !hasPressure,
-      start: preset.options.start,
-      end: preset.options.end,
-    });
-
-    if (outlinePoints.length < 2) continue;
-
-    ctx.beginPath();
-    const [first, ...rest] = outlinePoints;
-    if (!first) continue;
-    ctx.moveTo(first[0], first[1]);
-    for (const [x, y] of rest) ctx.lineTo(x, y);
-    ctx.closePath();
-    ctx.fillStyle = stroke.color;
-    ctx.fill();
-  }
-}
+import { drawings, type SelectDrawing, type StrokeData, type ViewportState } from "~/database/schemas";
+import type { Stencil } from "~/types/stencil";
+import { rasterizeSceneAsync } from "~/utils/canvas/sceneRenderer";
 
 export interface DrawingSnapshot {
   id: string;
   name: string;
   strokes: StrokeData[];
-  stencils: SerializedStencil[];
+  stencils: Stencil[];
   viewport: ViewportState;
 }
 
@@ -62,7 +32,7 @@ export function useDrawingPersistence() {
     if (!canvas.drawingId) return null;
 
     // Serialize stencils to plain objects (strip runtime state)
-    const serializedStencils = stencilStore.stencils.map(s => ({
+    const serializedStencils = stencilStore.stencils.map((s): Stencil => ({
       id: s.id,
       presetId: s.presetId,
       shapeType: s.shapeType,
@@ -132,87 +102,20 @@ export function useDrawingPersistence() {
   };
 
   const exportPngAsync = async (): Promise<Blob | null> => {
-    if (canvas.strokes.length === 0) return null;
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const stroke of canvas.strokes) {
-      for (const [x, y] of stroke.points) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-
-    const padding = 50;
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
-
-    const width = Math.ceil(maxX - minX);
-    const height = Math.ceil(maxY - minY);
-
-    const tmpCanvas = document.createElement("canvas");
-    tmpCanvas.width = width;
-    tmpCanvas.height = height;
-    const ctx = tmpCanvas.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.translate(-minX, -minY);
-
-    renderStrokesToCanvas(ctx, canvas.strokes);
-
-    return new Promise((resolve) => {
-      tmpCanvas.toBlob((blob) => resolve(blob), "image/png");
-    });
+    const image = await rasterizeSceneAsync(canvas.strokes, stencilStore.stencils, { padding: 50 });
+    if (!image) return null;
+    return new Promise((resolve) => image.toBlob(resolve, "image/png"));
   };
 
   const writeThumbnailAsync = async (snapshot: DrawingSnapshot) => {
-    if (snapshot.strokes.length === 0) return;
     const db = requireDb();
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const stroke of snapshot.strokes) {
-      for (const [x, y] of stroke.points) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-
-    const padding = 20;
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
-
-    const fullW = Math.ceil(maxX - minX);
-    const fullH = Math.ceil(maxY - minY);
-
-    // Scale down to max 300x200
-    const maxW = 300;
-    const maxH = 200;
-    const scale = Math.min(maxW / fullW, maxH / fullH, 1);
-    const w = Math.ceil(fullW * scale);
-    const h = Math.ceil(fullH * scale);
-
-    const tmpCanvas = document.createElement("canvas");
-    tmpCanvas.width = w;
-    tmpCanvas.height = h;
-    const ctx = tmpCanvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
-    ctx.scale(scale, scale);
-    ctx.translate(-minX, -minY);
-    renderStrokesToCanvas(ctx, snapshot.strokes);
-
-    const thumbnail = tmpCanvas.toDataURL("image/png", 0.7);
+    const image = await rasterizeSceneAsync(snapshot.strokes, snapshot.stencils, {
+      padding: 20,
+      maxWidth: 300,
+      maxHeight: 200,
+    });
+    // An emptied drawing must not keep showing its old thumbnail.
+    const thumbnail = image?.toDataURL("image/png") ?? null;
     await db.update(drawings).set({ thumbnail }).where(eq(drawings.id, snapshot.id));
   };
 
