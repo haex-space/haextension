@@ -126,7 +126,6 @@ const initTerminal = async () => {
       rows: term.rows,
     });
 
-    console.log("[haex-code] Shell session created:", { sessionId, shellName });
     terminalStore.setSessionId(props.tab.id, sessionId);
     if (shellName) {
       terminalStore.renameTab(props.tab.id, shellName);
@@ -134,14 +133,12 @@ const initTerminal = async () => {
 
     // Listen for PTY output → write to xterm
     const onOutput = ((event: any) => {
-      console.log("[haex-code] Shell output event received:", event);
       if (event.sessionId === sessionId) {
         term.write(event.data);
       }
     }) as unknown as EventCallback;
 
     const onExit = ((event: any) => {
-      console.log("[haex-code] Shell exit event received:", event);
       if (event.sessionId === sessionId) {
         term.writeln(`\r\n\x1b[90m[Process exited${event.exitCode != null ? ` with code ${event.exitCode}` : ''}]\x1b[0m`);
         terminalStore.setSessionId(props.tab.id, null);
@@ -150,7 +147,6 @@ const initTerminal = async () => {
 
     haexVault.client.shell.onData(onOutput);
     haexVault.client.shell.onExit(onExit);
-    console.log("[haex-code] Shell event listeners registered for session:", sessionId);
 
     // Ctrl+Shift+C → copy selection (like a real Linux terminal)
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -164,11 +160,8 @@ const initTerminal = async () => {
 
     // Forward xterm input → PTY stdin
     term.onData((data: string) => {
-      console.log("[haex-code] xterm input:", JSON.stringify(data), "sessionId:", props.tab.sessionId);
       if (props.tab.sessionId) {
         haexVault.client.shell.write(props.tab.sessionId, data);
-      } else {
-        console.warn("[haex-code] No sessionId, input dropped!");
       }
     });
 
