@@ -112,4 +112,47 @@ describe('switching collections', () => {
     const aToolbar = aTree[0].children!.find(x => x.id === '1')!
     expect(aToolbar.children!.some(x => x.url === 'https://work.example')).toBe(false)
   })
+
+  async function dirtyDevice() {
+    const vault = new FakeVault()
+    const a = createDevice(vault, 100)
+    await a.service.completeOnboardingCreate({ name: 'Privat', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+    const privatId = (storageState(a).settings as { collectionId: string }).collectionId
+    const state = storageState(a)
+    if (state.settings.mode === 'active') {
+      state.settings.dirty = true
+      state.pendingUpserts.push({
+        id: 'haex-unsynced',
+        collectionId: privatId,
+        parentId: null,
+        rootKind: null,
+        kind: 'bookmark',
+        title: 'Unsynced',
+        url: 'https://unsynced.example',
+        position: 0,
+      })
+    }
+    return { vault, a, privatId }
+  }
+
+  it('pushes unsynced changes to the old collection before starting a new one', async () => {
+    const { vault, a, privatId } = await dirtyDevice()
+
+    const result = await a.service.completeOnboardingCreate({ name: 'Neu', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+
+    expect(result.success).toBe(true)
+    expect((await vault.listNodes(privatId)).map(row => row.id)).toContain('haex-unsynced')
+  })
+
+  it('refuses to start a new collection while unsynced changes cannot be pushed', async () => {
+    const { vault, a, privatId } = await dirtyDevice()
+    vault.upsertNodes = async () => Promise.reject(new Error('offline'))
+
+    const result = await a.service.completeOnboardingCreate({ name: 'Neu', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
+
+    expect(result).toEqual({ success: false, error: 'DIRTY_AND_UNSYNCED' })
+    const after = storageState(a)
+    expect(after.settings.mode === 'active' && after.settings.collectionId).toBe(privatId)
+    expect(after.pendingUpserts.map(row => row.id)).toEqual(['haex-unsynced'])
+  })
 })

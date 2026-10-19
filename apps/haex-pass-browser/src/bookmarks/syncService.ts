@@ -175,6 +175,10 @@ export class BookmarkSyncService {
   }
 
   private async onboardCreate(params: OnboardingCreateParams): Promise<{ success: boolean, error?: string }> {
+    // Options also starts a new collection from an active one; its unsynced
+    // edits would be dropped along with the old state.
+    if (await this.unsyncedAfterFlush())
+      return { success: false, error: 'DIRTY_AND_UNSYNCED' }
     try {
       const collectionId = await this.deps.vault.createCollection(params.name)
       const seed = await seedCollectionFromNative(this.deps.api, collectionId, params.browserFamily)
@@ -263,6 +267,20 @@ export class BookmarkSyncService {
     }
   }
 
+  /**
+   * Before replacing the active collection: one last flush of unsynced local
+   * edits. True when some remain (e.g. the vault is unreachable); the caller
+   * must refuse rather than lose them. The caller holds the state lock.
+   */
+  private async unsyncedAfterFlush(): Promise<boolean> {
+    const before = await this.deps.storage.loadState()
+    if (!before.ok || before.state.settings.mode !== 'active' || !before.state.settings.dirty)
+      return false
+    await this.syncPass()
+    const after = await this.deps.storage.loadState()
+    return !after.ok || (after.state.settings.mode === 'active' && after.state.settings.dirty)
+  }
+
   /** A throwaway journal for one-shot flows (onboarding) that don't yet have a persisted state to journal against. */
   private journalForFreshState() {
     return {
@@ -291,13 +309,11 @@ export class BookmarkSyncService {
     let active = initial.state.settings
 
     if (active.dirty) {
-      // One last attempt to flush before refusing — if the vault is
-      // reachable this clears `dirty` and the switch can proceed.
-      await this.syncPass()
-      const reloaded = await this.deps.storage.loadState()
-      if (!reloaded.ok || reloaded.state.settings.mode !== 'active' || reloaded.state.settings.dirty) {
+      if (await this.unsyncedAfterFlush())
         return { ok: false, error: 'DIRTY_AND_UNSYNCED' }
-      }
+      const reloaded = await this.deps.storage.loadState()
+      if (!reloaded.ok || reloaded.state.settings.mode !== 'active')
+        return { ok: false, error: 'NOT_ACTIVE' }
       active = reloaded.state.settings
     }
 

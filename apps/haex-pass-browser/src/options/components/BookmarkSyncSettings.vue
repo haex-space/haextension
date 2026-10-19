@@ -334,13 +334,16 @@ onMounted(loadBookmarkStatus)
           <p v-if="bookmarkNewNameError" class="text-sm text-red-500">
             {{ t(`onboarding.validation.${bookmarkNewNameError}`) }}
           </p>
+          <p v-if="bookmarkSwitchLocked" class="text-xs text-muted-foreground">
+            {{ t('settings.bookmarks.lockedWhileDirty') }}
+          </p>
           <p v-if="bookmarkSwitchError" class="text-sm text-red-500">
             {{ bookmarkSwitchError }}
           </p>
           <div class="flex gap-2">
             <button
               class="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
-              :disabled="bookmarkSwitchInProgress"
+              :disabled="bookmarkSwitchLocked || bookmarkSwitchInProgress"
               @click="confirmBookmarkCreate"
             >
               {{ t('settings.bookmarks.confirmCreate') }}
