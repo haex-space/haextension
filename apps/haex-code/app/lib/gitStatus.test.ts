@@ -14,6 +14,10 @@ describe("parseStatus", () => {
     ]);
   });
 
+  it("uses the new path of a renamed file", () => {
+    expect(parseStatus("R  old/name.ts -> new/name.ts\n")).toEqual([{ path: "new/name.ts", status: "staged" }]);
+  });
+
   it("ignores lines that are not status entries", () => {
     expect(parseStatus("\nhint: something\n")).toEqual([]);
   });

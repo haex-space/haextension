@@ -45,7 +45,8 @@ export function parseStatus(raw: string): GitFileStatus[] {
     .map((l) => {
       const x = l[0]!;
       const y = l[1]!;
-      const path = l.slice(3).trim();
+      // Renames and copies are listed as "old -> new".
+      const path = l.slice(3).trim().split(" -> ").pop()!;
 
       let status: GitStatus = "modified";
       if (x === "?" && y === "?") status = "untracked";
