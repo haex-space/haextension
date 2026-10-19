@@ -23,7 +23,7 @@ const onMaxSlotsChange = (val: number) => {
 </script>
 
 <template>
-  <div v-if="isLoaded" class="flex h-full flex-col bg-background">
+  <div class="flex h-full flex-col bg-background">
     <!-- Header -->
     <header class="flex items-center gap-3 border-b border-border px-4 py-3">
       <button
@@ -36,7 +36,7 @@ const onMaxSlotsChange = (val: number) => {
     </header>
 
     <!-- Settings Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div v-if="isLoaded" class="flex-1 overflow-y-auto p-6">
       <div class="mx-auto max-w-lg flex flex-col gap-6">
 
         <!-- Pencil Case -->
