@@ -32,6 +32,9 @@
 import { useClipboard } from "@vueuse/core";
 import { Eye, EyeOff, Copy, Check } from "@lucide/vue";
 
+// Attributes go to UiInput explicitly (v-bind="$attrs"); inheriting them as well would bind them twice
+defineOptions({ inheritAttrs: false });
+
 export type UiInputPasswordLabels = {
   show: string;
   hide: string;
@@ -58,6 +61,7 @@ withDefaults(
 
 const model = defineModel<string | null>();
 
+const inputRef = useTemplateRef("inputRef");
 const showPassword = ref(false);
 const { copy, copied } = useClipboard();
 
@@ -66,4 +70,10 @@ const handleCopy = async () => {
     await copy(model.value);
   }
 };
+
+const focus = () => {
+  inputRef.value?.focus();
+};
+
+defineExpose({ focus });
 </script>
