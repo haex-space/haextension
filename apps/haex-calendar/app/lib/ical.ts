@@ -50,6 +50,16 @@ function extractReminderOffsets(component: any): number[] {
   return offsets;
 }
 
+/** All CATEGORIES values (a multi-value property that may also repeat). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readCategories(component: any): string | null {
+  const values = (component.getAllProperties("categories") as InstanceType<typeof ICAL.Property>[])
+    .flatMap((prop) => prop.getValues())
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  return values.length ? values.join(", ") : null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rruleString(component: any): string | null {
   const recur = component.getFirstPropertyValue("rrule");
@@ -110,7 +120,7 @@ function parseVevent(vevent: any): ParsedEvent | null {
     status: vevent.getFirstPropertyValue("status") || "CONFIRMED",
     sequence: vevent.getFirstPropertyValue("sequence") || 0,
     url: vevent.getFirstPropertyValue("url") || null,
-    categories: vevent.getFirstPropertyValue("categories")?.toString() || null,
+    categories: readCategories(vevent),
     color: vevent.getFirstPropertyValue("color") || null,
     kind: "event",
     rrule: rruleString(vevent),
@@ -146,7 +156,7 @@ function parseVtodo(vtodo: any): ParsedEvent | null {
     status: vtodo.getFirstPropertyValue("status") || "CONFIRMED",
     sequence: vtodo.getFirstPropertyValue("sequence") || 0,
     url: vtodo.getFirstPropertyValue("url") || null,
-    categories: vtodo.getFirstPropertyValue("categories")?.toString() || null,
+    categories: readCategories(vtodo),
     color: vtodo.getFirstPropertyValue("color") || null,
     kind: "task",
     rrule: rruleString(vtodo),
@@ -239,7 +249,14 @@ export function generateICS(items: IcalExportItem[], calendarName: string): stri
     if (event.description) vcomp.updatePropertyWithValue("description", event.description);
     if (event.location) vcomp.updatePropertyWithValue("location", event.location);
     if (event.url) vcomp.updatePropertyWithValue("url", event.url);
-    if (categories) vcomp.updatePropertyWithValue("categories", categories);
+    const categoryList = (categories ?? "").split(",").map((c) => c.trim()).filter(Boolean);
+    if (categoryList.length) {
+      // One value per category; a single string would be escaped into one
+      // category "A\, B" that other clients can't match.
+      const prop = new ICAL.Property("categories");
+      prop.setValues(categoryList);
+      vcomp.addProperty(prop);
+    }
     if (color) vcomp.updatePropertyWithValue("color", color);
     if (rrule) vcomp.updatePropertyWithValue("rrule", ICAL.Recur.fromString(rrule));
 

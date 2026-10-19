@@ -107,35 +107,37 @@ describe("parseICS date-times", () => {
   });
 });
 
+const exportBase: SelectEvent = {
+  id: "1",
+  calendarId: "c",
+  uid: "1@haex-calendar",
+  summary: "Test",
+  description: null,
+  location: null,
+  dtstart: "2026-03-09T18:00:00.000Z",
+  dtend: "2026-03-09T19:00:00.000Z",
+  allDay: false,
+  timezone: "America/New_York",
+  status: "CONFIRMED",
+  sequence: 0,
+  url: null,
+  categories: null,
+  color: null,
+  etag: null,
+  href: null,
+  kind: "event",
+  eventTypeId: null,
+  rrule: null,
+  rruleOverride: false,
+  colorOverride: false,
+  completedAt: null,
+  createdAt: null,
+  updatedAt: null,
+};
+const item = (event: SelectEvent) => ({ event, rrule: null, reminderOffsets: [], categories: null, color: null });
+
 describe("generateICS date-times", () => {
-  const baseEvent: SelectEvent = {
-    id: "1",
-    calendarId: "c",
-    uid: "1@haex-calendar",
-    summary: "Test",
-    description: null,
-    location: null,
-    dtstart: "2026-03-09T18:00:00.000Z",
-    dtend: "2026-03-09T19:00:00.000Z",
-    allDay: false,
-    timezone: "America/New_York",
-    status: "CONFIRMED",
-    sequence: 0,
-    url: null,
-    categories: null,
-    color: null,
-    etag: null,
-    href: null,
-    kind: "event",
-    eventTypeId: null,
-    rrule: null,
-    rruleOverride: false,
-    colorOverride: false,
-    completedAt: null,
-    createdAt: null,
-    updatedAt: null,
-  };
-  const item = (event: SelectEvent) => ({ event, rrule: null, reminderOffsets: [], categories: null, color: null });
+  const baseEvent = exportBase;
 
   it("writes timed values as UTC", () => {
     const ics = generateICS([item(baseEvent)], "Cal");
@@ -146,5 +148,29 @@ describe("generateICS date-times", () => {
   it("exports values stored without offset by older imports", () => {
     const legacy = { ...baseEvent, dtstart: "2026-03-09T14:00:00", dtend: "2026-03-09T15:00:00" };
     expect(() => generateICS([item(legacy)], "Cal")).not.toThrow();
+  });
+});
+
+describe("CATEGORIES", () => {
+  it("reads every category, also across several properties", () => {
+    const [event] = parseICS(
+      wrap(vevent([
+        "UID:c@x",
+        "DTSTART:20261005T120000Z",
+        "DTEND:20261005T130000Z",
+        "CATEGORIES:Geburtstag,Familie",
+        "CATEGORIES:Wichtig",
+        "SUMMARY:Cats",
+      ])),
+    );
+    expect(event?.categories).toBe("Geburtstag, Familie, Wichtig");
+  });
+
+  it("writes categories as separate values", () => {
+    const ics = generateICS(
+      [{ event: { ...exportBase, kind: "event" }, rrule: null, reminderOffsets: [], categories: "Geburtstag, Familie", color: null }],
+      "Cal",
+    );
+    expect(ics).toContain("CATEGORIES:Geburtstag,Familie");
   });
 });
