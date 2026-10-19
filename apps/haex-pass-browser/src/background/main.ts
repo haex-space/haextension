@@ -17,6 +17,7 @@ import { parseVaultPasskeys } from '~/contentScripts/webauthn-routing'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import { vaultConnection } from './connection'
 import { callerOrigin, rpIdMatchesOrigin } from './passkeyOrigin'
+import { relayVaultRequest } from './vaultResponse'
 
 const bookmarkSyncService = new BookmarkSyncService({
   api: createRealNativeBookmarksApi(detectBrowserFamily()),
@@ -101,41 +102,14 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
     if (!data) {
       return Promise.resolve({ success: false, error: 'Missing data' })
     }
-    return vaultConnection.createItem(data)
-      .then((result) => {
-        // Result from haex-pass is { requestId, success, data, error? }
-        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
-        if (haexResponse.success) {
-          return { success: true, data: haexResponse.data }
-        }
-        return { success: false, error: haexResponse.error || 'Unknown error' }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
+    return relayVaultRequest(vaultConnection.createItem(data))
   }
 
-  if (message.type === MSG_GET_PASSWORD_CONFIG) {
-    return vaultConnection.getPasswordConfig()
-      .then((result) => {
-        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
-        if (haexResponse.success) {
-          return { success: true, data: haexResponse.data }
-        }
-        return { success: false, error: haexResponse.error || 'Unknown error' }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
-  }
+  if (message.type === MSG_GET_PASSWORD_CONFIG)
+    return relayVaultRequest(vaultConnection.getPasswordConfig())
 
-  if (message.type === MSG_GET_PASSWORD_PRESETS) {
-    return vaultConnection.getPasswordPresets()
-      .then((result) => {
-        const haexResponse = result as { success: boolean, data?: unknown, error?: string }
-        if (haexResponse.success) {
-          return { success: true, data: haexResponse.data }
-        }
-        return { success: false, error: haexResponse.error || 'Unknown error' }
-      })
-      .catch(err => ({ success: false, error: String(err) }))
-  }
+  if (message.type === MSG_GET_PASSWORD_PRESETS)
+    return relayVaultRequest(vaultConnection.getPasswordPresets())
 
   if (message.type === BOOKMARKS_LIST_COLLECTIONS) {
     return listCollections()
@@ -201,27 +175,14 @@ onMessage('open-popup', async () => {
 })
 
 // Handle messages from content scripts
-onMessage('get-items', async (message) => {
+onMessage('get-items', (message) => {
   const { url, fields } = message.data as { url: string, fields: string[] }
-  try {
-    const result = await vaultConnection.getItems(url, fields)
-    return { success: true, data: result }
-  } catch (err) {
-    console.error('[haex-pass] get-items error:', err)
-    return { success: false, error: String(err) }
-  }
+  return relayVaultRequest(vaultConnection.getItems(url, fields))
 })
 
-onMessage('get-totp', async (message) => {
+onMessage('get-totp', (message) => {
   const { entryId } = message.data as { entryId: string }
-  try {
-    const result = await vaultConnection.getTotp(entryId) as { success?: boolean, data?: unknown, error?: string }
-    if (result?.success)
-      return { success: true, data: result.data }
-    return { success: false, error: result?.error || 'Unknown error' }
-  } catch (err) {
-    return { success: false, error: String(err) }
-  }
+  return relayVaultRequest(vaultConnection.getTotp(entryId))
 })
 
 // =============================================================================
@@ -261,17 +222,7 @@ onMessage('passkey-create', async (message) => {
   if (!origin)
     return { success: false, error: ORIGIN_MISMATCH_ERROR }
 
-  try {
-    const result = await vaultConnection.createPasskey({ ...payload, origin })
-    const haexResponse = result as { success: boolean, data?: unknown, error?: string }
-    if (haexResponse.success) {
-      return { success: true, data: haexResponse.data }
-    }
-    return { success: false, error: haexResponse.error || 'Unknown error' }
-  } catch (err) {
-    console.error('[haex-pass] passkey-create error:', err)
-    return { success: false, error: String(err) }
-  }
+  return relayVaultRequest(vaultConnection.createPasskey({ ...payload, origin }))
 })
 
 // Asked before every passkey sign-in; the short budget keeps an unreachable
@@ -286,14 +237,8 @@ onMessage('passkey-list', async (message) => {
   // another site from whether the consent prompt appears.
   if (!(await verifiedPasskeyOrigin(message.sender, relyingPartyId)))
     return { success: false, error: ORIGIN_MISMATCH_ERROR }
-  try {
-    const result = await vaultConnection.listPasskeys({ relyingPartyId }, PASSKEY_LOOKUP_TIMEOUT_MS) as { success?: boolean, data?: unknown, error?: string }
-    if (!result?.success)
-      return { success: false, error: result?.error || 'Unknown error' }
-    return { success: true, passkeys: parseVaultPasskeys(result.data) }
-  } catch (err) {
-    return { success: false, error: String(err) }
-  }
+  const reply = await relayVaultRequest(vaultConnection.listPasskeys({ relyingPartyId }, PASSKEY_LOOKUP_TIMEOUT_MS))
+  return reply.success ? { success: true, passkeys: parseVaultPasskeys(reply.data) } : reply
 })
 
 // Handle passkey get request from content script
@@ -315,15 +260,5 @@ onMessage('passkey-get', async (message) => {
   if (!origin)
     return { success: false, error: ORIGIN_MISMATCH_ERROR }
 
-  try {
-    const result = await vaultConnection.getPasskey({ ...payload, origin })
-    const haexResponse = result as { success: boolean, data?: unknown, error?: string }
-    if (haexResponse.success) {
-      return { success: true, data: haexResponse.data }
-    }
-    return { success: false, error: haexResponse.error || 'Unknown error' }
-  } catch (err) {
-    console.error('[haex-pass] passkey-get error:', err)
-    return { success: false, error: String(err) }
-  }
+  return relayVaultRequest(vaultConnection.getPasskey({ ...payload, origin }))
 })

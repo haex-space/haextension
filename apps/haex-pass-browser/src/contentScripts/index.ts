@@ -80,10 +80,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       }, 'background')
 
       if (response && (response as { success: boolean }).success) {
-        // Response structure: { success: true, data: { success: true, data: { entries: [...] } } }
-        // The outer wrapper is from main.ts, the inner is from haex-pass
-        const innerData = (response as { data?: { data?: unknown } }).data
-        matchingEntries = parseItemEntries(innerData?.data)
+        matchingEntries = parseItemEntries((response as { data?: unknown }).data)
         console.log('[haex-pass] Matching entries:', matchingEntries.length)
 
         // Inject icons if we have matches, otherwise show "Add new" button
