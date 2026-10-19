@@ -131,10 +131,8 @@ describe('permission removal', () => {
     expect(a.env.alarmCreated).toBe(true)
 
     a.env.firePermissionRemoved()
-    await Promise.resolve()
-    await Promise.resolve()
 
+    await vi.waitFor(() => expect(storageState(a).settings.mode).toBe('disabled'))
     expect(a.env.alarmCleared).toBe(true)
-    expect(storageState(a).settings.mode).toBe('disabled')
   })
 })

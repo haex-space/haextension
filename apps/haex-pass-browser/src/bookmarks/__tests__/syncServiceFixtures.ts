@@ -202,6 +202,13 @@ class FakeDeviceEnvironment implements NativeBookmarksApi {
     return node.id
   }
 
+  /** Fires `onCreated` for a node made with `create`, e.g. to emit several events in one tick. */
+  emitCreated(id: string) {
+    const node = this.find(id)
+    if (node)
+      this.createdListeners.forEach(cb => cb(id, node))
+  }
+
   async userUpdate(id: string, changes: { title?: string, url?: string }) {
     await this.update(id, changes)
     this.changedListeners.forEach(cb => cb(id, changes))

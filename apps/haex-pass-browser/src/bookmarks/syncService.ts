@@ -28,6 +28,21 @@ export interface SwitchTarget {
   collectionName: string
 }
 
+interface OnboardingCreateParams {
+  name: string
+  replicaId: string
+  browserFamily: BrowserFamily
+  deviceLabel: string
+}
+
+interface OnboardingActivateParams {
+  collectionId: string
+  collectionName: string
+  replicaId: string
+  browserFamily: BrowserFamily
+  deviceLabel: string
+}
+
 export type SwitchResult
   = | { ok: true }
     | { ok: false, error: 'DIRTY_AND_UNSYNCED' | string }
@@ -47,7 +62,11 @@ function findNodeById(roots: NativeBookmarkNode[], id: string): NativeBookmarkNo
 
 export class BookmarkSyncService {
   private readonly deps: SyncServiceDeps
-  private mutexLocked = false
+  // Every read-modify-write of the stored state runs through this queue.
+  // The state is one storage key, so two writers interleaving across an
+  // await would silently drop the other's changes.
+  private stateQueue: Promise<unknown> = Promise.resolve()
+  private syncQueued = false
   private rerunRequested = false
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private listenersRegistered = false
@@ -92,17 +111,28 @@ export class BookmarkSyncService {
     }, delayMs)
   }
 
-  /** Runs one sync pass under the shared mutex; concurrent callers just mark "another run needed". */
+  private withStateLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.stateQueue.then(fn)
+    this.stateQueue = run.catch(() => {})
+    return run
+  }
+
+  /** One sync pass; the caller must hold the state lock. */
+  private syncPass(): Promise<void> {
+    return doSyncOnce(this.deps, fn => this.runGuarded(fn))
+  }
+
+  /** Queues one sync pass; while one is queued or running, further callers just mark "another run needed". */
   async runSyncOnce(): Promise<void> {
-    if (this.mutexLocked) {
+    if (this.syncQueued) {
       this.rerunRequested = true
       return
     }
-    this.mutexLocked = true
+    this.syncQueued = true
     try {
-      await doSyncOnce(this.deps, fn => this.runGuarded(fn))
+      await this.withStateLock(() => this.syncPass())
     } finally {
-      this.mutexLocked = false
+      this.syncQueued = false
       if (this.rerunRequested) {
         this.rerunRequested = false
         await this.runSyncOnce()
@@ -133,12 +163,11 @@ export class BookmarkSyncService {
   // onboarding page. 'disabled' is handled directly in background/main.ts.
   // -------------------------------------------------------------------------
 
-  async completeOnboardingCreate(params: {
-    name: string
-    replicaId: string
-    browserFamily: BrowserFamily
-    deviceLabel: string
-  }): Promise<{ success: boolean, error?: string }> {
+  async completeOnboardingCreate(params: OnboardingCreateParams): Promise<{ success: boolean, error?: string }> {
+    return this.withStateLock(() => this.onboardCreate(params))
+  }
+
+  private async onboardCreate(params: OnboardingCreateParams): Promise<{ success: boolean, error?: string }> {
     try {
       const collectionId = await this.deps.vault.createCollection(params.name)
       const seed = await seedCollectionFromNative(this.deps.api, collectionId, params.browserFamily)
@@ -180,13 +209,11 @@ export class BookmarkSyncService {
     }
   }
 
-  async completeOnboardingActivate(params: {
-    collectionId: string
-    collectionName: string
-    replicaId: string
-    browserFamily: BrowserFamily
-    deviceLabel: string
-  }): Promise<{ success: boolean, error?: string }> {
+  async completeOnboardingActivate(params: OnboardingActivateParams): Promise<{ success: boolean, error?: string }> {
+    return this.withStateLock(() => this.onboardActivate(params))
+  }
+
+  private async onboardActivate(params: OnboardingActivateParams): Promise<{ success: boolean, error?: string }> {
     try {
       const targetRows = await this.deps.vault.listNodes(params.collectionId)
       const { bindings } = await this.runGuarded(() =>
@@ -245,7 +272,11 @@ export class BookmarkSyncService {
   // invariant).
   // -------------------------------------------------------------------------
 
-  async switchCollection(target: SwitchTarget): Promise<SwitchResult> {
+  switchCollection(target: SwitchTarget): Promise<SwitchResult> {
+    return this.withStateLock(() => this.switchLocked(target))
+  }
+
+  private async switchLocked(target: SwitchTarget): Promise<SwitchResult> {
     const initial = await this.deps.storage.loadState()
     if (!initial.ok || initial.state.settings.mode !== 'active')
       return { ok: false, error: 'NOT_ACTIVE' }
@@ -255,7 +286,7 @@ export class BookmarkSyncService {
     if (active.dirty) {
       // One last attempt to flush before refusing — if the vault is
       // reachable this clears `dirty` and the switch can proceed.
-      await this.runSyncOnce()
+      await this.syncPass()
       const reloaded = await this.deps.storage.loadState()
       if (!reloaded.ok || reloaded.state.settings.mode !== 'active' || reloaded.state.settings.dirty) {
         return { ok: false, error: 'DIRTY_AND_UNSYNCED' }
@@ -334,7 +365,11 @@ export class BookmarkSyncService {
   }
 
   /** Approves the quarantined diff so the next sync pass applies it instead of re-quarantining it. */
-  async confirmPendingDeletions(): Promise<void> {
+  confirmPendingDeletions(): Promise<void> {
+    return this.withStateLock(() => this.confirmLocked())
+  }
+
+  private async confirmLocked(): Promise<void> {
     const result = await this.deps.storage.loadState()
     if (!result.ok || !result.state.pendingDeletionReview)
       return
@@ -347,7 +382,11 @@ export class BookmarkSyncService {
   }
 
   /** Pushes the quarantined nodes back to the vault to undo the remote bulk delete, leaving the local tree untouched. */
-  async rejectPendingDeletions(): Promise<void> {
+  rejectPendingDeletions(): Promise<void> {
+    return this.withStateLock(() => this.rejectLocked())
+  }
+
+  private async rejectLocked(): Promise<void> {
     const result = await this.deps.storage.loadState()
     if (!result.ok || !result.state.pendingDeletionReview || result.state.settings.mode !== 'active')
       return
@@ -372,16 +411,20 @@ export class BookmarkSyncService {
   private async recordNativeEvent(
     record: (state: BookmarkSyncState, settings: BookmarkSyncSettingsActive) => BookmarkSyncState | null,
   ): Promise<void> {
+    // Checked when the event fires, not when its turn in the queue comes:
+    // events raised by our own native writes arrive while the guard is up.
     if (this.applyGuardActive)
       return
-    const result = await this.deps.storage.loadState()
-    if (!result.ok || result.state.settings.mode !== 'active')
-      return
-    const state = record(result.state, result.state.settings)
-    if (!state)
-      return
-    await this.deps.storage.saveState(state)
-    this.scheduleSync()
+    await this.withStateLock(async () => {
+      const result = await this.deps.storage.loadState()
+      if (!result.ok || result.state.settings.mode !== 'active')
+        return
+      const state = record(result.state, result.state.settings)
+      if (!state)
+        return
+      await this.deps.storage.saveState(state)
+      this.scheduleSync()
+    })
   }
 
   private async handlePermissionRemoved(permissions: { permissions?: string[] }): Promise<void> {
@@ -398,7 +441,11 @@ export class BookmarkSyncService {
    * as it re-reads `mode !== 'active'`, so this is safe even though they
    * aren't individually torn down.
    */
-  async disableSync(): Promise<void> {
+  disableSync(): Promise<void> {
+    return this.withStateLock(() => this.disableLocked())
+  }
+
+  private async disableLocked(): Promise<void> {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer)
       this.debounceTimer = null
