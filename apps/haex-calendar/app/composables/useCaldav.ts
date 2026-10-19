@@ -1,7 +1,6 @@
 import {
   assertCaldavStatus,
   buildAuthHeaders,
-  formatTimeRange,
   parseMultistatus,
   resolveUrl,
   type CaldavCalendarInfo,
@@ -147,7 +146,6 @@ export function useCaldav() {
     username: string,
     password: string,
     serverUrl: string,
-    timeRange?: { start: string; end: string },
   ): Promise<{ ctag: string | null; events: CaldavEventInfo[] }> {
     const fullUrl = resolveUrl(caldavPath, serverUrl)
 
@@ -166,22 +164,16 @@ export function useCaldav() {
     const ctagEntries = parseMultistatus(ctagResponse.text)
     const ctag = ctagEntries[0]?.props["getctag"] ?? null
 
-    // Step 2: Calendar query for event list
-    let timeRangeXml = ""
-    if (timeRange) {
-      timeRangeXml = `\n           <c:time-range start="${formatTimeRange(timeRange.start)}" end="${formatTimeRange(timeRange.end)}"/>`
-    }
-
+    // Step 2: List every calendar object resource. No component filter: tasks
+    // (VTODO) live in the same collections as events, and sync deletes local
+    // rows whose href is missing from this list.
     const queryBody = `<?xml version="1.0" encoding="UTF-8"?>
   <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
     <d:prop>
       <d:getetag/>
     </d:prop>
     <c:filter>
-      <c:comp-filter name="VCALENDAR">
-        <c:comp-filter name="VEVENT">${timeRangeXml}
-        </c:comp-filter>
-      </c:comp-filter>
+      <c:comp-filter name="VCALENDAR"/>
     </c:filter>
   </c:calendar-query>`
 

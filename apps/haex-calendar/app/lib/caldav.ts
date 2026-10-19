@@ -26,21 +26,6 @@ export function resolveUrl(href: string, serverUrl: string): string {
   return new URL(href, serverUrl).href
 }
 
-export function formatTimeRange(isoDate: string): string {
-  const d = new Date(isoDate)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return (
-    d.getUTCFullYear().toString() +
-    pad(d.getUTCMonth() + 1) +
-    pad(d.getUTCDate()) +
-    "T" +
-    pad(d.getUTCHours()) +
-    pad(d.getUTCMinutes()) +
-    pad(d.getUTCSeconds()) +
-    "Z"
-  )
-}
-
 export interface MultistatusEntry {
   href: string
   props: Record<string, string | null>
