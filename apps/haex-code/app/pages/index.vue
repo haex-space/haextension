@@ -23,6 +23,8 @@ watch(sidebarTab, (tab) => {
   if (tab === "git" && workspace.rootPath) gitStore.refresh(workspace.rootPath);
 });
 const sidebarSize = ref(20);
+// Plain DOM element: a deep ref would hand Teleport a proxy.
+const terminalHost = shallowRef<HTMLElement | null>(null);
 
 // Unsaved changes dialog
 const pendingCloseTabId = ref<string | null>(null);
@@ -249,6 +251,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
       v-model:sidebar-visible="sidebarVisible"
       v-model:terminal-visible="terminalVisible"
       v-model:sidebar-tab="sidebarTab"
+      v-model:terminal-host="terminalHost"
       :shells="shells"
       @new-file="newFile"
       @close-tab="requestCloseTab"
@@ -269,6 +272,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
       v-model:terminal-visible="terminalVisible"
       v-model:sidebar-tab="sidebarTab"
       v-model:sidebar-size="sidebarSize"
+      v-model:terminal-host="terminalHost"
       :shells="shells"
       @new-file="newFile"
       @close-tab="requestCloseTab"
@@ -279,6 +283,18 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
       @open-file-from-disk="openFileFromDisk"
       @open-settings="settingsVisible = true"
     />
+
+    <!-- Terminals stay mounted while their panel is hidden; closing a terminal tab ends its shell. -->
+    <div class="hidden">
+      <Teleport :to="terminalHost ?? 'body'" :disabled="!terminalHost">
+        <TerminalView
+          v-for="tab in terminalStore.tabs"
+          v-show="tab.id === terminalStore.activeTabId"
+          :key="tab.id"
+          :tab="tab"
+        />
+      </Teleport>
+    </div>
 
     <!-- Settings Overlay -->
     <SettingsPanel v-if="settingsVisible" @close="settingsVisible = false" />

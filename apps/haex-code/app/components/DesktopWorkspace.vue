@@ -16,6 +16,7 @@ import {
   FileUp,
   Menu,
 } from "@lucide/vue";
+import type { ComponentPublicInstance } from "vue";
 import type { FileEntry } from "~/types";
 import { UI_SCALES } from "~/lib/settingsOptions";
 
@@ -38,6 +39,11 @@ const sidebarVisible = defineModel<boolean>("sidebarVisible", { required: true }
 const terminalVisible = defineModel<boolean>("terminalVisible", { required: true });
 const sidebarTab = defineModel<"explorer" | "git">("sidebarTab", { required: true });
 const sidebarSize = defineModel<number>("sidebarSize", { required: true });
+const terminalHost = defineModel<HTMLElement | null>("terminalHost", { required: true });
+// The page renders the terminals once and teleports them here, so hiding the panel keeps their shells.
+const setTerminalHost = (el: Element | ComponentPublicInstance | null) => {
+  terminalHost.value = el instanceof HTMLElement ? el : null;
+};
 
 const { t } = useI18n();
 const workspace = useWorkspaceStore();
@@ -232,14 +238,7 @@ const terminalSize = ref(30);
             <!-- Terminal Body: Content + Session List -->
             <div class="flex flex-1">
               <!-- Terminal Content -->
-              <div class="relative flex-1 bg-black">
-                <TerminalView
-                  v-for="tab in terminalStore.tabs"
-                  v-show="tab.id === terminalStore.activeTabId"
-                  :key="tab.id"
-                  :tab="tab"
-                />
-              </div>
+              <div :ref="setTerminalHost" class="relative flex-1 bg-black" />
 
               <!-- Terminal Session List (right sidebar) -->
               <ShadcnScrollArea v-if="terminalStore.tabs.length > 1" class="w-44 border-l border-border bg-background">
