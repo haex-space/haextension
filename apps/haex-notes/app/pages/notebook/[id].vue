@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, 
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
-import { reportError } from "~/lib/errors";
+import { getErrorMessage, reportError } from "~/lib/errors";
 import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
 const route = useRoute();
@@ -73,7 +73,7 @@ const initAsync = async () => {
     isLoaded.value = true;
   } catch (err) {
     console.error("[haex-notes] Failed to open notebook:", err);
-    loadError.value = err instanceof Error ? err.message : String(err);
+    loadError.value = getErrorMessage(err);
   }
 };
 

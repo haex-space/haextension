@@ -2,7 +2,7 @@
 import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
-import { reportError } from "~/lib/errors";
+import { getErrorMessage, reportError } from "~/lib/errors";
 
 const { t, locale } = useI18n();
 const router = useRouter();
@@ -33,7 +33,7 @@ const initAsync = async () => {
     isLoaded.value = true;
   } catch (err) {
     console.error("[haex-notes] Failed to load notebooks:", err);
-    loadError.value = err instanceof Error ? err.message : String(err);
+    loadError.value = getErrorMessage(err);
   }
 };
 
