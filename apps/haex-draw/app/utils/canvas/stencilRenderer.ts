@@ -5,13 +5,29 @@ import { getStencilClipPath } from "~/utils/stencilPresets";
 const imageCache = new Map<string, HTMLImageElement>();
 const imageLoading = new Set<string>();
 
-// Cache for rendered emoji (emoji char → HTMLCanvasElement)
+// Cache for rendered emoji (emoji char + raster size → HTMLCanvasElement), least recently used first
 const emojiCache = new Map<string, HTMLCanvasElement>();
+const EMOJI_CACHE_MAX = 32;
+const EMOJI_RASTER_MIN = 128;
+const EMOJI_RASTER_MAX = 1024;
+
+/**
+ * Raster size for an emoji stencil. Power-of-two buckets keep a continuous resize
+ * from allocating one canvas per pixel size.
+ */
+export function emojiRasterSize(width: number, height: number): number {
+  const target = Math.min(Math.max(Math.min(width, height), EMOJI_RASTER_MIN), EMOJI_RASTER_MAX);
+  return 2 ** Math.ceil(Math.log2(target));
+}
 
 function getOrRenderEmoji(emoji: string, size: number): HTMLCanvasElement {
   const key = `${emoji}_${size}`;
   const cached = emojiCache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    emojiCache.delete(key);
+    emojiCache.set(key, cached);
+    return cached;
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -22,6 +38,10 @@ function getOrRenderEmoji(emoji: string, size: number): HTMLCanvasElement {
   ctx.textBaseline = "middle";
   ctx.fillText(emoji, size / 2, size / 2);
   emojiCache.set(key, canvas);
+  if (emojiCache.size > EMOJI_CACHE_MAX) {
+    const oldest = emojiCache.keys().next().value;
+    if (oldest !== undefined) emojiCache.delete(oldest);
+  }
   return canvas;
 }
 
@@ -58,8 +78,7 @@ export function renderStencil(ctx: CanvasRenderingContext2D, stencil: Stencil, i
 
   // Emoji stencil: draw pre-rendered emoji image
   if (stencil.shapeType === "emoji" && stencil.emoji) {
-    const renderSize = Math.max(128, Math.round(Math.min(stencil.width, stencil.height)));
-    const emojiCanvas = getOrRenderEmoji(stencil.emoji, renderSize);
+    const emojiCanvas = getOrRenderEmoji(stencil.emoji, emojiRasterSize(stencil.width, stencil.height));
     if (stencil.opacity !== undefined && stencil.opacity < 1) {
       ctx.globalAlpha = stencil.opacity;
     }
