@@ -140,11 +140,14 @@ async function handleWebAuthnCreate(request: WebAuthnCreateRequest, signal: Abor
 /** Whether the vault holds a passkey that could answer this sign-in; false when it cannot be asked. */
 async function vaultHasPasskeyFor(data: WebAuthnGetRequest['data']): Promise<boolean> {
   try {
-    const response = await sendMessage('passkey-list', { relyingPartyId: data.relyingPartyId }, 'background') as { success?: boolean, passkeys?: unknown }
+    const response = await sendMessage('passkey-list', { relyingPartyId: data.relyingPartyId }, 'background') as {
+      success?: boolean
+      data?: unknown
+    }
     if (!response?.success)
       return false
     const allowedIds = data.allowCredentials?.map(cred => cred.id) ?? []
-    return vaultCanAnswerGet(parseVaultPasskeys(response), allowedIds)
+    return vaultCanAnswerGet(parseVaultPasskeys(response.data), allowedIds)
   } catch {
     return false
   }

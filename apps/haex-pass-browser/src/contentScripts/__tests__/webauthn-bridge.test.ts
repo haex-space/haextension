@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sendMessage } from 'webext-bridge/content-script'
 import { getPasskeyPref, setPasskeyPref } from '~/logic/settings'
 import { requestPasskeyConsent } from '../passkey-consent'
 import { initWebAuthnBridge } from '../webauthn-bridge'
@@ -32,6 +33,14 @@ function createRequest(relyingPartyId: string) {
   }
 }
 
+function createGetRequest(relyingPartyId: string) {
+  return {
+    type: 'HAEX_PASS_WEBAUTHN_GET',
+    requestId: `get-${relyingPartyId}`,
+    data: { relyingPartyId, challenge: 'AQ==' },
+  }
+}
+
 beforeAll(() => {
   initWebAuthnBridge()
 })
@@ -51,6 +60,21 @@ afterEach(() => {
 })
 
 describe('webauthn-bridge', () => {
+  it('routes an unconfigured sign-in to the vault when its passkey list can answer', async () => {
+    vi.mocked(sendMessage).mockResolvedValueOnce({
+      success: true,
+      data: { passkeys: [{ credentialId: 'vault-key', isDiscoverable: true }] },
+    } as never)
+    vi.mocked(requestPasskeyConsent).mockResolvedValueOnce({ choice: 'haex-pass', remember: false })
+    vi.mocked(sendMessage).mockResolvedValueOnce({ success: false, error: 'not reached' } as never)
+
+    postFromPage(createGetRequest(location.hostname))
+
+    await vi.waitFor(() => expect(requestPasskeyConsent).toHaveBeenCalledOnce())
+    expect(sendMessage).toHaveBeenCalledWith('passkey-list', { relyingPartyId: location.hostname }, 'background')
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('passkey-get', expect.anything(), 'background'))
+  })
+
   it('hands a request for another site to the browser without prompting', async () => {
     postFromPage(createRequest('bank.com'))
 
