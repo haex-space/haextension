@@ -152,30 +152,12 @@ export async function decryptMessage(
 }
 
 /**
- * Generate a random IV.
- */
-export function generateIV(): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-}
-
-/**
  * Convert Uint8Array to hex string.
  */
 export function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
-}
-
-/**
- * Convert hex string to Uint8Array.
- */
-export function fromHex(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16)
-  }
-  return bytes
 }
 
 /**

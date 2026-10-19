@@ -46,13 +46,6 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-// Fill a single field
-export function fillField(fieldId: string, value: string) {
-  const input = document.querySelector(`[data-haex-field-id="${fieldId}"]`) as HTMLInputElement
-  if (input)
-    setInputValue(input, value)
-}
-
 /** A field for a one-time code; it is only ever filled with a code from get-totp. */
 export function isOtpField(field: DetectedField, autofillAliases?: Record<string, string[]> | null): boolean {
   if (field.type === 'otp')

@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 import type { GetTotpResponseData, ItemEntry } from '~/logic/haexPassApi'
-import { onMessage, sendMessage } from 'webext-bridge/content-script'
+import { sendMessage } from 'webext-bridge/content-script'
 import { createApp } from 'vue'
 import App from './views/App.vue'
 import { setupApp } from '~/logic/common-setup'
 import { parseItemEntries } from '~/logic/haexPassApi'
-import { DEFAULT_ALIASES, fillAllFields, fillField, isOtpField, shouldShowIconForField } from './autofill'
+import { DEFAULT_ALIASES, fillAllFields, isOtpField, shouldShowIconForField } from './autofill'
 import { detectInputFields, type DetectedField } from './detector'
 import { showEntryDropdown } from './entryDropdown'
 import { initWebAuthnBridge } from './webauthn-bridge'
@@ -34,21 +34,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   document.body.appendChild(container)
   const app = createApp(App)
   setupApp(app, { theme: false }).catch(err => console.error('[haex-pass] Failed to set up the overlay app:', err))
-  const vm = app.mount(root)
-
-  // Entry type from haex-pass API
-  interface EntryWithAliases {
-    fields: Record<string, string>
-    autofillAliases?: Record<string, string[]> | null
-  }
-
-  // Expose state to Vue app
-  ;(window as unknown as { __haexPass: unknown }).__haexPass = {
-    getFields: () => detectedFields,
-    getEntries: () => matchingEntries,
-    fillField: (fieldId: string, value: string) => fillField(fieldId, value),
-    fillAllFields: (entry: EntryWithAliases) => fillAllFields(detectedFields, entry.fields, entry.autofillAliases),
-  }
+  app.mount(root)
 
   // Maps detected field types to canonical vault field keys.
   // 'text' fields pass isLoginField only when inside a login form context,
@@ -368,12 +354,6 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       })
     })
   }
-
-  // Listen for messages from background
-  onMessage('fill-field', ({ data }) => {
-    const { fieldId, value } = data as { fieldId: string, value: string }
-    fillField(fieldId, value)
-  })
 
   // Initial scan after DOM is ready
   if (document.readyState === 'complete') {

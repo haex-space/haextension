@@ -186,22 +186,3 @@ export function detectInputFields(): DetectedField[] {
     return true
   })
 }
-
-export function findFieldByIdentifier(identifier: string): HTMLInputElement | null {
-  // Try by name first
-  let input = document.querySelector<HTMLInputElement>(`input[name="${identifier}"]`)
-  if (input)
-    return input
-
-  // Try by id
-  input = document.querySelector<HTMLInputElement>(`input#${identifier}`)
-  if (input)
-    return input
-
-  // Try by autocomplete
-  input = document.querySelector<HTMLInputElement>(`input[autocomplete="${identifier}"]`)
-  if (input)
-    return input
-
-  return null
-}

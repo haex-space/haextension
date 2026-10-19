@@ -1,5 +1,5 @@
 import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
-import { onMessage, sendMessage } from 'webext-bridge/background'
+import { onMessage } from 'webext-bridge/background'
 import {
   BOOKMARKS_CONFIRM_DELETIONS,
   BOOKMARKS_GET_STATUS,
@@ -189,25 +189,6 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
   return undefined
 })
 
-// Handle messages from popup
-onMessage('get-connection-state', async () => {
-  return vaultConnection.getState()
-})
-
-onMessage('connect', async () => {
-  try {
-    await vaultConnection.connect()
-    return { success: true }
-  } catch (err) {
-    return { success: false, error: String(err) }
-  }
-})
-
-onMessage('disconnect', async () => {
-  vaultConnection.disconnect()
-  return { success: true }
-})
-
 // Handle open-popup request from content script
 onMessage('open-popup', async () => {
   try {
@@ -238,16 +219,6 @@ onMessage('get-totp', async (message) => {
     if (result?.success)
       return { success: true, data: result.data }
     return { success: false, error: result?.error || 'Unknown error' }
-  } catch (err) {
-    return { success: false, error: String(err) }
-  }
-})
-
-onMessage('fill-field', async (message) => {
-  const { tabId, fieldId, value } = message.data as { tabId: number, fieldId: string, value: string }
-  try {
-    await sendMessage('fill-field', { fieldId, value }, { context: 'content-script', tabId })
-    return { success: true }
   } catch (err) {
     return { success: false, error: String(err) }
   }

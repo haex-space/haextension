@@ -90,11 +90,5 @@ export async function getManifest() {
     },
   }
 
-  // FIXME: not work in MV3
-  if (isDev && false) {
-    delete manifest.content_scripts
-    manifest.permissions?.push('webNavigation')
-  }
-
   return manifest
 }

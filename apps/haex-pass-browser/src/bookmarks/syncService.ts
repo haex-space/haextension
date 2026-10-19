@@ -482,9 +482,4 @@ export class BookmarkSyncService {
       settings: { schemaVersion: 1, mode: 'disabled', dismissedAt: this.deps.now() },
     })
   }
-
-  /** Exposed for tests/diagnostics — not part of the public sync contract. */
-  isApplyGuardActive(): boolean {
-    return this.applyGuardActive
-  }
 }
