@@ -132,7 +132,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
       if (canvas.activeTool === "pan") {
         // Check corner handles: resize + rotate simultaneously
         const selected = stencilStore.selectedId ? stencilStore.getStencil(stencilStore.selectedId) : null;
-        if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected)) {
+        if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected, canvas.viewport.zoom)) {
           isResizing.value = true;
           resizingId.value = selected.id;
           resizeStartDist.value = Math.hypot(world.x - selected.x, world.y - selected.y);
@@ -368,7 +368,7 @@ export function useCanvasInput(canvasEl: Ref<HTMLCanvasElement | null>) {
     // Update cursor
     if (canvas.activeTool === "pan") {
       const selected = stencilStore.selectedId ? stencilStore.getStencil(stencilStore.selectedId) : null;
-      if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected)) {
+      if (selected && !selected.pinned && isNearStencilCorner(world.x, world.y, selected, canvas.viewport.zoom)) {
         canvasEl.value!.style.cursor = "crosshair";
       } else if (hit && !hit.pinned) {
         canvasEl.value!.style.cursor = "move";

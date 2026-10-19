@@ -1,10 +1,13 @@
 import type { Stencil } from "~/types/stencil";
 
-const BORDER_THRESHOLD = 15; // px in world space
+/** Hit radius of the corner handles in screen pixels (the handles are drawn with radius 6). */
+const CORNER_HIT_PX = 12;
 
-const CORNER_THRESHOLD = 30;
-
-export function isNearStencilCorner(worldX: number, worldY: number, stencil: Stencil): boolean {
+/**
+ * Whether a world point grabs one of the stencil's corner handles at the given zoom.
+ * The radius shrinks on small stencils so their middle stays draggable.
+ */
+export function isNearStencilCorner(worldX: number, worldY: number, stencil: Stencil, zoom: number): boolean {
   const dx = worldX - stencil.x;
   const dy = worldY - stencil.y;
   const cos = Math.cos(-stencil.rotation);
@@ -14,8 +17,8 @@ export function isNearStencilCorner(worldX: number, worldY: number, stencil: Ste
 
   const hw = stencil.width / 2;
   const hh = stencil.height / 2;
+  const threshold = Math.min(CORNER_HIT_PX / zoom, Math.min(hw, hh) / 2);
 
-  // Check proximity to each corner (from outside the bounding box)
   const corners = [
     { x: -hw, y: -hh },
     { x: hw, y: -hh },
@@ -25,31 +28,7 @@ export function isNearStencilCorner(worldX: number, worldY: number, stencil: Ste
 
   for (const c of corners) {
     const dist = Math.hypot(localX - c.x, localY - c.y);
-    if (dist < CORNER_THRESHOLD) return true;
+    if (dist < threshold) return true;
   }
   return false;
-}
-
-function isNearStencilBorder(worldX: number, worldY: number, stencil: Stencil): boolean {
-  // Transform point into stencil's local (rotation-corrected) space
-  const dx = worldX - stencil.x;
-  const dy = worldY - stencil.y;
-  const cos = Math.cos(-stencil.rotation);
-  const sin = Math.sin(-stencil.rotation);
-  const localX = dx * cos - dy * sin;
-  const localY = dx * sin + dy * cos;
-
-  const hw = stencil.width / 2;
-  const hh = stencil.height / 2;
-
-  // Must be inside the bounding box
-  if (localX < -hw || localX > hw || localY < -hh || localY > hh) return false;
-
-  // Check if near any edge
-  const distLeft = Math.abs(localX + hw);
-  const distRight = Math.abs(localX - hw);
-  const distTop = Math.abs(localY + hh);
-  const distBottom = Math.abs(localY - hh);
-
-  return Math.min(distLeft, distRight, distTop, distBottom) < BORDER_THRESHOLD;
 }
