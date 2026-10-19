@@ -8,6 +8,7 @@ import {
 } from '@haex-space/vault-sdk'
 import { HAEX_PASS_METHODS } from '~/logic/haexPassApi'
 import { getWebSocketPort } from '~/logic/settings'
+import { ConnectionStatus } from './connectionStatus'
 import {
   createEncryptedMessage,
   decryptMessageEnvelope,
@@ -48,12 +49,9 @@ class VaultConnectionManager {
   private serverPublicKey: CryptoKey | null = null
   private clientId: string | null = null
   private publicKeyBase64: string | null = null
-  private state: ExternalConnectionState = ExternalConnectionState.DISCONNECTED
-  private errorCode: ExternalConnectionErrorCode = ExternalConnectionErrorCode.NONE
-  private errorMessage: string | null = null
+  private readonly status = new ConnectionStatus(() => this.clientId)
   private pendingRequests: Map<string, PendingRequest> = new Map()
   private messageHandlers: Set<(message: unknown) => void> = new Set()
-  private stateChangeHandlers: Set<(state: VaultConnection) => void> = new Set()
   private initPromise: Promise<void> | null = null
   // Cached in-flight connect() so concurrent callers (popup + content scripts
   // racing on get-items) reuse one WebSocket instead of opening orphaned ones.
@@ -87,77 +85,14 @@ class VaultConnectionManager {
     console.log('[haex-pass] Initialized with clientId:', this.clientId)
   }
 
-  /**
-   * Wait until the WebSocket handshake completed and the client is paired
-   * (either via permanent or session authorization). Resolves the moment
-   * state transitions to PAIRED, rejects on terminal failure states or after
-   * the timeout elapses.
-   *
-   * Without this, content scripts that fire a request right after a service
-   * worker wakeup race ahead of the handshake response and get
-   * "Handshake not complete".
-   */
-  private async waitForPaired(timeoutMs: number): Promise<void> {
-    if (this.state === ExternalConnectionState.PAIRED)
-      return
-
-    await new Promise<void>((resolve, reject) => {
-      let unsubscribe: () => void = () => {}
-      const timer = setTimeout(() => {
-        unsubscribe()
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for handshake/authorization (state=${this.state})`))
-      }, timeoutMs)
-
-      unsubscribe = this.onStateChange((state) => {
-        if (state.state === ExternalConnectionState.PAIRED) {
-          clearTimeout(timer)
-          unsubscribe()
-          resolve()
-        } else if (state.state === ExternalConnectionState.DISCONNECTED) {
-          clearTimeout(timer)
-          unsubscribe()
-          reject(new Error(`Disconnected while waiting for pairing (error=${state.errorMessage ?? state.errorCode})`))
-        }
-      })
-    })
-  }
-
   private generateRequestId(): string {
     const bytes = new Uint8Array(16)
     crypto.getRandomValues(bytes)
     return toHex(bytes)
   }
 
-  private setError(code: ExternalConnectionErrorCode, message: string | null = null) {
-    this.errorCode = code
-    this.errorMessage = message
-  }
-
-  private clearError() {
-    this.errorCode = ExternalConnectionErrorCode.NONE
-    this.errorMessage = null
-  }
-
-  private notifyStateChange() {
-    const connection: VaultConnection = {
-      state: this.state,
-      clientId: this.clientId,
-      errorCode: this.errorCode,
-      errorMessage: this.errorMessage,
-    }
-    this.stateChangeHandlers.forEach(handler => handler(connection))
-  }
-
   onStateChange(handler: (state: VaultConnection) => void): () => void {
-    this.stateChangeHandlers.add(handler)
-    // Immediately notify with current state
-    handler({
-      state: this.state,
-      clientId: this.clientId,
-      errorCode: this.errorCode,
-      errorMessage: this.errorMessage,
-    })
-    return () => this.stateChangeHandlers.delete(handler)
+    return this.status.subscribe(handler)
   }
 
   onMessage(handler: (message: unknown) => void): () => void {
@@ -174,7 +109,7 @@ class VaultConnectionManager {
       return this.connectPromise
 
     // Fast path: already up and paired, no work to do.
-    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.state === ExternalConnectionState.PAIRED) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.status.state === ExternalConnectionState.PAIRED) {
       return
     }
 
@@ -190,16 +125,16 @@ class VaultConnectionManager {
 
     // If already connected but not paired, resend handshake to trigger new authorization request
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      if (this.state !== ExternalConnectionState.PAIRED) {
+      if (this.status.state !== ExternalConnectionState.PAIRED) {
         console.log('[haex-pass] Already connected, resending handshake for authorization')
         this.sendHandshake()
       }
       return
     }
 
-    this.state = ExternalConnectionState.CONNECTING
-    this.clearError()
-    this.notifyStateChange()
+    this.status.state = ExternalConnectionState.CONNECTING
+    this.status.clearError()
+    this.status.notify()
 
     // Get port from settings
     const port = await getWebSocketPort()
@@ -241,12 +176,12 @@ class VaultConnectionManager {
           if (this.ws !== ws)
             return
           console.log('[haex-pass] WebSocket closed')
-          this.state = ExternalConnectionState.DISCONNECTED
-          this.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
+          this.status.state = ExternalConnectionState.DISCONNECTED
+          this.status.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
           this.serverPublicKey = null
           this.stopPing()
           this.rejectPendingRequests('Connection closed')
-          this.notifyStateChange()
+          this.status.notify()
         }
 
         ws.onerror = (err) => {
@@ -255,17 +190,17 @@ class VaultConnectionManager {
             return
           }
           console.error('[haex-pass] WebSocket error:', err)
-          this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
-          this.state = ExternalConnectionState.DISCONNECTED
+          this.status.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
+          this.status.state = ExternalConnectionState.DISCONNECTED
           this.stopPing()
           this.rejectPendingRequests('Connection failed')
-          this.notifyStateChange()
-          reject(new Error(this.errorMessage || 'Connection failed'))
+          this.status.notify()
+          reject(new Error(this.status.errorMessage || 'Connection failed'))
         }
       } catch (err) {
-        this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, `Failed to connect: ${err}`)
-        this.state = ExternalConnectionState.DISCONNECTED
-        this.notifyStateChange()
+        this.status.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, `Failed to connect: ${err}`)
+        this.status.state = ExternalConnectionState.DISCONNECTED
+        this.status.notify()
         reject(err)
       }
     })
@@ -330,11 +265,11 @@ class VaultConnectionManager {
 
         case 'error':
           console.error('[haex-pass] Server error:', message.code, message.message)
-          this.setError(
+          this.status.setError(
             message.code as ExternalConnectionErrorCode,
             message.message,
           )
-          this.notifyStateChange()
+          this.status.notify()
           break
 
         case 'pong':
@@ -361,18 +296,18 @@ class VaultConnectionManager {
     }
 
     if (response.authorized) {
-      this.state = ExternalConnectionState.PAIRED
+      this.status.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Client is authorized')
       this.startPing()
     } else if (response.pendingApproval) {
-      this.state = ExternalConnectionState.PENDING_APPROVAL
+      this.status.state = ExternalConnectionState.PENDING_APPROVAL
       console.log('[haex-pass] Waiting for user approval in haex-vault')
     } else {
-      this.state = ExternalConnectionState.CONNECTED
+      this.status.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Connected but not authorized')
     }
 
-    this.notifyStateChange()
+    this.status.notify()
   }
 
   private async handleEncryptedResponse(envelope: EncryptedEnvelope): Promise<void> {
@@ -414,14 +349,14 @@ class VaultConnectionManager {
 
   private handleAuthorizationUpdate(update: AuthorizationUpdate): void {
     if (update.authorized) {
-      this.state = ExternalConnectionState.PAIRED
+      this.status.state = ExternalConnectionState.PAIRED
       console.log('[haex-pass] Authorization granted!')
       this.startPing()
     } else {
-      this.state = ExternalConnectionState.CONNECTED
+      this.status.state = ExternalConnectionState.CONNECTED
       console.log('[haex-pass] Authorization denied')
     }
-    this.notifyStateChange()
+    this.status.notify()
   }
 
   async sendRequest<T = unknown>(action: string, payload: object, timeout = 10000): Promise<T> {
@@ -432,14 +367,14 @@ class VaultConnectionManager {
     // yet — trigger a connect (idempotent if already connected). Then wait
     // for the handshake to actually finish before sending the encrypted
     // request, otherwise we'd race the handshake response and throw.
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.state !== ExternalConnectionState.PAIRED) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.status.state !== ExternalConnectionState.PAIRED) {
       await this.connect()
       // connect() resolves once the WS is OPEN, not once the handshake is
       // through. Wait specifically for PAIRED with a budget that's shorter
       // than the per-request timeout so a stuck pending approval doesn't
       // swallow the request silently.
       const handshakeBudget = Math.min(Math.max(timeout - 1000, 1000), timeout)
-      await this.waitForPaired(handshakeBudget)
+      await this.status.waitForPaired(handshakeBudget)
     }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -544,18 +479,13 @@ class VaultConnectionManager {
       this.ws = null
     }
 
-    this.state = ExternalConnectionState.DISCONNECTED
+    this.status.state = ExternalConnectionState.DISCONNECTED
     this.serverPublicKey = null
-    this.notifyStateChange()
+    this.status.notify()
   }
 
   getState(): VaultConnection {
-    return {
-      state: this.state,
-      clientId: this.clientId,
-      errorCode: this.errorCode,
-      errorMessage: this.errorMessage,
-    }
+    return this.status.snapshot()
   }
 }
 
