@@ -1,18 +1,16 @@
 import type Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../../config'
 import { lerpColor } from '../../utils/color'
+import { createBackButton } from '../../ui/backButton'
 import { DEPTH } from './constants'
 import type { Phase } from './constants'
 
 export class NestInteriorHud {
-  private scene: Phaser.Scene
   private phaseIndicator: Phaser.GameObjects.Graphics
   private temperatureBar: Phaser.GameObjects.Graphics
 
   constructor(scene: Phaser.Scene) {
-    this.scene = scene
-
-    this.createBackButton()
+    createBackButton(scene, DEPTH.UI)
 
     this.phaseIndicator = scene.add.graphics()
     this.phaseIndicator.setDepth(DEPTH.UI)
@@ -21,33 +19,6 @@ export class NestInteriorHud {
     this.temperatureBar = scene.add.graphics()
     this.temperatureBar.setDepth(DEPTH.UI)
     this.temperatureBar.setScrollFactor(0)
-  }
-
-  private createBackButton() {
-    const btn = this.scene.add.graphics()
-    btn.setScrollFactor(0)
-    btn.setDepth(DEPTH.UI)
-
-    btn.fillStyle(0x000000, 0.3)
-    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
-    btn.lineStyle(2, 0xffffff, 0.7)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
-
-    const hitZone = this.scene.add.zone(GAME_WIDTH - 16, 16, 24, 24)
-    hitZone.setScrollFactor(0)
-    hitZone.setDepth(DEPTH.UI)
-    hitZone.setInteractive({ useHandCursor: true })
-    hitZone.on('pointerdown', () => this.returnToOverworld())
-  }
-
-  private returnToOverworld() {
-    this.scene.input.removeAllListeners()
-    this.scene.cameras.main.fadeOut(600, 0, 0, 0)
-    this.scene.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.scene.start('OverworldScene')
-    })
   }
 
   update(phase: Phase, isBrooding: boolean, broodTemperature: number, broodTimer: number, broodDuration: number) {

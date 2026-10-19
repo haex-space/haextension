@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
-import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { BumblebeeQueen } from '../entities/BumblebeeQueen'
+import { createBackButton } from '../ui/backButton'
+import { createHudCamera } from '../ui/hudCamera'
+import { fadeToScene } from './transition'
 
 const TILE_SIZE = 16
 const SCENE_WIDTH = 50
@@ -44,12 +46,17 @@ export class NestSearchScene extends Phaser.Scene {
 
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['nest-search-v1'])
+    // Phaser reuses the scene instance, so a replay must start from a clean state
+    this.touchTarget = null
+    this.candidates = []
+    this.inspecting = false
+    this.chosenNest = null
 
     this.createGround()
     this.createNestCandidates()
     this.createScenery()
     this.createQueen()
-    this.createBackButton()
+    createHudCamera(this, createBackButton(this, DEPTH.UI))
     this.setupCamera()
     this.setupInput()
 
@@ -87,15 +94,18 @@ export class NestSearchScene extends Phaser.Scene {
   }
 
   private createScenery() {
-    // Scatter some flowers and grass to make the scene feel alive
+    // Scatter some flowers to make the scene feel alive
+    const flowerKeys = ['flower-pink', 'flower-blue', 'flower-yellow', 'flower-white', 'flower-purple']
     for (let i = 0; i < 20; i++) {
       const x = this.rng.between(TILE_SIZE * 2, SCENE_WIDTH * TILE_SIZE - TILE_SIZE * 2)
       const y = this.rng.between(TILE_SIZE * 2, SCENE_HEIGHT * TILE_SIZE - TILE_SIZE * 2)
+      const key = this.rng.pick(flowerKeys)
 
-      if (this.textures.exists('flower')) {
-        const flower = this.add.sprite(x, y, 'flower')
-        flower.setDepth(DEPTH.FLOWERS)
-      }
+      // Flowers are drawn above the nest sites and must not hide them
+      if (this.candidates.some(c => Phaser.Math.Distance.Between(x, y, c.x, c.y) < 24)) continue
+
+      const flower = this.add.sprite(x, y, key)
+      flower.setDepth(DEPTH.FLOWERS)
     }
   }
 
@@ -299,7 +309,7 @@ export class NestSearchScene extends Phaser.Scene {
 
         // Any suitable nest can be selected — tap again to choose
         candidate.sprite.setInteractive({ useHandCursor: true })
-        candidate.sprite.once('pointerdown', () => {
+        candidate.sprite.on('pointerdown', () => {
           this.selectNest(candidate)
         })
         this.inspecting = false
@@ -331,6 +341,8 @@ export class NestSearchScene extends Phaser.Scene {
   }
 
   private selectNest(candidate: NestCandidate) {
+    // Also blocks while another candidate is being inspected or a nest was already chosen
+    if (this.inspecting) return
     this.chosenNest = candidate
     this.inspecting = true
 
@@ -345,44 +357,16 @@ export class NestSearchScene extends Phaser.Scene {
       ease: 'Power2',
       onComplete: () => {
         // Fade out
-        this.cameras.main.fadeOut(1000, 0, 0, 0)
-        this.cameras.main.once('camerafadeoutcomplete', () => {
-          this.game.events.emit('task-complete', {
-            taskId: 'nest-search',
-            chapter: 2,
-          })
-          this.scene.start('NestInteriorScene')
+        fadeToScene(this, 'NestInteriorScene', {
+          duration: 1000,
+          beforeStart: () => {
+            this.game.events.emit('task-complete', {
+              taskId: 'nest-search',
+              chapter: 2,
+            })
+          },
         })
       },
-    })
-  }
-
-  // ── Navigation ──────────────────────────────────
-
-  private createBackButton() {
-    const btn = this.add.graphics()
-    btn.setScrollFactor(0)
-    btn.setDepth(DEPTH.UI)
-
-    btn.fillStyle(0x000000, 0.3)
-    btn.fillCircle(GAME_WIDTH - 16, 16, 10)
-    btn.lineStyle(2, 0xffffff, 0.7)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 13, 16)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 13)
-    btn.lineBetween(GAME_WIDTH - 20, 16, GAME_WIDTH - 17, 19)
-
-    const hitZone = this.add.zone(GAME_WIDTH - 16, 16, 24, 24)
-    hitZone.setScrollFactor(0)
-    hitZone.setDepth(DEPTH.UI)
-    hitZone.setInteractive({ useHandCursor: true })
-    hitZone.on('pointerdown', () => this.returnToOverworld())
-  }
-
-  private returnToOverworld() {
-    this.input.removeAllListeners()
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('OverworldScene')
     })
   }
 
@@ -413,39 +397,7 @@ export class NestSearchScene extends Phaser.Scene {
 
   private handleInput() {
     if (this.inspecting) return
-
-    if (this.cursors) {
-      const left = this.cursors.left.isDown
-      const right = this.cursors.right.isDown
-      const up = this.cursors.up.isDown
-      const down = this.cursors.down.isDown
-
-      if (left || right || up || down) {
-        this.touchTarget = null
-        let vx = 0
-        let vy = 0
-        if (left) vx = -1
-        if (right) vx = 1
-        if (up) vy = -1
-        if (down) vy = 1
-
-        const speed = this.queen.speed
-        const len = Math.sqrt(vx * vx + vy * vy) || 1
-        const body = this.queen.sprite.body as Phaser.Physics.Arcade.Body
-        body.setVelocity((vx / len) * speed, (vy / len) * speed)
-
-        if (vx < 0) this.queen.sprite.setFlipX(false)
-        else if (vx > 0) this.queen.sprite.setFlipX(true)
-        return
-      }
-    }
-
-    if (this.touchTarget) {
-      this.queen.moveTo(this.touchTarget.x, this.touchTarget.y)
-      return
-    }
-
-    this.queen.stop()
+    this.touchTarget = this.queen.steer(this.cursors, this.touchTarget)
   }
 
   private checkCandidateProximity() {

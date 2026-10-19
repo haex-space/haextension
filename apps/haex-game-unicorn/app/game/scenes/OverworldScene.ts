@@ -9,12 +9,15 @@ import { DEPTH, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, UNICORN_SPEED } from './overwo
 import type { AmbientCreature, WorldFlower, WorldTree } from './overworld/constants'
 import { createAmbientCreature } from './overworld/ambientCreatures'
 import { createFlowers, createGrassDetails, createGround, createTrees } from './overworld/world'
+import { fadeToScene } from './transition'
 
 export class OverworldScene extends Phaser.Scene {
   private unicorn!: Phaser.Physics.Arcade.Sprite
   private unicornShadow!: Phaser.GameObjects.Ellipse
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private touchTarget: { x: number, y: number } | null = null
+  /** A walk to the nest started by tapping it keeps going after the finger is lifted. */
+  private walkingToNest = false
 
   private trees: WorldTree[] = []
   private flowers: WorldFlower[] = []
@@ -48,6 +51,13 @@ export class OverworldScene extends Phaser.Scene {
 
   create() {
     this.rng = new Phaser.Math.RandomDataGenerator(['meadow-world-v2'])
+    // Phaser reuses the scene instance, so a replay must start from a clean state
+    this.touchTarget = null
+    this.walkingToNest = false
+    this.clouds = []
+    this.ambientCreatures = []
+    this.lastCreatureSpawn = 0
+    this.audioInitialized = false
 
     this.seasonSystem = new SeasonSystem(this)
     this.weatherSystem = new WeatherSystem(this)
@@ -56,9 +66,9 @@ export class OverworldScene extends Phaser.Scene {
     this.createSky()
     this.createParallaxLayers()
     createGround(this, this.rng)
-    this.grassDetails.push(...createGrassDetails(this, this.rng))
-    this.trees.push(...createTrees(this, this.rng))
-    this.flowers.push(...createFlowers(this, this.rng))
+    this.grassDetails = createGrassDetails(this, this.rng)
+    this.trees = createTrees(this, this.rng)
+    this.flowers = createFlowers(this, this.rng)
     this.createBumblebeeNest()
     this.createUnicorn()
     this.createWeatherLayer()
@@ -202,16 +212,14 @@ export class OverworldScene extends Phaser.Scene {
         x: this.bumblebeeNest!.x - 20,
         y: this.bumblebeeNest!.y + 10,
       }
+      this.walkingToNest = true
       return
     }
 
     this.emitEvent('nest-interact', { nestType: 'bumblebee' })
 
     // Start cutscene transition to Chapter 1
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('CutsceneScene', createQueenEmergenceCutscene())
-    })
+    fadeToScene(this, 'CutsceneScene', { data: createQueenEmergenceCutscene() })
   }
 
   // ── Unicorn ─────────────────────────────────────
@@ -274,7 +282,7 @@ export class OverworldScene extends Phaser.Scene {
       this.cursors = this.input.keyboard.createCursorKeys()
     }
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
       // Init audio on first user gesture (Web Audio requirement)
       if (!this.audioInitialized) {
         this.audioSystem.init()
@@ -283,13 +291,15 @@ export class OverworldScene extends Phaser.Scene {
       }
 
       // Ignore if an interactive object handled it
-      if (pointer.downElement !== this.game.canvas) return
+      if (currentlyOver.length > 0) return
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
       this.touchTarget = { x: worldPoint.x, y: worldPoint.y }
+      this.walkingToNest = false
     })
 
     this.input.on('pointerup', () => {
+      if (this.walkingToNest) return
       this.touchTarget = null
       this.unicorn.setVelocity(0, 0)
     })
@@ -328,6 +338,7 @@ export class OverworldScene extends Phaser.Scene {
 
       if (left || right || up || down) {
         this.touchTarget = null
+        this.walkingToNest = false
 
         let vx = 0
         let vy = 0
@@ -357,6 +368,7 @@ export class OverworldScene extends Phaser.Scene {
       if (distance < 4) {
         body.setVelocity(0, 0)
         this.touchTarget = null
+        this.walkingToNest = false
         this.unicorn.play('unicorn-idle', true)
         return
       }

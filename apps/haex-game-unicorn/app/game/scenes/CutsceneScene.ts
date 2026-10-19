@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../config'
+import { fadeToScene } from './transition'
 
 /**
  * A cutscene frame drawn procedurally.
@@ -50,6 +51,7 @@ export class CutsceneScene extends Phaser.Scene {
     this.currentFrame = 0
     this.canAdvance = false
     this.transitioning = false
+    this.progressDots = []
   }
 
   create() {
@@ -122,6 +124,8 @@ export class CutsceneScene extends Phaser.Scene {
 
   private advance() {
     if (!this.canAdvance || this.transitioning) return
+    // A second tap during the fade-out would otherwise advance twice and skip a frame
+    this.canAdvance = false
 
     if (this.currentFrame < this.config.frames.length - 1) {
       // Fade out current, show next
@@ -141,12 +145,13 @@ export class CutsceneScene extends Phaser.Scene {
   private completeCutscene() {
     this.transitioning = true
 
-    this.cameras.main.fadeOut(600, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      if (this.config.completeEvent) {
-        this.game.events.emit(this.config.completeEvent, this.config.completeEventData ?? {})
-      }
-      this.scene.start(this.config.nextScene, this.config.nextSceneData)
+    fadeToScene(this, this.config.nextScene, {
+      data: this.config.nextSceneData,
+      beforeStart: () => {
+        if (this.config.completeEvent) {
+          this.game.events.emit(this.config.completeEvent, this.config.completeEventData ?? {})
+        }
+      },
     })
   }
 

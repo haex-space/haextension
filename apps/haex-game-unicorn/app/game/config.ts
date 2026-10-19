@@ -17,11 +17,10 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     height: GAME_HEIGHT,
     pixelArt: true,
     roundPixels: true,
+    // Every scene lays out its world and UI in GAME_WIDTH x GAME_HEIGHT; the canvas is scaled to fit
     scale: {
-      mode: Phaser.Scale.RESIZE,
+      mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: '100%',
-      height: '100%',
     },
     physics: {
       default: 'arcade',
