@@ -186,6 +186,9 @@ export const useNotebookStore = defineStore("notebook", () => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
 
+    // Vor dem Neuladen sichern: danach zeigt der Index womöglich auf eine andere Zeile.
+    await flushAsync();
+
     const tmpl = template ?? currentNotebook.value.defaultTemplate as PageTemplate;
     const pageNumber = currentPages.value.length;
     const pageId = crypto.randomUUID();
@@ -211,12 +214,10 @@ export const useNotebookStore = defineStore("notebook", () => {
       }
     }
 
-    // Reload pages
-    const allPages = await db.select().from(pages).where(eq(pages.notebookId, currentNotebook.value.id)).orderBy(asc(pages.pageNumber));
+    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, currentNotebook.value.id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
     currentPages.value = allPages;
 
-    // Navigate to new page
-    await goToPage(pageNumber);
+    await goToPage(allPages.findIndex((p) => p.id === pageId));
   };
 
   const deleteCurrentPageAsync = async () => {
