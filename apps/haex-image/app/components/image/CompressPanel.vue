@@ -16,9 +16,9 @@ const compressOriginalSize = ref<number | null>(null);
 const compressEstimating = ref(false);
 
 async function updateCompressEstimate() {
-  if (!editor.imageDataUrl) return;
+  if (!editor.current) return;
   compressEstimating.value = true;
-  compressOriginalSize.value = Math.round((editor.imageDataUrl.length * 3) / 4);
+  compressOriginalSize.value = editor.current.blob.size;
   compressEstimatedSize.value = await processor.estimateCompressedSize(
     compressFormat.value,
     compressQuality.value / 100,

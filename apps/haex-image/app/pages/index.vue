@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ImagePlus } from "@lucide/vue";
+import { decodeImage } from "~/lib/image";
 
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
@@ -15,7 +16,6 @@ async function applyFreeRotation() {
   if (freeRotationDeg.value === 0) return;
   await processor.applyRotate(freeRotationDeg.value);
   freeRotationDeg.value = 0;
-  nextTick(render);
 }
 
 // Preview state for adjustments
@@ -27,7 +27,6 @@ onMounted(async () => {
 
 const { renderScale, render } = useCanvasRenderer(canvasRef, containerRef, previewAdjustments);
 
-watch(() => editor.imageDataUrl, render);
 watch(() => editor.activeTool, (newTool, oldTool) => {
   // Reset filter preview when leaving filter tool without applying
   if (oldTool === "filter" && newTool !== "filter") {
@@ -78,14 +77,8 @@ async function openFile() {
     const mime = mimeMap[ext] ?? "image/png";
 
     const blob = new Blob([data as BlobPart], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      editor.loadImage(img, name, filePath);
-      URL.revokeObjectURL(url);
-      nextTick(render);
-    };
-    img.src = url;
+    const img = await decodeImage(blob);
+    editor.loadImage({ blob, width: img.naturalWidth, height: img.naturalHeight }, name, filePath);
   } catch (e) {
     console.error("[haex-image] openFile error:", e);
   }
@@ -106,13 +99,12 @@ function resetAdjustments() {
 // Compress
 async function confirmCompress(format: "jpeg" | "webp" | "png", quality: number) {
   await processor.applyCompress(format, quality / 100);
-  nextTick(render);
 }
 
 // Export
 async function saveAs() {
   const client = haexVault.client;
-  if (!client || !editor.imageDataUrl) return;
+  if (!client || !editor.hasImage) return;
   try {
     const ext = editor.fileName.split(".").pop()?.toLowerCase();
     const format = ext === "jpg" || ext === "jpeg" ? "jpeg" : "png";

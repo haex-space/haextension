@@ -13,7 +13,14 @@ export interface ImageAdjustments {
   saturation: number;  // -100 to 100
 }
 
-export type FilterType = "none" | "grayscale" | "sepia" | "invert" | "warm" | "cool" | "vintage";
+export interface HistoryEntry {
+  /** Encoded image: the opened file itself, or what an edit encoded. */
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
+export type FilterType ="none" | "grayscale" | "sepia" | "invert" | "warm" | "cool" | "vintage";
 
 export interface AspectRatioPreset {
   id: string;

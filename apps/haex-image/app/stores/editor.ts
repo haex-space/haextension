@@ -1,17 +1,10 @@
-import type { EditorTool, CropRect, ImageAdjustments, FilterType } from "~/types";
+import type { EditorTool, CropRect, ImageAdjustments, FilterType, HistoryEntry } from "~/types";
 
-interface HistoryEntry {
-  imageData: string; // data URL
-  width: number;
-  height: number;
-}
+// Each entry holds a full encoded image, so the depth bounds the memory an editing session uses.
+const MAX_HISTORY = 20;
 
 export const useEditorStore = defineStore("editor", () => {
   // Image state
-  const originalImage = ref<HTMLImageElement | null>(null);
-  const imageDataUrl = ref<string | null>(null);
-  const imageWidth = ref(0);
-  const imageHeight = ref(0);
   const fileName = ref("");
   const filePath = ref("");
 
@@ -43,21 +36,25 @@ export const useEditorStore = defineStore("editor", () => {
   const activeFilter = ref<FilterType>("none");
 
   // History (undo/redo)
-  const history = ref<HistoryEntry[]>([]);
+  const history = shallowRef<HistoryEntry[]>([]);
   const historyIndex = ref(-1);
   const canUndo = computed(() => historyIndex.value > 0);
   const canRedo = computed(() => historyIndex.value < history.value.length - 1);
 
-  const hasImage = computed(() => !!imageDataUrl.value);
+  const current = computed(() => history.value[historyIndex.value] ?? null);
+  const imageWidth = computed(() => current.value?.width ?? 0);
+  const imageHeight = computed(() => current.value?.height ?? 0);
+  const hasImage = computed(() => current.value !== null);
 
-  function loadImage(img: HTMLImageElement, name: string, path: string = "") {
-    originalImage.value = img;
-    imageWidth.value = img.naturalWidth;
-    imageHeight.value = img.naturalHeight;
+  function selectHistory(index: number) {
+    historyIndex.value = index;
+    resizeWidth.value = imageWidth.value;
+    resizeHeight.value = imageHeight.value;
+  }
+
+  function loadImage(entry: HistoryEntry, name: string, path: string = "") {
     fileName.value = name;
     filePath.value = path;
-    resizeWidth.value = img.naturalWidth;
-    resizeHeight.value = img.naturalHeight;
     rotation.value = 0;
     flipH.value = false;
     flipV.value = false;
@@ -65,58 +62,27 @@ export const useEditorStore = defineStore("editor", () => {
     activeFilter.value = "none";
     activeTool.value = null;
 
-    // Create initial data URL
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-    imageDataUrl.value = canvas.toDataURL("image/png");
-
-    // Initialize history
-    history.value = [{ imageData: imageDataUrl.value, width: img.naturalWidth, height: img.naturalHeight }];
-    historyIndex.value = 0;
+    history.value = [entry];
+    selectHistory(0);
   }
 
-  function pushHistory(dataUrl: string, width: number, height: number) {
-    // Remove future entries
-    history.value = history.value.slice(0, historyIndex.value + 1);
-    history.value.push({ imageData: dataUrl, width, height });
-    historyIndex.value = history.value.length - 1;
-    imageDataUrl.value = dataUrl;
-    imageWidth.value = width;
-    imageHeight.value = height;
-    resizeWidth.value = width;
-    resizeHeight.value = height;
+  function pushHistory(entry: HistoryEntry) {
+    // Drop the redo branch, then the oldest entries beyond the limit
+    history.value = [...history.value.slice(0, historyIndex.value + 1), entry].slice(-MAX_HISTORY);
+    selectHistory(history.value.length - 1);
   }
 
   function undo() {
     if (!canUndo.value) return;
-    historyIndex.value--;
-    const entry = history.value[historyIndex.value]!;
-    imageDataUrl.value = entry.imageData;
-    imageWidth.value = entry.width;
-    imageHeight.value = entry.height;
-    resizeWidth.value = entry.width;
-    resizeHeight.value = entry.height;
+    selectHistory(historyIndex.value - 1);
   }
 
   function redo() {
     if (!canRedo.value) return;
-    historyIndex.value++;
-    const entry = history.value[historyIndex.value]!;
-    imageDataUrl.value = entry.imageData;
-    imageWidth.value = entry.width;
-    imageHeight.value = entry.height;
-    resizeWidth.value = entry.width;
-    resizeHeight.value = entry.height;
+    selectHistory(historyIndex.value + 1);
   }
 
   function resetAll() {
-    originalImage.value = null;
-    imageDataUrl.value = null;
-    imageWidth.value = 0;
-    imageHeight.value = 0;
     fileName.value = "";
     activeTool.value = null;
     rotation.value = 0;
@@ -129,7 +95,7 @@ export const useEditorStore = defineStore("editor", () => {
   }
 
   return {
-    originalImage, imageDataUrl, imageWidth, imageHeight, fileName, filePath, hasImage,
+    current, imageWidth, imageHeight, fileName, filePath, hasImage,
     activeTool,
     cropRect, cropAspectRatio,
     rotation, flipH, flipV,
