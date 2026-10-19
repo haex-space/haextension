@@ -1,0 +1,234 @@
+import ICAL from "ical.js";
+import type { SelectEvent, SelectEventType } from "~/database/schemas";
+
+export interface ParsedEvent {
+  uid: string;
+  summary: string;
+  description: string | null;
+  location: string | null;
+  dtstart: string;
+  dtend: string;
+  allDay: boolean;
+  timezone: string;
+  status: string;
+  sequence: number;
+  url: string | null;
+  categories: string | null;
+  color: string | null;
+  // --- extensions (events/tasks, recurrence, reminders) ---
+  kind: "event" | "task";
+  rrule: string | null;
+  reminderOffsets: number[];
+  completedAt: Date | null;
+}
+
+/** A resolved event ready for iCal serialization (effective values applied). */
+export interface IcalExportItem {
+  event: SelectEvent;
+  rrule: string | null;
+  reminderOffsets: number[];
+  categories: string | null;
+  color: string | null;
+}
+
+/** Extract VALARM trigger offsets (minutes before) from a component. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractReminderOffsets(component: any): number[] {
+  const offsets: number[] = [];
+  for (const valarm of component.getAllSubcomponents("valarm")) {
+    const trigger = valarm.getFirstProperty("trigger");
+    if (!trigger) continue;
+    const value = trigger.getFirstValue();
+    // Only relative (duration) triggers map to an offset; absolute DATE-TIME
+    // triggers can't be expressed as "minutes before" and are skipped.
+    if (value && typeof value.toSeconds === "function") {
+      const seconds = value.toSeconds();
+      if (seconds <= 0) offsets.push(Math.round(-seconds / 60));
+    }
+  }
+  return offsets;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rruleString(component: any): string | null {
+  const recur = component.getFirstPropertyValue("rrule");
+  return recur ? recur.toString() : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseVevent(vevent: any): ParsedEvent | null {
+  const event = new ICAL.Event(vevent);
+  const startDate = event.startDate;
+  const endDate = event.endDate;
+
+  // Same UID-required guard as VTODO — see parseVtodo.
+  if (!event.uid) return null;
+
+  return {
+    uid: event.uid,
+    summary: event.summary || "Untitled",
+    description: event.description || null,
+    location: event.location || null,
+    dtstart: startDate.toString(),
+    dtend: endDate.toString(),
+    allDay: startDate.isDate,
+    timezone: startDate.zone?.tzid || "UTC",
+    status: vevent.getFirstPropertyValue("status") || "CONFIRMED",
+    sequence: vevent.getFirstPropertyValue("sequence") || 0,
+    url: vevent.getFirstPropertyValue("url") || null,
+    categories: vevent.getFirstPropertyValue("categories")?.toString() || null,
+    color: vevent.getFirstPropertyValue("color") || null,
+    kind: "event",
+    rrule: rruleString(vevent),
+    reminderOffsets: extractReminderOffsets(vevent),
+    completedAt: null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseVtodo(vtodo: any): ParsedEvent | null {
+  // A task's due date maps to DUE (fall back to DTSTART). There is no end.
+  const due = vtodo.getFirstPropertyValue("due") ?? vtodo.getFirstPropertyValue("dtstart");
+  const allDay = due?.isDate ?? false;
+  const dtstart = due ? due.toString() : new Date().toISOString();
+  const completed = vtodo.getFirstPropertyValue("completed");
+
+  // Skip UID-less VTODOs: importFileAsync upserts by UID, so a random
+  // fallback UID would produce a new row on every re-import (duplicates).
+  const uid = vtodo.getFirstPropertyValue("uid");
+  if (!uid) return null;
+
+  return {
+    uid,
+    summary: vtodo.getFirstPropertyValue("summary") || "Untitled",
+    description: vtodo.getFirstPropertyValue("description") || null,
+    location: vtodo.getFirstPropertyValue("location") || null,
+    dtstart,
+    dtend: dtstart, // tasks mirror dtstart into dtend (NOT NULL column)
+    allDay,
+    timezone: due?.zone?.tzid || "UTC",
+    status: vtodo.getFirstPropertyValue("status") || "CONFIRMED",
+    sequence: vtodo.getFirstPropertyValue("sequence") || 0,
+    url: vtodo.getFirstPropertyValue("url") || null,
+    categories: vtodo.getFirstPropertyValue("categories")?.toString() || null,
+    color: vtodo.getFirstPropertyValue("color") || null,
+    kind: "task",
+    rrule: rruleString(vtodo),
+    reminderOffsets: extractReminderOffsets(vtodo),
+    completedAt: completed ? completed.toJSDate() : null,
+  };
+}
+
+/**
+ * Parse a .ics string into events. Handles both VEVENT (→ event) and
+ * VTODO (→ task) components, including RRULE and VALARM.
+ */
+export function parseICS(icsString: string): ParsedEvent[] {
+  const jcal = ICAL.parse(icsString);
+  const comp = new ICAL.Component(jcal);
+
+  return [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...comp.getAllSubcomponents("vevent").map((c: any) => parseVevent(c)),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...comp.getAllSubcomponents("vtodo").map((c: any) => parseVtodo(c)),
+  ].filter((e): e is ParsedEvent => e !== null);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function setDate(component: any, prop: string, value: string, allDay: boolean) {
+  if (allDay) {
+    component.updatePropertyWithValue(prop, ICAL.Time.fromDateString(value.split("T")[0] ?? value));
+  } else {
+    component.updatePropertyWithValue(prop, ICAL.Time.fromString(value, "UTC"));
+  }
+}
+
+/**
+ * Generate a .ics string from resolved export items. Events become VEVENT,
+ * tasks become VTODO (DUE = dtstart, no DTEND). Effective RRULE, reminders
+ * (VALARM), category (type name) and colour are written out.
+ */
+export function generateICS(items: IcalExportItem[], calendarName: string): string {
+  const comp = new ICAL.Component(["vcalendar", [], []]);
+  comp.updatePropertyWithValue("prodid", "-//haex-calendar//NONSGML v1.0//EN");
+  comp.updatePropertyWithValue("version", "2.0");
+  comp.updatePropertyWithValue("calscale", "GREGORIAN");
+  comp.updatePropertyWithValue("x-wr-calname", calendarName);
+
+  for (const { event, rrule, reminderOffsets, categories, color } of items) {
+    const isTask = event.kind === "task";
+    const vcomp = new ICAL.Component(isTask ? "vtodo" : "vevent");
+    vcomp.updatePropertyWithValue("uid", event.uid);
+    vcomp.updatePropertyWithValue("summary", event.summary);
+    vcomp.updatePropertyWithValue("sequence", event.sequence);
+    vcomp.updatePropertyWithValue("status", event.status);
+
+    if (isTask) {
+      setDate(vcomp, "due", event.dtstart, event.allDay);
+      if (event.completedAt) {
+        const d = event.completedAt instanceof Date ? event.completedAt : new Date(event.completedAt);
+        vcomp.updatePropertyWithValue("completed", ICAL.Time.fromJSDate(d, true));
+      }
+    } else {
+      setDate(vcomp, "dtstart", event.dtstart, event.allDay);
+      setDate(vcomp, "dtend", event.dtend, event.allDay);
+    }
+
+    if (event.description) vcomp.updatePropertyWithValue("description", event.description);
+    if (event.location) vcomp.updatePropertyWithValue("location", event.location);
+    if (event.url) vcomp.updatePropertyWithValue("url", event.url);
+    if (categories) vcomp.updatePropertyWithValue("categories", categories);
+    if (color) vcomp.updatePropertyWithValue("color", color);
+    if (rrule) vcomp.updatePropertyWithValue("rrule", ICAL.Recur.fromString(rrule));
+
+    for (const offset of reminderOffsets) {
+      const valarm = new ICAL.Component("valarm");
+      valarm.updatePropertyWithValue("action", "DISPLAY");
+      valarm.updatePropertyWithValue("description", event.summary);
+      valarm.updatePropertyWithValue("trigger", ICAL.Duration.fromString(`-PT${offset}M`));
+      vcomp.addSubcomponent(valarm);
+    }
+
+    if (event.createdAt) {
+      vcomp.updatePropertyWithValue("created", ICAL.Time.fromJSDate(event.createdAt instanceof Date ? event.createdAt : new Date(event.createdAt), false));
+    }
+    if (event.updatedAt) {
+      vcomp.updatePropertyWithValue("last-modified", ICAL.Time.fromJSDate(event.updatedAt instanceof Date ? event.updatedAt : new Date(event.updatedAt), false));
+    }
+
+    comp.addSubcomponent(vcomp);
+  }
+
+  return comp.toString();
+}
+
+/**
+ * Resolve the event type from a CATEGORIES list and return the remaining
+ * user-typed entries. The convention is: if the first entry matches a known
+ * type name (case-insensitive), it's the type slot; the rest is the user's
+ * own categories. If no first-entry match, the whole list stays as-is.
+ */
+export function resolveEventTypeFromCategories(
+  categories: string | null,
+  types: SelectEventType[],
+): { eventTypeId: string | null; categories: string | null } {
+  if (!categories) return { eventTypeId: null, categories: null };
+  const parts = categories.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return { eventTypeId: null, categories: null };
+  const firstLower = parts[0]!.toLowerCase();
+  const matched = types.find((t) => t.name.toLowerCase() === firstLower);
+  if (!matched) return { eventTypeId: null, categories: categories };
+  const rest = parts.slice(1).join(", ");
+  return { eventTypeId: matched.id, categories: rest || null };
+}
+
+/** Columns derived from a parsed event for import (type/recurrence/kind). */
+export interface ImportColumns {
+  kind: "event" | "task";
+  rrule: string | null;
+  rruleOverride: boolean;
+  eventTypeId: string | null;
+  categories: string | null;
+  completedAt: Date | null;
+}

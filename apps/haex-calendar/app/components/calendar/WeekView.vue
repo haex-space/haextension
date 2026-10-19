@@ -161,7 +161,7 @@ import {
   groupEventsByDay,
   getAllDayEvents,
   toDateKey,
-} from "~/composables/useTimeGrid";
+} from "~/lib/timeGrid";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();

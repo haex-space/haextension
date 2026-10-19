@@ -147,17 +147,3 @@ export function groupEventsByDay(eventList: SelectEvent[]): Map<string, SelectEv
 export function getAllDayEvents(eventList: SelectEvent[]): SelectEvent[] {
   return eventList.filter((e) => e.allDay);
 }
-
-/**
- * Composable for time grid calculations.
- */
-export function useTimeGrid() {
-  return {
-    positionEventsInDay,
-    groupEventsByDay,
-    getAllDayEvents,
-    eventSpansDate,
-    toDateKey,
-    toMinutesSinceMidnight,
-  };
-}

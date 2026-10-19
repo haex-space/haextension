@@ -152,7 +152,7 @@
 <script setup lang="ts">
 import { CheckSquare, Square } from "@lucide/vue";
 import type { SelectEvent } from "~/database/schemas";
-import { toDateKey } from "~/composables/useTimeGrid";
+import { toDateKey } from "~/lib/timeGrid";
 
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();

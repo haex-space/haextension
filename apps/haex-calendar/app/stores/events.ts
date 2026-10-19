@@ -144,12 +144,6 @@ export const useEventsStore = defineStore("events", () => {
     return result;
   }
 
-  /** Local YYYY-MM-DD (for all-day occurrence date strings). */
-  function toDateOnly(d: Date): string {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  }
-
   /** UTC YYYY-MM-DD — for rrule.js outputs which anchor at UTC midnight. */
   function toDateOnlyUTC(d: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");

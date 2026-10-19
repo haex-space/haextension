@@ -1,12 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { calendars, events, caldavAccounts } from "~/database/schemas";
-import { parseICS, generateICS, useIcal } from "~/composables/useIcal";
-import {
-  fetchEventListAsync,
-  fetchEventsDataAsync,
-  putEventAsync,
-  deleteEventAsync as caldavDeleteAsync,
-} from "~/composables/useCaldav";
+import { generateICS, parseICS } from "~/lib/ical";
 
 export const useCaldavSyncStore = defineStore("caldavSync", () => {
   const haexVault = useHaexVaultStore();
@@ -14,6 +8,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
   const eventTypesStore = useEventTypesStore();
   const accountsStore = useCaldavAccountsStore();
   const ical = useIcal();
+  const caldav = useCaldav();
 
   const isSyncing = ref(false);
   const syncErrors = ref<Map<string, string>>(new Map()); // calendarId → error message
@@ -54,7 +49,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
       const password = await accountsStore.getPasswordAsync(account);
 
       // Fetch event list from server
-      const { ctag: serverCtag, events: serverEvents } = await fetchEventListAsync(
+      const { ctag: serverCtag, events: serverEvents } = await caldav.fetchEventListAsync(
         calendarRow.caldavPath,
         account.username,
         password,
@@ -86,7 +81,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
       // Fetch changed events data
       if (hrefsToFetch.length > 0) {
-        const fetchedEvents = await fetchEventsDataAsync(
+        const fetchedEvents = await caldav.fetchEventsDataAsync(
           calendarRow.caldavPath,
           hrefsToFetch,
           account.username,
@@ -258,7 +253,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
     // Determine href — use existing or create new
     const href = eventRow.href || `${calendarRow.caldavPath}${eventRow.uid}.ics`;
 
-    const newEtag = await putEventAsync(
+    const newEtag = await caldav.putEventAsync(
       href,
       icsData,
       eventRow.etag,
@@ -306,7 +301,7 @@ export const useCaldavSyncStore = defineStore("caldavSync", () => {
 
     const password = await accountsStore.getPasswordAsync(account);
 
-    await caldavDeleteAsync(
+    await caldav.deleteEventAsync(
       eventRow.href,
       eventRow.etag,
       account.username,

@@ -104,7 +104,7 @@
 
 <script setup lang="ts">
 import { Loader2 } from "@lucide/vue";
-import { discoverAsync, type CaldavCalendarInfo, type CaldavDiscoveryResult } from "~/composables/useCaldav";
+import type { CaldavCalendarInfo, CaldavDiscoveryResult } from "~/lib/caldav";
 import { calendars, type InsertCalendar } from "~/database/schemas";
 
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -114,6 +114,7 @@ const haexVault = useHaexVaultStore();
 const caldavAccountsStore = useCaldavAccountsStore();
 const calendarsStore = useCalendarsStore();
 const caldavSyncStore = useCaldavSyncStore();
+const { discoverAsync } = useCaldav();
 
 const nameInput = ref<HTMLInputElement | null>(null);
 const step = ref<"connect" | "select">("connect");
