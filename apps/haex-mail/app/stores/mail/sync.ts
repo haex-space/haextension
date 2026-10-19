@@ -127,6 +127,18 @@ export const useMailSync = (state: MailSyncState) => {
           .where(eq(schema.mailboxes.id, id));
       }
     }
+
+    // A complete LIST names every mailbox: the rest were deleted or renamed
+    // on the server. (An empty LIST is a server hiccup — INBOX always exists.)
+    if (complete && remote.length > 0) {
+      const listed = new Set(remote.map((m) => m.name));
+      for (const gone of existing.filter((m) => !listed.has(m.name))) {
+        await invalidateMailboxCacheAsync(accountId, gone.name);
+        await haexVault.orm
+          .delete(schema.mailboxes)
+          .where(eq(schema.mailboxes.id, gone.id));
+      }
+    }
   };
 
   /**
