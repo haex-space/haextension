@@ -10,6 +10,7 @@ export const useMessageAttachments = () => {
   const mailStore = useMailStore();
   const haexVault = useHaexVaultStore();
   const uiStore = useUiStore();
+  const { $i18n } = useNuxtApp();
 
   /** The list row backing the open message — needed to fetch bytes by uid. */
   const currentRow = computed(
@@ -49,6 +50,18 @@ export const useMessageAttachments = () => {
     return (ext && EXT_TO_TYPE[ext]) || att.contentType;
   };
 
+  const TYPE_TO_EXT = new Map<string, string>();
+  for (const [ext, type] of Object.entries(EXT_TO_TYPE)) {
+    if (!TYPE_TO_EXT.has(type)) TYPE_TO_EXT.set(type, ext);
+  }
+  // The host's viewer opens a file only by a known extension, so a nameless
+  // or extensionless part gets one from its type.
+  const fileNameOf = (att: AttachmentJson) => {
+    const name = att.filename ?? `attachment-${att.partIndex}`;
+    const ext = TYPE_TO_EXT.get(effectiveType(att).toLowerCase());
+    return ext && !name.includes(".") ? `${name}.${ext}` : name;
+  };
+
   // image and text render inline; pdf and everything else are handed to the
   // host to open with the system's default app (the sandboxed webview can't
   // embed them).
@@ -71,7 +84,7 @@ export const useMessageAttachments = () => {
 
   const saveAttachmentAsync = async (att: AttachmentJson, b64: string) => {
     await haexVault.client.filesystem.saveFileAsync(base64ToBytes(b64), {
-      defaultPath: att.filename ?? `attachment-${att.partIndex}`,
+      defaultPath: fileNameOf(att),
     });
   };
 
@@ -101,10 +114,11 @@ export const useMessageAttachments = () => {
       } else {
         // pdf and everything else: let the host open it with the system's
         // default application — the sandboxed webview can't embed it.
-        await haexVault.client.filesystem.openFileAsync(base64ToBytes(b64), {
-          fileName: att.filename ?? `attachment-${att.partIndex}`,
-          mimeType: type,
-        });
+        const { success } = await haexVault.client.filesystem.openFileAsync(
+          base64ToBytes(b64),
+          { fileName: fileNameOf(att), mimeType: type },
+        );
+        if (!success) toast.error($i18n.t("mail.errors.openAttachmentFailed"));
       }
     } catch (err) {
       toast.error(getErrorMessage(err));

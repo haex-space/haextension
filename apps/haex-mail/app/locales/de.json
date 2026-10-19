@@ -12,7 +12,8 @@
       "credentials": "Zugangsdaten konnten nicht geladen werden",
       "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden",
       "alreadyInTrash": "Diese Nachrichten sind schon im Papierkorb. Endgültiges Löschen wird nicht unterstützt.",
-      "alreadyArchived": "Diese Nachrichten sind schon im Archiv."
+      "alreadyArchived": "Diese Nachrichten sind schon im Archiv.",
+      "openAttachmentFailed": "Keine App zum Öffnen des Anhangs gefunden – er lässt sich über den Download-Knopf speichern."
     },
     "quoteHeader": "Am {date} schrieb {sender}:",
     "forwardAttachmentsFailed": "{count} Anhang/Anhänge konnten nicht geladen werden und fehlen in der Weiterleitung.",

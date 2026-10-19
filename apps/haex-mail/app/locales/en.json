@@ -12,7 +12,8 @@
       "credentials": "Failed to load credentials",
       "noFolderForRole": "No {folder} folder found for this account",
       "alreadyInTrash": "These messages are already in the trash. Deleting them permanently is not supported.",
-      "alreadyArchived": "These messages are already archived."
+      "alreadyArchived": "These messages are already archived.",
+      "openAttachmentFailed": "No app was found to open the attachment – it can be saved with the download button."
     },
     "quoteHeader": "On {date}, {sender} wrote:",
     "forwardAttachmentsFailed": "{count} attachment(s) could not be loaded and are missing from the forward.",
