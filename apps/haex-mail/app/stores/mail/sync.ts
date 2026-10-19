@@ -98,12 +98,14 @@ export const useMailSync = (state: MailSyncState) => {
         }
         continue;
       }
+      // A failed STATUS leaves these unset — keep the last known values,
+      // above all uidValidity, whose loss would disable the reset check below.
       const values = {
         ...structure,
-        unseen: m.unseen ?? 0,
-        exists: m.exists ?? 0,
-        uidValidity: m.uidValidity ?? null,
-        uidNext: m.uidNext ?? null,
+        unseen: m.unseen ?? prev?.unseen ?? 0,
+        exists: m.exists ?? prev?.exists ?? 0,
+        uidValidity: m.uidValidity ?? prev?.uidValidity ?? null,
+        uidNext: m.uidNext ?? prev?.uidNext ?? null,
       };
 
       if (!prev) {
@@ -211,6 +213,9 @@ export const useMailSync = (state: MailSyncState) => {
     isLoadingMessages.value = true;
     try {
       await loadMessagesAsync(account.account.id, mailboxName);
+      // Detects a UIDVALIDITY reset (and drops the stale cache) before new
+      // envelopes are merged into rows keyed by UID.
+      await refreshMailboxStatusAsync(account.account.id, [mailboxName]);
       const envelopes = await haexVault.client.mail.fetchEnvelopesAsync(
         account.imap,
         mailboxName,
