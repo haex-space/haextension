@@ -144,15 +144,14 @@ describe('switching collections', () => {
     expect((await vault.listNodes(privatId)).map(row => row.id)).toContain('haex-unsynced')
   })
 
-  it('refuses to start a new collection while unsynced changes cannot be pushed', async () => {
+  it('still starts the new collection when the old one cannot take the edits', async () => {
     const { vault, a, privatId } = await dirtyDevice()
-    vault.upsertNodes = async () => Promise.reject(new Error('offline'))
+    await vault.deleteCollection(privatId)
 
     const result = await a.service.completeOnboardingCreate({ name: 'Neu', replicaId: 'replica-a', browserFamily: 'chromium', deviceLabel: 'A' })
 
-    expect(result).toEqual({ success: false, error: 'DIRTY_AND_UNSYNCED' })
+    expect(result.success).toBe(true)
     const after = storageState(a)
-    expect(after.settings.mode === 'active' && after.settings.collectionId).toBe(privatId)
-    expect(after.pendingUpserts.map(row => row.id)).toEqual(['haex-unsynced'])
+    expect(after.settings.mode === 'active' && after.settings.collectionId).not.toBe(privatId)
   })
 })
