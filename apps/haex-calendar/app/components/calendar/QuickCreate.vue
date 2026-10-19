@@ -106,6 +106,8 @@
 </template>
 
 <script setup lang="ts">
+import { addDays, atLocalTime, exclusiveEndKey, formatClock, toLocalDateKey } from "~/lib/dates";
+
 const props = defineProps<{
   date: Date;
   endDate?: Date | null;
@@ -139,28 +141,16 @@ const selectedCalendarId = ref(calendarsStore.calendars[0]?.id ?? "");
 const isMultiDay = !!props.endDate && props.endDate.getTime() !== props.date.getTime();
 const allDay = ref(isMultiDay);
 
-const pad = (n: number) => String(n).padStart(2, "0");
+const settingsStore = useSettingsStore();
 
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-const dateStr = toDateStr(props.date);
-const startTimeStr = ref("09:00");
-const endTimeStr = ref("10:00");
-
-if (props.time) {
-  const [h, m] = props.time.split(":");
-  startTimeStr.value = `${pad(Number(h))}:${pad(Number(m))}`;
-
-  if (props.endTime) {
-    const [eh, em] = props.endTime.split(":");
-    endTimeStr.value = `${pad(Number(eh))}:${pad(Number(em))}`;
-  } else {
-    const endH = (Number(h) + 1) % 24;
-    endTimeStr.value = `${pad(endH)}:${pad(Number(m))}`;
-  }
-}
+const dateStr = toLocalDateKey(props.date);
+const startAt = atLocalTime(dateStr, props.time ?? "09:00");
+const startTimeStr = ref(formatClock(startAt, "24h"));
+const endTimeStr = ref(
+  props.endTime
+    ? formatClock(atLocalTime(dateStr, props.endTime), "24h")
+    : formatClock(new Date(startAt.getTime() + settingsStore.defaultEventDuration * 60_000), "24h"),
+);
 
 onMounted(() => {
   nextTick(() => titleInput.value?.focus());
@@ -184,23 +174,19 @@ const formattedDate = computed(() => {
 // time so the rule preview reflects what the user just chose.
 const recurrenceSampleStart = computed(() => {
   if (allDay.value) return props.date;
-  return new Date(`${dateStr}T${startTimeStr.value}`);
+  return atLocalTime(dateStr, startTimeStr.value);
 });
 
 function buildEventData() {
+  const endDay = toLocalDateKey(props.endDate ?? props.date);
   if (allDay.value) {
-    const endDay = props.endDate ?? props.date;
-    const dayAfterEnd = new Date(endDay);
-    dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
-    return {
-      dtstart: dateStr,
-      dtend: toDateStr(dayAfterEnd),
-      allDay: true,
-    };
+    return { dtstart: dateStr, dtend: exclusiveEndKey(dateStr, endDay), allDay: true };
   }
-  const dtstart = new Date(`${dateStr}T${startTimeStr.value}`).toISOString();
-  const dtend = new Date(`${dateStr}T${endTimeStr.value}`).toISOString();
-  return { dtstart, dtend, allDay: false };
+  const start = atLocalTime(dateStr, startTimeStr.value);
+  let end = atLocalTime(endDay, endTimeStr.value);
+  // An end time before the start on the same day means "past midnight".
+  if (end <= start) end = addDays(end, 1);
+  return { dtstart: start.toISOString(), dtend: end.toISOString(), allDay: false };
 }
 
 function buildEventPayload(summary: string) {
