@@ -108,11 +108,20 @@ export const useCaldavAccountsStore = defineStore("caldavAccounts", () => {
     return accounts.value.find((account) => account.id === id);
   }
 
-  /** Resolve the plaintext password for an account from the password manager. */
+  /**
+   * Resolve the plaintext password for an account from the password manager.
+   * Throws when no credential is linked, rather than logging in with an empty
+   * password and treating the server's rejection as an empty calendar.
+   */
   async function getPasswordAsync(account: SelectCaldavAccount): Promise<string> {
-    if (!account.passwordItemId) return "";
+    if (!account.passwordItemId) {
+      throw new Error(`No password stored for CalDAV account "${account.name}"`);
+    }
     const item = await haexVault.client.passwords.readAsync(account.passwordItemId);
-    return item.password ?? "";
+    if (!item.password) {
+      throw new Error(`The password entry for CalDAV account "${account.name}" is empty`);
+    }
+    return item.password;
   }
 
   return {
