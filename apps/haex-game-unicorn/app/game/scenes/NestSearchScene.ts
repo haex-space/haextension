@@ -94,15 +94,18 @@ export class NestSearchScene extends Phaser.Scene {
   }
 
   private createScenery() {
-    // Scatter some flowers and grass to make the scene feel alive
+    // Scatter some flowers to make the scene feel alive
+    const flowerKeys = ['flower-pink', 'flower-blue', 'flower-yellow', 'flower-white', 'flower-purple']
     for (let i = 0; i < 20; i++) {
       const x = this.rng.between(TILE_SIZE * 2, SCENE_WIDTH * TILE_SIZE - TILE_SIZE * 2)
       const y = this.rng.between(TILE_SIZE * 2, SCENE_HEIGHT * TILE_SIZE - TILE_SIZE * 2)
+      const key = this.rng.pick(flowerKeys)
 
-      if (this.textures.exists('flower')) {
-        const flower = this.add.sprite(x, y, 'flower')
-        flower.setDepth(DEPTH.FLOWERS)
-      }
+      // Flowers are drawn above the nest sites and must not hide them
+      if (this.candidates.some(c => Phaser.Math.Distance.Between(x, y, c.x, c.y) < 24)) continue
+
+      const flower = this.add.sprite(x, y, key)
+      flower.setDepth(DEPTH.FLOWERS)
     }
   }
 
