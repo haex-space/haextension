@@ -14,6 +14,9 @@ import {
   rotatePiece,
   scoreForLines,
 } from '~/lib/tetris'
+import { loadHighScore, saveHighScore } from '~/lib/highScore'
+
+const browserStorage = () => localStorage
 
 export function useTetris() {
   const board = ref<Board>(createEmptyBoard())
@@ -23,7 +26,7 @@ export function useTetris() {
   const score = ref(0)
   const level = ref(1)
   const lines = ref(0)
-  const highScore = ref(0)
+  const highScore = ref(loadHighScore(browserStorage))
 
   let dropInterval: ReturnType<typeof setInterval> | null = null
   let bag: PieceType[] = []
@@ -64,11 +67,15 @@ export function useTetris() {
     spawnPiece()
   }
 
+  function commitHighScore() {
+    if (score.value <= highScore.value) return
+    highScore.value = score.value
+    saveHighScore(browserStorage, highScore.value)
+  }
+
   function endGame() {
     gameState.value = 'gameover'
-    if (score.value > highScore.value) {
-      highScore.value = score.value
-    }
+    commitHighScore()
     stopDropInterval()
   }
 
@@ -148,6 +155,7 @@ export function useTetris() {
   }
 
   function startGame() {
+    commitHighScore()
     board.value = createEmptyBoard()
     score.value = 0
     level.value = 1
