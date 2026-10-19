@@ -194,9 +194,6 @@
       </template>
     </UiDrawerModal>
 
-    <!-- Toast notifications -->
-    <ShadcnSonnerToaster position="bottom-right" />
-
     <!-- Hidden file input for import -->
     <input
       ref="fileInput"
