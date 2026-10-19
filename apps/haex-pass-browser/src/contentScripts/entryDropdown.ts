@@ -1,12 +1,18 @@
-// Show dropdown with matching entries
+// Show dropdown with matching entries. It lives in the content script's
+// shadow root (`overlayRoot`) so page scripts can neither read the entries
+// nor click one.
 export function showEntryDropdown(
   fieldId: string,
   anchorEl: HTMLElement,
   matchingEntries: unknown[],
+  overlayRoot: ShadowRoot | HTMLElement,
   onSelect: (fields: Record<string, string>, autofillAliases?: Record<string, string[]> | null) => void,
 ) {
+  // Clicks inside a shadow root reach document listeners retargeted to its host.
+  const overlayHost = overlayRoot instanceof ShadowRoot ? overlayRoot.host : overlayRoot
+
   // Remove existing dropdown
-  document.querySelectorAll('.haex-pass-dropdown').forEach(el => el.remove())
+  overlayRoot.querySelectorAll('.haex-pass-dropdown').forEach(el => el.remove())
 
   const dropdown = document.createElement('div')
   dropdown.className = 'haex-pass-dropdown'
@@ -62,7 +68,9 @@ export function showEntryDropdown(
         item.style.backgroundColor = 'transparent'
       })
 
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (event) => {
+        if (!event.isTrusted)
+          return
         onSelect(e.fields, e.autofillAliases)
         dropdown.remove()
       })
@@ -71,8 +79,7 @@ export function showEntryDropdown(
     })
   }
 
-  // Append to body for fixed positioning
-  document.body.appendChild(dropdown)
+  overlayRoot.appendChild(dropdown)
 
   // Calculate optimal position
   const anchorRect = anchorEl.getBoundingClientRect()
@@ -119,7 +126,8 @@ export function showEntryDropdown(
 
   // Close on click outside
   const closeHandler = (e: MouseEvent) => {
-    if (!dropdown.contains(e.target as Node) && e.target !== anchorEl) {
+    const target = e.target as Node
+    if (!dropdown.contains(target) && target !== overlayHost && !anchorEl.contains(target)) {
       dropdown.style.opacity = '0'
       setTimeout(() => dropdown.remove(), 150)
       document.removeEventListener('click', closeHandler)

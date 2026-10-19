@@ -209,6 +209,8 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
     // Click handler to open popup with CreateEntryForm
     iconContainer.addEventListener('click', async (e) => {
+      if (!e.isTrusted)
+        return
       e.preventDefault()
       e.stopPropagation()
 
@@ -331,11 +333,14 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       // Add padding to input to make room for icon
       input.style.paddingRight = `${inputHeight + 4}px`
 
-      // Click handler to show dropdown
+      // Click handler to show dropdown. The icon sits in the page's DOM, so
+      // only a real user click may open it; page scripts could click it too.
       iconContainer.addEventListener('click', (e) => {
+        if (!e.isTrusted)
+          return
         e.preventDefault()
         e.stopPropagation()
-        showEntryDropdown(field.id, iconContainer, matchingEntries, (fields, autofillAliases) => fillAllFields(detectedFields, fields, autofillAliases))
+        showEntryDropdown(field.id, iconContainer, matchingEntries, shadowDOM, (fields, autofillAliases) => fillAllFields(detectedFields, fields, autofillAliases))
       })
 
       // Hover effects
