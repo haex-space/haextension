@@ -66,12 +66,9 @@ Die Response enthält den `refresh_token`.
 
 ### Automatischer Release (via Tag)
 
-```bash
-cd apps/haex-pass-browser
-pnpm publish:patch  # Erhöht Version, erstellt Tag, pusht
-```
-
-Der Workflow wird automatisch durch den Tag `haex-pass-browser-v*` getriggert.
+Der Workflow wird automatisch durch einen Tag `haex-pass-browser-v*` getriggert. Tag und Push laufen
+über das Release-Skript im Repo-Root; `pnpm release:patch|minor|major` in `apps/haex-pass-browser`
+erhöht nur die Version und baut die Pakete lokal.
 
 ### Manueller Release
 

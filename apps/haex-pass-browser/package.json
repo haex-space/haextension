@@ -31,10 +31,7 @@
     "release": "run-s build pack:zip pack:xpi",
     "release:patch": "node scripts/bump-version.js patch && pnpm release",
     "release:minor": "node scripts/bump-version.js minor && pnpm release",
-    "release:major": "node scripts/bump-version.js major && pnpm release",
-    "publish:patch": "node scripts/bump-version.js patch --tag",
-    "publish:minor": "node scripts/bump-version.js minor --tag",
-    "publish:major": "node scripts/bump-version.js major --tag"
+    "release:major": "node scripts/bump-version.js major && pnpm release"
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^4.1.0",
