@@ -1,5 +1,8 @@
 import type { ItemEntry } from '~/logic/haexPassApi'
 
+// Closes the dropdown on screen, if any, together with its listeners.
+let closeOpenDropdown: (() => void) | null = null
+
 // Show dropdown with matching entries. It lives in the content script's
 // shadow root (`overlayRoot`) so page scripts can neither read the entries
 // nor click one.
@@ -13,11 +16,22 @@ export function showEntryDropdown(
   // Clicks inside a shadow root reach document listeners retargeted to its host.
   const overlayHost = overlayRoot instanceof ShadowRoot ? overlayRoot.host : overlayRoot
 
-  // Remove existing dropdown
-  overlayRoot.querySelectorAll('.haex-pass-dropdown').forEach(el => el.remove())
+  closeOpenDropdown?.()
 
   const dropdown = document.createElement('div')
   dropdown.className = 'haex-pass-dropdown'
+
+  // Every way of closing goes through here, so no document or window
+  // listener outlives the dropdown.
+  const listeners = new AbortController()
+  const close = () => {
+    listeners.abort()
+    dropdown.style.opacity = '0'
+    setTimeout(() => dropdown.remove(), 150)
+    if (closeOpenDropdown === close)
+      closeOpenDropdown = null
+  }
+  closeOpenDropdown = close
 
   // Initial styles (position will be adjusted after measuring)
   dropdown.style.cssText = `
@@ -73,7 +87,7 @@ export function showEntryDropdown(
         if (!event.isTrusted)
           return
         onSelect(e)
-        dropdown.remove()
+        close()
       })
 
       dropdown.appendChild(item)
@@ -125,38 +139,24 @@ export function showEntryDropdown(
     dropdown.style.opacity = '1'
   })
 
+  const { signal } = listeners
+
   // Close on click outside
-  const closeHandler = (e: MouseEvent) => {
+  setTimeout(() => document.addEventListener('click', (e) => {
     const target = e.target as Node
-    if (!dropdown.contains(target) && target !== overlayHost && !anchorEl.contains(target)) {
-      dropdown.style.opacity = '0'
-      setTimeout(() => dropdown.remove(), 150)
-      document.removeEventListener('click', closeHandler)
-    }
-  }
-  setTimeout(() => document.addEventListener('click', closeHandler), 0)
+    if (!dropdown.contains(target) && target !== overlayHost && !anchorEl.contains(target))
+      close()
+  }, { signal }), 0)
 
   // Close on scroll outside dropdown (the dropdown position would be stale)
-  const scrollHandler = (e: Event) => {
-    // Ignore scroll events from within the dropdown itself
-    if (dropdown.contains(e.target as Node)) {
-      return
-    }
-    dropdown.style.opacity = '0'
-    setTimeout(() => dropdown.remove(), 150)
-    window.removeEventListener('scroll', scrollHandler, true)
-    document.removeEventListener('click', closeHandler)
-  }
-  window.addEventListener('scroll', scrollHandler, true)
+  window.addEventListener('scroll', (e) => {
+    if (!dropdown.contains(e.target as Node))
+      close()
+  }, { capture: true, signal })
 
   // Close on Escape key
-  const keyHandler = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      dropdown.style.opacity = '0'
-      setTimeout(() => dropdown.remove(), 150)
-      document.removeEventListener('keydown', keyHandler)
-      document.removeEventListener('click', closeHandler)
-    }
-  }
-  document.addEventListener('keydown', keyHandler)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape')
+      close()
+  }, { signal })
 }

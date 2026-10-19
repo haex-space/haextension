@@ -16,6 +16,7 @@ function setup() {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  vi.restoreAllMocks()
 })
 
 describe('showEntryDropdown', () => {
@@ -32,5 +33,31 @@ describe('showEntryDropdown', () => {
     root.querySelector<HTMLElement>('.haex-pass-dropdown > div')!.click()
 
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('releases its document and window listeners when it closes', () => {
+    const onDocument = vi.spyOn(document, 'addEventListener')
+    const onWindow = vi.spyOn(window, 'addEventListener')
+    vi.useFakeTimers()
+    setup()
+    vi.runAllTimers()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+
+    const signals = [...onDocument.mock.calls, ...onWindow.mock.calls].map(call => (call[2] as AddEventListenerOptions | undefined)?.signal)
+    expect(signals.length).toBeGreaterThanOrEqual(3)
+    expect(signals.every(signal => signal?.aborted)).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('releases the listeners of a dropdown it replaces', () => {
+    const onDocument = vi.spyOn(document, 'addEventListener')
+    setup()
+    const first = onDocument.mock.calls.map(call => (call[2] as AddEventListenerOptions | undefined)?.signal)
+
+    setup()
+
+    expect(first.length).toBeGreaterThan(0)
+    expect(first.every(signal => signal?.aborted)).toBe(true)
   })
 })
