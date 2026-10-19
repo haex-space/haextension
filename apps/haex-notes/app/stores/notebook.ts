@@ -92,6 +92,23 @@ export const useNotebookStore = defineStore("notebook", () => {
   const canUndo = undoStack.canUndo;
   const canRedo = undoStack.canRedo;
 
+  type Db = NonNullable<typeof haexVault.orm>;
+
+  /** Seiten eines Notizbuchs außerhalb des Papierkorbs, in Seitenreihenfolge. */
+  const listActivePagesAsync = (db: Db, notebookId: string) =>
+    db.select().from(pages)
+      .where(and(eq(pages.notebookId, notebookId), isNull(pages.deletedAt)))
+      .orderBy(asc(pages.pageNumber));
+
+  /** Schreibt die Position jeder Seite in `currentPages` als pageNumber zurück. */
+  const persistPageNumbersAsync = async (db: Db) => {
+    for (const [i, p] of currentPages.value.entries()) {
+      if (p.pageNumber === i) continue;
+      await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
+      p.pageNumber = i;
+    }
+  };
+
   // --- Notebook CRUD ---
 
   const listNotebooksAsync = async (): Promise<SelectNotebook[]> => {
@@ -144,7 +161,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     if (result.length === 0) return false;
 
     currentNotebook.value = result[0]!;
-    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, id);
     docs.clear();
     undoStack.clear();
     currentStroke.value = null;
@@ -210,7 +227,7 @@ export const useNotebookStore = defineStore("notebook", () => {
       }
     }
 
-    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, currentNotebook.value.id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, currentNotebook.value.id);
     currentPages.value = allPages;
 
     await goToPage(allPages.findIndex((p) => p.id === pageId));
@@ -228,14 +245,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     const stillOpen = newOrder.findIndex((p) => p.id === currentId);
     if (stillOpen >= 0) currentPageIndex.value = stillOpen;
 
-    // Update page numbers in DB
-    for (let i = 0; i < currentPages.value.length; i++) {
-      const p = currentPages.value[i]!;
-      if (p.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-        p.pageNumber = i;
-      }
-    }
+    await persistPageNumbersAsync(db);
   };
 
   const deletePageAsync = async (index: number) => {
@@ -255,14 +265,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     currentPageIndex.value = stillOpen >= 0 ? stillOpen : Math.min(index, currentPages.value.length - 1);
     loadPageIntoState();
 
-    // Renumber remaining
-    for (let i = 0; i < currentPages.value.length; i++) {
-      const p = currentPages.value[i]!;
-      if (p.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-        p.pageNumber = i;
-      }
-    }
+    await persistPageNumbersAsync(db);
   };
 
   const togglePageOrientationAsync = async () => {
@@ -350,7 +353,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     await db.update(pages).set({ deletedAt: null, pageNumber: nextPageNumber }).where(eq(pages.id, pageId));
 
     // Reload pages
-    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, currentNotebook.value.id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, currentNotebook.value.id);
     currentPages.value = allPages;
   };
 
