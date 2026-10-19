@@ -35,9 +35,9 @@ export const useMailPageLoader = () => {
     if (mailStore.selectedAccountId === ALL_ACCOUNTS_ID) {
       await initUnifiedAsync();
     } else if (mailStore.selectedAccountId) {
-      const acc = await accountsStore.loadAccountWithCredentialsAsync(
-        mailStore.selectedAccountId,
-      );
+      const id = mailStore.selectedAccountId;
+      const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
+      if (mailStore.selectedAccountId !== id) return;
       currentAccount.value = acc;
       // The selection may have changed while unmounted (e.g. account deleted
       // in settings) — refresh when the cached mailboxes belong to another one.
@@ -51,6 +51,8 @@ export const useMailPageLoader = () => {
     acc: AccountWithCredentials,
   ) => {
     await mailStore.refreshMailboxesAsync(acc);
+    // Another account (or the unified view) was picked meanwhile.
+    if (mailStore.selectedAccountId !== acc.account.id) return;
     // Default to the inbox if we have one.
     const inbox = mailStore.mailboxes.find((m) => m.role === "inbox");
     if (inbox) {
@@ -69,6 +71,7 @@ export const useMailPageLoader = () => {
         accountsStore.getCredentialsCachedAsync(a.id),
       ),
     );
+    if (!mailStore.isUnifiedView) return;
     unifiedAccounts.value = creds.filter(
       (c): c is AccountWithCredentials => c !== null,
     );
@@ -99,7 +102,11 @@ export const useMailPageLoader = () => {
         await initUnifiedAsync();
         return;
       }
+      // Until this account's credentials are in, folder loads must not run
+      // with the previous account's.
+      currentAccount.value = null;
       const acc = await accountsStore.loadAccountWithCredentialsAsync(id);
+      if (mailStore.selectedAccountId !== id) return;
       currentAccount.value = acc;
       if (acc) {
         await refreshMailboxesAndSelectInboxAsync(acc);
