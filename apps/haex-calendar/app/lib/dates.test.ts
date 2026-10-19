@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths,
+  atLocalTime,
   eventSpan,
   exclusiveEndKey,
+  formatClock,
   inclusiveEndKey,
+  isoWeek,
   monthGridDays,
   normalizeOffsetlessDateTime,
   startOfWeek,
@@ -116,5 +119,26 @@ describe("calendar grid", () => {
   it("moves months without overflowing short months", () => {
     expect(toLocalDateKey(addMonths(new Date(2026, 9, 31), 1))).toBe("2026-11-01");
     expect(toLocalDateKey(addMonths(new Date(2026, 2, 31), -1))).toBe("2026-02-01");
+  });
+});
+
+describe("formatting", () => {
+  it("formats clock times in 24h and 12h", () => {
+    const d = new Date(2026, 9, 19, 14, 5);
+    expect(formatClock(d, "24h")).toBe("14:05");
+    expect(formatClock(d, "12h")).toBe("2:05 PM");
+    expect(formatClock(new Date(2026, 9, 19, 0, 30), "12h")).toBe("12:30 AM");
+  });
+
+  it("computes ISO week numbers", () => {
+    expect(isoWeek(new Date(2026, 9, 19))).toBe(43);
+    expect(isoWeek(new Date(2027, 0, 1))).toBe(53);
+  });
+});
+
+describe("atLocalTime", () => {
+  it("rolls 24:00 over to the next midnight", () => {
+    expect(toLocalDateKey(atLocalTime("2026-10-19", "24:00"))).toBe("2026-10-20");
+    expect(atLocalTime("2026-10-19", "09:30").getHours()).toBe(9);
   });
 });

@@ -189,3 +189,38 @@ export function monthGridDays(date: Date, weekStart: WeekStart): Date[] {
 export function addMonths(date: Date, months: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
+
+export type TimeFormat = "24h" | "12h";
+
+/** Clock time of `date`, e.g. "14:05" or "2:05 PM". */
+export function formatClock(date: Date, timeFormat: TimeFormat): string {
+  const minutes = pad2(date.getMinutes());
+  if (timeFormat === "24h") return `${pad2(date.getHours())}:${minutes}`;
+  const hours = date.getHours() % 12 || 12;
+  return `${hours}:${minutes} ${date.getHours() < 12 ? "AM" : "PM"}`;
+}
+
+/** Label of a full hour (0-23) in the hour gutter. */
+export function formatHour(hour: number, timeFormat: TimeFormat): string {
+  return formatClock(new Date(2000, 0, 1, hour), timeFormat);
+}
+
+/** ISO 8601 week number of `date`. */
+export function isoWeek(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - yearStart) / MS_PER_DAY + 1) / 7);
+}
+
+export function isWeekend(date: Date): boolean {
+  return date.getDay() === 0 || date.getDay() === 6;
+}
+
+/** Local instant of "HH:MM" on a "YYYY-MM-DD" day ("24:00" is the next midnight). */
+export function atLocalTime(dateKey: string, time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = parseLocalDate(dateKey);
+  date.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+  return date;
+}

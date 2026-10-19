@@ -74,11 +74,6 @@
         </label>
 
         <label class="flex items-center gap-3 cursor-pointer">
-          <ShadcnCheckbox v-model="settings.showDeclinedEvents" />
-          <span class="text-sm">{{ t('viewOptions.showDeclinedEvents') }}</span>
-        </label>
-
-        <label class="flex items-center gap-3 cursor-pointer">
           <ShadcnCheckbox v-model="settings.showCompletedTasks" />
           <span class="text-sm">{{ t('viewOptions.showCompletedTasks') }}</span>
         </label>
@@ -89,38 +84,14 @@
         </label>
 
         <label class="flex items-center gap-3 cursor-pointer">
-          <ShadcnCheckbox v-model="settings.shorterEvents" />
-          <span class="text-sm">{{ t('viewOptions.shorterEvents') }}</span>
-        </label>
-
-        <label class="flex items-center gap-3 cursor-pointer">
           <ShadcnCheckbox v-model="settings.dimPastEvents" />
           <span class="text-sm">{{ t('viewOptions.dimPastEvents') }}</span>
-        </label>
-
-        <label class="flex items-center gap-3 cursor-pointer">
-          <ShadcnCheckbox v-model="settings.sideBySideDayView" />
-          <span class="text-sm">{{ t('viewOptions.sideBySideDayView') }}</span>
         </label>
       </section>
 
       <!-- Section: Regional -->
       <section class="space-y-4">
         <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{{ t('sections.regional') }}</h2>
-
-        <!-- Language -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium">{{ t('language.label') }}</label>
-          <ShadcnSelect v-model="settings.locale">
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent>
-              <ShadcnSelectItem value="de">Deutsch</ShadcnSelectItem>
-              <ShadcnSelectItem value="en">English</ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
-        </div>
 
         <!-- Time format -->
         <div class="space-y-1.5">
@@ -134,41 +105,6 @@
               <ShadcnSelectItem value="12h">12h (2:30 PM)</ShadcnSelectItem>
             </ShadcnSelectContent>
           </ShadcnSelect>
-        </div>
-
-        <!-- Date format -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium">{{ t('dateFormat.label') }}</label>
-          <ShadcnSelect v-model="settings.dateFormat">
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent>
-              <ShadcnSelectItem value="dd.MM.yyyy">DD.MM.YYYY (31.12.2026)</ShadcnSelectItem>
-              <ShadcnSelectItem value="MM/dd/yyyy">MM/DD/YYYY (12/31/2026)</ShadcnSelectItem>
-              <ShadcnSelectItem value="yyyy-MM-dd">YYYY-MM-DD (2026-12-31)</ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
-        </div>
-
-        <!-- Timezone -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium">{{ t('timezone.label') }}</label>
-          <ShadcnSelect v-model="settings.timezone">
-            <ShadcnSelectTrigger>
-              <ShadcnSelectValue />
-            </ShadcnSelectTrigger>
-            <ShadcnSelectContent class="max-h-[200px]">
-              <ShadcnSelectItem
-                v-for="tz in timezones"
-                :key="tz"
-                :value="tz"
-              >
-                {{ tz }}
-              </ShadcnSelectItem>
-            </ShadcnSelectContent>
-          </ShadcnSelect>
-          <p class="text-xs text-muted-foreground">{{ t('timezone.description') }}</p>
         </div>
       </section>
 
@@ -294,8 +230,6 @@ const eventDurationStr = computed({
   },
 });
 
-const timezones = Intl.supportedValuesOf("timeZone");
-
 // --- External calendars (CalDAV accounts) ---
 const showCaldavDialog = ref(false);
 const showDeleteConfirm = ref(false);
@@ -347,12 +281,9 @@ de:
     regional: Regional
   viewOptions:
     showWeekends: Wochenenden anzeigen
-    showDeclinedEvents: Abgelehnte Termine anzeigen
     showCompletedTasks: Erledigte Aufgaben anzeigen
     showWeekNumbers: Kalenderwochen anzeigen
-    shorterEvents: Kürzere Termine als 30-minütiges Intervall anzeigen
     dimPastEvents: Vergangene Termine abgeschwächt anzeigen
-    sideBySideDayView: Kalender in der Tagesansicht nebeneinander anzeigen
   defaultView:
     label: Standard-Ansicht
     description: Ansicht die beim Öffnen des Kalenders angezeigt wird
@@ -368,15 +299,8 @@ de:
     minutes: Minuten
     hour: Stunde
     hours: Stunden
-  language:
-    label: Sprache
   timeFormat:
     label: Zeitformat
-  dateFormat:
-    label: Datumsformat
-  timezone:
-    label: Zeitzone
-    description: Wird für neue Events verwendet
   eventTypes:
     title: Termin-Arten
   external:
@@ -402,12 +326,9 @@ en:
     regional: Regional
   viewOptions:
     showWeekends: Show weekends
-    showDeclinedEvents: Show declined events
     showCompletedTasks: Show completed tasks
     showWeekNumbers: Show week numbers
-    shorterEvents: Show shorter events as 30-minute interval
     dimPastEvents: Dim past events
-    sideBySideDayView: Show calendars side by side in day view
   defaultView:
     label: Default view
     description: View shown when opening the calendar
@@ -423,15 +344,8 @@ en:
     minutes: minutes
     hour: hour
     hours: hours
-  language:
-    label: Language
   timeFormat:
     label: Time format
-  dateFormat:
-    label: Date format
-  timezone:
-    label: Timezone
-    description: Used for new events
   eventTypes:
     title: Event Types
   external:

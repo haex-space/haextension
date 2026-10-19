@@ -67,14 +67,14 @@
                 isEventPast(bar.event) && 'opacity-40',
               ]"
               :style="{
-                gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                gridColumn: `${bar.startCol + (settingsStore.showWeekNumbers ? 2 : 1)} / span ${bar.span}`,
                 gridRow: bar.row + 1,
                 backgroundColor: getEventColor(bar.event),
                 color: 'white',
               }"
               @click.stop="eventPreview.open(bar.event.id, bar.event.dtstart)"
             >
-              {{ bar.showTitle ? bar.event.summary : '' }}
+              {{ bar.event.summary }}
             </div>
           </template>
         </div>
@@ -122,7 +122,7 @@
                   <Square v-else class="w-3 h-3" />
                 </span>
                 <span v-else class="font-medium">
-                  {{ formatTime(event.dtstart) }}
+                  {{ formatClock(new Date(event.dtstart), settingsStore.timeFormat) }}
                 </span>
                 <span :class="event.completedAt ? 'line-through opacity-60' : ''">{{ event.summary }}</span>
               </div>
@@ -152,9 +152,10 @@
 <script setup lang="ts">
 import { CheckSquare, Square } from "@lucide/vue";
 import type { SelectEvent } from "~/database/schemas";
-import { toDateKey } from "~/lib/timeGrid";
-import { eventSpan } from "~/lib/dates";
+import { eventSpan, formatClock, isoWeek, isWeekend, toLocalDateKey } from "~/lib/dates";
+import { eventDayRange, packBars, toDateKey, type DayBar } from "~/lib/timeGrid";
 
+const { locale } = useI18n();
 const calendarView = useCalendarViewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
@@ -167,13 +168,6 @@ const headerGridCols = computed(() =>
   settingsStore.showWeekNumbers ? `2rem repeat(${colCount.value}, 1fr)` : `repeat(${colCount.value}, 1fr)`,
 );
 
-function getISOWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-}
-
 function isEventPast(event: SelectEvent): boolean {
   return settingsStore.dimPastEvents && eventSpan(event).end < new Date();
 }
@@ -181,17 +175,11 @@ function isEventPast(event: SelectEvent): boolean {
 const quickCreateDate = ref<Date | null>(null);
 const quickCreateEndDate = ref<Date | null>(null);
 
+const isVisibleDay = (date: Date) => settingsStore.showWeekends || !isWeekend(date);
+
 const weekDayNames = computed(() => {
-  const formatter = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
-  const days = [];
-  const baseDate = new Date(2024, 0, 1); // Monday
-  const count = settingsStore.showWeekends ? 7 : 5;
-  for (let i = 0; i < count; i++) {
-    const d = new Date(baseDate);
-    d.setDate(d.getDate() + i);
-    days.push(formatter.format(d));
-  }
-  return days;
+  const formatter = new Intl.DateTimeFormat(locale.value, { weekday: "short" });
+  return calendarView.monthGrid.slice(0, 7).filter(isVisibleDay).map((d) => formatter.format(d));
 });
 
 interface GridCell {
@@ -203,40 +191,22 @@ interface GridCell {
   totalOverflow: number;
 }
 
-interface MultiDayBar {
-  event: SelectEvent;
-  startCol: number;
-  span: number;
-  row: number;
-  showTitle: boolean;
-}
-
 interface WeekRow {
   cells: GridCell[];
-  multiDayBars: MultiDayBar[];
+  multiDayBars: DayBar[];
   barRows: number;
   weekNumber: number;
 }
 
 function isMultiDayEvent(event: SelectEvent): boolean {
   if (event.allDay) return true;
-  const start = toDateKey(event.dtstart);
-  const end = toDateKey(event.dtend);
-  return start !== end;
-}
-
-function daysBetween(dateA: Date, dateB: Date): number {
-  const msPerDay = 86400000;
-  const a = new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
-  const b = new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
-  return Math.round((b.getTime() - a.getTime()) / msPerDay);
+  const { first, last } = eventDayRange(event);
+  return first !== last;
 }
 
 const weeks = computed((): WeekRow[] => {
   const month = calendarView.currentDate.getMonth();
-
-  const today = new Date();
-  const todayKey = toDateKey(today.toISOString());
+  const todayKey = toLocalDateKey(new Date());
 
   // Same 42 days the store loads events for.
   const allDates = calendarView.monthGrid;
@@ -256,90 +226,31 @@ const weeks = computed((): WeekRow[] => {
     }
   }
 
-  // Build 6 week rows
   const weekRows: WeekRow[] = [];
-  const visibleCols = settingsStore.showWeekends ? 7 : 5;
-
   for (let weekIdx = 0; weekIdx < 6; weekIdx++) {
-    const weekStart = allDates[weekIdx * 7]!;
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7); // exclusive end
+    const weekDates = allDates.slice(weekIdx * 7, weekIdx * 7 + 7);
+    const days = weekDates.filter(isVisibleDay);
+    const dayKeys = days.map(toLocalDateKey);
+    const { bars, rowCount } = packBars(multiDayEvents, dayKeys);
 
-    // Find multi-day events that overlap this week
-    const bars: MultiDayBar[] = [];
-    const rowSlots: string[][] = []; // Track which event IDs occupy each row
-
-    for (const event of multiDayEvents) {
-      const { start: eventStart, end: eventEnd } = eventSpan(event);
-
-      // Check overlap: event starts before week ends AND event ends after week starts
-      if (eventStart >= weekEnd || eventEnd <= weekStart) continue;
-
-      // Calculate column positions within this week
-      const barStartDate = eventStart < weekStart ? weekStart : eventStart;
-      const barEndDate = eventEnd > weekEnd ? weekEnd : eventEnd;
-
-      let startCol = daysBetween(weekStart, barStartDate);
-      let endCol = daysBetween(weekStart, barEndDate);
-      // Clamp to visible columns when weekends are hidden
-      if (!settingsStore.showWeekends) {
-        if (startCol >= visibleCols) continue; // Entirely in weekend
-        endCol = Math.min(endCol, visibleCols);
-        startCol = Math.min(startCol, visibleCols - 1);
-      }
-      const span = Math.max(1, endCol - startCol);
-
-      // Is this the first week segment for this event?
-      const showTitle = eventStart >= weekStart || daysBetween(eventStart, weekStart) % 7 === 0;
-
-      // Find first available row (no overlap)
-      let assignedRow = 0;
-      while (assignedRow < rowSlots.length) {
-        const rowOccupied = rowSlots[assignedRow]!;
-        const hasConflict = rowOccupied.some((id) => {
-          const existing = bars.find((b) => b.event.id === id);
-          if (!existing) return false;
-          const existingEnd = existing.startCol + existing.span;
-          return startCol < existingEnd && (startCol + span) > existing.startCol;
-        });
-        if (!hasConflict) break;
-        assignedRow++;
-      }
-
-      if (!rowSlots[assignedRow]) rowSlots[assignedRow] = [];
-      rowSlots[assignedRow]!.push(event.id);
-
-      bars.push({
-        event,
-        startCol,
-        span,
-        row: assignedRow,
-        showTitle,
-      });
-    }
-
-    // Build cells for this week (skip weekends when hidden)
-    const cells: GridCell[] = [];
-    for (let col = 0; col < visibleCols; col++) {
-      const date = allDates[weekIdx * 7 + col]!;
-      const dateKey = toDateKey(date.toISOString());
-      const singleEvents = singleDayByDate.get(dateKey) ?? [];
-
-      cells.push({
+    const cells: GridCell[] = days.map((date, col) => {
+      const singleEvents = singleDayByDate.get(dayKeys[col]!) ?? [];
+      return {
         date,
         dayNumber: date.getDate(),
         isCurrentMonth: date.getMonth() === month,
-        isToday: dateKey === todayKey,
+        isToday: dayKeys[col] === todayKey,
         singleDayEvents: singleEvents,
         totalOverflow: Math.max(0, singleEvents.length - 3),
-      });
-    }
+      };
+    });
 
     weekRows.push({
       cells,
       multiDayBars: bars,
-      barRows: rowSlots.length,
-      weekNumber: getISOWeekNumber(allDates[weekIdx * 7]!),
+      barRows: rowCount,
+      // The row's middle day decides the ISO week for either week start.
+      weekNumber: isoWeek(weekDates[3]!),
     });
   }
 
@@ -350,11 +261,6 @@ function getEventColor(event: SelectEvent): string {
   if (event.color) return event.color;
   const cal = calendarsStore.getCalendar(event.calendarId);
   return cal?.color ?? "#3b82f6";
-}
-
-function formatTime(dtstart: string): string {
-  const date = new Date(dtstart);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 // --- Drag-to-select ---

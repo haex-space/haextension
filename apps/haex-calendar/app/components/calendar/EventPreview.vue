@@ -17,7 +17,7 @@
         <!-- Time -->
         <div v-if="event && !event.allDay" class="flex items-center gap-2 text-sm">
           <Clock class="w-4 h-4 text-muted-foreground shrink-0" />
-          <span>{{ formatTime(event.dtstart) }} – {{ formatTime(event.dtend) }}</span>
+          <span>{{ formatClock(new Date(event.dtstart), settingsStore.timeFormat) }} – {{ formatClock(new Date(event.dtend), settingsStore.timeFormat) }}</span>
         </div>
         <div v-else-if="event?.allDay" class="flex items-center gap-2 text-sm">
           <Clock class="w-4 h-4 text-muted-foreground shrink-0" />
@@ -119,13 +119,14 @@
 
 <script setup lang="ts">
 import { Clock, MapPin, Info, Link, Trash2 } from "@lucide/vue";
-import { parseEventInstant } from "~/lib/dates";
+import { formatClock, parseEventInstant } from "~/lib/dates";
 
 const { t } = useI18n();
 const preview = useEventPreviewStore();
 const eventsStore = useEventsStore();
 const calendarsStore = useCalendarsStore();
 const eventDrawer = useEventDrawerStore();
+const settingsStore = useSettingsStore();
 
 const master = computed(() => {
   if (!preview.eventId) return null;
@@ -158,10 +159,6 @@ const dateDescription = computed(() => {
   }).format(dt);
 });
 
-function formatTime(dt: string): string {
-  const d = new Date(dt);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 function handleEdit() {
   const id = preview.eventId;

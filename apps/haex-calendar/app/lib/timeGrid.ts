@@ -116,3 +116,44 @@ export function groupEventsByDay(eventList: SelectEvent[]): Map<string, SelectEv
 export function getAllDayEvents(eventList: SelectEvent[]): SelectEvent[] {
   return eventList.filter((e) => e.allDay);
 }
+
+/** First and last local day an event covers (all-day ends are exclusive). */
+export function eventDayRange(event: SelectEvent): { first: string; last: string } {
+  if (event.allDay) {
+    return { first: event.dtstart.slice(0, 10), last: inclusiveEndKey(event.dtstart, event.dtend) };
+  }
+  return { first: toDateKey(event.dtstart), last: lastTimedDayKey(event) };
+}
+
+export interface DayBar {
+  event: SelectEvent;
+  startCol: number;
+  span: number;
+  row: number;
+}
+
+/**
+ * Lay out multi-day bars over a row of visible day keys (ascending; hidden
+ * weekend days are simply absent). Each bar takes the first free row.
+ */
+export function packBars(events: SelectEvent[], dayKeys: string[]): { bars: DayBar[]; rowCount: number } {
+  const placed = events
+    .map((event) => ({ event, ...eventDayRange(event) }))
+    .sort((a, b) => a.first.localeCompare(b.first) || b.last.localeCompare(a.last));
+
+  const bars: DayBar[] = [];
+  for (const { event, first, last } of placed) {
+    const startCol = dayKeys.findIndex((key) => key >= first);
+    if (startCol === -1 || dayKeys[startCol]! > last) continue;
+    let endCol = startCol;
+    while (endCol + 1 < dayKeys.length && dayKeys[endCol + 1]! <= last) endCol++;
+    const span = endCol - startCol + 1;
+
+    let row = 0;
+    while (bars.some((bar) => bar.row === row && bar.startCol < startCol + span && startCol < bar.startCol + bar.span)) {
+      row++;
+    }
+    bars.push({ event, startCol, span, row });
+  }
+  return { bars, rowCount: bars.reduce((max, bar) => Math.max(max, bar.row + 1), 0) };
+}

@@ -28,7 +28,7 @@
             class="absolute text-xs text-muted-foreground text-right pr-2 w-full -translate-y-1/2"
             :style="{ top: `${(hour - 1) * HOUR_HEIGHT}px` }"
           >
-            {{ String(hour - 1).padStart(2, '0') }}:00
+            {{ formatHour(hour - 1, settingsStore.timeFormat) }}
           </div>
         </div>
 
@@ -92,7 +92,7 @@
           >
             <div class="font-medium">{{ pe.event.summary }}</div>
             <div>
-              {{ formatTime(pe.event.dtstart) }} – {{ formatTime(pe.event.dtend) }}
+              {{ formatClock(new Date(pe.event.dtstart), settingsStore.timeFormat) }} – {{ formatClock(new Date(pe.event.dtend), settingsStore.timeFormat) }}
             </div>
             <div v-if="pe.event.location" class="text-xs opacity-75 truncate">
               {{ pe.event.location }}
@@ -122,7 +122,7 @@ import {
   eventSpansDate,
   toDateKey,
 } from "~/lib/timeGrid";
-import { eventSpan } from "~/lib/dates";
+import { eventSpan, formatClock, formatHour } from "~/lib/dates";
 
 const { t } = useI18n();
 const calendarView = useCalendarViewStore();
@@ -184,11 +184,6 @@ function getEventColor(event: SelectEvent): string {
   if (event.color) return event.color;
   const cal = calendarsStore.getCalendar(event.calendarId);
   return cal?.color ?? "#3b82f6";
-}
-
-function formatTime(dt: string): string {
-  const date = new Date(dt);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 // --- Drag-to-select ---

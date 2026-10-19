@@ -2,11 +2,10 @@ import { watchDebounced } from "@vueuse/core";
 import { eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import { settings, type SelectSettings } from "~/database/schemas";
+import type { TimeFormat, WeekStart } from "~/lib/dates";
 import type { ViewMode } from "./calendarView";
 
-export type WeekStart = "monday" | "sunday";
 export type DefaultEventDuration = 15 | 30 | 60 | 120;
-export type TimeFormat = "24h" | "12h";
 export type DateFormat = "dd.MM.yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd";
 
 const SETTINGS_ID = "default";

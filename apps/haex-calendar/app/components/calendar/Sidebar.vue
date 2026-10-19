@@ -4,6 +4,7 @@
     <ShadcnCalendar
       :model-value="selectedCalendarDate"
       locale="de-DE"
+      :week-starts-on="settingsStore.weekStart === 'sunday' ? 0 : 1"
       weekday-format="short"
       :show-week-numbers="settingsStore.showWeekNumbers"
       class="p-0 w-full"
