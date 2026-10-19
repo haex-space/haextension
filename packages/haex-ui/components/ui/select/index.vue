@@ -14,7 +14,7 @@
             error ? 'border-destructive' : '',
           ]"
           :aria-invalid="error ? 'true' : undefined"
-          :aria-describedby="error ? errorId : undefined"
+          :aria-describedby="describedBy"
           :aria-label="label ? undefined : ariaLabel"
         >
           <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
@@ -48,13 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { useId, type HTMLAttributes } from "vue";
+import type { HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import {
-  LABEL_BG_VAR,
-  floatingLabelBase,
-  floatingLabelRestSingle,
-} from "../../../lib/floating-label";
+import { floatingLabelBase, floatingLabelRestSingle } from "../../../lib/floating-label";
+import { useLabelledField } from "../../../lib/useLabelledField";
 
 export type UiSelectOption = {
   value: string;
@@ -80,10 +77,11 @@ const props = defineProps<{
 
 const model = defineModel<string | null | undefined>();
 
-// Ties the label and the error text to the trigger even when the consumer passes no id.
-const generatedId = useId();
-const fieldId = computed(() => props.id ?? generatedId);
-const errorId = `${generatedId}-error`;
+const { fieldId, errorId, describedBy, labelStyle } = useLabelledField({
+  id: () => props.id,
+  error: () => props.error,
+  labelBg: () => props.labelBg,
+});
 
 const open = ref(false);
 const floated = computed(
@@ -98,5 +96,4 @@ const labelClass = computed(() =>
     props.error && "text-destructive",
   ),
 );
-const labelStyle = computed(() => (props.labelBg ? { [LABEL_BG_VAR]: props.labelBg } : undefined));
 </script>

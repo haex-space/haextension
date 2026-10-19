@@ -55,15 +55,7 @@
         class="shadow-none"
         @click.prevent="clear"
       />
-      <UiButton
-        v-if="copyable && hasValue"
-        type="button"
-        :icon="copied ? Check : Copy"
-        :tooltip="copied ? labels.copied : labels.copy"
-        variant="ghost"
-        class="shadow-none"
-        @click.prevent="handleCopy"
-      />
+      <UiButtonCopy v-if="copyable && hasValue" :value="modelValue" :labels="labels" class="shadow-none" />
     </ShadcnInputGroup>
 
     <p v-if="error" :id="errorId" class="mt-1 px-1 text-xs text-destructive" role="alert">
@@ -73,11 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { useId, type HTMLAttributes } from "vue";
-import { useClipboard } from "@vueuse/core";
-import { Check, Copy, X } from "@lucide/vue";
+import type { HTMLAttributes } from "vue";
+import { X } from "@lucide/vue";
 import {
-  LABEL_BG_VAR,
   floatingLabelBase,
   floatingLabelColor,
   floatingLabelFloated,
@@ -85,6 +75,7 @@ import {
   labelledPlaceholder,
   labelledPlaceholderClass,
 } from "../../../lib/floating-label";
+import { useLabelledField } from "../../../lib/useLabelledField";
 
 defineOptions({ inheritAttrs: false });
 
@@ -125,16 +116,12 @@ const props = withDefaults(
 const attrs = useAttrs();
 const slots = useSlots();
 
-// Ties the label and the error text to the input even when the consumer passes no id.
-const generatedId = useId();
-const fieldId = computed(() => (attrs.id as string | undefined) ?? generatedId);
-const errorId = `${generatedId}-error`;
-// Keeps a consumer's aria-describedby and adds the error text while there is one.
-const describedBy = computed(() =>
-  [attrs["aria-describedby"] as string | undefined, props.error ? errorId : undefined]
-    .filter(Boolean)
-    .join(" ") || undefined,
-);
+const { fieldId, errorId, describedBy, labelStyle } = useLabelledField({
+  id: () => attrs.id as string | undefined,
+  describedBy: () => attrs["aria-describedby"] as string | undefined,
+  error: () => props.error,
+  labelBg: () => props.labelBg,
+});
 
 const modelValue = defineModel<string | number | null | undefined>();
 
@@ -146,17 +133,10 @@ const hasValue = computed(
 );
 const isOn = (value: unknown) => value !== undefined && value !== false;
 const isLocked = computed(() => isOn(attrs.disabled) || isOn(attrs.readonly));
-const labelStyle = computed(() => (props.labelBg ? { [LABEL_BG_VAR]: props.labelBg } : undefined));
-
-const { copy, copied } = useClipboard();
 
 const clear = () => {
   modelValue.value = "";
   inputRef.value?.focus();
-};
-
-const handleCopy = async () => {
-  if (hasValue.value) await copy(String(modelValue.value));
 };
 
 const focus = () => {
