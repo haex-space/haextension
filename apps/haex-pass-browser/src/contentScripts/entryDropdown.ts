@@ -1,12 +1,14 @@
+import type { ItemEntry } from '~/logic/haexPassApi'
+
 // Show dropdown with matching entries. It lives in the content script's
 // shadow root (`overlayRoot`) so page scripts can neither read the entries
 // nor click one.
 export function showEntryDropdown(
   fieldId: string,
   anchorEl: HTMLElement,
-  matchingEntries: unknown[],
+  matchingEntries: ItemEntry[],
   overlayRoot: ShadowRoot | HTMLElement,
-  onSelect: (fields: Record<string, string>, autofillAliases?: Record<string, string[]> | null) => void,
+  onSelect: (entry: ItemEntry) => void,
 ) {
   // Clicks inside a shadow root reach document listeners retargeted to its host.
   const overlayHost = overlayRoot instanceof ShadowRoot ? overlayRoot.host : overlayRoot
@@ -40,8 +42,7 @@ export function showEntryDropdown(
     dropdown.appendChild(emptyMsg)
   }
   else {
-    matchingEntries.forEach((entry: unknown, index: number) => {
-      const e = entry as { id: string, title: string, fields: Record<string, string>, autofillAliases?: Record<string, string[]> | null }
+    matchingEntries.forEach((e, index) => {
       const item = document.createElement('div')
       item.style.cssText = `
         padding: 10px 12px;
@@ -71,7 +72,7 @@ export function showEntryDropdown(
       item.addEventListener('click', (event) => {
         if (!event.isTrusted)
           return
-        onSelect(e.fields, e.autofillAliases)
+        onSelect(e)
         dropdown.remove()
       })
 

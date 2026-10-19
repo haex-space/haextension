@@ -231,6 +231,18 @@ onMessage('get-items', async (message) => {
   }
 })
 
+onMessage('get-totp', async (message) => {
+  const { entryId } = message.data as { entryId: string }
+  try {
+    const result = await vaultConnection.getTotp(entryId) as { success?: boolean, data?: unknown, error?: string }
+    if (result?.success)
+      return { success: true, data: result.data }
+    return { success: false, error: result?.error || 'Unknown error' }
+  } catch (err) {
+    return { success: false, error: String(err) }
+  }
+})
+
 onMessage('fill-field', async (message) => {
   const { tabId, fieldId, value } = message.data as { tabId: number, fieldId: string, value: string }
   try {

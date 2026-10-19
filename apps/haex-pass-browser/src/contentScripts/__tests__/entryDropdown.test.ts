@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { showEntryDropdown } from '../entryDropdown'
 
-const entries = [{ id: 'e1', title: 'Example', fields: { username: 'anna', password: 'secret' } }]
+const entries = [{ id: 'e1', title: 'Example', url: null, hasTotp: false, fields: { username: 'anna', password: 'secret' } }]
 
 function setup() {
   const host = document.createElement('div')

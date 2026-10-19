@@ -1,9 +1,11 @@
 /* eslint-disable no-console */
+import type { GetTotpResponseData, ItemEntry } from '~/logic/haexPassApi'
 import { onMessage, sendMessage } from 'webext-bridge/content-script'
 import { createApp } from 'vue'
 import App from './views/App.vue'
 import { setupApp } from '~/logic/common-setup'
-import { DEFAULT_ALIASES, fillAllFields, fillField, shouldShowIconForField } from './autofill'
+import { parseItemEntries } from '~/logic/haexPassApi'
+import { DEFAULT_ALIASES, fillAllFields, fillField, isOtpField, shouldShowIconForField } from './autofill'
 import { detectInputFields, type DetectedField } from './detector'
 import { showEntryDropdown } from './entryDropdown'
 import { initWebAuthnBridge } from './webauthn-bridge'
@@ -17,7 +19,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
   // State
   let detectedFields: DetectedField[] = []
-  let matchingEntries: unknown[] = []
+  let matchingEntries: ItemEntry[] = []
 
   // Mount the Vue app for overlay UI (dropdowns, icons)
   const container = document.createElement('div')
@@ -56,7 +58,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     email: 'username',
     text: 'username',
     password: 'password',
-    otp: 'otpSecret',
+    otp: 'otp',
   }
 
   // Detect input fields and request matching entries
@@ -94,8 +96,8 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       if (response && (response as { success: boolean }).success) {
         // Response structure: { success: true, data: { success: true, data: { entries: [...] } } }
         // The outer wrapper is from main.ts, the inner is from haex-pass
-        const innerData = (response as { data: { data?: { entries?: unknown[] } } }).data
-        matchingEntries = innerData?.data?.entries || []
+        const innerData = (response as { data?: { data?: unknown } }).data
+        matchingEntries = parseItemEntries(innerData?.data)
         console.log('[haex-pass] Matching entries:', matchingEntries.length)
 
         // Inject icons if we have matches, otherwise show "Add new" button
@@ -113,6 +115,22 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     }
   }
 
+  async function fetchTotpCode(entryId: string): Promise<string | null> {
+    try {
+      const response = await sendMessage('get-totp', { entryId }, 'background') as { success?: boolean, data?: Partial<GetTotpResponseData> }
+      return response?.success && typeof response.data?.code === 'string' ? response.data.code : null
+    } catch (err) {
+      console.error('[haex-pass] Failed to get the TOTP code:', err)
+      return null
+    }
+  }
+
+  async function fillEntry(entry: ItemEntry) {
+    const wantsCode = entry.hasTotp && detectedFields.some(field => isOtpField(field, entry.autofillAliases))
+    const otpCode = wantsCode ? await fetchTotpCode(entry.id) : null
+    fillAllFields(detectedFields, entry.fields, entry.autofillAliases, otpCode)
+  }
+
   // Inject "Add new" button when no entries exist for this page
   function injectAddNewButton() {
     // Only inject for username/password fields (primary login fields)
@@ -120,7 +138,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       const identifier = field.identifier.toLowerCase()
       // Check if field matches username or password aliases
       for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
-        if (key === 'otpSecret') continue // Skip OTP for "Add new" button
+        if (key === 'otp') continue // Skip OTP for "Add new" button
         if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
           return true
         }
@@ -336,7 +354,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
           return
         e.preventDefault()
         e.stopPropagation()
-        showEntryDropdown(field.id, iconContainer, matchingEntries, shadowDOM, (fields, autofillAliases) => fillAllFields(detectedFields, fields, autofillAliases))
+        showEntryDropdown(field.id, iconContainer, matchingEntries, shadowDOM, entry => void fillEntry(entry))
       })
 
       // Hover effects

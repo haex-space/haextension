@@ -37,4 +37,22 @@ describe('fillAllFields', () => {
 
     expect(password.value).toBe('secret')
   })
+
+  it('never types the vault\'s TOTP marker into a one-time-code field', () => {
+    const code = input({ name: 'otp', autocomplete: 'one-time-code' })
+    const fields: DetectedField[] = [{ id: 'haex-field-1', element: code, type: 'otp', identifier: 'otp' }]
+
+    fillAllFields(fields, { otp: 'TOTP' })
+
+    expect(code.value).toBe('')
+  })
+
+  it('fills the current code into the one-time-code field', () => {
+    const code = input({ name: 'code' })
+    const fields: DetectedField[] = [{ id: 'haex-field-1', element: code, type: 'otp', identifier: 'code' }]
+
+    fillAllFields(fields, { otp: 'TOTP' }, null, '123456')
+
+    expect(code.value).toBe('123456')
+  })
 })
