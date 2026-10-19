@@ -29,7 +29,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      debug: true,
+      // The SDK's debug mode logs request payloads, including CalDAV
+      // passwords and Basic auth headers.
+      debug: false,
     },
   },
 
