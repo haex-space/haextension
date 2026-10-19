@@ -3,12 +3,7 @@ import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTempla
 import { FULL_PAGES_TABLE } from "~/stores/spaces";
 import { reactive } from "vue";
 import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
-import {
-  addElements,
-  setPageBackground,
-  type Command,
-  type PageDoc,
-} from "~/lib/commands";
+import { addElements, type Command, type PageDoc } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
 import { migratePageRow, serializePageDoc } from "~/lib/migratePage";
 import { createTableActions } from "~/lib/tableActions";
@@ -221,26 +216,6 @@ export const useNotebookStore = defineStore("notebook", () => {
     await goToPage(allPages.findIndex((p) => p.id === pageId));
   };
 
-  const deleteCurrentPageAsync = async () => {
-    const db = haexVault.orm;
-    const page = currentPage.value;
-    if (!db || !page || currentPages.value.length <= 1) return;
-
-    await db.delete(pages).where(eq(pages.id, page.id));
-
-    // Reload and renumber
-    const allPages = await db.select().from(pages).where(eq(pages.notebookId, currentNotebook.value!.id)).orderBy(asc(pages.pageNumber));
-    for (let i = 0; i < allPages.length; i++) {
-      if (allPages[i]!.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, allPages[i]!.id));
-        allPages[i]!.pageNumber = i;
-      }
-    }
-    currentPages.value = allPages;
-    currentPageIndex.value = Math.min(currentPageIndex.value, allPages.length - 1);
-    loadPageIntoState();
-  };
-
   /** Übernimmt eine neue Seitenreihenfolge; die geöffnete Seite bleibt geöffnet. */
   const reorderPagesAsync = async (newOrder: SelectPage[]) => {
     const db = haexVault.orm;
@@ -298,13 +273,6 @@ export const useNotebookStore = defineStore("notebook", () => {
     doc.height = height;
     isDirty.value = true;
     contentVersion.value++;
-    await saveCurrentPageAsync();
-  };
-
-  const changePageTemplateAsync = async (template: PageTemplate) => {
-    const doc = currentDoc.value;
-    if (!doc) return;
-    runCommand(setPageBackground(doc, { ...doc.background, template }, "Vorlage"));
     await saveCurrentPageAsync();
   };
 
@@ -402,18 +370,6 @@ export const useNotebookStore = defineStore("notebook", () => {
     }
   };
 
-  const clear = () => {
-    currentNotebook.value = null;
-    currentPages.value = [];
-    currentPageIndex.value = 0;
-    docs.clear();
-    undoStack.clear();
-    currentStroke.value = null;
-    isDrawing.value = false;
-    isDirty.value = false;
-    activeLayerId.value = null;
-  };
-
   return {
     currentNotebook,
     currentPages,
@@ -442,11 +398,9 @@ export const useNotebookStore = defineStore("notebook", () => {
     nextPage,
     prevPage,
     addPageAsync,
-    deleteCurrentPageAsync,
     deletePageAsync,
     reorderPagesAsync,
     togglePageOrientationAsync,
-    changePageTemplateAsync,
     tableElements,
     addTable,
     removeTable,
@@ -460,6 +414,5 @@ export const useNotebookStore = defineStore("notebook", () => {
     listTrashAsync,
     restorePageAsync,
     emptyTrashAsync,
-    clear,
   };
 });
