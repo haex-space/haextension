@@ -210,6 +210,9 @@ class VaultConnectionManager {
         const ws = new WebSocket(wsUrl)
         this.ws = ws
 
+        // The promise settles on the first of open, close or error. Every
+        // handler settles it, also for a socket that was replaced meanwhile:
+        // the cached connectPromise would otherwise never clear.
         ws.onopen = () => {
           // Defend against an old WS firing onopen after we already started
           // a newer one: only act if this instance is still the live one.
@@ -219,10 +222,12 @@ class VaultConnectionManager {
             } catch {
               /* ignore */
             }
+            reject(new Error('Connection was replaced'))
             return
           }
           console.log('[haex-pass] WebSocket connected')
           this.sendHandshake()
+          resolve()
         }
 
         ws.onmessage = (event) => {
@@ -232,6 +237,7 @@ class VaultConnectionManager {
         }
 
         ws.onclose = () => {
+          reject(new Error('Connection closed'))
           if (this.ws !== ws)
             return
           console.log('[haex-pass] WebSocket closed')
@@ -243,8 +249,10 @@ class VaultConnectionManager {
         }
 
         ws.onerror = (err) => {
-          if (this.ws !== ws)
+          if (this.ws !== ws) {
+            reject(new Error('Connection failed'))
             return
+          }
           console.error('[haex-pass] WebSocket error:', err)
           this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
           this.state = ExternalConnectionState.DISCONNECTED
@@ -252,13 +260,6 @@ class VaultConnectionManager {
           this.notifyStateChange()
           reject(new Error(this.errorMessage || 'Connection failed'))
         }
-
-        // Resolve after a short timeout if connection seems stable
-        setTimeout(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            resolve()
-          }
-        }, 100)
       } catch (err) {
         this.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, `Failed to connect: ${err}`)
         this.state = ExternalConnectionState.DISCONNECTED
