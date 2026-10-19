@@ -32,17 +32,33 @@ export interface IcalExportItem {
   color: string | null;
 }
 
+type IcalComponent = InstanceType<typeof ICAL.Component>;
+type IcalTime = InstanceType<typeof ICAL.Time>;
+
+// Typed reads of external iCal data: ical.js returns a union per property.
+function textProp(component: IcalComponent, name: string): string | null {
+  const value = component.getFirstPropertyValue(name);
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+function numberProp(component: IcalComponent, name: string): number | null {
+  const value: unknown = component.getFirstPropertyValue(name);
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function timeProp(component: IcalComponent, name: string): IcalTime | null {
+  const value = component.getFirstPropertyValue(name);
+  return value instanceof ICAL.Time ? value : null;
+}
+
 /** Extract VALARM trigger offsets (minutes before) from a component. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractReminderOffsets(component: any): number[] {
+function extractReminderOffsets(component: IcalComponent): number[] {
   const offsets: number[] = [];
   for (const valarm of component.getAllSubcomponents("valarm")) {
-    const trigger = valarm.getFirstProperty("trigger");
-    if (!trigger) continue;
-    const value = trigger.getFirstValue();
+    const value = valarm.getFirstProperty("trigger")?.getFirstValue();
     // Only relative (duration) triggers map to an offset; absolute DATE-TIME
     // triggers can't be expressed as "minutes before" and are skipped.
-    if (value && typeof value.toSeconds === "function") {
+    if (value instanceof ICAL.Duration) {
       const seconds = value.toSeconds();
       if (seconds <= 0) offsets.push(Math.round(-seconds / 60));
     }
@@ -51,29 +67,25 @@ function extractReminderOffsets(component: any): number[] {
 }
 
 /** All CATEGORIES values (a multi-value property that may also repeat). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function readCategories(component: any): string | null {
-  const values = (component.getAllProperties("categories") as InstanceType<typeof ICAL.Property>[])
-    .flatMap((prop) => prop.getValues())
+function readCategories(component: IcalComponent): string | null {
+  const values = component
+    .getAllProperties("categories")
+    .flatMap((prop): unknown[] => prop.getValues())
     .map((value) => String(value).trim())
     .filter(Boolean);
   return values.length ? values.join(", ") : null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rruleString(component: any): string | null {
+function rruleString(component: IcalComponent): string | null {
   const recur = component.getFirstPropertyValue("rrule");
-  return recur ? recur.toString() : null;
+  return recur instanceof ICAL.Recur ? recur.toString() : null;
 }
-
-type IcalTime = InstanceType<typeof ICAL.Time>;
 
 /**
  * TZID of a date-time. ical.js leaves a TZID without matching VTIMEZONE as a
  * "floating" zone, so fall back to the property's TZID parameter.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function timeZoneId(time: IcalTime, component: any, propName: string): string | null {
+function timeZoneId(time: IcalTime, component: IcalComponent, propName: string): string | null {
   const tzid = time.zone?.tzid;
   if (tzid && tzid !== "floating") return tzid;
   const param = component.getFirstProperty(propName)?.getParameter("tzid");
@@ -97,8 +109,7 @@ function toStoredDateTime(time: IcalTime, tzid: string | null): string {
   return time.toJSDate().toISOString();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseVevent(vevent: any): ParsedEvent | null {
+function parseVevent(vevent: IcalComponent): ParsedEvent | null {
   const event = new ICAL.Event(vevent);
   const startDate = event.startDate;
   const endDate = event.endDate;
@@ -117,11 +128,11 @@ function parseVevent(vevent: any): ParsedEvent | null {
     dtend: toStoredDateTime(endDate, timeZoneId(endDate, vevent, vevent.hasProperty("dtend") ? "dtend" : "dtstart")),
     allDay: startDate.isDate,
     timezone: startZone ?? "UTC",
-    status: vevent.getFirstPropertyValue("status") || "CONFIRMED",
-    sequence: vevent.getFirstPropertyValue("sequence") || 0,
-    url: vevent.getFirstPropertyValue("url") || null,
+    status: textProp(vevent, "status") ?? "CONFIRMED",
+    sequence: numberProp(vevent, "sequence") ?? 0,
+    url: textProp(vevent, "url"),
     categories: readCategories(vevent),
-    color: vevent.getFirstPropertyValue("color") || null,
+    color: textProp(vevent, "color"),
     kind: "event",
     rrule: rruleString(vevent),
     reminderOffsets: extractReminderOffsets(vevent),
@@ -129,35 +140,34 @@ function parseVevent(vevent: any): ParsedEvent | null {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseVtodo(vtodo: any): ParsedEvent | null {
+function parseVtodo(vtodo: IcalComponent): ParsedEvent | null {
   // A task's due date maps to DUE (fall back to DTSTART). There is no end.
-  const due = vtodo.getFirstPropertyValue("due") ?? vtodo.getFirstPropertyValue("dtstart");
+  const due = timeProp(vtodo, "due") ?? timeProp(vtodo, "dtstart");
   const allDay = due?.isDate ?? false;
   const dueProp = vtodo.hasProperty("due") ? "due" : "dtstart";
   const dueZone = due ? timeZoneId(due, vtodo, dueProp) : null;
   const dtstart = due ? toStoredDateTime(due, dueZone) : new Date().toISOString();
-  const completed = vtodo.getFirstPropertyValue("completed");
+  const completed = timeProp(vtodo, "completed");
 
   // Skip UID-less VTODOs: importFileAsync upserts by UID, so a random
   // fallback UID would produce a new row on every re-import (duplicates).
-  const uid = vtodo.getFirstPropertyValue("uid");
+  const uid = textProp(vtodo, "uid");
   if (!uid) return null;
 
   return {
     uid,
-    summary: vtodo.getFirstPropertyValue("summary") || "Untitled",
-    description: vtodo.getFirstPropertyValue("description") || null,
-    location: vtodo.getFirstPropertyValue("location") || null,
+    summary: textProp(vtodo, "summary") ?? "Untitled",
+    description: textProp(vtodo, "description"),
+    location: textProp(vtodo, "location"),
     dtstart,
     dtend: dtstart, // tasks mirror dtstart into dtend (NOT NULL column)
     allDay,
     timezone: dueZone ?? "UTC",
-    status: vtodo.getFirstPropertyValue("status") || "CONFIRMED",
-    sequence: vtodo.getFirstPropertyValue("sequence") || 0,
-    url: vtodo.getFirstPropertyValue("url") || null,
+    status: textProp(vtodo, "status") ?? "CONFIRMED",
+    sequence: numberProp(vtodo, "sequence") ?? 0,
+    url: textProp(vtodo, "url"),
     categories: readCategories(vtodo),
-    color: vtodo.getFirstPropertyValue("color") || null,
+    color: textProp(vtodo, "color"),
     kind: "task",
     rrule: rruleString(vtodo),
     reminderOffsets: extractReminderOffsets(vtodo),
@@ -178,18 +188,15 @@ export function parseICS(icsString: string): ParsedEvent[] {
   const jcal = ICAL.parse(icsString);
   const comp = new ICAL.Component(jcal);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parse = (c: any, kind: "event" | "task") => ({
+  const parse = (c: IcalComponent, kind: "event" | "task") => ({
     parsed: kind === "event" ? parseVevent(c) : parseVtodo(c),
-    isOverride: c.hasProperty("recurrence-id") as boolean,
+    isOverride: c.hasProperty("recurrence-id"),
   });
 
   const byUid = new Map<string, { parsed: ParsedEvent; isOverride: boolean }>();
   for (const candidate of [
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...comp.getAllSubcomponents("vevent").map((c: any) => parse(c, "event")),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...comp.getAllSubcomponents("vtodo").map((c: any) => parse(c, "task")),
+    ...comp.getAllSubcomponents("vevent").map((c) => parse(c, "event")),
+    ...comp.getAllSubcomponents("vtodo").map((c) => parse(c, "task")),
   ]) {
     if (!candidate.parsed) continue;
     const existing = byUid.get(candidate.parsed.uid);
@@ -200,8 +207,7 @@ export function parseICS(icsString: string): ParsedEvent[] {
   return [...byUid.values()].map((entry) => entry.parsed);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setDate(component: any, prop: string, value: string, allDay: boolean) {
+function setDate(component: IcalComponent, prop: string, value: string, allDay: boolean) {
   if (allDay) {
     component.updatePropertyWithValue(prop, ICAL.Time.fromDateString(value.split("T")[0] ?? value));
   } else {
