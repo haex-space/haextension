@@ -396,7 +396,7 @@ export class NestInteriorScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(gameObject.x, gameObject.y, cell.x, cell.y)
 
         if (dist < 16) {
-          if (item.type === 'wax' && cell.type === 'empty' && this.phase === 'build-cells') {
+          if (item.type === 'wax' && !cell.filled && this.phase === 'build-cells') {
             // Build wax cell
             cell.type = 'empty'
             cell.filled = true
