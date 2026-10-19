@@ -1,60 +1,34 @@
 <script setup lang="ts">
-import type { BookmarkStatus, OnboardingDecisionMessage } from '~/bookmarks/messages'
-import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
+import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import {
   BOOKMARKS_CONFIRM_DELETIONS,
-  BOOKMARKS_GET_STATUS,
-  BOOKMARKS_LIST_COLLECTIONS,
   BOOKMARKS_ONBOARDING_DECISION,
   BOOKMARKS_REJECT_DELETIONS,
-  BOOKMARKS_SWITCH_COLLECTION,
-  BOOKMARKS_SYNC_NOW,
 } from '~/bookmarks/messages'
 import { validateTrimmedText } from '~/bookmarks/model'
+import { useBookmarkSync } from '~/composables/useBookmarkSync'
 import { useI18n } from '~/locales'
 
 const { t } = useI18n()
 
-const bookmarkStatus = ref<BookmarkStatus | null>(null)
-const bookmarkCollections = ref<BookmarkCollectionSummary[]>([])
+const {
+  status: bookmarkStatus,
+  switchTargetId: bookmarkSwitchTargetId,
+  switchError: bookmarkSwitchError,
+  switching: bookmarkSwitchInProgress,
+  syncing: bookmarkSyncNowInProgress,
+  otherCollections: otherBookmarkCollections,
+  switchTarget: bookmarkSwitchTarget,
+  switchLocked: bookmarkSwitchLocked,
+  loadStatus: loadBookmarkStatus,
+  loadCollections: loadBookmarkCollections,
+  syncNow: handleBookmarkSyncNow,
+  confirmSwitch,
+} = useBookmarkSync()
 const bookmarkSwitcherOpen = ref(false)
 const bookmarkCreateMode = ref(false)
-const bookmarkSwitchTargetId = ref<string | null>(null)
-const bookmarkSwitchError = ref<string | null>(null)
-const bookmarkSwitchInProgress = ref(false)
-const bookmarkSyncNowInProgress = ref(false)
 const bookmarkNewName = ref('')
 const bookmarkNewNameError = ref<string | null>(null)
-
-const bookmarkActiveCollectionId = computed(() => (bookmarkStatus.value?.mode === 'active' ? bookmarkStatus.value.collectionId : null))
-const otherBookmarkCollections = computed(() => bookmarkCollections.value.filter(c => c.id !== bookmarkActiveCollectionId.value))
-const bookmarkSwitchTarget = computed(() => bookmarkCollections.value.find(c => c.id === bookmarkSwitchTargetId.value) ?? null)
-const bookmarkSwitchLocked = computed(() => bookmarkStatus.value?.mode === 'active' && bookmarkStatus.value.dirty)
-
-async function loadBookmarkStatus() {
-  try {
-    const response = (await browser.runtime.sendMessage({ type: BOOKMARKS_GET_STATUS })) as {
-      success: boolean
-      data?: { status: BookmarkStatus | null }
-    }
-    bookmarkStatus.value = response?.data?.status ?? null
-  } catch {
-    bookmarkStatus.value = null
-  }
-}
-
-async function loadBookmarkCollections() {
-  try {
-    const response = (await browser.runtime.sendMessage({ type: BOOKMARKS_LIST_COLLECTIONS })) as {
-      success: boolean
-      data?: { collections: BookmarkCollectionSummary[] }
-    }
-    if (response?.success && response.data)
-      bookmarkCollections.value = response.data.collections
-  } catch {
-    bookmarkCollections.value = []
-  }
-}
 
 function openBookmarkSwitcher() {
   bookmarkSwitcherOpen.value = true
@@ -69,28 +43,8 @@ function closeBookmarkSwitcher() {
 }
 
 async function confirmBookmarkSwitch() {
-  const target = bookmarkSwitchTarget.value
-  if (!target)
-    return
-  bookmarkSwitchInProgress.value = true
-  bookmarkSwitchError.value = null
-  try {
-    const response = (await browser.runtime.sendMessage({
-      type: BOOKMARKS_SWITCH_COLLECTION,
-      collectionId: target.id,
-      collectionName: target.name,
-    })) as { success: boolean, error?: string }
-    if (response?.success) {
-      bookmarkSwitcherOpen.value = false
-      await loadBookmarkStatus()
-    } else {
-      bookmarkSwitchError.value = response?.error ?? t('settings.bookmarks.error.generic')
-    }
-  } catch (err) {
-    bookmarkSwitchError.value = String(err)
-  } finally {
-    bookmarkSwitchInProgress.value = false
-  }
+  if (await confirmSwitch())
+    bookmarkSwitcherOpen.value = false
 }
 
 async function confirmBookmarkCreate() {
@@ -124,16 +78,6 @@ async function confirmBookmarkCreate() {
     bookmarkSwitchError.value = String(err)
   } finally {
     bookmarkSwitchInProgress.value = false
-  }
-}
-
-async function handleBookmarkSyncNow() {
-  bookmarkSyncNowInProgress.value = true
-  try {
-    await browser.runtime.sendMessage({ type: BOOKMARKS_SYNC_NOW })
-    await loadBookmarkStatus()
-  } finally {
-    bookmarkSyncNowInProgress.value = false
   }
 }
 
