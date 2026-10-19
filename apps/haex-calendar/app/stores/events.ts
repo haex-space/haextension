@@ -60,8 +60,13 @@ export const useEventsStore = defineStore("events", () => {
    * Load events for the current visible range and visible calendars.
    * Called reactively when visibleRange or visibleCalendarIds change.
    */
+  // Loads overlap (navigation, saves, background sync); only the newest may
+  // write its result, or an older range could replace the current one.
+  let loadRequest = 0;
+
   async function loadEventsAsync() {
     if (!haexVault.orm) return;
+    const request = ++loadRequest;
     const { start, end } = calendarView.visibleRange;
     const calendarIds = calendarsStore.visibleCalendarIds;
     if (calendarIds.length === 0) {
@@ -84,7 +89,7 @@ export const useEventsStore = defineStore("events", () => {
         .filter((t) => t.defaultRrule)
         .map((t) => t.id);
 
-      visibleEvents.value = await haexVault.orm
+      const rows = await haexVault.orm
         .select()
         .from(events)
         .where(
@@ -102,8 +107,9 @@ export const useEventsStore = defineStore("events", () => {
             )
           )
         );
+      if (request === loadRequest) visibleEvents.value = rows;
     } finally {
-      isLoading.value = false;
+      if (request === loadRequest) isLoading.value = false;
     }
   }
 
