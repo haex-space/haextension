@@ -73,7 +73,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     if (current?.id === pageId) return;
     const index = currentPages.value.findIndex((p) => p.id === pageId);
     if (index < 0) return;
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
     currentPageIndex.value = index;
     loadPageIntoState();
   };
@@ -174,7 +174,7 @@ export const useNotebookStore = defineStore("notebook", () => {
   const goToPage = async (index: number) => {
     if (index < 0 || index >= currentPages.value.length) return;
     // Save current page first
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
     currentPageIndex.value = index;
     loadPageIntoState();
   };
@@ -245,7 +245,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     if (fromIndex === toIndex) return;
 
     // Save current page first
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
 
     // Reorder in-memory
     const moved = currentPages.value.splice(fromIndex, 1)[0]!;
@@ -302,6 +302,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     doc.width = width;
     doc.height = height;
     isDirty.value = true;
+    contentVersion.value++;
     await saveCurrentPageAsync();
   };
 
@@ -339,10 +340,25 @@ export const useNotebookStore = defineStore("notebook", () => {
     const doc = currentDoc.value;
     if (!db || !page || !doc) return;
 
+    const version = contentVersion.value;
     const row = serializePageDoc(doc);
     await db.update(pages).set(row).where(eq(pages.id, page.id));
     Object.assign(page, row);
-    isDirty.value = false;
+    // Was während des Schreibens committet wurde, steckt nicht in `row`.
+    if (contentVersion.value === version) isDirty.value = false;
+  };
+
+  /**
+   * Speichert vor einem Seitenwechsel, bis auch die Änderungen gesichert sind,
+   * die während eines Schreibvorgangs dazukamen — loadPageIntoState() setzt
+   * isDirty danach zurück.
+   */
+  const flushAsync = async () => {
+    let version: number;
+    do {
+      version = contentVersion.value;
+      if (isDirty.value) await saveCurrentPageAsync();
+    } while (isDirty.value && contentVersion.value !== version);
   };
 
   // --- Trash ---
