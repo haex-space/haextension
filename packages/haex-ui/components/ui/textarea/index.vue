@@ -26,7 +26,7 @@
           floatingLabelRestMulti,
           'left-2',
           floatingLabelFloated,
-          error ? 'text-destructive peer-focus:text-destructive' : '',
+          floatingLabelColor(error),
         ]"
         data-slot="floating-label"
       >
@@ -62,6 +62,7 @@ import { Copy, Check } from "@lucide/vue";
 import {
   LABEL_BG_VAR,
   floatingLabelBase,
+  floatingLabelColor,
   floatingLabelFloated,
   floatingLabelRestMulti,
   labelledPlaceholder,

@@ -91,7 +91,7 @@ const labelClass = computed(() =>
     floatingLabelBase,
     floated.value
       ? ["top-0 left-2 -translate-y-1/2 text-xs font-medium", open.value ? "text-primary" : "text-foreground"]
-      : [floatingLabelRestSingle, "left-2"],
+      : [floatingLabelRestSingle, "left-2", "text-muted-foreground"],
     props.error && "text-destructive",
   ),
 );

@@ -33,7 +33,7 @@
           floatingLabelRestSingle,
           hasPrepend ? 'left-9' : 'left-2',
           floatingLabelFloated,
-          error ? 'text-destructive peer-focus:text-destructive' : '',
+          floatingLabelColor(error),
         ]"
         data-slot="floating-label"
       >
@@ -79,6 +79,7 @@ import { Check, Copy, X } from "@lucide/vue";
 import {
   LABEL_BG_VAR,
   floatingLabelBase,
+  floatingLabelColor,
   floatingLabelFloated,
   floatingLabelRestSingle,
   labelledPlaceholder,
