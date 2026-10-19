@@ -132,10 +132,18 @@ watch(
     const overlay = notebook.currentDoc?.background.overlay;
     return overlay?.type === "image" && overlay.source.kind === "inline" ? overlay.source.dataUrl : null;
   },
-  (src) => {
-    if (!src) { bgImage.value = null; return; }
+  (src, _previous, onCleanup) => {
+    // Bis das neue Bild geladen ist, kein Bild der vorherigen Seite zeigen.
+    bgImage.value = null;
+    if (!src) return;
+    let stale = false;
+    onCleanup(() => { stale = true; });
     const img = new Image();
-    img.onload = () => { bgImage.value = img; scheduleRender("bg"); };
+    img.onload = () => {
+      if (stale) return;
+      bgImage.value = img;
+      scheduleRender("bg");
+    };
     img.src = src;
   },
   { immediate: true },
