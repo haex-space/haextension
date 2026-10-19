@@ -1,4 +1,5 @@
 import {
+  assertCaldavStatus,
   buildAuthHeaders,
   formatTimeRange,
   parseMultistatus,
@@ -19,6 +20,7 @@ export function useCaldav() {
     username: string,
     password: string,
     extraHeaders: Record<string, string> = {},
+    { allowAnyStatus = false }: { allowAnyStatus?: boolean } = {},
   ): Promise<{ status: number; headers: Record<string, string>; text: string }> {
     const headers: Record<string, string> = {
       ...buildAuthHeaders(username, password),
@@ -34,6 +36,8 @@ export function useCaldav() {
       headers,
       body,
     })
+
+    if (!allowAnyStatus) assertCaldavStatus(response.status, response.statusText, method)
 
     const text = new TextDecoder().decode(response.body)
     return { status: response.status, headers: response.headers, text }
@@ -51,7 +55,10 @@ export function useCaldav() {
     let baseUrl = baseServerUrl
     const wellKnownUrl = baseServerUrl + "/.well-known/caldav"
 
-    const wellKnownResponse = await caldavRequest(wellKnownUrl, "GET", undefined, username, password)
+    // Redirects and 404 are both expected answers here.
+    const wellKnownResponse = await caldavRequest(wellKnownUrl, "GET", undefined, username, password, {}, {
+      allowAnyStatus: true,
+    })
     if ([301, 302, 303, 307, 308].includes(wellKnownResponse.status)) {
       const location = wellKnownResponse.headers["location"] || wellKnownResponse.headers["Location"]
       if (location) {

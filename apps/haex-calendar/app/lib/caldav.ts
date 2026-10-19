@@ -46,9 +46,25 @@ export interface MultistatusEntry {
   props: Record<string, string | null>
 }
 
+/**
+ * Throws unless the response is 2xx. The host's web API resolves on every
+ * HTTP status, and an error page parsed as "zero resources" would make sync
+ * delete the whole local calendar.
+ */
+export function assertCaldavStatus(status: number, statusText: string, method: string): void {
+  if (status < 200 || status >= 300) {
+    throw new Error(`CalDAV ${method} failed: ${status} ${statusText}`.trim())
+  }
+}
+
 export function parseMultistatus(xmlText: string): MultistatusEntry[] {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlText, "application/xml")
+
+  const root = doc.documentElement
+  if (!root || root.namespaceURI !== "DAV:" || root.localName !== "multistatus") {
+    throw new Error("CalDAV response is not a DAV:multistatus document")
+  }
 
   const responses = doc.getElementsByTagNameNS("DAV:", "response")
   const entries: MultistatusEntry[] = []

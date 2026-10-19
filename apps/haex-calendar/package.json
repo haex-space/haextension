@@ -8,6 +8,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "test": "vitest run",
     "postinstall": "nuxt prepare",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -46,6 +47,8 @@
     "@tailwindcss/vite": "^4.1.18",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
-    "tailwindcss": "^4.1.18"
+    "jsdom": "^27.4.0",
+    "tailwindcss": "^4.1.18",
+    "vitest": "^3.2.4"
   }
 }
