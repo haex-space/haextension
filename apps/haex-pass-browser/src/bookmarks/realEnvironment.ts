@@ -35,6 +35,11 @@ export function createRealNativeBookmarksApi(browserFamily: BrowserFamily): Nati
       return tree as unknown as NativeBookmarkNode[]
     },
 
+    async getChildren(id) {
+      const children = await browser.bookmarks.getChildren(id)
+      return children as unknown as NativeBookmarkNode[]
+    },
+
     async create(details: NativeCreateDetails) {
       const createDetails: Record<string, unknown> = {
         parentId: details.parentId,

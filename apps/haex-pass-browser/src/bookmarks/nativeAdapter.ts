@@ -41,6 +41,7 @@ export interface NativeBookmarksApi {
   /** Whether this browser can materialize a `kind: 'separator'` node. */
   supportsSeparators: boolean
   getTree: () => Promise<NativeBookmarkNode[]>
+  getChildren: (id: string) => Promise<NativeBookmarkNode[]>
   create: (details: NativeCreateDetails) => Promise<NativeBookmarkNode>
   update: (id: string, changes: { title?: string, url?: string }) => Promise<void>
   move: (id: string, destination: { parentId: string, index: number }) => Promise<void>
@@ -84,6 +85,16 @@ export function nativeKind(node: NativeBookmarkNode): BookmarkNodeKind {
   return 'folder'
 }
 
+/**
+ * Vault positions can point past the parent's current children (skipped
+ * separators, siblings deleted elsewhere, creates in diff order). Chromium
+ * rejects such an index, so append instead.
+ */
+async function clampIndex(api: NativeBookmarksApi, parentId: string, index: number): Promise<number> {
+  const siblings = await api.getChildren(parentId)
+  return Math.min(Math.max(index, 0), siblings.length)
+}
+
 async function journaledRemove(api: NativeBookmarksApi, journal: JournalHandle, browserId: string): Promise<void> {
   const op: PendingBrowserOperation = {
     opId: crypto.randomUUID(),
@@ -117,7 +128,8 @@ async function journaledCreate(
     expected: { title: details.title, url: details.url ?? null, index: details.index, kind: details.kind },
   }
   await journal.appendPending(op)
-  const created = await api.create({ ...details, parentId: parentBrowserId })
+  const index = await clampIndex(api, parentBrowserId, details.index)
+  const created = await api.create({ ...details, index, parentId: parentBrowserId })
   await journal.resolvePending(op.opId)
   return created.id
 }
@@ -330,7 +342,7 @@ export async function applyDiff(
       expected: { title: node.title ?? '', url: node.url, index: node.position },
     }
     await journal.appendPending(op)
-    await api.move(browserId, { parentId: parentBrowserId, index: node.position })
+    await api.move(browserId, { parentId: parentBrowserId, index: await clampIndex(api, parentBrowserId, node.position) })
     await journal.resolvePending(op.opId)
   }
 
@@ -389,7 +401,7 @@ export async function recoverJournal(
           parentId: op.parentBrowserId!,
           title: op.expected.title,
           url: op.expected.url ?? undefined,
-          index: op.expected.index,
+          index: await clampIndex(api, op.parentBrowserId!, op.expected.index),
           kind: op.expected.kind ?? (op.expected.url !== null ? 'bookmark' : 'folder'),
         })
         bindings = addBinding(bindings, { haexId: op.haexId, browserId: created.id, bindingType: 'node' })
@@ -417,7 +429,7 @@ export async function recoverJournal(
         await api.update(op.browserId!, { title: op.expected.title, url: op.expected.url ?? undefined })
       }
       if (op.type === 'move' && op.parentBrowserId && node.parentId !== op.parentBrowserId) {
-        await api.move(op.browserId!, { parentId: op.parentBrowserId, index: op.expected.index })
+        await api.move(op.browserId!, { parentId: op.parentBrowserId, index: await clampIndex(api, op.parentBrowserId, op.expected.index) })
       }
     }
     await journal.resolvePending(op.opId)

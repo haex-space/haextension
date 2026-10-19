@@ -135,6 +135,10 @@ class FakeDeviceEnvironment implements NativeBookmarksApi {
     return cloneTree(this.roots)
   }
 
+  async getChildren(id: string) {
+    return cloneTree(this.index.get(id)?.node.children ?? [])
+  }
+
   async create(details: { parentId: string, title: string, url?: string, index: number, kind: 'folder' | 'bookmark' | 'separator' }) {
     const entry = this.index.get(details.parentId)
     if (!entry)
@@ -149,6 +153,9 @@ class FakeDeviceEnvironment implements NativeBookmarksApi {
       children: details.kind === 'folder' ? [] : undefined,
     }
     entry.node.children ??= []
+    // Mirrors Chromium, which rejects an index past the current child count.
+    if (details.index > entry.node.children.length)
+      throw new Error('Index out of bounds.')
     entry.node.children.splice(details.index, 0, node)
     this.reindex()
     return { ...node }
@@ -168,6 +175,9 @@ class FakeDeviceEnvironment implements NativeBookmarksApi {
     const entry = this.index.get(id)
     if (!entry)
       throw new Error('not found')
+    const targetEntry = this.index.get(destination.parentId)
+    if (destination.index > (targetEntry?.node.children?.length ?? 0))
+      throw new Error('Index out of bounds.')
     const oldSiblings = entry.parent ? (entry.parent.children ?? []) : this.roots
     const idx = oldSiblings.indexOf(entry.node)
     if (idx >= 0)
