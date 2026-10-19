@@ -275,11 +275,18 @@ export const useNotebookStore = defineStore("notebook", () => {
     const db = haexVault.orm;
     if (!db || currentPages.value.length <= 1) return;
 
+    await flushAsync();
+
     const page = currentPages.value[index]!;
+    const currentId = currentPage.value?.id;
     // Soft-delete: set deletedAt instead of removing
     await db.update(pages).set({ deletedAt: new Date() }).where(eq(pages.id, page.id));
 
     currentPages.value.splice(index, 1);
+    // Die angezeigte Seite bleibt dieselbe, auch wenn davor eine wegfällt.
+    const stillOpen = currentPages.value.findIndex((p) => p.id === currentId);
+    currentPageIndex.value = stillOpen >= 0 ? stillOpen : Math.min(index, currentPages.value.length - 1);
+    loadPageIntoState();
 
     // Renumber remaining
     for (let i = 0; i < currentPages.value.length; i++) {
@@ -289,11 +296,6 @@ export const useNotebookStore = defineStore("notebook", () => {
         p.pageNumber = i;
       }
     }
-
-    if (currentPageIndex.value >= currentPages.value.length) {
-      currentPageIndex.value = currentPages.value.length - 1;
-    }
-    loadPageIntoState();
   };
 
   const togglePageOrientationAsync = async () => {
