@@ -1,6 +1,6 @@
 import { toast } from "vue-sonner";
 import type { AccountWithCredentials } from "~/stores/accounts";
-import { ALL_ACCOUNTS_ID } from "~/stores/mail";
+import { ALL_ACCOUNTS_ID } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
 
 /**

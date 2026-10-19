@@ -1,30 +1,17 @@
 import type * as schema from "~/database/schemas";
-import { isMessageFlagged, isMessageUnread, senderText } from "~/lib/mail";
+import {
+  ALL_ACCOUNTS_ID,
+  isMessageFlagged,
+  isMessageUnread,
+  senderText,
+  type MessageSortField,
+} from "~/lib/mail";
 import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
 import { useMessageBody } from "./mail/message";
 import { useReplyBuilder } from "./mail/reply";
 import { useMailSync } from "./mail/sync";
 import { useNewMailWatch } from "./mail/watch";
-
-/**
- * Pseudo-account id for the unified view across all accounts. Folder
- * selection then works by mailbox *role* instead of name (per-account
- * inbox/trash names differ).
- */
-export const ALL_ACCOUNTS_ID = "__all__";
-
-/** Field the message list can be sorted by (shared: list UI + keyboard nav). */
-export type MessageSortField = "date" | "subject" | "sender" | "flagged" | "read";
-
-/** Ordered sort options for the sort dropdown (shared between desktop and mobile). */
-export const SORT_OPTIONS: { field: MessageSortField; labelKey: string }[] = [
-  { field: "date", labelKey: "sortDate" },
-  { field: "subject", labelKey: "sortSubject" },
-  { field: "sender", labelKey: "sortSender" },
-  { field: "flagged", labelKey: "sortFlagged" },
-  { field: "read", labelKey: "sortRead" },
-];
 
 /**
  * Currently-selected account + mailbox + message. The mail UI is

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowUpDown, ChevronDown, ChevronUp } from "@lucide/vue";
-import { SORT_OPTIONS } from "~/stores/mail";
+import { SORT_OPTIONS } from "~/lib/mail";
 
 /**
  * Sort dropdown for the message list — used in the desktop list header
