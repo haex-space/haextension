@@ -1,12 +1,12 @@
 import type { ExternalConnection } from '@haex-space/vault-sdk'
 import type { EncryptedMessage, KeyPair } from './crypto'
 import type { AuthorizationUpdate, EncryptedEnvelope, HandshakeResponse, ProtocolMessage } from './protocol'
-import { HAEX_PASS_METHODS } from '@haex-pass/api'
 import {
 
   ExternalConnectionErrorCode,
   ExternalConnectionState,
 } from '@haex-space/vault-sdk'
+import { HAEX_PASS_METHODS } from '~/logic/haexPassApi'
 import { getWebSocketPort } from '~/logic/settings'
 import {
   createEncryptedMessage,
