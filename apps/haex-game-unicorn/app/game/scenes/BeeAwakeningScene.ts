@@ -373,8 +373,22 @@ export class BeeAwakeningScene extends Phaser.Scene {
 
           this.isCollectingNectar = false
           this.collectTarget = null
+
+          if (this.earlyFlowers.every(f => !f.hasNectar)) {
+            this.refillFlowers()
+          }
         })
       },
+    })
+  }
+
+  /** Energy drains forever but nectar is finite, so empty flowers refill to keep the chapter winnable. */
+  private refillFlowers() {
+    this.time.delayedCall(1500, () => {
+      for (const flower of this.earlyFlowers) {
+        flower.hasNectar = true
+        flower.sprite.setAlpha(1)
+      }
     })
   }
 
