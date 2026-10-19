@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { makeDroppable } from "@vue-dnd-kit/core";
 import type { IDragEvent } from "@vue-dnd-kit/core";
+import { reportError } from "~/lib/errors";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { SelectPage } from "~/database/schemas";
 
@@ -21,25 +22,7 @@ const getTemplateLabel = (page: SelectPage) => {
 function applySort(e: IDragEvent) {
   const result = e.helpers.suggestSort("vertical");
   if (!result) return;
-
-  // Apply reorder in-memory
-  notebook.currentPages = result.sourceItems as SelectPage[];
-
-  // Persist new page numbers
-  const haexVault = useHaexVaultStore();
-  const db = haexVault.orm;
-  if (db) {
-    import("~/database/schemas").then(({ pages }) => {
-      import("drizzle-orm").then(({ eq }) => {
-        notebook.currentPages.forEach(async (p, i) => {
-          if (p.pageNumber !== i) {
-            await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-            p.pageNumber = i;
-          }
-        });
-      });
-    });
-  }
+  notebook.reorderPagesAsync(result.sourceItems as SelectPage[]).catch(reportError);
 }
 
 makeDroppable(listRef, {

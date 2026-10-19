@@ -240,17 +240,17 @@ export const useNotebookStore = defineStore("notebook", () => {
     loadPageIntoState();
   };
 
-  const reorderPagesAsync = async (fromIndex: number, toIndex: number) => {
+  /** Übernimmt eine neue Seitenreihenfolge; die geöffnete Seite bleibt geöffnet. */
+  const reorderPagesAsync = async (newOrder: SelectPage[]) => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
-    if (fromIndex === toIndex) return;
 
-    // Save current page first
     await flushAsync();
 
-    // Reorder in-memory
-    const moved = currentPages.value.splice(fromIndex, 1)[0]!;
-    currentPages.value.splice(toIndex, 0, moved);
+    const currentId = currentPage.value?.id;
+    currentPages.value = newOrder;
+    const stillOpen = newOrder.findIndex((p) => p.id === currentId);
+    if (stillOpen >= 0) currentPageIndex.value = stillOpen;
 
     // Update page numbers in DB
     for (let i = 0; i < currentPages.value.length; i++) {
@@ -259,15 +259,6 @@ export const useNotebookStore = defineStore("notebook", () => {
         await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
         p.pageNumber = i;
       }
-    }
-
-    // Keep current page selected
-    if (currentPageIndex.value === fromIndex) {
-      currentPageIndex.value = toIndex;
-    } else if (fromIndex < currentPageIndex.value && toIndex >= currentPageIndex.value) {
-      currentPageIndex.value--;
-    } else if (fromIndex > currentPageIndex.value && toIndex <= currentPageIndex.value) {
-      currentPageIndex.value++;
     }
   };
 
