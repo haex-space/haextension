@@ -6,12 +6,20 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/extension-build.yml'
     tags-ignore:
       - '*'
   pull_request:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/extension-build.yml'
 
 jobs:
   detect-changes:
@@ -48,9 +56,11 @@ jobs:
           # instead of silently yielding an empty matrix.
           ALL_EXTENSIONS=$(node scripts/extensions.js)
 
+          GLOBAL_CHANGE=$(echo "$CHANGED_FILES" | grep -Eq '^(packages/|scripts/|package.json$|pnpm-lock.yaml$|\.github/workflows/extension-build\.yml$)' && echo true || echo false)
+
           EXTENSIONS=()
           for ext in $ALL_EXTENSIONS; do
-            if echo "$CHANGED_FILES" | grep -q "^apps/${ext}/" || echo "$CHANGED_FILES" | grep -q "^packages/"; then
+            if [ "$GLOBAL_CHANGE" = true ] || echo "$CHANGED_FILES" | grep -q "^apps/${ext}/"; then
               EXTENSIONS+=("\"${ext}\"")
             fi
           done
