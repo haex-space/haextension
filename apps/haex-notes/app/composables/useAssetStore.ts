@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { assets, type SelectAsset } from "~/database/schemas";
-import { assetRelPath, extensionFor, sha256Hex } from "~/lib/assetPath";
+import { assetRelPath, extensionFor, isSha256Hex, sha256Hex } from "~/lib/assetPath";
 
 /** Verzeichnis unterhalb des Dokumenten-Ordners. */
 const ASSET_DIR = "haex-notes/assets";
@@ -91,7 +91,7 @@ export function useAssetStore() {
    */
   async function readAsync(assetId: string): Promise<Uint8Array | null> {
     const asset = await metaAsync(assetId);
-    if (!asset) return null;
+    if (!asset || !isSha256Hex(asset.sha256)) return null;
     const fs = haexVault.client.filesystem;
     const path = await absolutePathAsync(asset);
     if (!(await fs.exists(path).catch(() => false))) return null;

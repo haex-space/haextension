@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { makeDroppable } from "@vue-dnd-kit/core";
 import type { IDragEvent } from "@vue-dnd-kit/core";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { reportError } from "~/lib/errors";
+import { pageTemplateLabel } from "~/utils/pageTemplates";
 import type { SelectPage } from "~/database/schemas";
 
 const { locale } = useI18n();
@@ -9,37 +10,10 @@ const notebook = useNotebookStore();
 
 const listRef = useTemplateRef<HTMLElement>("listRef");
 
-// Prefer the migrated background.template; fall back to the legacy column so
-// pages that have never been saved under the new model still get a label.
-const getTemplateLabel = (page: SelectPage) => {
-  const template = page.background?.template ?? page.template;
-  const tmpl = PAGE_TEMPLATES.find(t => t.id === template);
-  if (!tmpl) return template;
-  return locale.value === "de" ? tmpl.i18n.de : tmpl.i18n.en;
-};
-
 function applySort(e: IDragEvent) {
   const result = e.helpers.suggestSort("vertical");
   if (!result) return;
-
-  // Apply reorder in-memory
-  notebook.currentPages = result.sourceItems as SelectPage[];
-
-  // Persist new page numbers
-  const haexVault = useHaexVaultStore();
-  const db = haexVault.orm;
-  if (db) {
-    import("~/database/schemas").then(({ pages }) => {
-      import("drizzle-orm").then(({ eq }) => {
-        notebook.currentPages.forEach(async (p, i) => {
-          if (p.pageNumber !== i) {
-            await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-            p.pageNumber = i;
-          }
-        });
-      });
-    });
-  }
+  notebook.reorderPagesAsync(result.sourceItems as SelectPage[]).catch(reportError);
 }
 
 makeDroppable(listRef, {
@@ -62,7 +36,7 @@ makeDroppable(listRef, {
         :items="notebook.currentPages"
         :is-active="idx === notebook.currentPageIndex"
         :can-delete="notebook.currentPages.length > 1"
-        :template-label="getTemplateLabel(page)"
+        :template-label="pageTemplateLabel(page, locale)"
         @select="notebook.goToPage(idx)"
         @delete="notebook.deletePageAsync(idx)"
       />

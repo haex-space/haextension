@@ -18,6 +18,8 @@ const emit = defineEmits<{
   delete: [];
 }>();
 
+const { t } = useI18n();
+
 const itemRef = useTemplateRef<HTMLElement>("itemRef");
 
 const { isDragging, isDragOver } = makeDraggable(itemRef, {
@@ -51,7 +53,7 @@ const placement = computed<IPlacement | undefined>(() => isDragOver.value);
       class="min-w-0 flex-1 text-left"
       @click="emit('select')"
     >
-      <div class="text-xs font-medium text-foreground">Seite {{ index + 1 }}</div>
+      <div class="text-xs font-medium text-foreground">{{ t("page", { number: index + 1 }) }}</div>
       <div class="text-[10px] text-muted-foreground truncate">{{ templateLabel }}</div>
     </button>
 
@@ -65,3 +67,10 @@ const placement = computed<IPlacement | undefined>(() => isDragOver.value);
     </button>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  page: "Seite {number}"
+en:
+  page: "Page {number}"
+</i18n>

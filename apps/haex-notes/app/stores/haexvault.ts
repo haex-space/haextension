@@ -1,11 +1,5 @@
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import * as schema from "~/database/schemas";
-import {
-  isPermissionPromptError,
-  isPermissionDeniedError,
-  type PermissionPromptError,
-  type PermissionDeniedError,
-} from "@haex-space/vault-sdk";
 
 const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
   query: "?raw",
@@ -13,17 +7,11 @@ const migrationFiles = import.meta.glob("../database/migrations/*.sql", {
   eager: true,
 });
 
-export { isPermissionPromptError, isPermissionDeniedError, type PermissionPromptError, type PermissionDeniedError };
-
 export const useHaexVaultStore = defineStore("haexvault", () => {
   const nuxtApp = useNuxtApp();
 
   const isInitialized = ref(false);
   const orm = shallowRef<SqliteRemoteDatabase<typeof schema> | null>(null);
-
-  const pendingPermission = ref<PermissionPromptError | null>(null);
-  const pendingRetryFn = shallowRef<(() => Promise<void>) | null>(null);
-  const deniedPermission = ref<PermissionDeniedError | null>(null);
 
   const { currentThemeName, context } = storeToRefs(useUiStore());
   const { defaultLocale, locales, setLocale } = useI18n();
@@ -51,8 +39,17 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
     console.log(`[haex-notes] Migrations: ${result.appliedCount} applied, ${result.alreadyAppliedCount} already applied`);
   };
 
-  const initializeAsync = async () => {
-    if (isInitialized.value) return;
+  let initPromise: Promise<void> | null = null;
+
+  /**
+   * Läuft genau einmal pro Frame, auch bei parallelen Aufrufen mehrerer Seiten.
+   * Ein fehlgeschlagener Versuch bleibt bestehen: das SDK behält das abgelehnte
+   * Setup, und onSetup lässt sich kein zweites Mal registrieren. Ein neuer
+   * Versuch braucht deshalb einen Reload des Frames.
+   */
+  const initializeAsync = () => (initPromise ??= doInitializeAsync());
+
+  const doInitializeAsync = async () => {
     const haexVault = getHaexVault();
 
     console.log("[haex-notes] Initializing HaexVault SDK");
@@ -78,36 +75,11 @@ export const useHaexVaultStore = defineStore("haexvault", () => {
 
   const isReady = computed(() => isInitialized.value && orm.value !== null);
 
-  const setPermissionPrompt = (error: PermissionPromptError, retryFn: () => Promise<void>) => {
-    pendingPermission.value = error;
-    pendingRetryFn.value = retryFn;
-  };
-  const clearPermissionPrompt = () => {
-    pendingPermission.value = null;
-    pendingRetryFn.value = null;
-  };
-  const retryAfterPermissionAsync = async () => {
-    const retryFn = pendingRetryFn.value;
-    if (retryFn) {
-      clearPermissionPrompt();
-      await retryFn();
-    }
-  };
-  const setPermissionDenied = (error: PermissionDeniedError) => { deniedPermission.value = error; };
-  const clearPermissionDenied = () => { deniedPermission.value = null; };
-
   return {
     get client() { return getHaexVault().client; },
     get state() { return getHaexVault().state; },
     orm,
     isReady,
     initializeAsync,
-    pendingPermission: computed(() => pendingPermission.value),
-    setPermissionPrompt,
-    clearPermissionPrompt,
-    retryAfterPermissionAsync,
-    deniedPermission: computed(() => deniedPermission.value),
-    setPermissionDenied,
-    clearPermissionDenied,
   };
 });

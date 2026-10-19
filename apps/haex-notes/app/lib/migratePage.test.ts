@@ -44,6 +44,29 @@ describe("migratePageRow", () => {
     });
   });
 
+  it("falls back to the legacy columns when the stored layers are malformed", () => {
+    const malformed = [
+      { not: "an array" },
+      [{ id: "l1", visible: true, elements: [{ points: [] }] }],
+      [{ id: "l1", visible: true, elements: [{ id: "s9", type: "stroke" }] }],
+    ];
+    for (const layers of malformed) {
+      const { layers: migrated } = migratePageRow({ ...legacyRow, layers });
+      expect(migrated[0]!.elements.map((e) => e.id)).toEqual(["s1", "s2", "t1"]);
+    }
+  });
+
+  it("keeps element types it does not know yet", () => {
+    const future = { id: "x1", type: "hologram", bbox: [0, 0, 1, 1] };
+    const layers = [{ id: "l1", name: "Ebene 1", visible: true, locked: false, elements: [future] }];
+    expect(migratePageRow({ ...legacyRow, layers }).layers[0]!.elements).toEqual([future]);
+  });
+
+  it("falls back to the legacy background when the stored one is malformed", () => {
+    const { background } = migratePageRow({ ...legacyRow, background: { template: 5 } });
+    expect(background).toEqual({ paperColor: "#ffffff", template: "grid" });
+  });
+
   it("derives page size from the orientation", () => {
     expect(migratePageRow(legacyRow)).toMatchObject({ width: 794, height: 1123 });
     expect(migratePageRow({ ...legacyRow, orientation: "landscape" })).toMatchObject({ width: 1123, height: 794 });

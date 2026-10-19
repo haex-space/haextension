@@ -2,7 +2,7 @@
 import { useEventListener, useResizeObserver } from "@vueuse/core";
 import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
-import { drawElement, drawElements } from "~/lib/render/elements";
+import { drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
 
 const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
 const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
@@ -10,6 +10,7 @@ const contentCanvasEl = useTemplateRef<HTMLCanvasElement>("contentCanvasEl");
 const overlayCanvasEl = useTemplateRef<HTMLCanvasElement>("overlayCanvasEl");
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
+const { t } = useI18n();
 
 const pageSize = computed(() => {
   const doc = notebook.currentDoc;
@@ -61,11 +62,13 @@ function prepare(el: HTMLCanvasElement | null): CanvasRenderingContext2D | null 
   if (!ctx) return null;
 
   const dpr = window.devicePixelRatio || 1;
-  const cw = el.clientWidth;
-  const ch = el.clientHeight;
-  if (el.width !== cw * dpr || el.height !== ch * dpr) {
-    el.width = cw * dpr;
-    el.height = ch * dpr;
+  // Gerundet, sonst passt der Vergleich bei krummem DPR nie und der Canvas wird
+  // bei jedem Frame neu angelegt.
+  const width = Math.round(el.clientWidth * dpr);
+  const height = Math.round(el.clientHeight * dpr);
+  if (el.width !== width || el.height !== height) {
+    el.width = width;
+    el.height = height;
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -113,10 +116,12 @@ function renderBackground() {
   }
 }
 
+const strokePaths: StrokePathCache = new WeakMap();
+
 function renderContent() {
   const ctx = prepare(contentCanvasEl.value);
   if (!ctx) return;
-  drawElements(ctx, notebook.visibleElements);
+  drawElements(ctx, notebook.visibleElements, strokePaths);
 }
 
 function renderOverlay() {
@@ -132,10 +137,18 @@ watch(
     const overlay = notebook.currentDoc?.background.overlay;
     return overlay?.type === "image" && overlay.source.kind === "inline" ? overlay.source.dataUrl : null;
   },
-  (src) => {
-    if (!src) { bgImage.value = null; return; }
+  (src, _previous, onCleanup) => {
+    // Bis das neue Bild geladen ist, kein Bild der vorherigen Seite zeigen.
+    bgImage.value = null;
+    if (!src) return;
+    let stale = false;
+    onCleanup(() => { stale = true; });
     const img = new Image();
-    img.onload = () => { bgImage.value = img; scheduleRender("bg"); };
+    img.onload = () => {
+      if (stale) return;
+      bgImage.value = img;
+      scheduleRender("bg");
+    };
     img.src = src;
   },
   { immediate: true },
@@ -229,20 +242,30 @@ function hitTestTableLines(px: number, py: number): TableHit | null {
   return null;
 }
 
+/**
+ * Zeiger, dem die laufende Geste (Strich, Tabellen-Drag, Pan) gehört. Weitere
+ * Finger oder der aufliegende Handballen dürfen sie weder ersetzen noch Punkte
+ * in den Strich schreiben.
+ */
+let gesturePointerId: number | null = null;
+
 const onPointerDown = (e: PointerEvent) => {
-  if (!overlayCanvasEl.value) return;
+  if (!overlayCanvasEl.value || gesturePointerId !== null) return;
+
+  // Middle or right click → pan
+  const isPan = e.button === 1 || e.button === 2;
+  if (!isPan && e.button !== 0) return;
+
+  gesturePointerId = e.pointerId;
   overlayCanvasEl.value.setPointerCapture(e.pointerId);
 
   const { x, y, pressure } = getPointerPos(e);
 
-  // Middle or right click → pan
-  if (e.button === 1 || e.button === 2) {
+  if (isPan) {
     isPanning.value = true;
     panStart.value = { x: x - viewport.x, y: y - viewport.y };
     return;
   }
-
-  if (e.button !== 0) return;
 
   const page = screenToPage(x, y);
 
@@ -252,7 +275,9 @@ const onPointerDown = (e: PointerEvent) => {
   // Check table line hit first
   const hit = hitTestTableLines(page.x, page.y);
   if (hit) {
-    const gestureId = String(e.pointerId);
+    // Pro Geste neu: die pointerId der Maus ist immer dieselbe und würde
+    // getrennte Drags zu einem Undo-Schritt verschmelzen.
+    const gestureId = crypto.randomUUID();
     if (hit.type === "col") {
       tableDrag.value = { hit, startVal: hit.table.columnWidths[hit.index]!, startX: page.x, startY: page.y, gestureId };
     } else if (hit.type === "row") {
@@ -280,6 +305,7 @@ const onPointerDown = (e: PointerEvent) => {
 
 const onPointerMove = (e: PointerEvent) => {
   if (!overlayCanvasEl.value) return;
+  if (gesturePointerId !== null && e.pointerId !== gesturePointerId) return;
   const { x, y, pressure } = getPointerPos(e);
 
   if (isPanning.value) {
@@ -323,7 +349,10 @@ const onPointerMove = (e: PointerEvent) => {
   }
 };
 
-const onPointerUp = () => {
+const onPointerUp = (e: PointerEvent) => {
+  if (e.pointerId !== gesturePointerId) return;
+  gesturePointerId = null;
+
   if (isPanning.value) {
     isPanning.value = false;
     return;
@@ -346,7 +375,8 @@ const onPointerUp = () => {
 
 const onWheel = (e: WheelEvent) => {
   e.preventDefault();
-  if (!overlayCanvasEl.value) return;
+  // Horizontales Wischen auf dem Trackpad ist kein Zoom.
+  if (!overlayCanvasEl.value || e.deltaY === 0) return;
   const rect = overlayCanvasEl.value.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
@@ -364,6 +394,8 @@ useEventListener(overlayCanvasEl, "pointerdown", onPointerDown);
 useEventListener(overlayCanvasEl, "pointermove", onPointerMove);
 useEventListener(overlayCanvasEl, "pointerup", onPointerUp);
 useEventListener(overlayCanvasEl, "pointerleave", onPointerUp);
+useEventListener(overlayCanvasEl, "pointercancel", onPointerUp);
+useEventListener(overlayCanvasEl, "lostpointercapture", onPointerUp);
 useEventListener(overlayCanvasEl, "contextmenu", (e: MouseEvent) => {
   e.preventDefault();
   // Show table context menu on right-click
@@ -407,13 +439,13 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         @click="notebook.addTableRow(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Zeile hinzufügen
+        {{ t("addRow") }}
       </button>
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         @click="notebook.addTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Spalte hinzufügen
+        {{ t("addColumn") }}
       </button>
       <div class="my-1 h-px bg-border" />
       <button
@@ -421,22 +453,37 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
         :class="tableContextMenu!.table.rows <= 1 ? 'opacity-30 pointer-events-none' : ''"
         @click="notebook.removeTableRow(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Zeile entfernen
+        {{ t("removeRow") }}
       </button>
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         :class="tableContextMenu!.table.columns <= 1 ? 'opacity-30 pointer-events-none' : ''"
         @click="notebook.removeTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Spalte entfernen
+        {{ t("removeColumn") }}
       </button>
       <div class="my-1 h-px bg-border" />
       <button
         class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
         @click="notebook.removeTable(tableContextMenu!.table.id); tableContextMenu = null"
       >
-        Tabelle löschen
+        {{ t("deleteTable") }}
       </button>
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  addRow: Zeile hinzufügen
+  addColumn: Spalte hinzufügen
+  removeRow: Zeile entfernen
+  removeColumn: Spalte entfernen
+  deleteTable: Tabelle löschen
+en:
+  addRow: Add row
+  addColumn: Add column
+  removeRow: Remove row
+  removeColumn: Remove column
+  deleteTable: Delete table
+</i18n>

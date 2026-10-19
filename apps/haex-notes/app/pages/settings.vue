@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ArrowLeft } from "@lucide/vue";
+import { reportError } from "~/lib/errors";
+import packageJson from "../../package.json";
 
-const { t, locale, setLocale } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
-const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const pencilCase = usePencilCaseStore();
 
@@ -18,12 +19,12 @@ onMounted(async () => {
 const goBack = () => router.back();
 
 const onMaxSlotsChange = (val: number) => {
-  pencilCase.setMaxSlots(val);
+  pencilCase.setMaxSlots(val).catch(reportError);
 };
 </script>
 
 <template>
-  <div v-if="isLoaded" class="flex h-full flex-col bg-background">
+  <div class="flex h-full flex-col bg-background">
     <!-- Header -->
     <header class="flex items-center gap-3 border-b border-border px-4 py-3">
       <button
@@ -36,7 +37,7 @@ const onMaxSlotsChange = (val: number) => {
     </header>
 
     <!-- Settings Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div v-if="isLoaded" class="flex-1 overflow-y-auto p-6">
       <div class="mx-auto max-w-lg flex flex-col gap-6">
 
         <!-- Pencil Case -->
@@ -59,32 +60,10 @@ const onMaxSlotsChange = (val: number) => {
           </div>
         </div>
 
-        <!-- Language -->
-        <div class="rounded-xl border border-border p-4">
-          <h2 class="mb-3 text-sm font-semibold text-foreground">{{ t("language") }}</h2>
-
-          <div class="flex gap-2">
-            <button
-              class="rounded-lg px-4 py-2 text-sm transition-colors"
-              :class="locale === 'de' ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'"
-              @click="setLocale('de')"
-            >
-              Deutsch
-            </button>
-            <button
-              class="rounded-lg px-4 py-2 text-sm transition-colors"
-              :class="locale === 'en' ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'"
-              @click="setLocale('en')"
-            >
-              English
-            </button>
-          </div>
-        </div>
-
         <!-- About -->
         <div class="rounded-xl border border-border p-4">
           <h2 class="mb-2 text-sm font-semibold text-foreground">{{ t("about") }}</h2>
-          <p class="text-xs text-muted-foreground">haex-notes v0.1.0</p>
+          <p class="text-xs text-muted-foreground">haex-notes v{{ packageJson.version }}</p>
           <p class="text-xs text-muted-foreground">{{ t("aboutDesc") }}</p>
         </div>
 
@@ -98,14 +77,12 @@ de:
   title: Einstellungen
   pencilCase: Federkästchen
   maxSlots: Maximale Stift-Anzahl
-  language: Sprache
   about: Über
   aboutDesc: Digitales Notizbuch für handschriftliche Notizen
 en:
   title: Settings
   pencilCase: Pencil Case
   maxSlots: Maximum pen slots
-  language: Language
   about: About
   aboutDesc: Digital notebook for handwritten notes
 </i18n>

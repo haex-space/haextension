@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Plus, BookOpen, Share2, Users } from "@lucide/vue";
 import type { SelectNotebook, PageTemplate } from "~/database/schemas";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
+import { getErrorMessage, reportError } from "~/lib/errors";
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const localePath = useLocalePath();
 const haexVault = useHaexVaultStore();
 const notebookStore = useNotebookStore();
 const pencilCaseStore = usePencilCaseStore();
@@ -33,24 +33,27 @@ const initAsync = async () => {
     isLoaded.value = true;
   } catch (err) {
     console.error("[haex-notes] Failed to load notebooks:", err);
-    loadError.value = err instanceof Error ? err.message : String(err);
+    loadError.value = getErrorMessage(err);
   }
 };
 
 onMounted(initAsync);
 
+// Ein fehlgeschlagenes SDK-Setup lässt sich im selben Frame nicht wiederholen.
+const reloadFrame = () => window.location.reload();
+
 const createNotebook = async () => {
-  const name = newName.value.trim() || "Notizbuch";
+  const name = newName.value.trim() || t("defaultName");
   const id = await notebookStore.createNotebookAsync(name, newTemplate.value, newColor.value);
   if (id) {
     showNewDialog.value = false;
     newName.value = "";
-    router.push(localePath(`/notebook/${id}`));
+    router.push(`/notebook/${id}`);
   }
 };
 
 const openNotebook = (id: string) => {
-  router.push(localePath(`/notebook/${id}`));
+  router.push(`/notebook/${id}`);
 };
 
 const deleteNotebook = async (id: string) => {
@@ -76,7 +79,7 @@ const showShareDialog = computed({
   set: (v) => {
     if (!v) {
       shareNotebookId.value = null;
-      loadNotebooks(); // refresh shared badges after (un)sharing
+      loadNotebooks().catch(reportError); // refresh shared badges after (un)sharing
     }
   },
 });
@@ -199,7 +202,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
               class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option v-for="tmpl in PAGE_TEMPLATES" :key="tmpl.id" :value="tmpl.id">
-                {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
+                {{ templateLabel(tmpl.id, locale) }}
               </option>
             </select>
           </div>
@@ -240,7 +243,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
     <p class="max-w-md text-xs text-muted-foreground">{{ loadError }}</p>
     <button
       class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      @click="initAsync"
+      @click="reloadFrame"
     >
       {{ t("retry") }}
     </button>
@@ -249,6 +252,7 @@ const openShare = (id: string) => { shareNotebookId.value = id; };
 
 <i18n lang="yaml">
 de:
+  defaultName: Notizbuch
   newNotebook: Neues Notizbuch
   emptyState: Noch keine Notizbücher vorhanden
   createFirst: Erstelle dein erstes Notizbuch
@@ -264,6 +268,7 @@ de:
   share: Teilen
   shared: In einem Space geteilt
 en:
+  defaultName: Notebook
   newNotebook: New Notebook
   emptyState: No notebooks yet
   createFirst: Create your first notebook

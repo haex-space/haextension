@@ -28,9 +28,13 @@ export function createUndoStack(maxDepth: number = MAX_UNDO_DEPTH) {
     const next = commands.value.slice(0, index.value + 1);
     const top = next[next.length - 1];
 
-    if (top && command.mergeKey && top.mergeKey === command.mergeKey && top.merge) {
-      top.merge(command);
-    } else {
+    const merged = top !== undefined
+      && command.mergeKey !== undefined
+      && top.mergeKey === command.mergeKey
+      && top.pageId === command.pageId
+      && (top.merge?.(command) ?? false);
+
+    if (!merged) {
       next.push(command);
       while (next.length > maxDepth) next.shift();
     }

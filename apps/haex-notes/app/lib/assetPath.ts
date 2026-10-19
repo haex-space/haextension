@@ -31,6 +31,16 @@ export function extensionFor(mimeType: string, fileName?: string): string {
   return /^[a-z0-9]{1,8}$/.test(candidate) ? candidate : "bin";
 }
 
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/**
+ * Asset-Zeilen können aus einem Shared Space stammen. Weil der Hash den
+ * Dateipfad bildet, muss er geprüft werden, bevor er ihn verlassen könnte.
+ */
+export function isSha256Hex(value: string): boolean {
+  return SHA256_HEX.test(value);
+}
+
 /**
  * Pfad einer Datei relativ zum Asset-Wurzelverzeichnis.
  *
@@ -38,5 +48,6 @@ export function extensionFor(mimeType: string, fileName?: string): string {
  * Einträge bekommt — das ist auf manchen Dateisystemen spürbar langsam.
  */
 export function assetRelPath(sha256: string, extension: string): string {
+  if (!isSha256Hex(sha256)) throw new Error(`[haex-notes] Invalid asset hash: ${sha256}`);
   return `${sha256.slice(0, 2)}/${sha256}.${extension}`;
 }

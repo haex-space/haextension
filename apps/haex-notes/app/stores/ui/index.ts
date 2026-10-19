@@ -1,7 +1,8 @@
 import { watchImmediate } from "@vueuse/core";
+import type { ApplicationContext } from "@haex-space/vault-sdk";
 
 export const useUiStore = defineStore("ui", () => {
-  const context = ref<any>(null);
+  const context = ref<ApplicationContext | null>(null);
   const currentThemeName = ref<"dark" | "light">("dark");
 
   const colorMode = useColorMode();

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { X, Trash2, RotateCcw, ChevronDown } from "@lucide/vue";
 import { DnDProvider } from "@vue-dnd-kit/core";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
+import { pageTemplateLabel } from "~/utils/pageTemplates";
 import type { SelectPage } from "~/database/schemas";
 
 const emit = defineEmits<{
@@ -40,15 +40,6 @@ const emptyTrash = async () => {
   if (!notebook.currentNotebook) return;
   await notebook.emptyTrashAsync(notebook.currentNotebook.id);
   trashedPages.value = [];
-};
-
-// Prefer the migrated background.template; fall back to the legacy column so
-// pages that have never been saved under the new model still get a label.
-const getTemplateLabel = (page: SelectPage) => {
-  const template = page.background?.template ?? page.template;
-  const tmpl = PAGE_TEMPLATES.find(t => t.id === template);
-  if (!tmpl) return template;
-  return locale.value === "de" ? tmpl.i18n.de : tmpl.i18n.en;
 };
 </script>
 
@@ -100,7 +91,7 @@ const getTemplateLabel = (page: SelectPage) => {
             @click="emit('previewTrashPage', page)"
           >
             <div class="min-w-0 flex-1">
-              <div class="text-xs text-muted-foreground">{{ getTemplateLabel(page) }}</div>
+              <div class="text-xs text-muted-foreground">{{ pageTemplateLabel(page, locale) }}</div>
             </div>
             <button
               class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"

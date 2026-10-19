@@ -1,21 +1,17 @@
 import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
 import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTemplate } from "~/database/schemas";
-import { FULL_PAGES_TABLE } from "~/stores/spaces";
 import { reactive } from "vue";
 import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
-import {
-  addElements,
-  setPageBackground,
-  type Command,
-  type PageDoc,
-} from "~/lib/commands";
+import { addElements, type Command, type PageDoc } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
 import { migratePageRow, serializePageDoc } from "~/lib/migratePage";
 import { createTableActions } from "~/lib/tableActions";
+import { FULL_PAGES_TABLE } from "~/lib/tableNames";
 import { createUndoStack } from "~/lib/undoStack";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
+  const spaces = useSpacesStore();
 
   // Current notebook
   const currentNotebook = ref<SelectNotebook | null>(null);
@@ -73,7 +69,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     if (current?.id === pageId) return;
     const index = currentPages.value.findIndex((p) => p.id === pageId);
     if (index < 0) return;
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
     currentPageIndex.value = index;
     loadPageIntoState();
   };
@@ -95,6 +91,23 @@ export const useNotebookStore = defineStore("notebook", () => {
 
   const canUndo = undoStack.canUndo;
   const canRedo = undoStack.canRedo;
+
+  type Db = NonNullable<typeof haexVault.orm>;
+
+  /** Seiten eines Notizbuchs außerhalb des Papierkorbs, in Seitenreihenfolge. */
+  const listActivePagesAsync = (db: Db, notebookId: string) =>
+    db.select().from(pages)
+      .where(and(eq(pages.notebookId, notebookId), isNull(pages.deletedAt)))
+      .orderBy(asc(pages.pageNumber));
+
+  /** Schreibt die Position jeder Seite in `currentPages` als pageNumber zurück. */
+  const persistPageNumbersAsync = async (db: Db) => {
+    for (const [i, p] of currentPages.value.entries()) {
+      if (p.pageNumber === i) continue;
+      await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
+      p.pageNumber = i;
+    }
+  };
 
   // --- Notebook CRUD ---
 
@@ -148,7 +161,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     if (result.length === 0) return false;
 
     currentNotebook.value = result[0]!;
-    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, id);
     docs.clear();
     undoStack.clear();
     currentStroke.value = null;
@@ -174,7 +187,7 @@ export const useNotebookStore = defineStore("notebook", () => {
   const goToPage = async (index: number) => {
     if (index < 0 || index >= currentPages.value.length) return;
     // Save current page first
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
     currentPageIndex.value = index;
     loadPageIntoState();
   };
@@ -185,6 +198,9 @@ export const useNotebookStore = defineStore("notebook", () => {
   const addPageAsync = async (template?: PageTemplate) => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
+
+    // Vor dem Neuladen sichern: danach zeigt der Index womöglich auf eine andere Zeile.
+    await flushAsync();
 
     const tmpl = template ?? currentNotebook.value.defaultTemplate as PageTemplate;
     const pageNumber = currentPages.value.length;
@@ -211,88 +227,45 @@ export const useNotebookStore = defineStore("notebook", () => {
       }
     }
 
-    // Reload pages
-    const allPages = await db.select().from(pages).where(eq(pages.notebookId, currentNotebook.value.id)).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, currentNotebook.value.id);
     currentPages.value = allPages;
 
-    // Navigate to new page
-    await goToPage(pageNumber);
+    await goToPage(allPages.findIndex((p) => p.id === pageId));
   };
 
-  const deleteCurrentPageAsync = async () => {
-    const db = haexVault.orm;
-    const page = currentPage.value;
-    if (!db || !page || currentPages.value.length <= 1) return;
-
-    await db.delete(pages).where(eq(pages.id, page.id));
-
-    // Reload and renumber
-    const allPages = await db.select().from(pages).where(eq(pages.notebookId, currentNotebook.value!.id)).orderBy(asc(pages.pageNumber));
-    for (let i = 0; i < allPages.length; i++) {
-      if (allPages[i]!.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, allPages[i]!.id));
-        allPages[i]!.pageNumber = i;
-      }
-    }
-    currentPages.value = allPages;
-    currentPageIndex.value = Math.min(currentPageIndex.value, allPages.length - 1);
-    loadPageIntoState();
-  };
-
-  const reorderPagesAsync = async (fromIndex: number, toIndex: number) => {
+  /** Übernimmt eine neue Seitenreihenfolge; die geöffnete Seite bleibt geöffnet. */
+  const reorderPagesAsync = async (newOrder: SelectPage[]) => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
-    if (fromIndex === toIndex) return;
 
-    // Save current page first
-    if (isDirty.value) await saveCurrentPageAsync();
+    await flushAsync();
 
-    // Reorder in-memory
-    const moved = currentPages.value.splice(fromIndex, 1)[0]!;
-    currentPages.value.splice(toIndex, 0, moved);
+    const currentId = currentPage.value?.id;
+    currentPages.value = newOrder;
+    const stillOpen = newOrder.findIndex((p) => p.id === currentId);
+    if (stillOpen >= 0) currentPageIndex.value = stillOpen;
 
-    // Update page numbers in DB
-    for (let i = 0; i < currentPages.value.length; i++) {
-      const p = currentPages.value[i]!;
-      if (p.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-        p.pageNumber = i;
-      }
-    }
-
-    // Keep current page selected
-    if (currentPageIndex.value === fromIndex) {
-      currentPageIndex.value = toIndex;
-    } else if (fromIndex < currentPageIndex.value && toIndex >= currentPageIndex.value) {
-      currentPageIndex.value--;
-    } else if (fromIndex > currentPageIndex.value && toIndex <= currentPageIndex.value) {
-      currentPageIndex.value++;
-    }
+    await persistPageNumbersAsync(db);
   };
 
   const deletePageAsync = async (index: number) => {
     const db = haexVault.orm;
     if (!db || currentPages.value.length <= 1) return;
 
+    await flushAsync();
+
     const page = currentPages.value[index]!;
+    const currentId = currentPage.value?.id;
     // Soft-delete: set deletedAt instead of removing
     await db.update(pages).set({ deletedAt: new Date() }).where(eq(pages.id, page.id));
 
     currentPages.value.splice(index, 1);
-
-    // Renumber remaining
-    for (let i = 0; i < currentPages.value.length; i++) {
-      const p = currentPages.value[i]!;
-      if (p.pageNumber !== i) {
-        await db.update(pages).set({ pageNumber: i }).where(eq(pages.id, p.id));
-        p.pageNumber = i;
-      }
-    }
-
-    if (currentPageIndex.value >= currentPages.value.length) {
-      currentPageIndex.value = currentPages.value.length - 1;
-    }
+    // Die angezeigte Seite bleibt dieselbe, auch wenn davor eine wegfällt.
+    const stillOpen = currentPages.value.findIndex((p) => p.id === currentId);
+    currentPageIndex.value = stillOpen >= 0 ? stillOpen : Math.min(index, currentPages.value.length - 1);
     loadPageIntoState();
+
+    await persistPageNumbersAsync(db);
   };
 
   const togglePageOrientationAsync = async () => {
@@ -302,13 +275,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     doc.width = width;
     doc.height = height;
     isDirty.value = true;
-    await saveCurrentPageAsync();
-  };
-
-  const changePageTemplateAsync = async (template: PageTemplate) => {
-    const doc = currentDoc.value;
-    if (!doc) return;
-    runCommand(setPageBackground(doc, { ...doc.background, template }, "Vorlage"));
+    contentVersion.value++;
     await saveCurrentPageAsync();
   };
 
@@ -339,10 +306,25 @@ export const useNotebookStore = defineStore("notebook", () => {
     const doc = currentDoc.value;
     if (!db || !page || !doc) return;
 
+    const version = contentVersion.value;
     const row = serializePageDoc(doc);
     await db.update(pages).set(row).where(eq(pages.id, page.id));
     Object.assign(page, row);
-    isDirty.value = false;
+    // Was während des Schreibens committet wurde, steckt nicht in `row`.
+    if (contentVersion.value === version) isDirty.value = false;
+  };
+
+  /**
+   * Speichert vor einem Seitenwechsel, bis auch die Änderungen gesichert sind,
+   * die während eines Schreibvorgangs dazukamen — loadPageIntoState() setzt
+   * isDirty danach zurück.
+   */
+  const flushAsync = async () => {
+    let version: number;
+    do {
+      version = contentVersion.value;
+      if (isDirty.value) await saveCurrentPageAsync();
+    } while (isDirty.value && contentVersion.value !== version);
   };
 
   // --- Trash ---
@@ -360,12 +342,18 @@ export const useNotebookStore = defineStore("notebook", () => {
     const db = haexVault.orm;
     if (!db || !currentNotebook.value) return;
 
+    // Beim Teilen eines ganzen Notizbuchs bleiben Seiten im Papierkorb außen vor;
+    // wiederhergestellt gehört die Seite wieder in den Space. Erst teilen, damit
+    // ein Fehler keine ungeteilte Seite in einem geteilten Notizbuch hinterlässt.
+    const spaceId = currentNotebook.value.spaceId;
+    if (spaceId) await spaces.sharePagesWithSpaceAsync(currentNotebook.value.id, [pageId], spaceId);
+
     // Restore: clear deletedAt, set page number to end
     const nextPageNumber = currentPages.value.length;
     await db.update(pages).set({ deletedAt: null, pageNumber: nextPageNumber }).where(eq(pages.id, pageId));
 
     // Reload pages
-    const allPages = await db.select().from(pages).where(and(eq(pages.notebookId, currentNotebook.value.id), isNull(pages.deletedAt))).orderBy(asc(pages.pageNumber));
+    const allPages = await listActivePagesAsync(db, currentNotebook.value.id);
     currentPages.value = allPages;
   };
 
@@ -383,18 +371,6 @@ export const useNotebookStore = defineStore("notebook", () => {
         await db.delete(pages).where(eq(pages.id, p.id));
       }
     }
-  };
-
-  const clear = () => {
-    currentNotebook.value = null;
-    currentPages.value = [];
-    currentPageIndex.value = 0;
-    docs.clear();
-    undoStack.clear();
-    currentStroke.value = null;
-    isDrawing.value = false;
-    isDirty.value = false;
-    activeLayerId.value = null;
   };
 
   return {
@@ -425,11 +401,9 @@ export const useNotebookStore = defineStore("notebook", () => {
     nextPage,
     prevPage,
     addPageAsync,
-    deleteCurrentPageAsync,
     deletePageAsync,
     reorderPagesAsync,
     togglePageOrientationAsync,
-    changePageTemplateAsync,
     tableElements,
     addTable,
     removeTable,
@@ -443,6 +417,5 @@ export const useNotebookStore = defineStore("notebook", () => {
     listTrashAsync,
     restorePageAsync,
     emptyTrashAsync,
-    clear,
   };
 });

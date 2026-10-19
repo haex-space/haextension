@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
-import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
-import type { PageTemplate } from "~/database/schemas";
+import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
+import type { PageTemplate, SelectPage } from "~/database/schemas";
+import type PageCanvas from "~/components/notes/PageCanvas.vue";
+import { getErrorMessage, reportError } from "~/lib/errors";
+import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
 const route = useRoute();
 const router = useRouter();
-const localePath = useLocalePath();
 const { t, locale } = useI18n();
 const haexVault = useHaexVaultStore();
 const notebook = useNotebookStore();
@@ -14,10 +16,15 @@ const pencilCase = usePencilCaseStore();
 
 const isLoaded = ref(false);
 const loadError = ref<string | null>(null);
-const pageCanvasRef = useTemplateRef<any>("pageCanvasRef");
+const pageCanvasRef = useTemplateRef<InstanceType<typeof PageCanvas>>("pageCanvasRef");
 const selectedAddTemplate = ref<PageTemplate>("lined");
 
 const pagesSidebarVisible = ref(false);
+
+const isLandscape = computed(() => {
+  const doc = notebook.currentDoc;
+  return !!doc && doc.width > doc.height;
+});
 
 // Per-page sharing (shares the currently open page)
 const sharePageId = ref<string | null>(null);
@@ -31,9 +38,9 @@ const openSharePage = () => {
 };
 
 // Trash preview
-const trashPreviewPage = ref<any>(null);
+const trashPreviewPage = ref<SelectPage | null>(null);
 
-const onPreviewTrashPage = (page: any) => {
+const onPreviewTrashPage = (page: SelectPage) => {
   trashPreviewPage.value = page;
 };
 
@@ -59,18 +66,21 @@ const initAsync = async () => {
     const id = route.params.id as string;
     const success = await notebook.openNotebookAsync(id);
     if (!success) {
-      router.replace(localePath("/"));
+      router.replace("/");
       return;
     }
     selectedAddTemplate.value = (notebook.currentNotebook?.defaultTemplate as PageTemplate) ?? "lined";
     isLoaded.value = true;
   } catch (err) {
     console.error("[haex-notes] Failed to open notebook:", err);
-    loadError.value = err instanceof Error ? err.message : String(err);
+    loadError.value = getErrorMessage(err);
   }
 };
 
 onMounted(initAsync);
+
+// Ein fehlgeschlagenes SDK-Setup lässt sich im selben Frame nicht wiederholen.
+const reloadFrame = () => window.location.reload();
 
 // Auto-save
 const autoSaveInterval = ref<ReturnType<typeof setInterval>>();
@@ -96,25 +106,22 @@ onBeforeUnmount(async () => {
   }
 });
 
-// Keyboard shortcuts
+const shortcutActions: Record<NotebookShortcut, () => Promise<void>> = {
+  save: () => notebook.saveCurrentPageAsync(),
+  undo: () => notebook.undo(),
+  redo: () => notebook.redo(),
+};
+
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-    e.preventDefault();
-    notebook.saveCurrentPageAsync();
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-    e.preventDefault();
-    notebook.undo();
-  }
-  if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-    e.preventDefault();
-    notebook.redo();
-  }
+  const shortcut = notebookShortcut(e);
+  if (!shortcut) return;
+  e.preventDefault();
+  shortcutActions[shortcut]().catch(reportError);
 });
 
 const goBack = async () => {
   if (notebook.isDirty) await notebook.saveCurrentPageAsync();
-  router.push(localePath("/"));
+  router.push("/");
 };
 
 const onTableSelect = (rows: number, cols: number) => {
@@ -190,7 +197,7 @@ const addPage = async () => {
                 :class="selectedAddTemplate === tmpl.id ? 'bg-accent' : ''"
                 @click="selectedAddTemplate = tmpl.id"
               >
-                {{ locale === 'de' ? tmpl.i18n.de : tmpl.i18n.en }}
+                {{ templateLabel(tmpl.id, locale) }}
               </ShadcnDropdownMenuItem>
             </ShadcnDropdownMenuContent>
           </ShadcnDropdownMenu>
@@ -205,7 +212,7 @@ const addPage = async () => {
           :title="t('toggleOrientation')"
           @click="notebook.togglePageOrientationAsync()"
         >
-          <RotateCw class="size-4" :class="(notebook.currentPage as any)?.orientation === 'landscape' ? 'rotate-90' : ''" />
+          <RotateCw class="size-4" :class="isLandscape ? 'rotate-90' : ''" />
         </button>
 
         <!-- Share current page -->
@@ -324,13 +331,13 @@ const addPage = async () => {
     <div class="flex items-center gap-2">
       <button
         class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        @click="initAsync"
+        @click="reloadFrame"
       >
         {{ t("retry") }}
       </button>
       <button
         class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
-        @click="router.push(localePath('/'))"
+        @click="router.push('/')"
       >
         {{ t("backToList") }}
       </button>
