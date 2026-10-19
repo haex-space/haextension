@@ -9,6 +9,7 @@ import {
   ChevronRight,
 } from "@lucide/vue";
 import { toast } from "vue-sonner";
+import { errorMessage } from "~/lib/errors";
 import { GitCommandError } from "~/lib/gitOutput";
 
 const { t } = useI18n();
@@ -48,7 +49,7 @@ const refresh = () => {
 
 const reportGitError = (title: string, error: unknown) => {
   console.error("[haex-code] Git command failed:", error);
-  const description = error instanceof GitCommandError ? error.result.output.trim() : String(error);
+  const description = error instanceof GitCommandError ? error.result.output.trim() : errorMessage(error);
   toast.error(title, { description });
 };
 

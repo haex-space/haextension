@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { GripHorizontal } from "@lucide/vue";
 import { toast } from "vue-sonner";
+import { isPermissionDeniedError } from "@haex-space/vault-sdk";
+import { errorMessage } from "~/lib/errors";
 import type { FileEntry, EditorTab } from "~/types";
 
 const { t } = useI18n();
@@ -41,12 +43,19 @@ const requestCloseTab = (tabId: string) => {
   }
 };
 
+// Permission prompts are answered and retried inside the SDK; what still fails here is reported.
+const reportError = (title: string, error: unknown) => {
+  console.error(`[haex-code] ${title}`, error);
+  toast.error(title, {
+    description: isPermissionDeniedError(error) ? t("permissionDenied") : errorMessage(error),
+  });
+};
+
 const saveTabReportingErrorsAsync = async (tab: EditorTab): Promise<boolean> => {
   try {
     return await editorStore.saveTabAsync(tab.id);
   } catch (e) {
-    console.error("[haex-code] Failed to save file:", e);
-    toast.error(t("saveFailed", { name: tab.name }));
+    reportError(t("saveFailed", { name: tab.name }), e);
     return false;
   }
 };
@@ -102,12 +111,8 @@ const openFolder = async () => {
       await loadDirectory(folder, workspace.fileTree, 0);
       gitStore.refresh(folder);
     }
-  } catch (e: any) {
-    if (isPermissionPromptError(e)) {
-      haexVault.setPermissionPrompt(e, openFolder);
-    } else {
-      console.error("[haex-code] Failed to open folder:", e);
-    }
+  } catch (e) {
+    reportError(t("openFolderFailed"), e);
   }
 };
 
@@ -131,12 +136,8 @@ const openFileFromDisk = async () => {
       }
       if (isMobile.value) sidebarVisible.value = false;
     }
-  } catch (e: any) {
-    if (isPermissionPromptError(e)) {
-      haexVault.setPermissionPrompt(e, openFileFromDisk);
-    } else {
-      console.error("[haex-code] Failed to open file:", e);
-    }
+  } catch (e) {
+    reportError(t("openFileFailed"), e);
   }
 };
 
@@ -160,12 +161,8 @@ const loadDirectory = async (path: string, target: FileEntry[], depth: number) =
         depth,
       });
     }
-  } catch (e: any) {
-    if (isPermissionPromptError(e)) {
-      haexVault.setPermissionPrompt(e, () => loadDirectory(path, target, depth));
-    } else {
-      console.error("[haex-code] Failed to load directory:", e);
-    }
+  } catch (e) {
+    reportError(t("readFolderFailed"), e);
   } finally {
     workspace.isLoading = false;
   }
@@ -205,7 +202,7 @@ const openFile = async (entry: FileEntry) => {
     // Close sidebar on mobile after opening a file
     if (isMobile.value) sidebarVisible.value = false;
   } catch (e) {
-    console.error("[haex-code] Failed to open file:", e);
+    reportError(t("openFileFailed"), e);
   }
 };
 
@@ -316,9 +313,17 @@ de:
   openFolder: Ordner öffnen
   newTerminal: Neues Terminal
   saveFailed: "{name} konnte nicht gespeichert werden."
+  openFileFailed: Datei konnte nicht geöffnet werden
+  openFolderFailed: Ordner konnte nicht geöffnet werden
+  readFolderFailed: Ordnerinhalt konnte nicht gelesen werden
+  permissionDenied: Zugriff verweigert
 en:
   openFile: Open File
   openFolder: Open Folder
   newTerminal: New Terminal
   saveFailed: "Could not save {name}."
+  openFileFailed: Could not open the file
+  openFolderFailed: Could not open the folder
+  readFolderFailed: Could not read the folder
+  permissionDenied: Permission denied
 </i18n>
