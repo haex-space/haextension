@@ -126,39 +126,65 @@ export const useBulkMessageOps = (
     await refreshMailboxStatusAsync(g.accountId, [g.mailboxName, destinationName]);
   };
 
-  /** Delete (role "trash") or archive (role "archive") messages. */
-  const bulkMoveToRoleAsync = async (ids: string[], role: "trash" | "archive") => {
-    if (!haexVault.orm) return;
-    if (selectedMessageId.value && ids.includes(selectedMessageId.value)) {
+  /**
+   * Delete (role "trash") or archive (role "archive") messages. Returns how
+   * many were moved: messages already in that folder stay (the SDK has no
+   * expunge, so there is no permanent delete) and the user is told so.
+   */
+  const bulkMoveToRoleAsync = async (
+    ids: string[],
+    role: "trash" | "archive",
+  ): Promise<number> => {
+    const orm = haexVault.orm;
+    if (!orm) return 0;
+    const destinationOf = async (g: MessageGroup) => {
+      const dest = (
+        await orm
+          .select()
+          .from(schema.mailboxes)
+          .where(
+            and(
+              eq(schema.mailboxes.accountId, g.accountId),
+              eq(schema.mailboxes.role, role),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (!dest) {
+        throw new Error(
+          $i18n.t("mail.errors.noFolderForRole", {
+            folder: $i18n.t(`mail.roles.${role}`),
+          }),
+        );
+      }
+      return dest.name;
+    };
+    const planned = await Promise.allSettled(
+      groupSelectedRows(ids).map(async (g) => ({ g, dest: await destinationOf(g) })),
+    );
+    const moves = planned.flatMap((p) =>
+      p.status === "fulfilled" && p.value.dest !== p.value.g.mailboxName ? [p.value] : [],
+    );
+    const alreadyThere = planned.some(
+      (p) => p.status === "fulfilled" && p.value.dest === p.value.g.mailboxName,
+    );
+
+    const movingIds = new Set(moves.flatMap((m) => m.g.rows.map((r) => r.id)));
+    if (selectedMessageId.value && movingIds.has(selectedMessageId.value)) {
       selectMessage(null);
     }
-    const groups = groupSelectedRows(ids);
-    const results = await Promise.allSettled(
-      groups.map(async (g) => {
-        const dest = (
-          await haexVault.orm!
-            .select()
-            .from(schema.mailboxes)
-            .where(
-              and(
-                eq(schema.mailboxes.accountId, g.accountId),
-                eq(schema.mailboxes.role, role),
-              ),
-            )
-            .limit(1)
-        )[0];
-        if (!dest) {
-          throw new Error(
-            $i18n.t("mail.errors.noFolderForRole", {
-              folder: $i18n.t(`mail.roles.${role}`),
-            }),
-          );
-        }
-        await moveGroupAsync(g, dest.name);
-      }),
-    );
-    reportBulkFailures(results);
+    const results = await Promise.allSettled(moves.map((m) => moveGroupAsync(m.g, m.dest)));
+    reportBulkFailures([...planned, ...results]);
+    if (alreadyThere) {
+      toast.info(
+        $i18n.t(role === "trash" ? "mail.errors.alreadyInTrash" : "mail.errors.alreadyArchived"),
+      );
+    }
     await reloadCurrentListAsync();
+    return results.reduce(
+      (sum, r, i) => (r.status === "fulfilled" ? sum + moves[i]!.g.rows.length : sum),
+      0,
+    );
   };
 
   /** Move messages to a specific mailbox — caller ensures a single account. */

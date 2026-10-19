@@ -121,9 +121,9 @@ const {
 const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
 const onContextDelete = async (msg: SelectMessage) => {
-  await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
+  const moved = await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
   // The row is gone — a stale selection id would keep selection mode on.
-  if (selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
+  if (moved > 0 && selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
 };
 
 const rowClass = (msg: SelectMessage) => {

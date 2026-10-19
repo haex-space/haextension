@@ -10,7 +10,9 @@
     },
     "errors": {
       "credentials": "Zugangsdaten konnten nicht geladen werden",
-      "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden"
+      "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden",
+      "alreadyInTrash": "Diese Nachrichten sind schon im Papierkorb. Endgültiges Löschen wird nicht unterstützt.",
+      "alreadyArchived": "Diese Nachrichten sind schon im Archiv."
     },
     "quoteHeader": "Am {date} schrieb {sender}:",
     "forwardAttachmentsFailed": "{count} Anhang/Anhänge konnten nicht geladen werden und fehlen in der Weiterleitung.",

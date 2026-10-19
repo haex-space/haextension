@@ -10,7 +10,9 @@
     },
     "errors": {
       "credentials": "Failed to load credentials",
-      "noFolderForRole": "No {folder} folder found for this account"
+      "noFolderForRole": "No {folder} folder found for this account",
+      "alreadyInTrash": "These messages are already in the trash. Deleting them permanently is not supported.",
+      "alreadyArchived": "These messages are already archived."
     },
     "quoteHeader": "On {date}, {sender} wrote:",
     "forwardAttachmentsFailed": "{count} attachment(s) could not be loaded and are missing from the forward.",
