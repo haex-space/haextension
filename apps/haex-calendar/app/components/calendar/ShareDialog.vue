@@ -41,13 +41,13 @@
                   v-if="space.originUrl"
                   class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-primary/10 text-primary"
                 >
-                  online
+                  {{ t('badge.online') }}
                 </span>
                 <span
                   v-else
                   class="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-muted-foreground/10 text-muted-foreground"
                 >
-                  local
+                  {{ t('badge.local') }}
                 </span>
               </button>
             </div>
@@ -159,6 +159,9 @@ de:
   loadFailed: Daten konnten nicht geladen werden.
   shareFailed: Fehler beim Teilen des Kalenders.
   unshareFailed: Fehler beim Aufheben der Freigabe.
+  badge:
+    online: online
+    local: lokal
 en:
   title: Share Calendar
   description: Assign this calendar to a space to share it with others.
@@ -168,4 +171,7 @@ en:
   loadFailed: Failed to load data.
   shareFailed: Failed to share the calendar.
   unshareFailed: Failed to unshare the calendar.
+  badge:
+    online: online
+    local: local
 </i18n>
