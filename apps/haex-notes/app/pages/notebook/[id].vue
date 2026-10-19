@@ -3,6 +3,8 @@ import { useEventListener } from "@vueuse/core";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
 import { PAGE_TEMPLATES } from "~/utils/pageTemplates";
 import type { PageTemplate } from "~/database/schemas";
+import { reportError } from "~/lib/errors";
+import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
 const route = useRoute();
 const router = useRouter();
@@ -96,20 +98,17 @@ onBeforeUnmount(async () => {
   }
 });
 
-// Keyboard shortcuts
+const shortcutActions: Record<NotebookShortcut, () => Promise<void>> = {
+  save: () => notebook.saveCurrentPageAsync(),
+  undo: () => notebook.undo(),
+  redo: () => notebook.redo(),
+};
+
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-    e.preventDefault();
-    notebook.saveCurrentPageAsync();
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-    e.preventDefault();
-    notebook.undo();
-  }
-  if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-    e.preventDefault();
-    notebook.redo();
-  }
+  const shortcut = notebookShortcut(e);
+  if (!shortcut) return;
+  e.preventDefault();
+  shortcutActions[shortcut]().catch(reportError);
 });
 
 const goBack = async () => {
