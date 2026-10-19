@@ -250,11 +250,8 @@ onMessage('open-popup', async () => {
 // Handle messages from content scripts
 onMessage('get-items', async (message) => {
   const { url, fields } = message.data as { url: string, fields: string[] }
-  console.log('[haex-pass] get-items request:', { url, fields })
-  console.log('[haex-pass] Connection state:', vaultConnection.getState())
   try {
     const result = await vaultConnection.getItems(url, fields)
-    console.log('[haex-pass] get-items result:', result)
     return { success: true, data: result }
   } catch (err) {
     console.error('[haex-pass] get-items error:', err)
@@ -323,8 +320,6 @@ onMessage('passkey-create', async (message) => {
 
   try {
     const result = await vaultConnection.createPasskey({ ...payload, origin })
-    console.log('[haex-pass] passkey-create result:', result)
-
     const haexResponse = result as { success: boolean, data?: unknown, error?: string }
     if (haexResponse.success) {
       return { success: true, data: haexResponse.data }
@@ -379,8 +374,6 @@ onMessage('passkey-get', async (message) => {
 
   try {
     const result = await vaultConnection.getPasskey({ ...payload, origin })
-    console.log('[haex-pass] passkey-get result:', result)
-
     const haexResponse = result as { success: boolean, data?: unknown, error?: string }
     if (haexResponse.success) {
       return { success: true, data: haexResponse.data }

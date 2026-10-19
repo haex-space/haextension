@@ -91,14 +91,12 @@ import { initWebAuthnBridge } from './webauthn-bridge'
         fields: canonicalFields,
       }, 'background')
 
-      console.log('[haex-pass] Response from background:', response)
-
       if (response && (response as { success: boolean }).success) {
         // Response structure: { success: true, data: { success: true, data: { entries: [...] } } }
         // The outer wrapper is from main.ts, the inner is from haex-pass
         const innerData = (response as { data: { data?: { entries?: unknown[] } } }).data
         matchingEntries = innerData?.data?.entries || []
-        console.log('[haex-pass] Matching entries:', matchingEntries.length, matchingEntries)
+        console.log('[haex-pass] Matching entries:', matchingEntries.length)
 
         // Inject icons if we have matches, otherwise show "Add new" button
         if (matchingEntries.length > 0) {

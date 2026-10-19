@@ -386,8 +386,6 @@ class VaultConnectionManager {
       return
     }
 
-    console.log('[haex-pass] Decrypted response:', decrypted)
-
     // Check if this is a response to a pending request
     const requestId = (decrypted as { requestId?: string }).requestId
     if (requestId && this.pendingRequests.has(requestId)) {
