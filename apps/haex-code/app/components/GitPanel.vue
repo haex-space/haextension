@@ -11,6 +11,7 @@ import {
 import { toast } from "vue-sonner";
 import { errorMessage } from "~/lib/errors";
 import { GitCommandError } from "~/lib/gitOutput";
+import { GIT_STATUS_COLOR, GIT_STATUS_LABEL } from "~/lib/gitStatus";
 import { relativePath } from "~/lib/path";
 
 const { t } = useI18n();
@@ -24,26 +25,6 @@ const commitMessage = ref("");
 const isCommitting = ref(false);
 const stagedExpanded = ref(true);
 const changesExpanded = ref(true);
-
-const statusLabel: Record<string, string> = {
-  modified: "M",
-  deleted: "D",
-  untracked: "U",
-  "staged-added": "A",
-  "staged-modified": "M",
-  "staged-deleted": "D",
-  staged: "M",
-};
-
-const statusColor: Record<string, string> = {
-  modified: "text-yellow-500",
-  deleted: "text-red-500",
-  untracked: "text-green-500",
-  "staged-added": "text-green-500",
-  "staged-modified": "text-yellow-500",
-  "staged-deleted": "text-red-500",
-  staged: "text-yellow-500",
-};
 
 const refresh = () => {
   if (workspace.rootPath) gitStore.refresh(workspace.rootPath);
@@ -188,9 +169,9 @@ const handleCommit = async () => {
             </span>
             <span
               class="shrink-0 font-mono text-xs"
-              :class="statusColor[file.status] ?? 'text-muted-foreground'"
+              :class="GIT_STATUS_COLOR[file.status]"
             >
-              {{ statusLabel[file.status] ?? "?" }}
+              {{ GIT_STATUS_LABEL[file.status] }}
             </span>
             <button
               class="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
@@ -258,9 +239,9 @@ const handleCommit = async () => {
             </button>
             <span
               class="shrink-0 font-mono text-xs"
-              :class="statusColor[file.status] ?? 'text-muted-foreground'"
+              :class="GIT_STATUS_COLOR[file.status]"
             >
-              {{ statusLabel[file.status] ?? "?" }}
+              {{ GIT_STATUS_LABEL[file.status] }}
             </span>
           </div>
 

@@ -1,5 +1,6 @@
 import type { EventCallback, ShellExitEvent, ShellOutputEvent } from "@haex-space/vault-sdk";
 import { GitCommandError, gitCommandLine, parseGitResult, type GitResult } from "~/lib/gitOutput";
+import { parseStatus, type GitFileStatus } from "~/lib/gitStatus";
 
 const GIT_TIMEOUT_MS = 10_000;
 
@@ -73,32 +74,6 @@ async function runGitChecked(
   return result.output;
 }
 
-// ── Parsers ────────────────────────────────────────────────────────────────
-
-function parseStatus(raw: string): Array<{ path: string; status: string }> {
-  return raw
-    .split("\n")
-    .filter((l) => l.length >= 3 && /^[MADRCU? !][MADRCU? !] /.test(l))
-    .map((l) => {
-      const x = l[0]!;
-      const y = l[1]!;
-      const path = l.slice(3).trim();
-
-      let status = "modified";
-      if (x === "?" && y === "?") status = "untracked";
-      else if (x !== " " && y === " ") {
-        if (x === "A") status = "staged-added";
-        else if (x === "D") status = "staged-deleted";
-        else status = "staged";
-      } else if (x !== " " && y !== " ") {
-        status = "staged-modified";
-      } else if (y === "M") status = "modified";
-      else if (y === "D") status = "deleted";
-
-      return { path, status };
-    });
-}
-
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function useGit() {
@@ -122,7 +97,7 @@ export function useGit() {
     }
   };
 
-  const getStatus = async (dir: string): Promise<Array<{ path: string; status: string }>> => {
+  const getStatus = async (dir: string): Promise<GitFileStatus[]> => {
     const out = await runGitChecked(haexVault, dir, ["status", "--porcelain"]);
     return parseStatus(out);
   };
