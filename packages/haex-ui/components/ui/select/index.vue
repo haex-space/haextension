@@ -1,42 +1,45 @@
 <template>
-  <div :class="['relative w-full', props.class]" :style="labelStyle">
-    <ShadcnSelect
-      v-model="model"
-      :disabled="disabled"
-      @update:open="open = $event"
-    >
-      <ShadcnSelectTrigger
-        :id="fieldId"
-        :class="[
-          'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
-          error ? 'border-destructive' : '',
-        ]"
-        :aria-invalid="error ? 'true' : undefined"
-        :aria-describedby="error ? errorId : undefined"
-        :aria-label="label ? undefined : ariaLabel"
+  <div :class="['w-full', props.class]" :style="labelStyle">
+    <!-- The label centres on the trigger, so it must not share a box with the error text below -->
+    <div class="relative">
+      <ShadcnSelect
+        v-model="model"
+        :disabled="disabled"
+        @update:open="open = $event"
       >
-        <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
-      </ShadcnSelectTrigger>
-      <ShadcnSelectContent>
-        <ShadcnSelectItem
-          v-for="option in options"
-          :key="option.value"
-          :value="option.value"
-          :disabled="option.disabled"
+        <ShadcnSelectTrigger
+          :id="fieldId"
+          :class="[
+            'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
+            error ? 'border-destructive' : '',
+          ]"
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="error ? errorId : undefined"
+          :aria-label="label ? undefined : ariaLabel"
         >
-          {{ option.label }}
-        </ShadcnSelectItem>
-      </ShadcnSelectContent>
-    </ShadcnSelect>
+          <ShadcnSelectValue :placeholder="label ? '' : placeholder" />
+        </ShadcnSelectTrigger>
+        <ShadcnSelectContent>
+          <ShadcnSelectItem
+            v-for="option in options"
+            :key="option.value"
+            :value="option.value"
+            :disabled="option.disabled"
+          >
+            {{ option.label }}
+          </ShadcnSelectItem>
+        </ShadcnSelectContent>
+      </ShadcnSelect>
 
-    <label
-      v-if="label"
-      :for="fieldId"
-      :class="labelClass"
-      data-slot="floating-label"
-    >
-      {{ label }}
-    </label>
+      <label
+        v-if="label"
+        :for="fieldId"
+        :class="labelClass"
+        data-slot="floating-label"
+      >
+        {{ label }}
+      </label>
+    </div>
 
     <p v-if="error" :id="errorId" class="mt-1 px-1 text-xs text-destructive" role="alert">
       {{ error }}
