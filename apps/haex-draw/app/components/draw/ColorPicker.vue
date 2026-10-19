@@ -63,7 +63,6 @@ const onSwatchClick = (color: string) => {
 const hue = ref(0);
 const saturation = ref(100);
 const brightness = ref(0);
-const opacity = ref(100);
 
 // Parse hex to HSV on mount and when model changes externally
 const hexToHsv = (hex: string) => {
@@ -109,9 +108,13 @@ const hsvToHex = (h: number, s: number, v: number) => {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
 
+// The hex value the picker emitted last. Black and grays carry no hue, so reading
+// our own output back would reset hue and saturation while dragging.
+let lastEmittedHex: string | null = null;
+
 // Sync model → HSV
 const syncFromModel = () => {
-  if (!model.value) return;
+  if (!model.value || model.value === lastEmittedHex) return;
   const { h, s, v } = hexToHsv(model.value);
   hue.value = h;
   saturation.value = s;
@@ -120,7 +123,8 @@ const syncFromModel = () => {
 
 // Sync HSV → model
 const updateColor = () => {
-  model.value = hsvToHex(hue.value, saturation.value, brightness.value);
+  lastEmittedHex = hsvToHex(hue.value, saturation.value, brightness.value);
+  model.value = lastEmittedHex;
 };
 
 onMounted(syncFromModel);
@@ -169,34 +173,15 @@ const onHueDown = (e: MouseEvent | TouchEvent) => {
   updateHue(e);
 };
 
-// Opacity slider interaction
-const opacitySliderEl = ref<HTMLElement | null>(null);
-const isDraggingOpacity = ref(false);
-
-const updateOpacity = (e: MouseEvent | TouchEvent) => {
-  if (!opacitySliderEl.value) return;
-  const rect = opacitySliderEl.value.getBoundingClientRect();
-  const clientX = pointOf(e)?.clientX;
-  if (clientX === undefined) return;
-  opacity.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-};
-
-const onOpacityDown = (e: MouseEvent | TouchEvent) => {
-  isDraggingOpacity.value = true;
-  updateOpacity(e);
-};
-
 // Global mouse/touch move/up
 const onGlobalMove = (e: MouseEvent | TouchEvent) => {
   if (isDraggingSB.value) updateSB(e);
   if (isDraggingHue.value) updateHue(e);
-  if (isDraggingOpacity.value) updateOpacity(e);
 };
 
 const onGlobalUp = () => {
   isDraggingSB.value = false;
   isDraggingHue.value = false;
-  isDraggingOpacity.value = false;
 };
 
 onMounted(() => {
@@ -271,23 +256,6 @@ const presetColors = [
       <div
         class="pointer-events-none absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
         :style="{ left: `${(hue / 360) * 100}%`, backgroundColor: hueColor }"
-      />
-    </div>
-
-    <!-- Opacity slider -->
-    <div
-      ref="opacitySliderEl"
-      class="relative h-3.5 cursor-pointer rounded-full"
-      :style="{
-        background: `linear-gradient(to right, transparent, ${model})`,
-        backgroundImage: `linear-gradient(to right, transparent, ${model}), repeating-conic-gradient(#d4d4d4 0% 25%, white 0% 50%) 0 0 / 8px 8px`,
-      }"
-      @mousedown.prevent="onOpacityDown"
-      @touchstart.prevent="onOpacityDown"
-    >
-      <div
-        class="pointer-events-none absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
-        :style="{ left: `${opacity}%`, backgroundColor: model }"
       />
     </div>
 
