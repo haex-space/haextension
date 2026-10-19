@@ -57,9 +57,9 @@ describe('an interrupted applyDiff', () => {
       return create(details)
     }
 
-    await applyDiff(api, journal, journal.saved.bindings, diffForests([root], next)).catch(() => {})
+    await applyDiff(api, journal, journal.saved.bindings, diffForests([root], next), 'chromium').catch(() => {})
     api.create = create
-    await applyDiff(api, journal, journal.saved.bindings, diffForests([root], next))
+    await applyDiff(api, journal, journal.saved.bindings, diffForests([root], next), 'chromium')
 
     expect(await toolbarUrls(api)).toEqual(['https://example.com', 'https://a.example', 'https://b.example', 'https://c.example'])
   })
@@ -80,7 +80,7 @@ describe('an interrupted applyDiff', () => {
     }
 
     const { bindings } = await recoverJournal(api, journal, [inFlight], [rootBinding])
-    await applyDiff(api, journal, bindings, diffForests([root], [root, bookmark('a', 1)]))
+    await applyDiff(api, journal, bindings, diffForests([root], [root, bookmark('a', 1)]), 'chromium')
 
     expect(await toolbarUrls(api)).toEqual(['https://example.com', 'https://a.example'])
   })
@@ -95,7 +95,7 @@ describe('an interrupted applyDiff', () => {
       resolvePending: async () => {},
     }
 
-    await applyDiff(api, journal, [rootBinding], diffForests([root], [root, bookmark('a', 1)]))
+    await applyDiff(api, journal, [rootBinding], diffForests([root], [root, bookmark('a', 1)]), 'chromium')
 
     expect(appended[0].beforeChildIds).toEqual(['10'])
   })

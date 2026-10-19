@@ -9,28 +9,54 @@ import { rootKindForNativeId } from './model'
 import { nativeKind } from './nativeAdapter'
 import { addBinding, bufferDelete, bufferUpsert, buildBindingMaps, removeBindingByHaexId } from './storage'
 
+/**
+ * The haex id of a native parent, binding an untracked native root on the
+ * way: the collection may have no row for it yet, and pushing a child
+ * without one leaves the vault with a parent no other device can resolve.
+ */
+function resolveParent(
+  state: BookmarkSyncState,
+  settings: BookmarkSyncSettingsActive,
+  parentNativeId: string,
+): { state: BookmarkSyncState, haexParentId: string } | null {
+  const bound = buildBindingMaps(state.bindings).browserToHaex.get(parentNativeId)
+  if (bound)
+    return { state, haexParentId: bound }
+  const rootKind = rootKindForNativeId(settings.browserFamily, parentNativeId)
+  if (!rootKind)
+    return null // outside our native roots entirely — not ours to track
+  const rootRow: BookmarkNodeRow = {
+    id: crypto.randomUUID(),
+    collectionId: settings.collectionId,
+    parentId: null,
+    rootKind,
+    kind: 'folder',
+    title: null,
+    url: null,
+    position: 0,
+  }
+  const withRoot = {
+    ...state,
+    bindings: addBinding(state.bindings, { haexId: rootRow.id, browserId: parentNativeId, bindingType: 'root' }),
+    snapshot: [...state.snapshot, rootRow],
+  }
+  return { state: bufferUpsert(withRoot, rootRow), haexParentId: rootRow.id }
+}
+
 export function recordCreated(
   current: BookmarkSyncState,
   settings: BookmarkSyncSettingsActive,
   nativeId: string,
   node: NativeBookmarkNode,
 ): BookmarkSyncState | null {
-  let state = current
-  const { collectionId, browserFamily } = settings
-  const { browserToHaex } = buildBindingMaps(state.bindings)
-
-  const parentNativeId = node.parentId
-  if (!parentNativeId)
+  const { collectionId } = settings
+  if (!node.parentId)
     return null
-  let haexParentId = browserToHaex.get(parentNativeId)
-  if (!haexParentId) {
-    const rootKind = rootKindForNativeId(browserFamily, parentNativeId)
-    if (!rootKind)
-      return null // outside our native roots entirely — not ours to track
-    const rootHaexId = crypto.randomUUID()
-    state = { ...state, bindings: addBinding(state.bindings, { haexId: rootHaexId, browserId: parentNativeId, bindingType: 'root' }) }
-    haexParentId = rootHaexId
-  }
+  const parent = resolveParent(current, settings, node.parentId)
+  if (!parent)
+    return null
+  let state = parent.state
+  const { haexParentId } = parent
 
   const kind = nativeKind(node)
   const haexId = crypto.randomUUID()
@@ -88,14 +114,14 @@ export function recordMoved(
   nativeId: string,
   info: { parentId: string, index: number },
 ): BookmarkSyncState | null {
-  let state = current
-  const { browserToHaex } = buildBindingMaps(state.bindings)
-  const haexId = browserToHaex.get(nativeId)
+  const haexId = buildBindingMaps(current.bindings).browserToHaex.get(nativeId)
   if (!haexId)
     return null
-  const haexParentId = browserToHaex.get(info.parentId)
-  if (!haexParentId)
+  const parent = resolveParent(current, settings, info.parentId)
+  if (!parent)
     return null // moved outside anything we track — nothing sensible to record
+  let state = parent.state
+  const { haexParentId } = parent
 
   const existing = state.snapshot.find(r => r.id === haexId)
   if (!existing)

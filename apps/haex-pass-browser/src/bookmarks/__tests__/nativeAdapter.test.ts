@@ -163,7 +163,7 @@ describe('applyDiff', () => {
     const before = await api.getTree()
 
     const diff = diffForests([], [])
-    const result = await applyDiff(api, journal, bindings, diff)
+    const result = await applyDiff(api, journal, bindings, diff, 'chromium')
 
     expect(result.bindings).toEqual(bindings)
     expect(await api.getTree()).toEqual(before)
@@ -182,7 +182,7 @@ describe('applyDiff', () => {
       row({ id: 'bm1', parentId: 'root-toolbar', title: 'New', url: 'https://new.example', position: 0 }),
     ]
     const diff = diffForests(prev, next)
-    const { bindings: afterCreate } = await applyDiff(api, journal, bindings, diff)
+    const { bindings: afterCreate } = await applyDiff(api, journal, bindings, diff, 'chromium')
 
     const tree1 = await api.getTree()
     expect(findInTree(tree1, '1')!.children!.some(c => c.url === 'https://new.example')).toBe(true)
@@ -192,12 +192,12 @@ describe('applyDiff', () => {
       row({ id: 'bm1', parentId: 'root-toolbar', title: 'Renamed', url: 'https://new.example', position: 0 }),
     ]
     const diff2 = diffForests(next, next2)
-    await applyDiff(api, journal, afterCreate, diff2)
+    await applyDiff(api, journal, afterCreate, diff2, 'chromium')
     const tree2 = await api.getTree()
     expect(findInTree(tree2, '1')!.children![0].title).toBe('Renamed')
 
     const diff3 = diffForests(next2, [row({ id: 'root-toolbar', kind: 'folder', rootKind: 'toolbar', position: 0 })])
-    const { bindings: afterRemove } = await applyDiff(api, journal, afterCreate, diff3)
+    const { bindings: afterRemove } = await applyDiff(api, journal, afterCreate, diff3, 'chromium')
     const tree3 = await api.getTree()
     // Only the diff-owned "bm1" is gone; the pre-existing "Example" bookmark
     // (never part of any vault-side row) is untouched — applyDiff only acts

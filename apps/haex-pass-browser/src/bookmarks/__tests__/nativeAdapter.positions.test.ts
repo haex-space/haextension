@@ -36,9 +36,9 @@ describe('positions past the current child count', () => {
     const root = row({ id: 'root-toolbar', kind: 'folder', rootKind: 'toolbar', position: 0 })
     const created = row({ id: 'bm1', parentId: 'root-toolbar', title: 'Gap', url: 'https://gap.example', position: 5 })
 
-    const { bindings: afterCreate } = await applyDiff(api, createFakeJournal(), bindings, diffForests([root], [root, created]))
+    const { bindings: afterCreate } = await applyDiff(api, createFakeJournal(), bindings, diffForests([root], [root, created]), 'chromium')
     const moved = { ...created, position: 9 }
-    await applyDiff(api, createFakeJournal(), afterCreate, diffForests([root, created], [root, moved]))
+    await applyDiff(api, createFakeJournal(), afterCreate, diffForests([root, created], [root, moved]), 'chromium')
 
     const toolbar = findInTree(await api.getTree(), '1')!
     expect(toolbar.children!.at(-1)?.url).toBe('https://gap.example')

@@ -318,6 +318,7 @@ export async function applyDiff(
   journal: JournalHandle,
   bindings: BookmarkIdBinding[],
   diff: ForestDiff,
+  browserFamily: BrowserFamily,
 ): Promise<ApplyDiffResult> {
   const diagnostics: Diagnostic[] = []
   const failedIds: string[] = []
@@ -340,6 +341,18 @@ export async function applyDiff(
     // with the journal) or bound by journal recovery.
     if (haexToBrowser.has(node.id))
       continue
+    if (node.rootKind) {
+      // A canonical root is never created, only bound to the native root.
+      const resolved = resolveNativeRootId(browserFamily, node.rootKind)
+      if (!resolved) {
+        diagnostics.push({ code: 'CREATE_QUARANTINED', haexId: node.id, detail: `no native root for rootKind "${node.rootKind}"` })
+        failedIds.push(node.id)
+        continue
+      }
+      nextBindings = addBinding(nextBindings, { haexId: node.id, browserId: resolved.nativeId, bindingType: 'root' })
+      haexToBrowser.set(node.id, resolved.nativeId)
+      continue
+    }
     if (node.kind === 'separator' && !api.supportsSeparators) {
       diagnostics.push({ code: 'SEPARATOR_UNSUPPORTED', haexId: node.id, detail: 'target browser cannot create separators' })
       continue
@@ -347,6 +360,7 @@ export async function applyDiff(
     const parentBrowserId = node.parentId ? haexToBrowser.get(node.parentId) : undefined
     if (!parentBrowserId) {
       diagnostics.push({ code: 'CREATE_QUARANTINED', haexId: node.id, detail: 'parent is not locally mapped yet, will retry next run' })
+      failedIds.push(node.id)
       continue
     }
     await attempt(node.id, async () => {

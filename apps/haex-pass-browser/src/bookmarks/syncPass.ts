@@ -167,7 +167,7 @@ export async function doSyncOnce(
   }
 
   // 6. Apply the diff to the native tree, guarded against feedback loops.
-  const applied = await runGuarded(() => applyDiff(deps.api, journal, state.bindings, diff))
+  const applied = await runGuarded(() => applyDiff(deps.api, journal, state.bindings, diff, settings.browserFamily))
   const failures = applied.diagnostics.filter(d => d.code === 'APPLY_FAILED')
   const lastError = failures.length > 0
     ? `${failures.length} bookmark change(s) could not be applied in this browser: ${failures[0].detail}`
