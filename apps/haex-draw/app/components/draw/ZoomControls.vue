@@ -6,13 +6,12 @@ const canvas = useCanvasStore();
 
 const zoomPercent = computed(() => Math.round(canvas.viewport.zoom * 100));
 
-const zoomIn = () => {
-  canvas.viewport.zoom = Math.min(canvas.viewport.zoom * 1.2, 100);
+const zoomAtCenter = (factor: number) => {
+  canvas.zoomAt(canvas.viewSize.width / 2, canvas.viewSize.height / 2, factor);
 };
 
-const zoomOut = () => {
-  canvas.viewport.zoom = Math.max(canvas.viewport.zoom / 1.2, 0.01);
-};
+const zoomIn = () => zoomAtCenter(1.2);
+const zoomOut = () => zoomAtCenter(1 / 1.2);
 
 const resetView = () => {
   canvas.viewport = { x: 0, y: 0, zoom: 1 };

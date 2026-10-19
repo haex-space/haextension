@@ -18,6 +18,18 @@ export const useCanvasStore = defineStore("canvas", () => {
 
   // Viewport (pan/zoom)
   const viewport = ref<ViewportState>({ x: 0, y: 0, zoom: 1 });
+  /** Size of the canvas element in CSS pixels, published by the canvas component */
+  const viewSize = ref({ width: 0, height: 0 });
+
+  /** Zooms by `factor` while the screen point (screenX, screenY) stays in place. */
+  const zoomAt = (screenX: number, screenY: number, factor: number) => {
+    const oldZoom = viewport.value.zoom;
+    const newZoom = Math.min(Math.max(oldZoom * factor, 0.01), 100);
+    const ratio = newZoom / oldZoom;
+    viewport.value.x = screenX - (screenX - viewport.value.x) * ratio;
+    viewport.value.y = screenY - (screenY - viewport.value.y) * ratio;
+    viewport.value.zoom = newZoom;
+  };
 
   // Tool state
   const activeTool = ref<Tool>("pan");
@@ -94,6 +106,8 @@ export const useCanvasStore = defineStore("canvas", () => {
     historyIndex,
     strokes,
     viewport,
+    viewSize,
+    zoomAt,
     activeTool,
     activeBrushPreset,
     brushColor,
