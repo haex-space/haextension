@@ -1,54 +1,16 @@
 <script setup lang="ts">
-import {
-  History,
-  Pencil,
-  Pen,
-  Highlighter,
-  Paintbrush,
-  PenLine,
-  PencilLine,
-  PenTool,
-  SprayCan,
-  Eraser,
-  FileIcon,
-} from "@lucide/vue";
+import { History, FileIcon } from "@lucide/vue";
+import { BRUSH_PRESETS } from "~/utils/brushPresets";
+import { localized } from "~/utils/localized";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const canvas = useCanvasStore();
 
-const labelIcons: Record<string, any> = {
-  pencil: Pencil,
-  pen: Pen,
-  marker: Highlighter,
-  brush: Paintbrush,
-  calligraphy: PenLine,
-  sketch: PencilLine,
-  "fine-tip": PenTool,
-  spray: SprayCan,
-  eraser: Eraser,
-};
-
-const labelNames: Record<string, { de: string; en: string }> = {
-  pencil: { de: "Bleistift", en: "Pencil" },
-  pen: { de: "Stift", en: "Pen" },
-  marker: { de: "Marker", en: "Marker" },
-  brush: { de: "Pinsel", en: "Brush" },
-  calligraphy: { de: "Kalligrafie", en: "Calligraphy" },
-  sketch: { de: "Skizze", en: "Sketch" },
-  "fine-tip": { de: "Fineliner", en: "Fine Tip" },
-  spray: { de: "Sprühfarbe", en: "Spray" },
-  eraser: { de: "Radierer", en: "Eraser" },
-};
-
-const { locale } = useI18n();
-
+// History labels are brush preset ids (older entries may carry the tool name).
 const getLabel = (label: string) => {
-  const names = labelNames[label];
-  if (!names) return label;
-  return locale.value === "de" ? names.de : names.en;
+  const preset = BRUSH_PRESETS.find((p) => p.id === label);
+  return preset ? localized(preset.i18n, locale.value) : label;
 };
-
-const getIcon = (label: string) => labelIcons[label] ?? Pencil;
 
 // Scroll to active entry when historyIndex changes
 const listEl = useTemplateRef("listEl");
@@ -89,9 +51,10 @@ watch(() => canvas.historyIndex, () => {
           ]"
           @click="canvas.goToHistoryIndex(index)"
         >
-          <component
-            :is="getIcon(entry.label)"
-            class="size-3.5 shrink-0"
+          <DrawBrushIcon
+            :brush-id="entry.label"
+            :size="14"
+            class="shrink-0"
             :class="index <= canvas.historyIndex ? '' : 'opacity-40'"
           />
           <span class="flex-1 truncate">{{ getLabel(entry.label) }}</span>
