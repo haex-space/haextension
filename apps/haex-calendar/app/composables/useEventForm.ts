@@ -124,8 +124,12 @@ export function useEventForm(
         return;
       }
 
-      const event = eventsStore.getEvent(id);
-      if (!event) return;
+      const event = eventsStore.getEvent(id) ?? (await eventsStore.findEventAsync(id));
+      if (!event) {
+        // Deleted meanwhile: an empty form would save garbage over nothing.
+        isOpen.value = false;
+        return;
+      }
 
       const { start, end } = toFormRange(event.dtstart, event.dtend, event.allDay);
 

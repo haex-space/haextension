@@ -1,6 +1,7 @@
 import { or, inArray } from "drizzle-orm";
 import { events, eventReminders } from "~/database/schemas";
-import { parseEventInstant } from "~/lib/dates";
+import { parseEventInstant, toLocalDateKey } from "~/lib/dates";
+import { eventDeepLink } from "~/lib/deepLink";
 import { expandOccurrences } from "~/lib/rrule";
 
 /**
@@ -183,13 +184,18 @@ export function useReminderScheduler() {
       await haexVault.client.notifications.show({
         title: entry.summary,
         body: formatBody(entry),
-        primary: { path: `/event/${entry.eventId}` },
+        primary: { path: eventDeepLink(entry.eventId, occurrenceKey(entry)) },
         // Re-firing the same occurrence+offset replaces the previous one.
         tag: `reminder:${entry.eventId}:${entry.occurrenceStart.toISOString()}:${entry.offsetMinutes}`,
       });
     } catch (error) {
       console.warn("[haex-calendar] Failed to show reminder notification:", error);
     }
+  }
+
+  /** The occurrence as the views key it: a date for all-day, else the instant. */
+  function occurrenceKey(entry: ReminderEntry): string {
+    return entry.allDay ? toLocalDateKey(entry.occurrenceStart) : entry.occurrenceStart.toISOString();
   }
 
   function formatBody(entry: ReminderEntry): string {

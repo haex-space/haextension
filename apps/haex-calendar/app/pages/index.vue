@@ -223,6 +223,8 @@ import {
 import { watchDebounced, useMediaQuery } from "@vueuse/core";
 import { toast } from "vue-sonner";
 import { calendars } from "~/database/schemas";
+import { parseEventInstant } from "~/lib/dates";
+import { parseEventDeepLink } from "~/lib/deepLink";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -306,14 +308,26 @@ onMounted(async () => {
   // chained so it is a no-op against SDKs without the notifications API.
   unsubscribeNotificationClick =
     haexVault.client.notifications?.onClick?.((e) => {
-      const path = e.path;
-      if (!path?.startsWith("/event/")) return;
-      const id = path.slice("/event/".length).split("?")[0];
-      if (id) eventPreview.open(id);
+      void openEventFromNotificationAsync(e.path);
     }) ?? null;
 
   initialized.value = true;
 });
+
+/**
+ * Reminders usually point outside the loaded range (tomorrow, next week), so
+ * move the view to the occurrence before opening its preview.
+ */
+async function openEventFromNotificationAsync(path: string | undefined) {
+  const link = parseEventDeepLink(path);
+  if (!link) return;
+  const event = await eventsStore.findEventAsync(link.eventId);
+  if (!event) return;
+  const occurrence = link.occurrence ?? event.dtstart;
+  calendarView.currentDate = parseEventInstant(occurrence, event.allDay);
+  await eventsStore.loadEventsAsync();
+  eventPreview.open(event.id, occurrence);
+}
 
 onUnmounted(() => {
   reminderScheduler.stop();
