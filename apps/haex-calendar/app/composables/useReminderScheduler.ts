@@ -1,5 +1,6 @@
 import { or, inArray } from "drizzle-orm";
 import { events, eventReminders } from "~/database/schemas";
+import { parseEventInstant } from "~/lib/dates";
 import { expandOccurrences } from "~/lib/rrule";
 
 /**
@@ -128,9 +129,8 @@ export function useReminderScheduler() {
       if (!offsets.length) continue;
 
       const rule = eventsStore.effectiveRrule(ev);
-      const starts = rule
-        ? expandOccurrences(rule, new Date(ev.dtstart), new Date(now), expandEnd)
-        : [new Date(ev.dtstart)];
+      const dtstart = parseEventInstant(ev.dtstart, ev.allDay);
+      const starts = rule ? expandOccurrences(rule, dtstart, new Date(now), expandEnd) : [dtstart];
 
       // Queue any reminder whose event falls within the look-ahead window;
       // the fireAt itself may sit before the event time (e.g. a 1-week

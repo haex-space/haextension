@@ -6,8 +6,15 @@ import {
   type SelectEvent,
 } from "~/database/schemas";
 import { FULL_CALENDARS_TABLE, FULL_EVENTS_TABLE } from "~/stores/calendars";
-import { normalizeOffsetlessDateTime } from "~/lib/dates";
-import { expandOccurrences, nextOccurrence } from "~/lib/rrule";
+import {
+  addDays,
+  daysBetween,
+  normalizeOffsetlessDateTime,
+  parseEventInstant,
+  parseLocalDate,
+  toLocalDateKey,
+} from "~/lib/dates";
+import { expandOccurrences, nextOccurrence, pinCount } from "~/lib/rrule";
 
 export type { SelectEvent, InsertEvent };
 
@@ -146,29 +153,26 @@ export const useEventsStore = defineStore("events", () => {
         continue;
       }
 
-      const baseStart = new Date(event.dtstart);
-      const baseEnd = new Date(event.dtend);
-      const durationMs = Math.max(0, baseEnd.getTime() - baseStart.getTime());
-
+      const baseStart = parseEventInstant(event.dtstart, event.allDay);
       for (const occ of expandOccurrences(rule, baseStart, start, end)) {
-        const occEnd = new Date(occ.getTime() + durationMs);
-        // rrule.js anchors all-day occurrences at UTC midnight; using local
-        // getters here would shift the date by one in non-UTC timezones.
-        const dtstart = event.allDay
-          ? toDateOnlyUTC(occ)
-          : occ.toISOString();
-        const dtend = event.allDay ? toDateOnlyUTC(occEnd) : occEnd.toISOString();
-        result.push({ ...event, dtstart, dtend, occurrenceStart: occ.toISOString() });
+        result.push({ ...event, ...shiftedBoundaries(event, occ), occurrenceStart: occ.toISOString() });
       }
     }
 
     return result;
   }
 
-  /** UTC YYYY-MM-DD — for rrule.js outputs which anchor at UTC midnight. */
-  function toDateOnlyUTC(d: Date): string {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  /**
+   * dtstart/dtend of an occurrence starting at `occ`, keeping the master's
+   * duration (whole days for all-day events, so DST doesn't shift the end).
+   */
+  function shiftedBoundaries(event: SelectEvent, occ: Date): { dtstart: string; dtend: string } {
+    if (event.allDay) {
+      const days = Math.max(0, daysBetween(parseLocalDate(event.dtstart), parseLocalDate(event.dtend)));
+      return { dtstart: toLocalDateKey(occ), dtend: toLocalDateKey(addDays(occ, days)) };
+    }
+    const durationMs = Math.max(0, new Date(event.dtend).getTime() - new Date(event.dtstart).getTime());
+    return { dtstart: occ.toISOString(), dtend: new Date(occ.getTime() + durationMs).toISOString() };
   }
 
   /** Occurrences for the currently visible range — what the views render. */
@@ -356,19 +360,16 @@ export const useEventsStore = defineStore("events", () => {
       // Advance from the LATER of "now" and the stored dtstart. Otherwise an
       // old master row (e.g. yearly task created in 2020) advances by one
       // occurrence (→ 2021) instead of jumping to the next upcoming one.
-      const dtstart = new Date(ev.dtstart);
+      const dtstart = parseEventInstant(ev.dtstart, ev.allDay);
       const cursor = new Date(Math.max(Date.now(), dtstart.getTime()));
-      const next = nextOccurrence(rule, dtstart, cursor);
+      // COUNT is counted from dtstart, which is about to move.
+      const pinnedRule = pinCount(rule, dtstart);
+      const next = nextOccurrence(pinnedRule, dtstart, cursor);
       if (next) {
-        const durationMs = Math.max(
-          0,
-          new Date(ev.dtend).getTime() - new Date(ev.dtstart).getTime(),
-        );
-        const nextEnd = new Date(next.getTime() + durationMs);
         await updateEventAsync(id, {
-          dtstart: ev.allDay ? toDateOnlyUTC(next) : next.toISOString(),
-          dtend: ev.allDay ? toDateOnlyUTC(nextEnd) : nextEnd.toISOString(),
+          ...shiftedBoundaries(ev, next),
           completedAt: null,
+          ...(pinnedRule !== rule ? { rrule: pinnedRule, rruleOverride: true } : {}),
         });
         return;
       }

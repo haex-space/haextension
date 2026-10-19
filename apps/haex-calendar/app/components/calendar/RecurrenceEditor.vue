@@ -104,7 +104,17 @@
 </template>
 
 <script setup lang="ts">
-import { RRule, optionsToRRule, parseRRule, type Frequency, type Options, FREQUENCIES } from "~/lib/rrule";
+import {
+  RRule,
+  dateKeyToUntil,
+  firstOccurrences,
+  optionsToRRule,
+  parseRRule,
+  untilToDateKey,
+  type Frequency,
+  type Options,
+  FREQUENCIES,
+} from "~/lib/rrule";
 
 const props = defineProps<{
   /** Sample start date used for the preview and weekday/monthday defaults. */
@@ -160,10 +170,7 @@ function currentOptions(): Partial<Options> | null {
   if (endMode.value === "count") {
     options.count = Math.max(1, count.value || 1);
   } else if (endMode.value === "until" && until.value) {
-    // rrule.js treats UNTIL as a UTC instant. Building it from a local-time
-    // string would shift the boundary by the TZ offset and drop / include an
-    // extra tail occurrence depending on the user's zone.
-    options.until = new Date(`${until.value}T23:59:59Z`);
+    options.until = dateKeyToUntil(until.value);
   }
   return options;
 }
@@ -181,19 +188,10 @@ function recompute() {
   model.value = optionsToRRule(options);
 
   // Live preview: next occurrences from the sample start.
-  try {
-    const rule = new RRule({ ...options, dtstart: sampleStart.value });
-    const dates: Date[] = [];
-    rule.all((date, i) => {
-      if (i < 5) dates.push(date);
-      return i < 5;
-    });
-    previewMore.value = endMode.value === "never" || dates.length === 5;
-    const fmt = new Intl.DateTimeFormat(locale.value, { day: "2-digit", month: "2-digit" });
-    previewDates.value = dates.map((d) => fmt.format(d));
-  } catch {
-    previewDates.value = [];
-  }
+  const dates = firstOccurrences(options, sampleStart.value, 5);
+  previewMore.value = endMode.value === "never" || dates.length === 5;
+  const fmt = new Intl.DateTimeFormat(locale.value, { day: "2-digit", month: "2-digit" });
+  previewDates.value = dates.map((d) => fmt.format(d));
 }
 
 /** Populate the form from an incoming RRULE body. */
@@ -226,8 +224,7 @@ function loadFromModel(rule: string | null | undefined) {
     count.value = opts.count;
   } else if (opts.until) {
     endMode.value = "until";
-    const u = opts.until as Date;
-    until.value = `${u.getFullYear()}-${String(u.getMonth() + 1).padStart(2, "0")}-${String(u.getDate()).padStart(2, "0")}`;
+    until.value = untilToDateKey(opts.until);
   } else {
     endMode.value = "never";
   }

@@ -104,3 +104,39 @@ export function normalizeOffsetlessDateTime(value: string, timeZone: string): st
   if (candidates?.length !== 1) return null;
   return candidates[0]!.toISOString();
 }
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Local calendar date of `date` as "YYYY-MM-DD". */
+export function toLocalDateKey(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/** Local midnight of a "YYYY-MM-DD" key (time parts are ignored). */
+export function parseLocalDate(key: string): Date {
+  const [year, month, day] = key.slice(0, 10).split("-").map(Number);
+  return new Date(year!, month! - 1, day!);
+}
+
+/**
+ * Instant of a stored event boundary. All-day values are local dates; parsing
+ * them with `new Date("YYYY-MM-DD")` would yield UTC midnight, which is the
+ * previous day west of UTC.
+ */
+export function parseEventInstant(value: string, allDay: boolean): Date {
+  return allDay ? parseLocalDate(value) : new Date(value);
+}
+
+/** `date` moved by whole local calendar days (DST-safe, unlike adding 24h). */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+/** Whole local calendar days from `from` to `to`. */
+export function daysBetween(from: Date, to: Date): number {
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((b - a) / MS_PER_DAY);
+}

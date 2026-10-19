@@ -255,6 +255,7 @@
 </template>
 
 <script setup lang="ts">
+import { parseLocalDate } from "~/lib/dates";
 import type { EventDrawerInitialValues } from "~/stores/eventDrawer";
 
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -286,8 +287,7 @@ const eventTypeIdStr = computed({
 /** Sample dtstart for the recurrence preview. */
 const recurrenceSampleStart = computed(() => {
   if (!form.startDate) return new Date();
-  const iso = form.allDay ? form.startDate : `${form.startDate}T${form.startTime}`;
-  const d = new Date(iso);
+  const d = form.allDay ? parseLocalDate(form.startDate) : new Date(`${form.startDate}T${form.startTime}`);
   return isNaN(d.getTime()) ? new Date() : d;
 });
 
