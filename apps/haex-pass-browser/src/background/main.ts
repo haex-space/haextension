@@ -253,18 +253,6 @@ onMessage('fill-field', async (message) => {
   }
 })
 
-// Listen for tab updates to detect page loads with forms
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    // Notify content script that page is ready
-    try {
-      await sendMessage('page-loaded', { url: tab.url }, { context: 'content-script', tabId })
-    } catch {
-      // Content script may not be loaded yet
-    }
-  }
-})
-
 // =============================================================================
 // WebAuthn / Passkey Handlers
 // =============================================================================

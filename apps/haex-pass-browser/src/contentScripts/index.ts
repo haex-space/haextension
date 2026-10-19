@@ -370,11 +370,6 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   }
 
   // Listen for messages from background
-  onMessage('page-loaded', () => {
-    console.log('[haex-pass] Page loaded, scanning for fields')
-    scanAndRequest()
-  })
-
   onMessage('fill-field', ({ data }) => {
     const { fieldId, value } = data as { fieldId: string, value: string }
     fillField(fieldId, value)
