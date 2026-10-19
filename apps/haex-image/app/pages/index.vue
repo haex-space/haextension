@@ -130,23 +130,26 @@ async function saveAs() {
       <!-- Tool Options Sidebar -->
       <aside
         v-if="editor.activeTool"
-        class="flex w-56 flex-col gap-3 overflow-y-auto border-r border-border bg-card p-3"
+        class="flex w-56 flex-col overflow-y-auto border-r border-border bg-card p-3"
       >
-        <ImageCropPanel v-if="editor.activeTool === 'crop'" />
-        <ImageRotatePanel
-          v-if="editor.activeTool === 'rotate'"
-          v-model:free-rotation-deg="freeRotationDeg"
-          @apply-free-rotation="applyFreeRotation"
-        />
-        <ImageResizePanel v-if="editor.activeTool === 'resize'" />
-        <ImageAdjustPanel
-          v-if="editor.activeTool === 'adjust'"
-          v-model:preview-adjustments="previewAdjustments"
-          @reset="resetAdjustments"
-          @confirm="confirmAdjustments"
-        />
-        <ImageCompressPanel v-if="editor.activeTool === 'compress'" @confirm="confirmCompress" />
-        <ImageFilterPanel v-if="editor.activeTool === 'filter'" />
+        <!-- Disables every panel control while an edit runs, so edits never overlap -->
+        <fieldset :disabled="editor.isProcessing" class="flex min-w-0 flex-col gap-3">
+          <ImageCropPanel v-if="editor.activeTool === 'crop'" />
+          <ImageRotatePanel
+            v-if="editor.activeTool === 'rotate'"
+            v-model:free-rotation-deg="freeRotationDeg"
+            @apply-free-rotation="applyFreeRotation"
+          />
+          <ImageResizePanel v-if="editor.activeTool === 'resize'" />
+          <ImageAdjustPanel
+            v-if="editor.activeTool === 'adjust'"
+            v-model:preview-adjustments="previewAdjustments"
+            @reset="resetAdjustments"
+            @confirm="confirmAdjustments"
+          />
+          <ImageCompressPanel v-if="editor.activeTool === 'compress'" @confirm="confirmCompress" />
+          <ImageFilterPanel v-if="editor.activeTool === 'filter'" />
+        </fieldset>
       </aside>
 
       <!-- Canvas Area -->

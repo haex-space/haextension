@@ -12,14 +12,7 @@ export function useImageProcessor() {
     return { canvas, ctx: canvas.getContext("2d")! };
   }
 
-  function decodeCurrent() {
-    if (!editor.current) throw new Error("No image loaded");
-    return decodeImage(editor.current.blob);
-  }
-
-  /** The current image drawn 1:1 onto a new canvas, over `background` if given. */
-  async function drawCurrent(background?: string) {
-    const img = await decodeCurrent();
+  function drawOnto(img: HTMLImageElement, background?: string) {
     const { canvas, ctx } = createCanvas(img.naturalWidth, img.naturalHeight);
     if (background) {
       ctx.fillStyle = background;
@@ -29,32 +22,61 @@ export function useImageProcessor() {
     return { canvas, ctx };
   }
 
-  async function commit(canvas: HTMLCanvasElement, type = "image/png", quality?: number) {
-    const blob = await canvasToBlob(canvas, type, quality);
-    editor.pushHistory({ blob, width: canvas.width, height: canvas.height });
+  /** The current image drawn 1:1 onto a new canvas, over `background` if given. */
+  async function drawCurrent(background?: string) {
+    if (!editor.current) throw new Error("No image loaded");
+    return drawOnto(await decodeImage(editor.current.blob), background);
+  }
+
+  interface Edited {
+    canvas: HTMLCanvasElement;
+    type?: string;
+    quality?: number;
+  }
+
+  /**
+   * Runs one edit at a time. Its result becomes the new current image only if the image it started
+   * from is still current: an undo or a newly opened image while it ran makes the result stale.
+   * Resolves to whether the result was applied.
+   */
+  async function edit(op: (img: HTMLImageElement) => Edited): Promise<boolean> {
+    const source = editor.current;
+    if (!source || editor.isProcessing) return false;
+    editor.isProcessing = true;
+    try {
+      const { canvas, type = "image/png", quality } = op(await decodeImage(source.blob));
+      const blob = await canvasToBlob(canvas, type, quality);
+      if (editor.current !== source) return false;
+      editor.pushHistory({ blob, width: canvas.width, height: canvas.height });
+      return true;
+    } finally {
+      editor.isProcessing = false;
+    }
   }
 
   async function applyCrop(rect: CropRect) {
-    const img = await decodeCurrent();
-    const { canvas, ctx } = createCanvas(rect.width, rect.height);
-    ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-    await commit(canvas);
-    editor.activeTool = null;
+    const applied = await edit((img) => {
+      const { canvas, ctx } = createCanvas(rect.width, rect.height);
+      ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+      return { canvas };
+    });
+    if (applied) editor.activeTool = null;
   }
 
   async function applyRotate(degrees: number) {
-    const img = await decodeCurrent();
-    const rad = (degrees * Math.PI) / 180;
-    const sin = Math.abs(Math.sin(rad));
-    const cos = Math.abs(Math.cos(rad));
-    const newW = Math.round(img.naturalWidth * cos + img.naturalHeight * sin);
-    const newH = Math.round(img.naturalWidth * sin + img.naturalHeight * cos);
+    await edit((img) => {
+      const rad = (degrees * Math.PI) / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+      const newW = Math.round(img.naturalWidth * cos + img.naturalHeight * sin);
+      const newH = Math.round(img.naturalWidth * sin + img.naturalHeight * cos);
 
-    const { canvas, ctx } = createCanvas(newW, newH);
-    ctx.translate(newW / 2, newH / 2);
-    ctx.rotate(rad);
-    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
-    await commit(canvas);
+      const { canvas, ctx } = createCanvas(newW, newH);
+      ctx.translate(newW / 2, newH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      return { canvas };
+    });
   }
 
   async function applyRotate90(direction: "cw" | "ccw") {
@@ -62,43 +84,51 @@ export function useImageProcessor() {
   }
 
   async function applyFlip(axis: "horizontal" | "vertical") {
-    const img = await decodeCurrent();
-    const { canvas, ctx } = createCanvas(img.naturalWidth, img.naturalHeight);
-    if (axis === "horizontal") {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    } else {
-      ctx.translate(0, canvas.height);
-      ctx.scale(1, -1);
-    }
-    ctx.drawImage(img, 0, 0);
-    await commit(canvas);
+    await edit((img) => {
+      const { canvas, ctx } = createCanvas(img.naturalWidth, img.naturalHeight);
+      if (axis === "horizontal") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(0, canvas.height);
+        ctx.scale(1, -1);
+      }
+      ctx.drawImage(img, 0, 0);
+      return { canvas };
+    });
   }
 
   async function applyResize(width: number, height: number) {
-    const img = await decodeCurrent();
-    const { canvas, ctx } = createCanvas(width, height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, width, height);
-    await commit(canvas);
-    editor.activeTool = null;
+    const applied = await edit((img) => {
+      const { canvas, ctx } = createCanvas(width, height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, width, height);
+      return { canvas };
+    });
+    if (applied) editor.activeTool = null;
   }
 
   async function applyAdjustments(adjustments: ImageAdjustments) {
-    const { canvas, ctx } = await drawCurrent();
-    mapPixels(ctx, canvas.width, canvas.height, adjustmentsPixelFn(adjustments));
-    await commit(canvas);
+    const applied = await edit((img) => {
+      const { canvas, ctx } = drawOnto(img);
+      mapPixels(ctx, canvas.width, canvas.height, adjustmentsPixelFn(adjustments));
+      return { canvas };
+    });
+    if (!applied) return;
     editor.adjustments = { brightness: 0, contrast: 0, saturation: 0 };
     editor.activeTool = null;
   }
 
   async function applyFilter(filter: FilterType) {
-    const { canvas, ctx } = await drawCurrent();
-    if (filter !== "none") {
-      mapPixels(ctx, canvas.width, canvas.height, (r, g, b) => filterPixel(filter, r, g, b));
-    }
-    await commit(canvas);
+    const applied = await edit((img) => {
+      const { canvas, ctx } = drawOnto(img);
+      if (filter !== "none") {
+        mapPixels(ctx, canvas.width, canvas.height, (r, g, b) => filterPixel(filter, r, g, b));
+      }
+      return { canvas };
+    });
+    if (!applied) return;
     editor.activeFilter = "none";
     editor.activeTool = null;
   }
@@ -113,9 +143,12 @@ export function useImageProcessor() {
   }
 
   async function applyCompress(format: "jpeg" | "webp" | "png", quality: number) {
-    const { canvas } = await drawCurrent(backgroundFor(format));
-    await commit(canvas, `image/${format}`, quality);
-    editor.activeTool = null;
+    const applied = await edit((img) => ({
+      canvas: drawOnto(img, backgroundFor(format)).canvas,
+      type: `image/${format}`,
+      quality,
+    }));
+    if (applied) editor.activeTool = null;
   }
 
   async function exportImage(format: "png" | "jpeg", quality = 0.92): Promise<Blob> {

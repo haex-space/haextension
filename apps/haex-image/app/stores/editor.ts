@@ -10,6 +10,7 @@ export const useEditorStore = defineStore("editor", () => {
 
   // Tool state
   const activeTool = ref<EditorTool | null>(null);
+  const isProcessing = ref(false);
 
   // Crop
   const cropRect = ref<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
@@ -96,7 +97,7 @@ export const useEditorStore = defineStore("editor", () => {
 
   return {
     current, imageWidth, imageHeight, fileName, filePath, hasImage,
-    activeTool,
+    activeTool, isProcessing,
     cropRect, cropAspectRatio,
     rotation, flipH, flipV,
     resizeWidth, resizeHeight, resizeLockAspect,
