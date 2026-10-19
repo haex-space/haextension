@@ -47,6 +47,11 @@ export type SwitchResult
   = | { ok: true }
     | { ok: false, error: 'DIRTY_AND_UNSYNCED' | string }
 
+// Background work started from browser events has no caller to report to.
+function reportFailure(work: Promise<unknown>, what: string): void {
+  work.catch(err => console.error(`[haex-pass] ${what}:`, err))
+}
+
 function findNodeById(roots: NativeBookmarkNode[], id: string): NativeBookmarkNode | null {
   for (const node of roots) {
     if (node.id === id)
@@ -102,11 +107,11 @@ export class BookmarkSyncService {
     if (this.listenersRegistered)
       return
     this.listenersRegistered = true
-    this.deps.events.onCreated((id, node) => void this.recordNativeEvent((state, settings) => recordCreated(state, settings, id, node)))
-    this.deps.events.onChanged((id, changes) => void this.recordNativeEvent((state, settings) => recordChanged(state, settings, id, changes)))
-    this.deps.events.onMoved((id, info) => void this.recordNativeEvent((state, settings) => recordMoved(state, settings, id, info)))
-    this.deps.events.onRemoved((id, info) => void this.recordNativeEvent((state, settings) => recordRemoved(state, settings, id, info)))
-    this.deps.events.onPermissionRemoved(permissions => void this.handlePermissionRemoved(permissions))
+    this.deps.events.onCreated((id, node) => this.recordNativeEvent((state, settings) => recordCreated(state, settings, id, node)))
+    this.deps.events.onChanged((id, changes) => this.recordNativeEvent((state, settings) => recordChanged(state, settings, id, changes)))
+    this.deps.events.onMoved((id, info) => this.recordNativeEvent((state, settings) => recordMoved(state, settings, id, info)))
+    this.deps.events.onRemoved((id, info) => this.recordNativeEvent((state, settings) => recordRemoved(state, settings, id, info)))
+    this.deps.events.onPermissionRemoved(permissions => reportFailure(this.handlePermissionRemoved(permissions), 'Failed to turn bookmark sync off'))
     this.deps.alarms.onAlarm((alarm) => {
       if (alarm.name === BOOKMARK_SYNC_ALARM_NAME)
         this.scheduleSync(0)
@@ -123,7 +128,7 @@ export class BookmarkSyncService {
       clearTimeout(this.debounceTimer)
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null
-      void this.runSyncOnce()
+      reportFailure(this.runSyncOnce(), 'Bookmark sync pass failed')
     }, delayMs)
   }
 
@@ -424,14 +429,14 @@ export class BookmarkSyncService {
   // Native event handlers.
   // -------------------------------------------------------------------------
 
-  private async recordNativeEvent(
+  private recordNativeEvent(
     record: (state: BookmarkSyncState, settings: BookmarkSyncSettingsActive) => BookmarkSyncState | null,
-  ): Promise<void> {
+  ): void {
     // Checked when the event fires, not when its turn in the queue comes:
     // events raised by our own native writes arrive while the guard is up.
     if (this.applyGuardActive)
       return
-    await this.withStateLock(async () => {
+    reportFailure(this.withStateLock(async () => {
       const result = await this.deps.storage.loadState()
       if (!result.ok || result.state.settings.mode !== 'active')
         return
@@ -440,7 +445,7 @@ export class BookmarkSyncService {
         return
       await this.deps.storage.saveState(state)
       this.scheduleSync()
-    })
+    }), 'Failed to record a bookmark change')
   }
 
   private async handlePermissionRemoved(permissions: { permissions?: string[] }): Promise<void> {

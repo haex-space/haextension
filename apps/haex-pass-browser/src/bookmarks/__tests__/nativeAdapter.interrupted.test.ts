@@ -4,8 +4,9 @@ import type { BookmarkIdBinding, PendingBrowserOperation } from '../storage'
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
 
+import { recoverJournal } from '../journalRecovery'
 import { diffForests } from '../model'
-import { applyDiff, recoverJournal } from '../nativeAdapter'
+import { applyDiff } from '../nativeAdapter'
 import { chromiumTree, FakeNativeApi, findInTree, row } from './nativeAdapterFixtures'
 
 // nativeAdapter.ts -> storage.ts auto-imports the real `webextension-polyfill`,

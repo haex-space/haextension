@@ -5,8 +5,9 @@
 import type { BookmarkNodeRow } from './model'
 import type { BookmarkSyncState } from './storage'
 import type { SyncServiceDeps } from './syncDeps'
+import { recoverJournal } from './journalRecovery'
 import { diffForests, isDiffEmpty } from './model'
-import { applyDiff, recoverJournal } from './nativeAdapter'
+import { applyDiff } from './nativeAdapter'
 
 // Bulk-delete protection thresholds (see plan 002, "Laufender Sync").
 const BULK_DELETE_MIN_ABSOLUTE = 20
@@ -29,6 +30,40 @@ function sameIdSet(a: string[], b: string[]): boolean {
     return false
   const setA = new Set(a)
   return b.every(id => setA.has(id))
+}
+
+/** Rows whose native change failed keep their last applied version (or stay absent), so the next diff retries them. */
+function appliedSnapshot(previous: BookmarkNodeRow[], next: BookmarkNodeRow[], failedIds: string[]): BookmarkNodeRow[] {
+  if (failedIds.length === 0)
+    return next
+  const failed = new Set(failedIds)
+  const nextIds = new Set(next.map(row => row.id))
+  const previousById = new Map(previous.map(row => [row.id, row]))
+  const applied = next.flatMap((row) => {
+    if (!failed.has(row.id))
+      return [row]
+    const before = previousById.get(row.id)
+    return before ? [before] : []
+  })
+  const failedRemoves = previous.filter(row => failed.has(row.id) && !nextIds.has(row.id))
+  return [...applied, ...failedRemoves]
+}
+
+/** The device row only feeds the collection's device list; a failed update is reported, not fatal. */
+async function touchDevice(deps: SyncServiceDeps, state: BookmarkSyncState): Promise<void> {
+  const { settings } = state
+  if (settings.mode !== 'active')
+    return
+  try {
+    await deps.vault.upsertDevice({
+      collectionId: settings.collectionId,
+      replicaId: settings.replicaId,
+      deviceLabel: settings.deviceLabel,
+      browserFamily: settings.browserFamily,
+    })
+  } catch (err) {
+    await deps.storage.saveState({ ...state, settings: { ...settings, lastError: String(err) } })
+  }
 }
 
 export async function doSyncOnce(
@@ -108,12 +143,7 @@ export async function doSyncOnce(
     settings = { ...settings, dirty: false, lastSyncAt: deps.now(), lastError: null }
     state = { ...state, settings }
     await deps.storage.saveState(state)
-    await deps.vault.upsertDevice({
-      collectionId,
-      replicaId: settings.replicaId,
-      deviceLabel: settings.deviceLabel,
-      browserFamily: settings.browserFamily,
-    })
+    await touchDevice(deps, state)
     return
   }
 
@@ -138,13 +168,13 @@ export async function doSyncOnce(
 
   // 6. Apply the diff to the native tree, guarded against feedback loops.
   const applied = await runGuarded(() => applyDiff(deps.api, journal, state.bindings, diff))
-  settings = { ...settings, dirty: false, lastSyncAt: deps.now(), lastError: null }
-  state = { ...state, bindings: applied.bindings, snapshot: nodes, settings, pendingDeletionReview: null }
+  const failures = applied.diagnostics.filter(d => d.code === 'APPLY_FAILED')
+  const lastError = failures.length > 0
+    ? `${failures.length} bookmark change(s) could not be applied in this browser: ${failures[0].detail}`
+    : null
+  settings = { ...settings, dirty: false, lastSyncAt: deps.now(), lastError }
+  const snapshot = appliedSnapshot(state.snapshot, nodes, applied.failedIds)
+  state = { ...state, bindings: applied.bindings, snapshot, settings, pendingDeletionReview: null }
   await deps.storage.saveState(state)
-  await deps.vault.upsertDevice({
-    collectionId,
-    replicaId: settings.replicaId,
-    deviceLabel: settings.deviceLabel,
-    browserFamily: settings.browserFamily,
-  })
+  await touchDevice(deps, state)
 }

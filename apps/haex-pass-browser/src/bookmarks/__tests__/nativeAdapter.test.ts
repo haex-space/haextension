@@ -3,8 +3,9 @@ import type { BookmarkIdBinding, PendingBrowserOperation } from '../storage'
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeBrowser } from '~/tests/webextensionMock'
 
+import { recoverJournal } from '../journalRecovery'
 import { diffForests } from '../model'
-import { activateCollection, applyDiff, recoverJournal, seedCollectionFromNative } from '../nativeAdapter'
+import { activateCollection, applyDiff, seedCollectionFromNative } from '../nativeAdapter'
 import { chromiumTree, createFakeJournal, FakeNativeApi, findInTree, firefoxTree, row } from './nativeAdapterFixtures'
 
 // nativeAdapter.ts imports storage.ts, which auto-imports the real
