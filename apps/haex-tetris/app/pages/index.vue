@@ -21,8 +21,16 @@ const {
 } = useTetris()
 
 function handleKeydown(e: KeyboardEvent) {
+  // A held Space would otherwise drop piece after piece, or restart right after game over.
+  if (e.repeat && (e.key === ' ' || e.key === 'Enter')) {
+    e.preventDefault()
+    return
+  }
+
+  // Space is also hard drop, so only Enter restarts after game over.
+  const startKeys = gameState.value === 'gameover' ? ['Enter'] : ['Enter', ' ']
   if (gameState.value === 'idle' || gameState.value === 'gameover') {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (startKeys.includes(e.key)) {
       e.preventDefault()
       startGame()
     }
