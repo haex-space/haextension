@@ -48,10 +48,7 @@ async function confirmResize() {
     >
     <label class="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-accent/30 px-3 py-2">
       <span class="text-xs text-foreground">{{ t("lockAspect") }}</span>
-      <ShadcnSwitch
-        :checked="editor.resizeLockAspect"
-        @update:checked="editor.resizeLockAspect = $event"
-      />
+      <ShadcnSwitch v-model="editor.resizeLockAspect" />
     </label>
     <button
       class="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
