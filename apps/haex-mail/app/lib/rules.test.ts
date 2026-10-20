@@ -6,6 +6,7 @@ import {
   planRuleRun,
   RuleValidationError,
   ruleTargetMissing,
+  ruleTargetMissingKnown,
   validateRule,
   type RuleAccount,
   type RuleDef,
@@ -315,6 +316,28 @@ describe("ruleTargetMissing", () => {
 
   it("is false for a rule that moves nothing", () => {
     expect(ruleTargetMissing(rule("r", 1, { actions: [{ type: "flag" }] }), accounts)).toBe(false);
+  });
+});
+
+describe("ruleTargetMissingKnown", () => {
+  const unknown: RuleAccount = { id: "a3", mailboxes: [] };
+  it("does not count an account without fetched mailboxes as missing a folder", () => {
+    expect(ruleTargetMissingKnown(rule("r", 1), [...accounts, unknown])).toBe(false);
+    expect(
+      ruleTargetMissingKnown(
+        rule("r", 1, { accountId: "a3", actions: [{ type: "move", mailbox: "X" }] }),
+        [...accounts, unknown],
+      ),
+    ).toBe(false);
+  });
+
+  it("still finds a role or folder an account with mailboxes lacks", () => {
+    expect(
+      ruleTargetMissingKnown(
+        rule("r", 1, { actions: [{ type: "move", role: "trash" }] }),
+        [...accounts, unknown],
+      ),
+    ).toBe(true);
   });
 });
 

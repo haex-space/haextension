@@ -175,6 +175,16 @@ export const ruleTargetMissing = (rule: RuleDef, accounts: RuleAccount[]): boole
   return covered.some((account) => resolveMoveTarget(account, move) === null);
 };
 
+/**
+ * Like `ruleTargetMissing`, but an account whose mailboxes were never fetched counts as unknown,
+ * not as one that lacks the folder — the settings and the agent both show this.
+ */
+export const ruleTargetMissingKnown = (rule: RuleDef, accounts: RuleAccount[]): boolean => {
+  const known = accounts.filter((a) => a.mailboxes.length > 0);
+  const covered = rule.accountId === null ? known : known.filter((a) => a.id === rule.accountId);
+  return covered.length > 0 && ruleTargetMissing(rule, covered);
+};
+
 export interface ActionPlan {
   markRead: boolean;
   flag: boolean;
