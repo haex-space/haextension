@@ -2,10 +2,13 @@
 const emit = defineEmits<{ saved: [] }>();
 
 const { t } = useI18n();
+const uiStore = useUiStore();
+// Details prepared by the agent belong in the form, not in the list of existing accounts.
+const startTab = uiStore.accountPrefill ? "new" : "import";
 </script>
 
 <template>
-  <ShadcnTabs default-value="import">
+  <ShadcnTabs :default-value="startTab">
     <ShadcnTabsList class="w-full">
       <ShadcnTabsTrigger value="import" class="flex-1">
         {{ t("tabs.import") }}

@@ -16,23 +16,28 @@ const emit = defineEmits<{ saved: [] }>();
 
 const { t } = useI18n();
 const accountsStore = useAccountsStore();
+const uiStore = useUiStore();
 
 const isEdit = computed(() => !!props.account);
 
-const displayName = ref(props.account?.displayName ?? "");
-const email = ref(props.account?.email ?? "");
+// Details the agent prepared (no password among them); a new account takes them once.
+const prefill = props.account ? null : uiStore.accountPrefill;
+if (prefill) uiStore.accountPrefill = null;
+
+const displayName = ref(props.account?.displayName ?? prefill?.displayName ?? "");
+const email = ref(props.account?.email ?? prefill?.email ?? "");
 const password = ref("");
 
-const imapHost = ref(props.account?.imapHost ?? "");
-const imapPort = ref(props.account?.imapPort ?? 993);
+const imapHost = ref(props.account?.imapHost ?? prefill?.imapHost ?? "");
+const imapPort = ref(props.account?.imapPort ?? prefill?.imapPort ?? 993);
 const imapSecurity = ref<ConnectionSecurity>(
-  (props.account?.imapSecurity as ConnectionSecurity) ?? "tls",
+  (props.account?.imapSecurity as ConnectionSecurity) ?? prefill?.imapSecurity ?? "tls",
 );
 
-const smtpHost = ref(props.account?.smtpHost ?? "");
-const smtpPort = ref(props.account?.smtpPort ?? 465);
+const smtpHost = ref(props.account?.smtpHost ?? prefill?.smtpHost ?? "");
+const smtpPort = ref(props.account?.smtpPort ?? prefill?.smtpPort ?? 465);
 const smtpSecurity = ref<ConnectionSecurity>(
-  (props.account?.smtpSecurity as ConnectionSecurity) ?? "tls",
+  (props.account?.smtpSecurity as ConnectionSecurity) ?? prefill?.smtpSecurity ?? "tls",
 );
 
 const isSubmitting = ref(false);

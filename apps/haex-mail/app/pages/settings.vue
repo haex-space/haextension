@@ -28,6 +28,21 @@ const openCreate = () => {
   showAccountDialog.value = true;
 };
 
+// The agent asked for the account form (`open_account_setup`): open it, with the details it prepared.
+watch(
+  () => uiStore.accountSetupRequested,
+  (requested) => {
+    if (!requested) return;
+    uiStore.accountSetupRequested = false;
+    openCreate();
+  },
+  { immediate: true },
+);
+// Details nobody took must not turn up in a later form.
+watch(showAccountDialog, (open) => {
+  if (!open) uiStore.accountPrefill = null;
+});
+
 const openEdit = (account: schema.SelectAccount) => {
   editAccount.value = account;
   showAccountDialog.value = true;

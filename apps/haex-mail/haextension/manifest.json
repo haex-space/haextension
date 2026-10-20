@@ -31,6 +31,129 @@
   },
   "tools": [
     {
+      "name": "list_accounts",
+      "title": {
+        "de": "Mail-Konten auflisten",
+        "en": "List mail accounts"
+      },
+      "description": "Lists the mail accounts set up in haex-mail (id, display name, address) and, under importable, the password manager entries tagged for haex-mail that could become an account (id, title, user name). Never returns a password or server credentials.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "effect": "read",
+      "examples": {
+        "de": [
+          "Welche Mail-Konten habe ich?",
+          "Zeig mir meine E-Mail-Adressen in haex-mail",
+          "Wie viele Mail-Konten sind eingerichtet?",
+          "Gibt es Zugangsdaten, aus denen ich ein Mailkonto machen kann?"
+        ],
+        "en": [
+          "Which mail accounts do I have?",
+          "Show me my email addresses in haex-mail",
+          "How many mail accounts are set up?",
+          "Are there saved logins I could turn into a mail account?"
+        ]
+      }
+    },
+    {
+      "name": "import_account",
+      "title": {
+        "de": "Mailkonto aus dem Passwortmanager übernehmen",
+        "en": "Import a mail account from the password manager"
+      },
+      "description": "Turns a password manager entry tagged for haex-mail into a mail account. The entry must hold the mail server settings. Take the entry id from the importable list of list_accounts. The password is read by haex-mail itself and never passes through the agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "passwordItemId": {
+            "type": "string",
+            "description": "The entry id from list_accounts, importable."
+          }
+        },
+        "required": [
+          "passwordItemId"
+        ]
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Übernimm meinen gespeicherten Arbeits-Login als Mailkonto",
+          "Richte das Konto aus dem Passwortmanager in haex-mail ein",
+          "Mach aus dem Eintrag Arbeit ein Mailkonto",
+          "Importiere das vorhandene Mailkonto aus dem Passwort-Tresor"
+        ],
+        "en": [
+          "Turn my saved work login into a mail account",
+          "Set up the account from the password manager in haex-mail",
+          "Make the entry Work a mail account",
+          "Import the existing mail account from the password vault"
+        ]
+      }
+    },
+    {
+      "name": "open_account_setup",
+      "title": {
+        "de": "Einrichtung eines Mailkontos vorbereiten",
+        "en": "Prepare the setup of a mail account"
+      },
+      "description": "Prepares the new mail account form in haex-mail with the given address and server settings. It has no password field: the user opens the haex-mail window and types the password into the form themselves. Use it when no saved login can be imported.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The mail address."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "A name for the account."
+          },
+          "imapHost": {
+            "type": "string"
+          },
+          "imapPort": {
+            "type": "integer"
+          },
+          "imapSecurity": {
+            "type": "string",
+            "enum": [
+              "tls"
+            ]
+          },
+          "smtpHost": {
+            "type": "string"
+          },
+          "smtpPort": {
+            "type": "integer"
+          },
+          "smtpSecurity": {
+            "type": "string",
+            "enum": [
+              "tls",
+              "startTls"
+            ]
+          }
+        }
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Richte mein Mailkonto bei example.org ein",
+          "Leg ein neues E-Mail-Konto für anna@example.org an",
+          "Ich möchte ein weiteres Mailkonto in haex-mail hinzufügen",
+          "Bereite die Kontoeinrichtung für meine Gmail-Adresse vor"
+        ],
+        "en": [
+          "Set up my mail account at example.org",
+          "Add a new email account for anna@example.org",
+          "I want to add another mail account in haex-mail",
+          "Prepare the account setup for my Gmail address"
+        ]
+      }
+    },
+    {
       "name": "list_rules",
       "title": {
         "de": "Mail-Regeln auflisten",
