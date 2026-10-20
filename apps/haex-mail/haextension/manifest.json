@@ -31,6 +31,229 @@
   },
   "tools": [
     {
+      "name": "list_mailboxes",
+      "title": {
+        "de": "Mail-Ordner und ungelesene Mails zählen",
+        "en": "List mail folders and count unread mail"
+      },
+      "description": "Lists the mail folders of one or all accounts with their role (inbox, sent, drafts, trash, junk, archive) and the number of unread and of all messages in each, read from the mail server now. Use it to answer how many unread mails there are. An account that cannot be reached answers from the cache and is named in errors.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account id from list_accounts; every account when omitted."
+          }
+        }
+      },
+      "effect": "read",
+      "examples": {
+        "de": [
+          "Wie viele ungelesene Mails habe ich?",
+          "Habe ich neue Mails?",
+          "Welche Ordner gibt es in meinem Postfach?",
+          "Wie viele Mails liegen im Posteingang?"
+        ],
+        "en": [
+          "How many unread mails do I have?",
+          "Do I have new mail?",
+          "Which folders are in my mailbox?",
+          "How many mails are in my inbox?"
+        ]
+      }
+    },
+    {
+      "name": "get_message",
+      "title": {
+        "de": "Eine Mail lesen",
+        "en": "Read a mail"
+      },
+      "description": "Returns one mail: sender, recipients, subject, date, whether it is unread or flagged, its text (at most 12000 characters, truncated says if it was cut) and its attachments. Reading does not mark the mail as read. Take the id from find_messages.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The message id from find_messages."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "effect": "read",
+      "examples": {
+        "de": [
+          "Was steht in der Mail von Anna?",
+          "Lies mir die letzte Mail vor",
+          "Fass die Mail mit der Rechnung zusammen",
+          "Hat die Mail einen Anhang und was steht drin?"
+        ],
+        "en": [
+          "What does the mail from Anna say?",
+          "Read me the latest mail",
+          "Summarize the mail with the invoice",
+          "Does the mail have an attachment and what does it say?"
+        ]
+      }
+    },
+    {
+      "name": "mark_messages",
+      "title": {
+        "de": "Mails als gelesen oder markiert setzen",
+        "en": "Mark mails as read or flagged"
+      },
+      "description": "Marks up to 100 mails as read or unread and/or as flagged or not flagged. Answers per mail which were changed and which failed with a reason.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "read": {
+            "type": "boolean",
+            "description": "true marks the mails as read, false as unread."
+          },
+          "flagged": {
+            "type": "boolean",
+            "description": "true flags the mails, false removes the flag."
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Markiere diese Mails als gelesen",
+          "Setz die Mail von meiner Bank auf ungelesen",
+          "Markiere die Rechnung mit einem Stern",
+          "Hake alle Mails von heute als gelesen ab"
+        ],
+        "en": [
+          "Mark these mails as read",
+          "Set the mail from my bank back to unread",
+          "Flag the invoice mail",
+          "Mark all of today's mails as read"
+        ]
+      }
+    },
+    {
+      "name": "move_messages",
+      "title": {
+        "de": "Mails in einen Ordner verschieben",
+        "en": "Move mails to a folder"
+      },
+      "description": "Moves up to 100 mails to a folder of their own account, named by role (inbox, sent, drafts, trash, junk, archive) or by folder name. A mail already in the target counts as done. Answers per mail which were moved and which failed with a reason.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "type": "string",
+            "description": "A mailbox role or the name of a folder."
+          }
+        },
+        "required": [
+          "ids",
+          "to"
+        ]
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Verschieb diese Mails ins Archiv",
+          "Leg die Belege in den Ordner Steuer",
+          "Schieb die Newsletter in den Papierkorb",
+          "Sortier die Mail von Anna in den Ordner Arbeit"
+        ],
+        "en": [
+          "Move these mails to the archive",
+          "Put the receipts into the Steuer folder",
+          "Move the newsletters to the trash",
+          "File the mail from Anna into the Work folder"
+        ]
+      }
+    },
+    {
+      "name": "create_draft",
+      "title": {
+        "de": "Mail-Entwurf anlegen",
+        "en": "Create a mail draft"
+      },
+      "description": "Stores a new mail, a reply or a forward as a draft in the drafts folder of an account. It never sends. With replyTo (a message id) the recipient, subject, thread and the quoted original are taken from that message; to, cc and subject override them. Attachments of the original are not carried over. Returns the draft id and what the draft says; send_mail sends it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account id from list_accounts."
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Recipient addresses, also as Name <address>."
+          },
+          "cc": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "What you write; the quoted original follows it."
+          },
+          "replyTo": {
+            "type": "string",
+            "description": "The id of the message to answer or forward."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "reply",
+              "reply-all",
+              "forward"
+            ],
+            "description": "With replyTo; reply when omitted."
+          }
+        },
+        "required": [
+          "account",
+          "body"
+        ]
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Schreib Anna eine Antwort auf ihre letzte Mail: ich komme am Donnerstag",
+          "Entwirf eine Mail an ben@example.org wegen der Rechnung",
+          "Leite die Mail mit dem Vertrag an meine Kollegin weiter",
+          "Leg einen Entwurf an, in dem ich mich für die Einladung bedanke"
+        ],
+        "en": [
+          "Write Anna a reply to her last mail: I'll come on Thursday",
+          "Draft a mail to ben@example.org about the invoice",
+          "Forward the mail with the contract to my colleague",
+          "Create a draft thanking them for the invitation"
+        ]
+      }
+    },
+    {
       "name": "list_accounts",
       "title": {
         "de": "Mail-Konten auflisten",

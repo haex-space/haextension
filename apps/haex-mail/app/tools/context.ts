@@ -1,4 +1,6 @@
 import { MAILBOX_ROLES, type MailboxRole } from "../database/schemas";
+import { decodeMailboxName } from "../lib/imap";
+import type { ImapConfig, SmtpConfig } from "@haex-space/vault-sdk";
 
 /**
  * What every tool of the agent shares (spec 019): the handler shape, how ids and mailbox names are
@@ -46,7 +48,8 @@ export const isMailboxRole = (value: string): value is MailboxRole =>
 
 /**
  * The mailbox a name or a role (`inbox`, `trash`, …) means in one account, or `null` when it has
- * none. A role is looked up by role, a name by exact name first and then ignoring case.
+ * none. A role is looked up by role, a name by exact name first and then ignoring case; a name
+ * counts as written either raw (IMAP's modified UTF-7) or decoded, the way the agent read it.
  */
 export const resolveMailbox = (
   mailboxes: { name: string; role: string | null }[],
@@ -54,9 +57,12 @@ export const resolveMailbox = (
 ): string | null => {
   const wanted = nameOrRole.trim();
   if (!wanted) return null;
+  const lower = wanted.toLowerCase();
   const byName =
-    mailboxes.find((m) => m.name === wanted) ??
-    mailboxes.find((m) => m.name.toLowerCase() === wanted.toLowerCase());
+    mailboxes.find((m) => m.name === wanted || decodeMailboxName(m.name) === wanted) ??
+    mailboxes.find(
+      (m) => m.name.toLowerCase() === lower || decodeMailboxName(m.name).toLowerCase() === lower,
+    );
   if (byName) return byName.name;
   const role = wanted.toLowerCase();
   return isMailboxRole(role) ? (mailboxes.find((m) => m.role === role)?.name ?? null) : null;
@@ -66,4 +72,33 @@ export const resolveMailbox = (
 export const optionalString = (input: Record<string, unknown>, key: string): string | undefined => {
   const value = input[key];
   return typeof value === "string" ? value : undefined;
+};
+
+/** An account as the tools name it. */
+export interface AccountRow {
+  id: string;
+  displayName: string;
+  email: string;
+}
+
+/** The accounts and the way to their servers (the credentials never leave the app). */
+export interface AccountsPort {
+  accounts: AccountRow[];
+  getCredentialsCachedAsync(
+    accountId: string,
+  ): Promise<{ imap: ImapConfig; smtp: SmtpConfig | null } | null>;
+}
+
+/** The account a tool call names, or an error the agent can act on. */
+export const findAccount = (accounts: AccountRow[], id: string | undefined): AccountRow => {
+  const account = accounts.find((a) => a.id === id);
+  if (!account) throw toolError("there is no such account; take the id from list_accounts");
+  return account;
+};
+
+/** The server connection of an account, or an error when haex-mail has no credentials for it. */
+export const connectionOf = async (accounts: AccountsPort, accountId: string) => {
+  const connection = await accounts.getCredentialsCachedAsync(accountId);
+  if (!connection) throw toolError("haex-mail has no credentials for this account");
+  return connection;
 };

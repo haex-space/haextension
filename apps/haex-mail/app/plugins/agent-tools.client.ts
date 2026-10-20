@@ -1,45 +1,21 @@
-import { createTools, type ToolDeps } from "~/tools";
+import { buildToolDeps } from "~/tools/deps";
+import { createTools } from "~/tools";
 
 /**
  * Offers the agent of the host the tools declared in the manifest (spec 019). The handlers run
- * when the host calls them, also while no page of haex-mail was opened, so each one first waits for
- * the app to start (database, migrations, accounts) through `deps`.
+ * when the host calls them, also while no page of haex-mail was opened; `buildToolDeps` waits for
+ * the app to start first.
  */
 export default defineNuxtPlugin((nuxtApp) => {
-  const stores = () =>
-    nuxtApp.runWithContext(() => ({
-      haexVault: useHaexVaultStore(),
-      accountsStore: useAccountsStore(),
-      mailStore: useMailStore(),
-      rulesStore: useRulesStore(),
-      uiStore: useUiStore(),
-    }));
-
-  const deps = async (): Promise<ToolDeps> => {
-    const { haexVault, accountsStore, mailStore, rulesStore, uiStore } = await stores();
-    await haexVault.initializeAsync();
-    await accountsStore.loadAccountsAsync();
-    return {
-      accounts: accountsStore,
-      rules: rulesStore,
-      applyRuleToExistingAsync: mailStore.applyRuleToExistingAsync,
-      openAccountSetup: async (prefill) => {
-        uiStore.accountPrefill = prefill;
-        uiStore.accountSetupRequested = true;
-        await nuxtApp.runWithContext(() => navigateTo("/settings"));
-      },
-    };
-  };
-
   /** Returns whether the tools were registered; the vault client may not exist yet. */
   const register = async (): Promise<boolean> => {
     let client;
     try {
-      client = (await stores()).haexVault.client;
+      client = await nuxtApp.runWithContext(() => useHaexVaultStore().client);
     } catch {
       return false;
     }
-    for (const [name, handler] of Object.entries(createTools(deps))) {
+    for (const [name, handler] of Object.entries(createTools(() => buildToolDeps(nuxtApp)))) {
       try {
         client.tools.register(name, handler);
       } catch (err) {

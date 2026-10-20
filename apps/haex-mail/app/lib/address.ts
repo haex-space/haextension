@@ -1,5 +1,9 @@
 import type { MailAddressJson } from "~/database/schemas";
 
+/** "Name <email>, email, …" for headers and quotes. */
+export const formatAddressList = (addrs: MailAddressJson[] | undefined) =>
+  (addrs ?? []).map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
+
 // What the vault's SMTP builder accepts as a bare address; it rejects the
 // rest (display names, spaces) with a generic error.
 const EMAIL_RE = /^[^\s@<>",;]+@[^\s@<>",;]+$/;

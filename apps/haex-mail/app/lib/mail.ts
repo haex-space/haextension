@@ -34,9 +34,7 @@ export const mailboxDisplayName = (name: string, inboxLabel: string) =>
 export const senderText = (msg: schema.SelectMessage) =>
   msg.fromJson[0]?.name || msg.fromJson[0]?.email || "";
 
-/** "Name <email>, email, …" for headers and quotes. */
-export const formatAddressList = (addrs: schema.MailAddressJson[] | undefined) =>
-  (addrs ?? []).map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
+export { formatAddressList } from "./address";
 
 /** The attachment metadata kept in the body cache (bytes are fetched on demand). */
 export const toAttachmentJson = (a: MailAttachment): schema.AttachmentJson => ({
