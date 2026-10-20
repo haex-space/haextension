@@ -225,6 +225,7 @@ export const useMailStore = defineStore("mail", () => {
     setFlagForUidsAsync,
     moveUidsAsync,
     applyRuleToExistingAsync,
+    persistEnvelopesAsync: sync.persistEnvelopesAsync,
     selectAccount,
     selectMailbox,
     selectRole,

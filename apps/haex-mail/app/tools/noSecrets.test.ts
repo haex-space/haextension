@@ -9,9 +9,9 @@ const SECRET = "geheim-7f1c-MARKER";
 const HOST = "imap.hidden.example";
 
 /**
- * Stores that hold a secret in every place a real account does: the password item id, the
- * connection settings, the credentials of an import — plus errors that carry them. Every tool runs
- * against them; nothing it answers may contain the marker or the host.
+ * Stores and a mail client that hold a secret in every place a real account does: the password item
+ * id, the connection settings, the credentials of an import — plus servers and errors that carry
+ * them. Every tool runs against them; nothing it answers may contain the marker or the host.
  */
 const deps = (): ToolDeps => {
   const rules: RuleDef[] = [];
@@ -23,9 +23,22 @@ const deps = (): ToolDeps => {
     imapHost: HOST,
     password: SECRET,
   };
+  const imap = { host: HOST, port: 993, security: "tls", username: "me", password: SECRET } as const;
+  const envelope = {
+    uid: 9,
+    flags: [],
+    subject: "Rechnung",
+    from: [{ name: "Anna", email: "anna@example.org" }],
+    to: [],
+    cc: [],
+    references: [],
+    hasAttachments: false,
+    messageId: "draft-1@example.org",
+  };
   return {
     accounts: {
       accounts: [account],
+      getCredentialsCachedAsync: async () => ({ imap, smtp: null }),
       listImportableVaultAccountsAsync: async () => [
         { id: "p1", title: "Arbeit", username: "work@example.org", password: SECRET } as never,
       ],
@@ -48,10 +61,30 @@ const deps = (): ToolDeps => {
       deleteRuleAsync: async () => {},
     },
     applyRuleToExistingAsync: async () => ({ applied: 0, limited: false }),
+    mailClient: {
+      listMailboxesAsync: async () => [{ name: "INBOX", flags: [], unseen: 1, exists: 2 }],
+      fetchMessageAsync: async () => ({ envelope, bodyText: "Hallo", attachments: [] }),
+      buildRfc822Async: async () => btoa("Message-ID: <draft-1@example.org>\r\n\r\nx"),
+      appendMessageAsync: async () => {},
+      fetchEnvelopesAsync: async () => [envelope],
+    },
+    cachedMailboxes: async () => [
+      { name: "INBOX", role: "inbox", unseen: 0, exists: 0 },
+      { name: "Drafts", role: "drafts", unseen: 0, exists: 0 },
+      { name: "Archive", role: "archive", unseen: 0, exists: 0 },
+    ],
+    htmlToText: (html: string) => html,
+    changes: { setFlagForUidsAsync: async () => {}, moveUidsAsync: async () => {} },
+    replyPrefill: async () => ({ accountId: "a1", to: "anna@example.org", subject: "Re: Rechnung" }),
   };
 };
 
 const INPUTS: Record<string, Record<string, unknown>> = {
+  list_mailboxes: {},
+  get_message: { id: "a1::INBOX::9" },
+  mark_messages: { ids: ["a1::INBOX::9"], read: true },
+  move_messages: { ids: ["a1::INBOX::9"], to: "archive" },
+  create_draft: { account: "a1", to: ["anna@example.org"], subject: "Hi", body: "Hallo" },
   import_account: { passwordItemId: "p1" },
   open_account_setup: { email: "a@b.de", imapHost: HOST, password: SECRET },
   add_rule: {
@@ -63,7 +96,7 @@ const INPUTS: Record<string, Record<string, unknown>> = {
 };
 
 describe("no tool hands a secret to the agent", () => {
-  it("in an answer or in an error", async () => {
+  it("in an answer or in an error, for every tool", async () => {
     const tools = createTools(async () => deps());
     for (const [name, handler] of Object.entries(tools)) {
       let text: string;

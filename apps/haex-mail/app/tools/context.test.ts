@@ -48,6 +48,12 @@ describe("resolveMailbox", () => {
     expect(resolveMailbox([{ name: "trash", role: null }, { name: "Papierkorb", role: "trash" }], "trash")).toBe("trash");
   });
 
+  it("reads a name the way the agent saw it, decoded from IMAP's modified UTF-7", () => {
+    const decoded = [{ name: "Entw&APw-rfe", role: "drafts" }];
+    expect(resolveMailbox(decoded, "Entwürfe")).toBe("Entw&APw-rfe");
+    expect(resolveMailbox(decoded, "Entw&APw-rfe")).toBe("Entw&APw-rfe");
+  });
+
   it("is null for a role or name the account lacks", () => {
     expect(resolveMailbox(mailboxes, "trash")).toBeNull();
     expect(resolveMailbox(mailboxes, "Weg")).toBeNull();

@@ -4,6 +4,7 @@ import type {
   RuleActionJson,
   RuleConditionJson,
 } from "../database/schemas";
+import { formatAddressList } from "./address";
 
 /**
  * Mail rules: pure checks, matching and planning. No store, no server, no i18n — the store and the
@@ -125,11 +126,6 @@ export const validateRule = (input: RuleInput, accountIds: ReadonlySet<string>):
   return issues;
 };
 
-// Written out here and not taken from lib/mail.ts (`formatAddressList`): that file imports the
-// schema through the `~` alias, which the tests of this module do not have.
-const addressText = (addresses: MailAddressJson[]): string =>
-  addresses.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join(", ");
-
 const contains = (haystack: string, needle: string): boolean =>
   haystack.toLocaleLowerCase().includes(needle.trim().toLocaleLowerCase());
 
@@ -140,9 +136,9 @@ const meets = (condition: RuleCondition, message: RuleMessage): boolean => {
     case "subject":
       return contains(message.subject ?? "", condition.contains);
     case "from":
-      return contains(addressText(message.fromJson), condition.contains);
+      return contains(formatAddressList(message.fromJson), condition.contains);
     case "to":
-      return contains(addressText([...message.toJson, ...message.ccJson]), condition.contains);
+      return contains(formatAddressList([...message.toJson, ...message.ccJson]), condition.contains);
   }
 };
 
