@@ -66,6 +66,11 @@ export const mailboxes = sqliteTable(tableName("mailboxes"), {
   exists: integer("message_count").default(0),
   uidValidity: integer("uid_validity"),
   uidNext: integer("uid_next"),
+  /**
+   * Highest UID the mail rules have run for (INBOX only); NULL until the mailbox was seen once.
+   * Reset with the cache when UIDVALIDITY changes. See lib/rules.ts `planRuleRun`.
+   */
+  rulesUidThrough: integer("rules_uid_through"),
   ...timestamps,
 });
 export type InsertMailbox = typeof mailboxes.$inferInsert;
@@ -127,7 +132,40 @@ export const messageBodies = sqliteTable(tableName("message_bodies"), {
 export type InsertMessageBody = typeof messageBodies.$inferInsert;
 export type SelectMessageBody = typeof messageBodies.$inferSelect;
 
+/**
+ * Mail rules (spec 019): when a new INBOX message meets all conditions, the actions run. Rules
+ * belong to the vault, not to a device (ADR-0001 of holzi): they sync like accounts.
+ */
+export const rules = sqliteTable(tableName("rules"), {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  /** NULL: the rule covers every account. */
+  accountId: text("account_id"),
+  enabled: integer({ mode: "boolean" }).notNull().default(true),
+  conditionsJson: text("conditions_json", { mode: "json" })
+    .$type<RuleConditionJson[]>()
+    .notNull(),
+  actionsJson: text("actions_json", { mode: "json" }).$type<RuleActionJson[]>().notNull(),
+  /** Who made the rule: the user in the settings or the agent through a tool. */
+  origin: text().$type<"user" | "agent">().notNull().default("user"),
+  ...timestamps,
+});
+export type InsertRule = typeof rules.$inferInsert;
+export type SelectRule = typeof rules.$inferSelect;
+
 // Type definitions
+
+/** All conditions of a rule must hold (AND); see lib/rules.ts. */
+export type RuleConditionJson =
+  | { field: "from" | "to" | "subject"; contains: string }
+  | { field: "attachment" };
+
+/** There is no action that forwards or sends a message, by design. */
+export type RuleActionJson =
+  | { type: "move"; role: MailboxRole }
+  | { type: "move"; mailbox: string }
+  | { type: "markRead" }
+  | { type: "flag" };
 
 export interface MailAddressJson {
   name?: string;
