@@ -139,6 +139,8 @@ const executeDeleteAsync = async () => {
           {{ t("accounts.add") }}
         </UiButton>
       </section>
+
+      <RulesSection />
     </div>
 
     <!-- Add / edit account dialog -->
