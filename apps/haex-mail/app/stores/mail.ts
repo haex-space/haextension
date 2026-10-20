@@ -9,6 +9,7 @@ import {
 import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
 import { useMessageChanges } from "./mail/changes";
+import { useMailRules, type AfterEnvelopesPersisted } from "./mail/rules";
 import { useMessageBody } from "./mail/message";
 import { useReplyBuilder } from "./mail/reply";
 import { useMailSync } from "./mail/sync";
@@ -111,7 +112,11 @@ export const useMailStore = defineStore("mail", () => {
     isLoadingMessage,
   };
 
-  const sync = useMailSync(state);
+  // The rules need the message changes, which need the sync: bound once all of them exist.
+  const afterPersist: { run: AfterEnvelopesPersisted } = { run: async () => {} };
+  const sync = useMailSync(state, (accountId, mailboxName, envelopes) =>
+    afterPersist.run(accountId, mailboxName, envelopes),
+  );
   const {
     refreshMailboxesAsync,
     loadMailboxesAsync,
@@ -121,10 +126,17 @@ export const useMailStore = defineStore("mail", () => {
     refreshUnifiedAsync,
   } = sync;
 
-  useNewMailWatch(state, sync);
-
   const { persistMessageBodyAsync, loadMessageBodyAsync, updateLocalFlagsAsync } =
     useMessageBody(state, sync);
+
+  const { setFlagForUidsAsync, moveUidsAsync } = useMessageChanges(sync, updateLocalFlagsAsync);
+  const { applyRulesToNewInboxAsync, applyRuleToExistingAsync } = useMailRules({
+    setFlagForUidsAsync,
+    moveUidsAsync,
+  });
+  afterPersist.run = applyRulesToNewInboxAsync;
+
+  useNewMailWatch(state, sync, applyRulesToNewInboxAsync);
 
   const { buildReplyContextAsync, fetchAttachmentBase64Async } =
     useReplyBuilder(persistMessageBodyAsync);
@@ -164,8 +176,6 @@ export const useMailStore = defineStore("mail", () => {
     isSearching.value = false;
     searchQuery.value = "";
   };
-
-  const { setFlagForUidsAsync, moveUidsAsync } = useMessageChanges(sync, updateLocalFlagsAsync);
 
   const { bulkSetFlagAsync, bulkMoveToRoleAsync, bulkMoveToMailboxAsync } =
     useBulkMessageOps(state, sync, { setFlagForUidsAsync, moveUidsAsync }, selectMessage);
@@ -214,6 +224,7 @@ export const useMailStore = defineStore("mail", () => {
     bulkMoveToMailboxAsync,
     setFlagForUidsAsync,
     moveUidsAsync,
+    applyRuleToExistingAsync,
     selectAccount,
     selectMailbox,
     selectRole,
