@@ -12,15 +12,22 @@ export default defineNuxtPlugin((nuxtApp) => {
       accountsStore: useAccountsStore(),
       mailStore: useMailStore(),
       rulesStore: useRulesStore(),
+      uiStore: useUiStore(),
     }));
 
   const deps = async (): Promise<ToolDeps> => {
-    const { haexVault, accountsStore, mailStore, rulesStore } = await stores();
+    const { haexVault, accountsStore, mailStore, rulesStore, uiStore } = await stores();
     await haexVault.initializeAsync();
     await accountsStore.loadAccountsAsync();
     return {
+      accounts: accountsStore,
       rules: rulesStore,
       applyRuleToExistingAsync: mailStore.applyRuleToExistingAsync,
+      openAccountSetup: async (prefill) => {
+        uiStore.accountPrefill = prefill;
+        uiStore.accountSetupRequested = true;
+        await nuxtApp.runWithContext(() => navigateTo("/settings"));
+      },
     };
   };
 

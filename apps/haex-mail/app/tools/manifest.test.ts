@@ -94,7 +94,10 @@ describe("the tools declared in the manifest", () => {
 
   it("take no password as input (spec 019 FR-018)", () => {
     for (const tool of tools) {
-      const names = propertyNames(tool.inputSchema).map((n) => n.toLowerCase());
+      // `passwordItemId` names an entry of the password manager; it is no password.
+      const names = propertyNames(tool.inputSchema)
+        .map((n) => n.toLowerCase())
+        .filter((n) => n !== "passworditemid");
       expect(
         names.filter((n) => n.startsWith("password") || n.includes("secret")),
         tool.name,

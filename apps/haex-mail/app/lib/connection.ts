@@ -16,3 +16,18 @@ const isConnectionSecurity = (value: string): value is ConnectionSecurity =>
 /** A connection security setting from a stored text value, or null if unknown. */
 export const parseConnectionSecurity = (value: string | undefined): ConnectionSecurity | null =>
   value !== undefined && isConnectionSecurity(value) ? value : null;
+
+/**
+ * What the agent may prepare in the account form: connection details only. There is no password
+ * here, by design — the user types it into the form themselves.
+ */
+export interface AccountPrefill {
+  displayName?: string;
+  email?: string;
+  imapHost?: string;
+  imapPort?: number;
+  imapSecurity?: ConnectionSecurity;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecurity?: ConnectionSecurity;
+}
