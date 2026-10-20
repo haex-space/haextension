@@ -4,6 +4,7 @@ import {
   matchesRule,
   planActions,
   planRuleRun,
+  RuleValidationError,
   ruleTargetMissing,
   validateRule,
   type RuleAccount,
@@ -356,5 +357,15 @@ describe("describeRule", () => {
       describeRule(rule("r", 1, { actions: [{ type: "move", mailbox: "Steuer" }, { type: "flag" }] }))
         .actions,
     ).toEqual([{ key: "moveMailbox", target: "Steuer" }, { key: "flag" }]);
+  });
+});
+
+describe("RuleValidationError", () => {
+  it("carries the issues and names them in its message", () => {
+    const issues = validateRule(input({ name: "" }), known);
+    const error = new RuleValidationError(issues);
+    expect(error.issues).toEqual(issues);
+    expect(error.message).toBe("name: nameRequired");
+    expect(error).toBeInstanceOf(Error);
   });
 });

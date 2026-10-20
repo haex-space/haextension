@@ -59,6 +59,14 @@ export interface RuleIssue {
   code: string;
 }
 
+/** Thrown when a rule that fails `validateRule` is stored; carries the problems for the caller to show. */
+export class RuleValidationError extends Error {
+  constructor(readonly issues: RuleIssue[]) {
+    super(issues.map((i) => `${i.field}: ${i.code}`).join(", "));
+    this.name = "RuleValidationError";
+  }
+}
+
 export const MAX_RULE_NAME = 80;
 export const MAX_RULE_TEXT = 200;
 export const MAX_CONDITIONS = 8;

@@ -350,6 +350,9 @@ export const useAccountsStore = defineStore("accounts", () => {
       .where(eq(schema.mailboxes.accountId, accountId));
 
     await haexVault.orm
+      .delete(schema.rules)
+      .where(eq(schema.rules.accountId, accountId));
+    await haexVault.orm
       .delete(schema.accounts)
       .where(eq(schema.accounts.id, accountId));
     credentialsCache.delete(accountId);
