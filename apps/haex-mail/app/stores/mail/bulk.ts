@@ -1,8 +1,9 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
 import { getErrorMessage } from "~/lib/utils";
 import type { ComputedRef, Ref } from "vue";
+import type { MessageChanges } from "./changes";
 import type { MailSync } from "./sync";
 
 interface BulkMessageState {
@@ -20,15 +21,11 @@ interface BulkMessageState {
  */
 export const useBulkMessageOps = (
   state: BulkMessageState,
-  sync: Pick<
-    MailSync,
-    "refreshMailboxStatusAsync" | "loadMessagesAsync" | "loadUnifiedMessagesAsync"
-  >,
-  updateLocalFlagsAsync: (ids: string[], flag: string, add: boolean) => Promise<void>,
+  sync: Pick<MailSync, "loadMessagesAsync" | "loadUnifiedMessagesAsync">,
+  changes: MessageChanges,
   selectMessage: (id: string | null) => void,
 ) => {
   const haexVault = useHaexVaultStore();
-  const accountsStore = useAccountsStore();
   const { $i18n } = useNuxtApp();
   const {
     selectedAccountId,
@@ -38,7 +35,7 @@ export const useBulkMessageOps = (
     isUnifiedView,
     messageList,
   } = state;
-  const { refreshMailboxStatusAsync, loadMessagesAsync, loadUnifiedMessagesAsync } = sync;
+  const { loadMessagesAsync, loadUnifiedMessagesAsync } = sync;
 
   interface MessageGroup {
     accountId: string;
@@ -84,47 +81,28 @@ export const useBulkMessageOps = (
   const bulkSetFlagAsync = async (ids: string[], flag: string, add: boolean) => {
     const groups = groupSelectedRows(ids);
     const results = await Promise.allSettled(
-      groups.map(async (g) => {
-        const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
-        if (!account) throw new Error($i18n.t("mail.errors.credentials"));
-        await haexVault.client.mail.setFlagsAsync(
-          account.imap,
+      groups.map((g) =>
+        changes.setFlagForUidsAsync(
+          g.accountId,
           g.mailboxName,
           g.rows.map((r) => r.uid),
-          [flag],
+          flag,
           add,
-        );
-        await updateLocalFlagsAsync(g.rows.map((r) => r.id), flag, add);
-        await refreshMailboxStatusAsync(g.accountId, [g.mailboxName]);
-      }),
+        ),
+      ),
     );
     reportBulkFailures(results);
     await reloadCurrentListAsync();
   };
 
   /** Move messages of one group to a destination mailbox and drop the cache rows. */
-  const moveGroupAsync = async (g: MessageGroup, destinationName: string) => {
-    if (!haexVault.orm) return;
-    if (destinationName === g.mailboxName) return;
-    const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
-    if (!account) throw new Error($i18n.t("mail.errors.credentials"));
-    await haexVault.client.mail.moveMessagesAsync(
-      account.imap,
+  const moveGroupAsync = (g: MessageGroup, destinationName: string) =>
+    changes.moveUidsAsync(
+      g.accountId,
       g.mailboxName,
-      destinationName,
       g.rows.map((r) => r.uid),
+      destinationName,
     );
-    // Messages first — an interrupted run then leaves at worst orphaned
-    // body rows, never ghost list entries whose UIDs are already moved.
-    const ids = g.rows.map((r) => r.id);
-    await haexVault.orm
-      .delete(schema.messages)
-      .where(inArray(schema.messages.id, ids));
-    await haexVault.orm
-      .delete(schema.messageBodies)
-      .where(inArray(schema.messageBodies.messageId, ids));
-    await refreshMailboxStatusAsync(g.accountId, [g.mailboxName, destinationName]);
-  };
 
   /**
    * Delete (role "trash") or archive (role "archive") messages. Returns how

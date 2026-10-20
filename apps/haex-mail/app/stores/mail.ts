@@ -8,6 +8,7 @@ import {
 } from "~/lib/mail";
 import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
+import { useMessageChanges } from "./mail/changes";
 import { useMessageBody } from "./mail/message";
 import { useReplyBuilder } from "./mail/reply";
 import { useMailSync } from "./mail/sync";
@@ -164,8 +165,10 @@ export const useMailStore = defineStore("mail", () => {
     searchQuery.value = "";
   };
 
+  const { setFlagForUidsAsync, moveUidsAsync } = useMessageChanges(sync, updateLocalFlagsAsync);
+
   const { bulkSetFlagAsync, bulkMoveToRoleAsync, bulkMoveToMailboxAsync } =
-    useBulkMessageOps(state, sync, updateLocalFlagsAsync, selectMessage);
+    useBulkMessageOps(state, sync, { setFlagForUidsAsync, moveUidsAsync }, selectMessage);
 
   // Default to the unified view when no account is selected yet.
   watch(
@@ -209,6 +212,8 @@ export const useMailStore = defineStore("mail", () => {
     bulkSetFlagAsync,
     bulkMoveToRoleAsync,
     bulkMoveToMailboxAsync,
+    setFlagForUidsAsync,
+    moveUidsAsync,
     selectAccount,
     selectMailbox,
     selectRole,
