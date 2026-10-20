@@ -3,7 +3,7 @@ import { Pencil, Plus, Trash2 } from "@lucide/vue";
 import { roleLabelKey } from "~/lib/mail";
 import {
   describeRule,
-  ruleTargetMissing,
+  ruleTargetMissingKnown,
   type ActionPart,
   type ConditionPart,
   type RuleAccount,
@@ -26,15 +26,7 @@ const reloadAsync = async () => {
 };
 onMounted(reloadAsync);
 
-// An account whose mailboxes were never fetched is unknown, not missing a folder.
-const knownAccounts = computed(() => ruleAccounts.value.filter((a) => a.mailboxes.length > 0));
-const targetMissing = (rule: RuleDef) => {
-  const covered =
-    rule.accountId === null
-      ? knownAccounts.value
-      : knownAccounts.value.filter((a) => a.id === rule.accountId);
-  return covered.length > 0 && ruleTargetMissing(rule, covered);
-};
+const targetMissing = (rule: RuleDef) => ruleTargetMissingKnown(rule, ruleAccounts.value);
 
 const roleText = (role: string) => {
   const key = roleLabelKey(role);

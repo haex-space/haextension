@@ -28,5 +28,162 @@
       "name": "Mail",
       "description": "Mail client for IMAP and SMTP accounts"
     }
-  }
+  },
+  "tools": [
+    {
+      "name": "list_rules",
+      "title": {
+        "de": "Mail-Regeln auflisten",
+        "en": "List mail rules"
+      },
+      "description": "Lists the mail rules of haex-mail: id, name, account, whether it is switched on, its conditions and actions, who created it (user or agent) and whether its target folder is gone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "effect": "read",
+      "examples": {
+        "de": [
+          "Welche Mail-Regeln habe ich?",
+          "Zeig mir meine Regeln in haex-mail",
+          "Gibt es Regeln, die Mails automatisch einsortieren?",
+          "Welche Regeln hat der Agent angelegt?"
+        ],
+        "en": [
+          "Which mail rules do I have?",
+          "Show me my rules in haex-mail",
+          "Are there rules that sort mail automatically?",
+          "Which rules did the agent create?"
+        ]
+      }
+    },
+    {
+      "name": "add_rule",
+      "title": {
+        "de": "Mail-Regel anlegen",
+        "en": "Create a mail rule"
+      },
+      "description": "Creates a permanent mail rule: when a new inbox message meets ALL conditions, the actions run. Conditions: sender, recipient or subject contains a text, or the message has an attachment. Actions: move to a mailbox role (inbox excluded: sent, drafts, trash, junk, archive) or, for a rule on one account, to a folder name; mark as read; flag. There is no action that forwards or sends a message. Optionally runs once on the newest 1000 messages already in the inbox. The user is asked before every call.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A short name for the rule."
+          },
+          "account": {
+            "type": "string",
+            "description": "Account id from list_accounts; the rule covers every account when omitted."
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "from",
+                    "to",
+                    "subject",
+                    "attachment"
+                  ]
+                },
+                "contains": {
+                  "type": "string",
+                  "description": "The text to look for, ignoring case; not used with attachment."
+                }
+              },
+              "required": [
+                "field"
+              ]
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "move",
+                    "markRead",
+                    "flag"
+                  ]
+                },
+                "to": {
+                  "type": "string",
+                  "description": "For move: a mailbox role (archive, trash, junk, sent, drafts) or, for one account, a folder name."
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "applyToExisting": {
+            "type": "boolean",
+            "description": "Also run the rule once on the existing inbox messages."
+          }
+        },
+        "required": [
+          "name",
+          "conditions",
+          "actions"
+        ]
+      },
+      "effect": "destructive",
+      "examples": {
+        "de": [
+          "Schieb Newsletter von shop.de künftig automatisch ins Archiv",
+          "Lege eine Regel an, die Mails von meiner Bank markiert",
+          "Erstelle eine Regel: Mails mit Anhang von Anna als gelesen markieren",
+          "Sortiere ab jetzt alle Rechnungen automatisch in den Ordner Steuer"
+        ],
+        "en": [
+          "Always archive newsletters from shop.de",
+          "Create a rule that flags mail from my bank",
+          "Make a rule: mark mail with attachments from Anna as read",
+          "From now on sort all invoices into the Steuer folder automatically"
+        ]
+      }
+    },
+    {
+      "name": "remove_rule",
+      "title": {
+        "de": "Mail-Regel entfernen",
+        "en": "Remove a mail rule"
+      },
+      "description": "Removes one mail rule by id or by name. When a name fits several rules nothing is removed and the ids are returned. Messages the rule already sorted stay where they are.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The rule id from list_rules."
+          },
+          "name": {
+            "type": "string",
+            "description": "The rule name, ignoring case."
+          }
+        }
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Lösch die Regel für shop.de",
+          "Entferne die Regel Newsletter",
+          "Ich brauche die Regel für meine Bank nicht mehr",
+          "Schalte die Regel mit dem Namen Rechnungen ab und lösch sie"
+        ],
+        "en": [
+          "Delete the rule for shop.de",
+          "Remove the rule named Newsletter",
+          "I no longer need the rule for my bank",
+          "Remove the rule called Invoices"
+        ]
+      }
+    }
+  ]
 }
