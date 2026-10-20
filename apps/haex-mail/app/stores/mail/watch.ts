@@ -2,6 +2,7 @@ import type * as schema from "~/database/schemas";
 import { planWatchChanges } from "~/lib/watchPlan";
 import type { MailNewMessagesEvent } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
+import type { AfterEnvelopesPersisted } from "./rules";
 import type { MailSync } from "./sync";
 
 /**
@@ -35,6 +36,7 @@ export const useNewMailWatch = (
     | "loadMessagesAsync"
     | "loadUnifiedMessagesAsync"
   >,
+  afterEnvelopesPersisted: AfterEnvelopesPersisted,
 ) => {
   const haexVault = useHaexVaultStore();
   const accountsStore = useAccountsStore();
@@ -70,6 +72,8 @@ export const useNewMailWatch = (
       ]);
       await syncMailboxesAsync(accountId, remoteMailboxes, seq, { complete: true });
       await persistEnvelopesAsync(accountId, mailboxName, envelopes);
+      // Before the list is read again, so a message a rule moves away never shows up first.
+      await afterEnvelopesPersisted(accountId, mailboxName, envelopes);
     } catch (err) {
       console.warn("[haex-mail] failed to refresh after new-mail watch event", err);
       return;

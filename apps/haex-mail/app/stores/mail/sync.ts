@@ -6,6 +6,7 @@ import { chunk, getErrorMessage } from "~/lib/utils";
 import type { MailboxInfo, MessageEnvelope } from "@haex-space/vault-sdk";
 import type { ComputedRef, Ref } from "vue";
 import type { AccountWithCredentials } from "../accounts";
+import type { AfterEnvelopesPersisted } from "./rules";
 
 interface MailSyncState {
   selectedAccountId: Ref<string | null>;
@@ -22,7 +23,10 @@ interface MailSyncState {
  * Keeps the local mailbox + envelope cache in sync with the IMAP server
  * and loads the cached rows into the mail store's list state.
  */
-export const useMailSync = (state: MailSyncState) => {
+export const useMailSync = (
+  state: MailSyncState,
+  afterEnvelopesPersisted: AfterEnvelopesPersisted,
+) => {
   const haexVault = useHaexVaultStore();
   const accountsStore = useAccountsStore();
   const {
@@ -217,6 +221,11 @@ export const useMailSync = (state: MailSyncState) => {
       ),
     );
     await haexVault.orm.delete(schema.messages).where(scope);
+    // The rules' mark counts UIDs of the old generation; the next fetch sets it anew.
+    await haexVault.orm
+      .update(schema.mailboxes)
+      .set({ rulesUidThrough: null })
+      .where(eq(schema.mailboxes.id, `${accountId}::${mailboxName}`));
   };
 
   const refreshMessagesAsync = async (
@@ -238,6 +247,8 @@ export const useMailSync = (state: MailSyncState) => {
         { type: "latest", count },
       );
       await persistEnvelopesAsync(account.account.id, mailboxName, envelopes);
+      // Before the list is read again, so a message a rule moves away never shows up first.
+      await afterEnvelopesPersisted(account.account.id, mailboxName, envelopes);
       await purgeDeletedMessagesAsync(account, mailboxName, new Set(envelopes.map((e) => e.uid)));
       await loadMessagesAsync(account.account.id, mailboxName);
     } finally {
