@@ -1,4 +1,9 @@
-import type { MailAddressJson, MailboxRole } from "../database/schemas";
+import type {
+  MailAddressJson,
+  MailboxRole,
+  RuleActionJson,
+  RuleConditionJson,
+} from "../database/schemas";
 
 /**
  * Mail rules: pure checks, matching and planning. No store, no server, no i18n — the store and the
@@ -8,12 +13,12 @@ import type { MailAddressJson, MailboxRole } from "../database/schemas";
 
 export type RuleField = "from" | "to" | "subject";
 
-export type RuleCondition = { field: RuleField; contains: string } | { field: "attachment" };
-
-export type MoveAction = { type: "move"; role: MailboxRole } | { type: "move"; mailbox: string };
+export type RuleCondition = RuleConditionJson;
 
 /** What a rule may do. There is no action that forwards or sends a message, by design. */
-export type RuleAction = MoveAction | { type: "markRead" } | { type: "flag" };
+export type RuleAction = RuleActionJson;
+
+export type MoveAction = Extract<RuleAction, { type: "move" }>;
 
 export interface RuleInput {
   name: string;
