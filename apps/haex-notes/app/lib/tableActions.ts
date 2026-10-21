@@ -3,9 +3,19 @@ import type { PageElement, PageLayer, TableElement } from "~/types/document";
 import { addElements, mutateElements, removeElements, type Command, type PageDoc } from "./commands";
 import { computeBbox } from "./bbox";
 
-/** Die Zellen einer Tabelle; eine Tabelle älterer Versionen hat noch keine, dann sind alle leer. */
+/**
+ * Die Zellen einer Tabelle als `rows` x `columns`. Eine Tabelle älterer Versionen hat
+ * noch keine, dann sind alle leer; Zellen, die von einem anderen Gerät falsch geformt
+ * ankamen, werden leer ergänzt, damit Zeilen und Spalten nicht gegeneinander rutschen.
+ */
 function cellsOf(table: TableElement): string[][] {
-  return table.cells ?? Array.from({ length: table.rows }, () => Array<string>(table.columns).fill(""));
+  return Array.from({ length: table.rows }, (_, r) =>
+    Array.from({ length: table.columns }, (_, c) => {
+      const row: unknown = table.cells?.[r];
+      const cell: unknown = Array.isArray(row) ? row[c] : undefined;
+      return typeof cell === "string" ? cell : "";
+    }),
+  );
 }
 
 interface TableActionsContext {
