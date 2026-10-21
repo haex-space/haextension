@@ -72,3 +72,12 @@ export function parseVaultPasskeys(data: unknown): VaultPasskey[] {
       : []
   })
 }
+
+/**
+ * The background's reply to a passkey-list message: the vault's answer cut to
+ * well-formed passkeys, in the `{ success, data }` shape of every reply to the
+ * content scripts, so the bridge reads it back with `parseVaultPasskeys(reply.data)`.
+ */
+export function passkeyListReply<T extends { success: boolean, data?: unknown }>(reply: T): T | { success: true, data: { passkeys: VaultPasskey[] } } {
+  return reply.success ? { success: true, data: { passkeys: parseVaultPasskeys(reply.data) } } : reply
+}

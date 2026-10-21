@@ -1,6 +1,7 @@
 import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import { onMessage } from 'webext-bridge/background'
 import {
+  bookmarkErrorText,
   BOOKMARKS_CONFIRM_DELETIONS,
   BOOKMARKS_GET_STATUS,
   BOOKMARKS_LIST_COLLECTIONS,
@@ -13,7 +14,7 @@ import { createRealAlarmsApi, createRealBookmarkEvents, createRealNativeBookmark
 import { loadState, saveState } from '~/bookmarks/storage'
 import { BookmarkSyncService } from '~/bookmarks/syncService'
 import { createCollection, deleteNodes, listCollections, listNodes, upsertDevice, upsertNodes } from '~/bookmarks/vaultClient'
-import { parseVaultPasskeys } from '~/contentScripts/webauthn-routing'
+import { passkeyListReply } from '~/contentScripts/webauthn-routing'
 import { MSG_CONNECT, MSG_CONNECTION_STATE, MSG_CREATE_ITEM, MSG_DISCONNECT, MSG_GET_CONNECTION_STATE, MSG_GET_PASSWORD_CONFIG, MSG_GET_PASSWORD_PRESETS } from '~/logic/messages'
 import { vaultConnection } from './connection'
 import { callerOrigin, rpIdMatchesOrigin } from './passkeyOrigin'
@@ -114,7 +115,7 @@ browser.runtime.onMessage.addListener((msg: unknown): Promise<unknown> | undefin
   if (message.type === BOOKMARKS_LIST_COLLECTIONS) {
     return listCollections()
       .then(collections => ({ success: true, data: { collections } }))
-      .catch(err => ({ success: false, error: String(err) }))
+      .catch(err => ({ success: false, error: bookmarkErrorText(err) }))
   }
 
   if (message.type === BOOKMARKS_ONBOARDING_DECISION) {
@@ -238,7 +239,7 @@ onMessage('passkey-list', async (message) => {
   if (!(await verifiedPasskeyOrigin(message.sender, relyingPartyId)))
     return { success: false, error: ORIGIN_MISMATCH_ERROR }
   const reply = await relayVaultRequest(vaultConnection.listPasskeys({ relyingPartyId }, PASSKEY_LOOKUP_TIMEOUT_MS))
-  return reply.success ? { success: true, passkeys: parseVaultPasskeys(reply.data) } : reply
+  return passkeyListReply(reply)
 })
 
 // Handle passkey get request from content script
