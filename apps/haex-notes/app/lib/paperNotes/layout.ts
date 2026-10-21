@@ -1,5 +1,5 @@
 /**
- * Wohin die erkannten Regionen auf der Seite kommen (holzi Spec 046, research R11): dorthin, wo sie
+ * Wohin die erkannten Regionen auf der Seite kommen (research R11 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md): dorthin, wo sie
  * auf dem Foto standen, mit zwei Aufräumregeln — nahe linke Kanten fluchten, überlappende Regionen
  * rutschen in Lesereihenfolge nach unten.
  */
@@ -61,6 +61,8 @@ export function tidy(rects: readonly Rect[], pageWidth: number): Rect[] {
     if (rect.x - groupStart < tolerance) rect.x = groupStart;
     else groupStart = rect.x;
   }
+  // ponytail: O(n²) worst case, bounded by page-recognition's 512-region limit;
+  // use a sweep-line layout if the model format ever permits substantially more regions.
   for (let i = 0; i < placed.length; i++) {
     const rect = placed[i]!;
     let moved = true;

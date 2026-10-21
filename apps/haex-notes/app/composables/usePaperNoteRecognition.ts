@@ -4,7 +4,7 @@ import { outcomeOf, type PageJobOutcome, type Rotation } from "~/lib/paperNotes/
 import { cropAsync, makeWorkingCopyAsync } from "~/lib/paperNotes/workingCopy";
 
 /**
- * Liest ein Foto über holzis Modelle (holzi Spec 046, US1) und baut daraus eine Seite. Der Schüler
+ * Liest ein Foto über holzis Modelle (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und baut daraus eine Seite. Der Schüler
  * kann jederzeit abbrechen; holzi beendet den Auftrag dann als abgebrochen.
  */
 export function usePaperNoteRecognition() {

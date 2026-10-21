@@ -121,4 +121,35 @@ describe("importPhotoAsync", () => {
       expect(paperImport.regions).toEqual([]);
     }
   });
+
+  it("keeps the original when local processing fails before a working asset exists", async () => {
+    const { deps } = fakes([read]);
+    const failingDeps: ImportDeps = {
+      ...deps,
+      makeWorkingCopy: async () => { throw new Error("canvas failed"); },
+    };
+
+    const { layers, paperImport } = await importPhotoAsync(photo, page, "Caveat", failingDeps);
+
+    expect(layers.flatMap((layer) => layer.elements)).toHaveLength(1);
+    expect(paperImport.processing).toMatchObject({ state: "failed", error: "processing_failed" });
+    expect(paperImport.workingAssetId).toBeUndefined();
+  });
+
+  it("keeps the original when creating a recognized image crop fails", async () => {
+    const { deps } = fakes([read]);
+    const makeWorkingCopy = deps.makeWorkingCopy;
+    const failingDeps: ImportDeps = {
+      ...deps,
+      makeWorkingCopy: async (rotation) => ({
+        ...(await makeWorkingCopy(rotation)),
+        crop: async () => { throw new Error("crop failed"); },
+      }),
+    };
+
+    const { layers, paperImport } = await importPhotoAsync(photo, page, "Caveat", failingDeps);
+
+    expect(layers.flatMap((layer) => layer.elements)).toHaveLength(1);
+    expect(paperImport.processing).toMatchObject({ state: "failed", error: "processing_failed" });
+  });
 });

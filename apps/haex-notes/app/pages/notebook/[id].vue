@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2, Camera } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
@@ -243,7 +243,7 @@ const addPage = async () => {
             </button>
           </ShadcnPopoverTrigger>
           <ShadcnPopoverContent align="end" class="w-auto p-0">
-            <NotesTableGridPicker @select="onTableSelect" @cancel="" />
+            <NotesTableGridPicker @select="onTableSelect" />
           </ShadcnPopoverContent>
         </ShadcnPopover>
 

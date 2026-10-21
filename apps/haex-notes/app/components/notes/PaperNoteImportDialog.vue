@@ -75,7 +75,7 @@ const notebook = useNotebookStore();
 const recognition = usePaperNoteRecognition();
 const reading = recognition.reading;
 
-/** Bis die Handschrift-Fonts kommen (Spec 046 T003/T004), ein neutraler Font. */
+/** Bis die Handschrift-Fonts kommen (T003/T004 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/tasks.md), ein neutraler Font. */
 const FONT_FAMILY = "sans-serif";
 
 const photo = shallowRef<Omit<Photo, "rotation"> | null>(null);
@@ -173,6 +173,7 @@ de:
     unusable: Auf dem Foto wurde nichts Brauchbares erkannt. Die Seite enthält nur das Foto; ein neues Foto hilft oft.
     timeout: Das Lesen hat zu lange gedauert. Die Seite enthält nur das Foto.
     unavailable: Das Modell war nicht erreichbar. Die Seite enthält nur das Foto.
+    processing_failed: Die Seite enthält nur das Foto, weil die Verarbeitung fehlgeschlagen ist.
 en:
   title: Import a photo
   description: Take a photo of notes, a blackboard or a worksheet. holzi reads it with the model you allowed there.
@@ -203,4 +204,5 @@ en:
     unusable: Nothing usable was found on the photo. The page holds only the photo; a new photo often helps.
     timeout: Reading took too long. The page holds only the photo.
     unavailable: The model could not be reached. The page holds only the photo.
+    processing_failed: The page holds only the photo because processing failed.
 </i18n>

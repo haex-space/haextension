@@ -7,7 +7,7 @@ import { buildPageJob } from "./pageJob";
 import { toBase64 } from "./workingCopy";
 
 /**
- * Eine Seite aus einem Foto (holzi Spec 046, US1): Original und Arbeitskopie werden Assets, die
+ * Eine Seite aus einem Foto (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md): Original und Arbeitskopie werden Assets, die
  * Arbeitskopie wird über holzi gelesen, und aus dem Ergebnis entstehen die Ebenen der Seite. Jeder
  * Fehler und ein Abbruch ergeben eine Seite mit dem Original, auf der man von Hand weiterarbeitet.
  */
@@ -77,29 +77,70 @@ export async function importPhotoAsync(
   const startedAt = deps.now();
   const originalAssetId = await deps.putAsset(photo.bytes, photo.mimeType, photo.fileName);
   let rotation = photo.rotation;
-  let copy = await deps.makeWorkingCopy(rotation);
-  let workingAssetId = await deps.putAsset(copy.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
-  let outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
-  // Ein Drehhinweis wird einmal befolgt (research R10); ein zweiter nicht, sonst droht eine Schleife.
-  if (outcome.kind === "completed" && outcome.rotation !== 0) {
-    rotation = turn(rotation, outcome.rotation);
+  let copy: Copy | null = null;
+  let workingAssetId: string | undefined;
+  let outcome: PageJobOutcome | null = null;
+  const originalOnlyPage = (finishedAt: string): ImportedPage => {
+    const fallbackFit = fitImage(
+      rotation === 90 || rotation === 270 ? photo.height : photo.width,
+      rotation === 90 || rotation === 270 ? photo.width : photo.height,
+      page.width,
+      page.height,
+    );
+    const original = originalElement(photo, originalAssetId, rotation, fallbackFit, deps.newId());
+    return {
+      layers: [
+        layer(deps.newId(), LAYER_NAMES.original, [original], true),
+        layer(deps.newId(), LAYER_NAMES.text, []),
+        layer(deps.newId(), LAYER_NAMES.objects, []),
+        layer(deps.newId(), LAYER_NAMES.own, []),
+      ],
+      paperImport: {
+        version: 1,
+        originalAssetId,
+        rotation,
+        sourceMimeType: photo.mimeType,
+        sourceWidth: photo.width,
+        sourceHeight: photo.height,
+        processing: { state: "failed", error: "processing_failed", startedAt, finishedAt },
+        regions: [],
+        createdAt: startedAt,
+        updatedAt: finishedAt,
+      },
+    };
+  };
+  // Ein Drehhinweis wird einmal befolgt (research R10 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md); ein zweiter nicht, sonst droht eine Schleife.
+  try {
     copy = await deps.makeWorkingCopy(rotation);
     workingAssetId = await deps.putAsset(copy.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
     outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
+    if (outcome.kind === "completed" && outcome.rotation !== 0) {
+      rotation = turn(rotation, outcome.rotation);
+      copy = await deps.makeWorkingCopy(rotation);
+      workingAssetId = await deps.putAsset(copy.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
+      outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
+    }
+  } catch {
+    return originalOnlyPage(deps.now());
   }
 
+  if (!copy || !outcome) throw new Error("[haex-notes] Photo processing ended without a result");
   const fit = fitImage(copy.width, copy.height, page.width, page.height);
   const original = originalElement(photo, originalAssetId, rotation, fit, deps.newId());
   const texts: PageElement[] = [];
   const objects: PageElement[] = [];
   const regions: RecognizedRegion[] = [];
   if (outcome.kind === "completed") {
-    for (const placed of placeRegions(outcome, fit, page.width)) {
-      const id = deps.newId();
-      const element = textOrTableElement(placed, id, fontFamily)
-        ?? imageElement(placed, id, await deps.putAsset(await copy.crop(placed.region.box), "image/jpeg", `crop-${id}.jpg`));
-      (element.type === "text" ? texts : objects).push(element);
-      regions.push({ id: deps.newId(), kind: placed.region.kind, sourceBox: placed.region.box as RecognizedRegion["sourceBox"], elementIds: [id] });
+    try {
+      for (const placed of placeRegions(outcome, fit, page.width)) {
+        const id = deps.newId();
+        const element = textOrTableElement(placed, id, fontFamily)
+          ?? imageElement(placed, id, await deps.putAsset(await copy.crop(placed.region.box), "image/jpeg", `crop-${id}.jpg`));
+        (element.type === "text" ? texts : objects).push(element);
+        regions.push({ id: deps.newId(), kind: placed.region.kind, sourceBox: placed.region.box as RecognizedRegion["sourceBox"], elementIds: [id] });
+      }
+    } catch {
+      return originalOnlyPage(deps.now());
     }
   }
 

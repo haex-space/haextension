@@ -233,7 +233,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     await goToPage(allPages.findIndex((p) => p.id === pageId));
   };
 
-  /** Legt eine Seite aus einem gelesenen Foto an (Spec 046) und öffnet sie. */
+  /** Legt eine Seite aus einem gelesenen Foto an (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und öffnet sie. */
   const addImportedPageAsync = async (imported: Pick<PageDoc, "layers" | "paperImport">) => {
     await addPageAsync("blank");
     const doc = currentDoc.value;

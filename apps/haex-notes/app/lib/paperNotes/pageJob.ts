@@ -1,7 +1,8 @@
 import type { ModelJob, ModelJobFormat, ModelJobImage } from "@haex-space/vault-sdk";
 
 /**
- * Der Auftrag „Seitenerkennung“ an holzis Modelle (holzi Spec 046, `contracts/page-job.md`):
+ * Der Auftrag „Seitenerkennung“ an holzis Modelle (haex-space/haex-vault@
+ * 74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/contracts/page-job.md):
  * erst die Seite in Regionen lesen, dann die gelesenen Texte korrigieren. holzi wählt das
  * freigegebene Modell, fragt vor dem Versand außerhalb des Geräts und verwirft Ausgabe, die nicht
  * zum Format passt.

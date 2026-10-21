@@ -1,7 +1,7 @@
 import type { Rotation } from "./mapResult";
 
 /**
- * Die Arbeitskopie eines Fotos (holzi Spec 046, FR-002): aufrecht gedreht, auf höchstens
+ * Die Arbeitskopie eines Fotos (FR-002 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md): aufrecht gedreht, auf höchstens
  * {@link MAX_EDGE} Pixel verkleinert und im Kontrast gestreckt. Das Original bleibt unverändert;
  * gelesen wird nur die Kopie. Eine Perspektivkorrektur fehlt noch.
  */

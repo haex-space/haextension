@@ -168,7 +168,7 @@ function isPaperNoteImport(value: unknown): value is PaperNoteImport {
   return isObject(value)
     && typeof value.version === "number"
     && typeof value.originalAssetId === "string"
-    && typeof value.workingAssetId === "string";
+    && (value.workingAssetId === undefined || typeof value.workingAssetId === "string");
 }
 
 function isPageBackground(value: unknown): value is PageBackground {

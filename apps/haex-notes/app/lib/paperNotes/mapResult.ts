@@ -10,8 +10,9 @@ import { computeBbox } from "../bbox";
 import { boxToRect, fontSizeFor, LINE_HEIGHT, tidy, type Fit, type Rect } from "./layout";
 
 /**
- * Vom Ende eines Auftrags „Seitenerkennung“ zu Elementen der Seite (holzi Spec 046,
- * `contracts/page-job.md` §Abbildung und §Fehler). holzi hat das Format schon geprüft; hier wird
+ * Vom Ende eines Auftrags „Seitenerkennung“ zu Elementen der Seite (haex-space/haex-vault@
+ * 74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/contracts/page-job.md
+ * §Abbildung und §Fehler). holzi hat das Format schon geprüft; hier wird
  * trotzdem defensiv gelesen, weil ein Format nicht alles festhält (etwa gleich lange Zeilen).
  */
 
@@ -59,7 +60,7 @@ function readRegions(read: unknown): { regions: ReadRegion[]; rotation: Rotation
 
 const hasText = (region: ReadRegion) => typeof region.text === "string" && region.text.trim() !== "";
 
-/** Die korrigierten Texte, wenn es je gelesenem Text genau einen gibt (research R12). */
+/** Die korrigierten Texte, wenn es je gelesenem Text genau einen gibt (research R12 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md). */
 function fixedTexts(fix: unknown, regions: ReadRegion[]): string[] | null {
   const texts = isRecord(fix) && Array.isArray(fix.texts) ? fix.texts : null;
   if (!texts || !texts.every((t) => typeof t === "string")) return null;

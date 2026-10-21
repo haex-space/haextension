@@ -136,7 +136,7 @@ describe("migratePageRow with a photo import", () => {
     expect(migratePageRow({ layers, paperImport: { version: "1" } }).paperImport).toBeUndefined();
     expect(migratePageRow({ layers, paperImport: "x" }).paperImport).toBeUndefined();
     const { workingAssetId: _omitted, ...withoutWorkingCopy } = paperImport;
-    expect(migratePageRow({ layers, paperImport: withoutWorkingCopy }).paperImport).toBeUndefined();
+    expect(migratePageRow({ layers, paperImport: withoutWorkingCopy }).paperImport).toEqual(withoutWorkingCopy);
   });
 });
 
