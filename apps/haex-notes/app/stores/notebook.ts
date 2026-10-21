@@ -301,6 +301,13 @@ export const useNotebookStore = defineStore("notebook", () => {
     runCommand(addElements(doc, layer.id, [stroke], label));
   };
 
+  /** Führt eine Bearbeitung der geöffneten Seite als Kommando aus; null heißt: nichts zu tun. */
+  const applyEdit = (make: (doc: PageDoc) => Command | null) => {
+    const doc = currentDoc.value;
+    const command = doc ? make(doc) : null;
+    if (command) runCommand(command);
+  };
+
   const {
     tableElements,
     addTable,
@@ -402,6 +409,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     canUndo,
     canRedo,
     addStroke,
+    applyEdit,
     undo,
     redo,
     listNotebooksAsync,

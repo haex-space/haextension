@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Settings, Trash2, X } from "@lucide/vue";
+import { MousePointer2, Plus, Settings, Trash2, X } from "@lucide/vue";
 import type { PenSlot } from "~/database/schemas";
 
 const router = useRouter();
@@ -41,10 +41,18 @@ const removeEditingSlot = async () => {
 <template>
   <div class="flex shrink-0 flex-col items-center gap-0.5 border-r border-border bg-background px-1 py-2">
     <button
+      class="flex size-10 items-center justify-center rounded-lg transition-all"
+      :class="pencilCase.selecting ? 'ring-2 ring-primary shadow-md scale-110' : 'text-muted-foreground hover:bg-accent'"
+      :title="t('select')"
+      @click="pencilCase.startSelecting()"
+    >
+      <MousePointer2 class="size-5" />
+    </button>
+    <button
       v-for="slot in pencilCase.slots"
       :key="slot.id"
       class="flex size-10 items-center justify-center rounded-lg transition-all"
-      :class="pencilCase.activeSlotId === slot.id
+      :class="!pencilCase.selecting && pencilCase.activeSlotId === slot.id
         ? 'ring-2 ring-primary shadow-md scale-110'
         : 'hover:bg-accent'"
       :title="slot.name"
@@ -165,6 +173,7 @@ const removeEditingSlot = async () => {
 
 <i18n lang="yaml">
 de:
+  select: Auswählen und verschieben
   settings: Einstellungen
   editPen: Stift bearbeiten
   penName: Name
@@ -174,6 +183,7 @@ de:
   deletePen: Löschen
   save: Speichern
 en:
+  select: Select and move
   settings: Settings
   editPen: Edit Pen
   penName: Name

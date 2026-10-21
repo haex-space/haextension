@@ -1,0 +1,80 @@
+import type { PageElement } from "~/types/document";
+import { computeBbox } from "./bbox";
+import { mutateElements, type Command, type PageDoc } from "./commands";
+import { cellsOf } from "./tableActions";
+
+/**
+ * Bearbeitungen von Text, Zellen, Bildern und Tabellen, je als Kommando für den Undo-Stack.
+ * Elemente auf gesperrten Ebenen (das Original eines Fotos) ändert keine davon: dann gibt es
+ * kein Kommando. Höhen von Texten misst der Aufrufer, weil das einen Canvas braucht.
+ */
+
+export interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+type ElementOf<K extends PageElement["type"]> = Extract<PageElement, { type: K }>;
+
+/** Das Element, wenn es auf einer Ebene liegt, die man bearbeiten darf. */
+export function editableElement(page: PageDoc, id: string): PageElement | null {
+  for (const layer of page.layers) {
+    if (layer.locked) continue;
+    const element = layer.elements.find((e) => e.id === id);
+    if (element) return element;
+  }
+  return null;
+}
+
+function editAs<K extends PageElement["type"]>(
+  page: PageDoc,
+  id: string,
+  kinds: readonly K[],
+  label: string,
+  mutate: (element: ElementOf<K>) => void,
+  mergeKey?: string,
+): Command | null {
+  const isKind = (element: PageElement): element is ElementOf<K> => (kinds as readonly string[]).includes(element.type);
+  const target = editableElement(page, id);
+  if (!target || !isKind(target)) return null;
+  return mutateElements(page, [id], (element) => {
+    if (!isKind(element)) return;
+    mutate(element);
+    element.bbox = computeBbox(element);
+  }, label, mergeKey);
+}
+
+export const editText = (page: PageDoc, id: string, text: string, height: number) =>
+  editAs(page, id, ["text"], "Text ändern", (element) => {
+    element.text = text;
+    element.height = height;
+  });
+
+export const editCell = (page: PageDoc, id: string, row: number, column: number, text: string) =>
+  editAs(page, id, ["table"], "Zelle ändern", (table) => {
+    if (row >= table.rows || column >= table.columns) return;
+    const cells = cellsOf(table);
+    cells[row]![column] = text;
+    table.cells = cells;
+  });
+
+export const setFontFamily = (page: PageDoc, id: string, fontFamily: string, height: number) =>
+  editAs(page, id, ["text"], "Handschrift ändern", (element) => {
+    element.fontFamily = fontFamily;
+    element.height = height;
+  });
+
+/**
+ * Verschiebt oder skaliert ein Element. Alle Aufrufe einer Geste teilen sich den mergeKey und
+ * werden ein Undo-Schritt. Eine Tabelle wird nur verschoben; ihre Größe folgt ihren Linien.
+ */
+export const placeElement = (page: PageDoc, id: string, box: Box, mergeKey: string) =>
+  editAs(page, id, ["text", "image", "table"], "Verschieben", (element) => {
+    element.x = box.x;
+    element.y = box.y;
+    if (element.type === "table") return;
+    element.width = box.width;
+    element.height = box.height;
+  }, mergeKey);

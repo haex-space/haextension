@@ -8,7 +8,7 @@ import { computeBbox } from "./bbox";
  * noch keine, dann sind alle leer; Zellen, die von einem anderen Gerät falsch geformt
  * ankamen, werden leer ergänzt, damit Zeilen und Spalten nicht gegeneinander rutschen.
  */
-function cellsOf(table: TableElement): string[][] {
+export function cellsOf(table: TableElement): string[][] {
   return Array.from({ length: table.rows }, (_, r) =>
     Array.from({ length: table.columns }, (_, c) => {
       const row: unknown = table.cells?.[r];
