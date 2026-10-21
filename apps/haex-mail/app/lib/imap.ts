@@ -30,6 +30,35 @@ export const decodeMailboxName = (name: string): string =>
   });
 
 /**
+ * Encode a mailbox name into IMAP's modified UTF-7, the inverse of `decodeMailboxName`: printable
+ * ASCII stays, `&` becomes `&-`, every other run is UTF-16BE in base64 with `,` for `/`, no padding.
+ */
+export const encodeMailboxName = (name: string): string => {
+  let out = "";
+  let run = "";
+  const flush = () => {
+    if (!run) return;
+    let bytes = "";
+    for (let i = 0; i < run.length; i++) {
+      bytes += String.fromCharCode(run.charCodeAt(i) >> 8, run.charCodeAt(i) & 0xff);
+    }
+    out += `&${btoa(bytes).replace(/=+$/, "").replace(/\//g, ",")}-`;
+    run = "";
+  };
+  for (const ch of name) {
+    const code = ch.codePointAt(0)!;
+    if (code >= 0x20 && code <= 0x7e) {
+      flush();
+      out += ch === "&" ? "&-" : ch;
+    } else {
+      run += ch;
+    }
+  }
+  flush();
+  return out;
+};
+
+/**
  * Orders mailbox STATUS results per mailbox. The vault opens a fresh IMAP
  * connection per call, so concurrent LIST/STATUS responses can resolve out
  * of order; a result must not overwrite counters a later-issued one has

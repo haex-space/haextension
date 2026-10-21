@@ -22,7 +22,7 @@ interface BulkMessageState {
 export const useBulkMessageOps = (
   state: BulkMessageState,
   sync: Pick<MailSync, "loadMessagesAsync" | "loadUnifiedMessagesAsync">,
-  changes: MessageChanges,
+  changes: Pick<MessageChanges, "setFlagForUidsAsync" | "moveUidsAsync">,
   selectMessage: (id: string | null) => void,
 ) => {
   const haexVault = useHaexVaultStore();

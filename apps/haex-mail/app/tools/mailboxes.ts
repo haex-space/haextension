@@ -1,11 +1,12 @@
 import type { ImapConfig, MailboxInfo } from "@haex-space/vault-sdk";
 import { assignRoles } from "../lib/mailboxRoles";
-import { decodeMailboxName } from "../lib/imap";
+import { decodeMailboxName, encodeMailboxName } from "../lib/imap";
 import {
   connectionOf,
   errorText,
   findAccount,
   optionalString,
+  toolError,
   type AccountsPort,
   type ToolHandlers,
 } from "./context";
@@ -25,8 +26,11 @@ export interface MailboxToolDeps {
       imap: ImapConfig,
       options: { includeStatus: boolean },
     ): Promise<MailboxInfo[]>;
+    createMailboxAsync(imap: ImapConfig, mailbox: string): Promise<boolean>;
   };
   cachedMailboxes(accountId: string): Promise<CachedMailbox[]>;
+  /** Reads the folders of the account from the server into the cache the app shows. */
+  refreshMailboxes(accountId: string): Promise<void>;
 }
 
 const isSelectable = (m: MailboxInfo) => !m.flags.some((f) => f.toLowerCase() === "\\noselect");
@@ -37,6 +41,24 @@ const isSelectable = (m: MailboxInfo) => !m.flags.some((f) => f.toLowerCase() ==
  * be reached answers from the cache, marked `cached`, and is named in `errors`.
  */
 export const createMailboxTools = (deps: () => Promise<MailboxToolDeps>): ToolHandlers => ({
+  /**
+   * `create_mailbox`: a new folder in one account. A name that exists is not an error: the answer
+   * says `created: false`. The name is the text the user knows (umlauts included); the server gets
+   * it in IMAP's encoding.
+   */
+  create_mailbox: async (input) => {
+    const { accounts, mailClient, refreshMailboxes } = await deps();
+    const account = findAccount(accounts.accounts, optionalString(input, "account"));
+    const name = optionalString(input, "name")?.trim() ?? "";
+    if (!name) throw toolError("name is the name of the new mailbox");
+    const { imap } = await connectionOf(accounts, account.id);
+    const created = await mailClient.createMailboxAsync(imap, encodeMailboxName(name));
+    // The new folder shows up in the app and in move_messages at once; a refresh that fails does
+    // not undo the creation.
+    await refreshMailboxes(account.id).catch(() => undefined);
+    return { created, name };
+  },
+
   list_mailboxes: async (input) => {
     const { accounts, mailClient, cachedMailboxes } = await deps();
     const wanted = optionalString(input, "account");

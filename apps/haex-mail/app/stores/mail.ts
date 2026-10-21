@@ -129,7 +129,10 @@ export const useMailStore = defineStore("mail", () => {
   const { persistMessageBodyAsync, loadMessageBodyAsync, updateLocalFlagsAsync } =
     useMessageBody(state, sync);
 
-  const { setFlagForUidsAsync, moveUidsAsync } = useMessageChanges(sync, updateLocalFlagsAsync);
+  const { setFlagForUidsAsync, moveUidsAsync, deleteUidsAsync } = useMessageChanges(
+    sync,
+    updateLocalFlagsAsync,
+  );
   const { applyRulesToNewInboxAsync, applyRuleToExistingAsync } = useMailRules({
     setFlagForUidsAsync,
     moveUidsAsync,
@@ -224,6 +227,7 @@ export const useMailStore = defineStore("mail", () => {
     bulkMoveToMailboxAsync,
     setFlagForUidsAsync,
     moveUidsAsync,
+    deleteUidsAsync,
     applyRuleToExistingAsync,
     persistEnvelopesAsync: sync.persistEnvelopesAsync,
     selectAccount,
