@@ -3,6 +3,7 @@ import type {
   PageBackground,
   PageLayer,
   PageTemplate,
+  PaperNoteImport,
   StrokeElement,
   TableElement,
 } from "~/types/document";
@@ -49,6 +50,8 @@ export interface LegacyPageRow {
   template?: string | null;
   backgroundImage?: string | null;
   orientation?: string | null;
+  /** Ungeprüft, siehe `layers`. */
+  paperImport?: unknown;
 }
 
 export interface MigratedPage {
@@ -56,6 +59,7 @@ export interface MigratedPage {
   background: PageBackground;
   width: number;
   height: number;
+  paperImport?: PaperNoteImport;
 }
 
 /** Fester Layer-Name für alles, was aus der Zeit vor den Layern stammt. */
@@ -148,6 +152,17 @@ function isPageLayers(value: unknown): value is PageLayer[] {
     && layer.elements.every(isElement));
 }
 
+/**
+ * Herkunft einer Seite aus einem Foto. Eine spätere Version wird unverändert
+ * durchgereicht, damit ein älteres Gerät sie beim Speichern nicht verliert.
+ */
+function isPaperNoteImport(value: unknown): value is PaperNoteImport {
+  return isObject(value)
+    && typeof value.version === "number"
+    && typeof value.originalAssetId === "string"
+    && typeof value.workingAssetId === "string";
+}
+
 function isPageBackground(value: unknown): value is PageBackground {
   return isObject(value) && typeof value.paperColor === "string" && typeof value.template === "string";
 }
@@ -178,7 +193,12 @@ export function migratePageRow(row: LegacyPageRow): MigratedPage {
     ? (storedLayers.length > 0 ? storedLayers : [emptyLayer()])
     : [buildLegacyLayer(row)];
 
-  return { layers, background, width, height };
+  if (row.paperImport != null && !isPaperNoteImport(row.paperImport)) {
+    console.warn("[haex-notes] Ignoring a malformed paper import", row.paperImport);
+  }
+  const paperImport = isPaperNoteImport(row.paperImport) ? row.paperImport : undefined;
+
+  return { layers, background, width, height, ...(paperImport && { paperImport }) };
 }
 
 /**
@@ -190,6 +210,7 @@ export function serializePageDoc(doc: PageDoc) {
   // Proxies stecken (z.B. aus filter() auf einem reaktiven Array).
   const layers = clonePlain(toRaw(doc.layers));
   const background = clonePlain(toRaw(doc.background));
+  const paperImport = doc.paperImport ? clonePlain(toRaw(doc.paperImport)) : null;
   const strokes = layers.flatMap((layer) =>
     layer.elements
       .filter((element): element is StrokeElement => element.type === "stroke")
@@ -226,6 +247,7 @@ export function serializePageDoc(doc: PageDoc) {
     background,
     width: doc.width,
     height: doc.height,
+    paperImport,
     // Keep the legacy representation in sync during the rollout so older
     // clients do not render a page as empty after a new client saves it.
     strokes,

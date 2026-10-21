@@ -24,7 +24,8 @@ function setup() {
     const table = page.layers[0]!.elements.find((e) => e.id === id) as TableElement;
     return [table.x, table.y];
   };
-  return { stack, tables, position };
+  const table = (id: string) => page.layers[0]!.elements.find((e) => e.id === id) as TableElement;
+  return { stack, tables, position, table };
 }
 
 describe("resizeTable", () => {
@@ -54,5 +55,56 @@ describe("resizeTable", () => {
 
     stack.undo();
     expect(position(a)).toEqual([0, 0]);
+  });
+});
+
+describe("cells", () => {
+  it("start empty, one per row and column", () => {
+    const { tables } = setup();
+    expect(tables.addTable(2, 3, 0, 0)!.cells).toEqual([["", "", ""], ["", "", ""]]);
+  });
+
+  it("follow added and removed rows and columns, keeping the text", () => {
+    const { tables, table } = setup();
+    const id = tables.addTable(1, 2, 0, 0)!.id;
+    table(id).cells = [["Tag", "Fach"]];
+
+    tables.addTableRow(id);
+    tables.addTableColumn(id);
+    expect(table(id).cells).toEqual([["Tag", "Fach", ""], ["", "", ""]]);
+
+    tables.removeTableRow(id);
+    tables.removeTableColumn(id);
+    expect(table(id).cells).toEqual([["Tag", "Fach"]]);
+  });
+
+  it("are made for a table from an older version on its first change", () => {
+    const { tables, table } = setup();
+    const id = tables.addTable(1, 1, 0, 0)!.id;
+    delete table(id).cells;
+
+    tables.addTableRow(id);
+
+    expect(table(id).cells).toEqual([[""], [""]]);
+  });
+
+  it("are put into shape when a table arrives with broken ones", () => {
+    const { tables, table } = setup();
+    const id = tables.addTable(2, 2, 0, 0)!.id;
+    table(id).cells = [["Tag"]] as string[][];
+
+    tables.addTableColumn(id);
+
+    expect(table(id).cells).toEqual([["Tag", "", ""], ["", "", ""]]);
+  });
+
+  it("come back with an undo", () => {
+    const { stack, tables, table } = setup();
+    const id = tables.addTable(1, 1, 0, 0)!.id;
+    tables.addTableColumn(id);
+
+    stack.undo();
+
+    expect(table(id).cells).toEqual([[""]]);
   });
 });

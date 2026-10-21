@@ -117,11 +117,12 @@ function renderBackground() {
 }
 
 const strokePaths: StrokePathCache = new WeakMap();
+const elementImages = useElementImages(() => scheduleRender("content"));
 
 function renderContent() {
   const ctx = prepare(contentCanvasEl.value);
   if (!ctx) return;
-  drawElements(ctx, notebook.visibleElements, strokePaths);
+  drawElements(ctx, notebook.visibleElements, strokePaths, elementImages.lookup);
 }
 
 function renderOverlay() {
