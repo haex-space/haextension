@@ -7,6 +7,23 @@
 import type { BrowserFamily } from './model'
 
 export const BOOKMARKS_LIST_COLLECTIONS = 'BOOKMARKS_LIST_COLLECTIONS'
+
+/**
+ * Kept as the error of a bookmark call when the vault app answers that it has
+ * no bookmark sync (`errorCode: 'NOT_SUPPORTED'`, haex-vault 3 and holzi), so
+ * the pages show a sentence instead of the raw error.
+ */
+export const BOOKMARKS_NOT_SUPPORTED = 'BOOKMARKS_NOT_SUPPORTED'
+
+/** The error to show for a bookmark reply: `notSupported` for a vault app without bookmark sync, else the error as sent. */
+export function shownBookmarkError(error: string | undefined, notSupported: string): string | undefined {
+  return error === BOOKMARKS_NOT_SUPPORTED ? notSupported : error
+}
+
+/** The error text to keep for a failed bookmark call. */
+export function bookmarkErrorText(err: unknown): string {
+  return (err as { errorCode?: unknown } | null)?.errorCode === 'NOT_SUPPORTED' ? BOOKMARKS_NOT_SUPPORTED : String(err)
+}
 export const BOOKMARKS_ONBOARDING_DECISION = 'BOOKMARKS_ONBOARDING_DECISION'
 export const BOOKMARKS_SYNC_NOW = 'BOOKMARKS_SYNC_NOW'
 export const BOOKMARKS_SWITCH_COLLECTION = 'BOOKMARKS_SWITCH_COLLECTION'

@@ -1,7 +1,7 @@
 import type { BookmarkStatus } from '~/bookmarks/messages'
 import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import { computed, ref } from 'vue'
-import { BOOKMARKS_GET_STATUS, BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_SWITCH_COLLECTION, BOOKMARKS_SYNC_NOW } from '~/bookmarks/messages'
+import { BOOKMARKS_GET_STATUS, BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_SWITCH_COLLECTION, BOOKMARKS_SYNC_NOW, shownBookmarkError } from '~/bookmarks/messages'
 import { useI18n } from '~/locales'
 
 /** Bookmark sync status and the collection switcher, as Popup and Options show them. */
@@ -70,7 +70,7 @@ export function useBookmarkSync() {
         collectionName: target.name,
       })) as { success: boolean, error?: string }
       if (!response?.success) {
-        switchError.value = response?.error ?? t('settings.bookmarks.error.generic')
+        switchError.value = shownBookmarkError(response?.error, t('settings.bookmarks.notSupported')) ?? t('settings.bookmarks.error.generic')
         return false
       }
       await loadStatus()

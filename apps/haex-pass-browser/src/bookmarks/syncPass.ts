@@ -6,6 +6,7 @@ import type { BookmarkNodeRow } from './model'
 import type { BookmarkSyncState } from './storage'
 import type { SyncServiceDeps } from './syncDeps'
 import { recoverJournal } from './journalRecovery'
+import { bookmarkErrorText } from './messages'
 import { diffForests, isDiffEmpty } from './model'
 import { applyDiff } from './nativeAdapter'
 
@@ -62,7 +63,7 @@ async function touchDevice(deps: SyncServiceDeps, state: BookmarkSyncState): Pro
       browserFamily: settings.browserFamily,
     })
   } catch (err) {
-    await deps.storage.saveState({ ...state, settings: { ...settings, lastError: String(err) } })
+    await deps.storage.saveState({ ...state, settings: { ...settings, lastError: bookmarkErrorText(err) } })
   }
 }
 
@@ -113,7 +114,7 @@ export async function doSyncOnce(
       await deps.storage.saveState(state)
     }
   } catch (err) {
-    settings = { ...settings, lastError: String(err) }
+    settings = { ...settings, lastError: bookmarkErrorText(err) }
     state = { ...state, settings }
     await deps.storage.saveState(state)
     return
@@ -124,7 +125,7 @@ export async function doSyncOnce(
   try {
     nodes = await deps.vault.listNodes(collectionId)
   } catch (err) {
-    settings = { ...settings, lastError: String(err) }
+    settings = { ...settings, lastError: bookmarkErrorText(err) }
     state = { ...state, settings }
     await deps.storage.saveState(state)
     return

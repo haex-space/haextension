@@ -12,6 +12,7 @@ import type { BookmarkStatus } from './messages'
 import type { BrowserFamily } from './model'
 import type { BookmarkSyncSettingsActive, BookmarkSyncState } from './storage'
 import type { SyncServiceDeps } from './syncDeps'
+import { bookmarkErrorText } from './messages'
 import { activateCollection, seedCollectionFromNative } from './nativeAdapter'
 import { recordChanged, recordCreated, recordMoved, recordRemoved } from './nativeEvents'
 import { doSyncOnce } from './syncPass'
@@ -218,7 +219,7 @@ export class BookmarkSyncService {
       this.activateListening()
       return { success: true }
     } catch (err) {
-      return { success: false, error: String(err) }
+      return { success: false, error: bookmarkErrorText(err) }
     }
   }
 
@@ -265,7 +266,7 @@ export class BookmarkSyncService {
       this.activateListening()
       return { success: true }
     } catch (err) {
-      return { success: false, error: String(err) }
+      return { success: false, error: bookmarkErrorText(err) }
     }
   }
 
@@ -357,7 +358,7 @@ export class BookmarkSyncService {
       })
       return { ok: true }
     } catch (err) {
-      return { ok: false, error: String(err) }
+      return { ok: false, error: bookmarkErrorText(err) }
     }
   }
 
@@ -424,7 +425,7 @@ export class BookmarkSyncService {
       await this.deps.storage.saveState({ ...result.state, pendingDeletionReview: null })
       this.scheduleSync(0)
     } catch (err) {
-      const settings = { ...result.state.settings, lastError: String(err) }
+      const settings = { ...result.state.settings, lastError: bookmarkErrorText(err) }
       await this.deps.storage.saveState({ ...result.state, settings })
     }
   }
