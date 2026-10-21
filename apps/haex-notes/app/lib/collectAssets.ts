@@ -29,7 +29,7 @@ export function collectAssetIds(
 
   if (paperImport) {
     ids.add(paperImport.originalAssetId);
-    ids.add(paperImport.workingAssetId);
+    if (paperImport.workingAssetId) ids.add(paperImport.workingAssetId);
   }
 
   return [...ids];

@@ -160,7 +160,13 @@ export interface PageBackground {
 export type RecognitionPlace = "this_device" | "network" | "cloud";
 
 /** Warum eine Erkennung nichts geliefert hat. */
-export type RecognitionError = "no_capable_model" | "consent_denied" | "unusable" | "timeout" | "unavailable";
+export type RecognitionError =
+  | "no_capable_model"
+  | "consent_denied"
+  | "unusable"
+  | "timeout"
+  | "unavailable"
+  | "processing_failed";
 
 /** Stand und Herkunft der Erkennung eines importierten Fotos. Adresse und Schlüssel des Modells kennt nur holzi. */
 export interface PaperNoteProcessing {
@@ -186,8 +192,8 @@ export interface RecognizedRegion {
 export interface PaperNoteImport {
   version: number;
   originalAssetId: string;
-  /** Die entzerrte, gedrehte Kopie, die gelesen wurde. */
-  workingAssetId: string;
+  /** Die entzerrte, gedrehte Kopie, die gelesen wurde; fehlt bei frühem Verarbeitungsfehler. */
+  workingAssetId?: string;
   /** Drehung der Arbeitskopie gegenüber dem Original, im Uhrzeigersinn. */
   rotation: 0 | 90 | 180 | 270;
   sourceMimeType: string;

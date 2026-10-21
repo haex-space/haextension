@@ -75,6 +75,14 @@ export function emptyLayer(): PageLayer {
   return { id: DEFAULT_LAYER_ID, name: DEFAULT_LAYER_NAME, visible: true, locked: false, elements: [] };
 }
 
+/**
+ * Die Ebene, auf die neue Striche gehen, wenn eine Seite geöffnet wird: die oberste
+ * ungesperrte. Das gesperrte Original einer Fotoseite ist es nie.
+ */
+export function drawingLayerId(layers: readonly PageLayer[]): string | null {
+  return [...layers].reverse().find((layer) => !layer.locked)?.id ?? layers[0]?.id ?? null;
+}
+
 function toStrokeElement(stroke: LegacyStroke, index: number): StrokeElement {
   const element: StrokeElement = {
     id: stroke.id ?? `legacy-stroke-${index}`,
@@ -160,7 +168,7 @@ function isPaperNoteImport(value: unknown): value is PaperNoteImport {
   return isObject(value)
     && typeof value.version === "number"
     && typeof value.originalAssetId === "string"
-    && typeof value.workingAssetId === "string";
+    && (value.workingAssetId === undefined || typeof value.workingAssetId === "string");
 }
 
 function isPageBackground(value: unknown): value is PageBackground {

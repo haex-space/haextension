@@ -4,7 +4,7 @@ import { reactive } from "vue";
 import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
 import { addElements, type Command, type PageDoc } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
-import { migratePageRow, serializePageDoc } from "~/lib/migratePage";
+import { drawingLayerId, migratePageRow, serializePageDoc } from "~/lib/migratePage";
 import { createTableActions } from "~/lib/tableActions";
 import { FULL_PAGES_TABLE } from "~/lib/tableNames";
 import { createUndoStack } from "~/lib/undoStack";
@@ -180,7 +180,7 @@ export const useNotebookStore = defineStore("notebook", () => {
       const migrated = migratePageRow(page);
       docs.set(page.id, { id: page.id, ...migrated });
     }
-    activeLayerId.value = docs.get(page.id)!.layers[0]!.id;
+    activeLayerId.value = drawingLayerId(docs.get(page.id)!.layers);
     isDirty.value = false;
   };
 
@@ -231,6 +231,18 @@ export const useNotebookStore = defineStore("notebook", () => {
     currentPages.value = allPages;
 
     await goToPage(allPages.findIndex((p) => p.id === pageId));
+  };
+
+  /** Legt eine Seite aus einem gelesenen Foto an (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und öffnet sie. */
+  const addImportedPageAsync = async (imported: Pick<PageDoc, "layers" | "paperImport">) => {
+    await addPageAsync("blank");
+    const doc = currentDoc.value;
+    if (!doc) return;
+    doc.layers = imported.layers;
+    doc.paperImport = imported.paperImport;
+    activeLayerId.value = drawingLayerId(doc.layers);
+    contentVersion.value++;
+    await saveCurrentPageAsync();
   };
 
   /** Übernimmt eine neue Seitenreihenfolge; die geöffnete Seite bleibt geöffnet. */
@@ -401,6 +413,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     nextPage,
     prevPage,
     addPageAsync,
+    addImportedPageAsync,
     deletePageAsync,
     reorderPagesAsync,
     togglePageOrientationAsync,
