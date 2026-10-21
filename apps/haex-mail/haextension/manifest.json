@@ -259,7 +259,7 @@
         "de": "Mail-Konten auflisten",
         "en": "List mail accounts"
       },
-      "description": "Lists the mail accounts set up in haex-mail (id, display name, address) and, under importable, the password manager entries tagged for haex-mail that could become an account (id, title, user name). Never returns a password or server credentials.",
+      "description": "Lists the mail accounts set up in haex-mail (id, display name, address) and, under importable, the password manager entries tagged for haex-mail that could become an account (id, title, user name). Never returns a password or server credentials. Start here when the user wants to set up a mail account: importable shows whether a saved login can be used.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -269,14 +269,16 @@
         "de": [
           "Welche Mail-Konten habe ich?",
           "Zeig mir meine E-Mail-Adressen in haex-mail",
-          "Wie viele Mail-Konten sind eingerichtet?",
-          "Gibt es Zugangsdaten, aus denen ich ein Mailkonto machen kann?"
+          "Wie viele Mailkonten sind eingerichtet?",
+          "Gibt es Zugangsdaten, aus denen ich ein Mailkonto machen kann?",
+          "Richte meine Mail bei example.org ein"
         ],
         "en": [
           "Which mail accounts do I have?",
           "Show me my email addresses in haex-mail",
           "How many mail accounts are set up?",
-          "Are there saved logins I could turn into a mail account?"
+          "Are there saved logins I could turn into a mail account?",
+          "Set up my mail at example.org"
         ]
       }
     },
@@ -363,13 +365,13 @@
       "effect": "change",
       "examples": {
         "de": [
-          "Richte mein Mailkonto bei example.org ein",
+          "Öffne mir den Assistenten für ein neues Mailkonto",
           "Leg ein neues E-Mail-Konto für anna@example.org an",
           "Ich möchte ein weiteres Mailkonto in haex-mail hinzufügen",
           "Bereite die Kontoeinrichtung für meine Gmail-Adresse vor"
         ],
         "en": [
-          "Set up my mail account at example.org",
+          "Open the setup assistant for a new mail account",
           "Add a new email account for anna@example.org",
           "I want to add another mail account in haex-mail",
           "Prepare the account setup for my Gmail address"
@@ -613,14 +615,18 @@
           "Suche die Mail mit dem Wort Elektriker",
           "Was ist letzte Woche angekommen?",
           "Welche ungelesenen Mails habe ich von meiner Bank?",
-          "Finde alle Mails mit Anhang von shop.de"
+          "Finde alle Mails mit Anhang von shop.de",
+          "Finde alle Newsletter im Archiv",
+          "Finde die Mail mit dem Betreff Rechnung"
         ],
         "en": [
           "Show me the mails from Anna",
           "Find the mail that mentions the electrician",
           "What arrived last week?",
           "Which unread mails do I have from my bank?",
-          "Find all mails with an attachment from shop.de"
+          "Find all mails with an attachment from shop.de",
+          "Find all newsletters in the archive",
+          "Find the mail with the subject Invoice"
         ]
       }
     },
