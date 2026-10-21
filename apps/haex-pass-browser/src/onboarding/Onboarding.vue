@@ -3,7 +3,7 @@ import type { BackgroundAckResponse, OnboardingDecisionMessage } from '~/bookmar
 import type { BrowserFamily } from '~/bookmarks/model'
 import type { BookmarkCollectionSummary } from '~/bookmarks/vaultClient'
 import { ExternalConnectionState } from '@haex-space/vault-sdk'
-import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION } from '~/bookmarks/messages'
+import { BOOKMARKS_LIST_COLLECTIONS, BOOKMARKS_ONBOARDING_DECISION, shownBookmarkError } from '~/bookmarks/messages'
 import { validateTrimmedText } from '~/bookmarks/model'
 import { detectBrowserFamily } from '~/bookmarks/realEnvironment'
 import { useVaultConnectionState } from '~/composables/useVaultConnectionState'
@@ -78,7 +78,7 @@ async function loadCollections() {
     if (response?.success && response.data) {
       collections.value = response.data.collections
     } else {
-      collectionsError.value = response?.error ?? t('onboarding.collectionsLoadError')
+      collectionsError.value = shownBookmarkError(response?.error, t('onboarding.bookmarksNotSupported')) ?? t('onboarding.collectionsLoadError')
     }
   } catch (err) {
     collectionsError.value = String(err)
@@ -127,7 +127,7 @@ async function handleLater() {
     if (response?.success) {
       decisionDone.value = 'disabled'
     } else {
-      decisionError.value = response?.error ?? t('onboarding.error.generic')
+      decisionError.value = shownBookmarkError(response?.error, t('onboarding.bookmarksNotSupported')) ?? t('onboarding.error.generic')
     }
   } catch (err) {
     decisionError.value = String(err)
@@ -165,7 +165,7 @@ async function handleCreateSubmit() {
     if (response?.success) {
       decisionDone.value = 'create'
     } else {
-      decisionError.value = response?.error ?? t('onboarding.error.generic')
+      decisionError.value = shownBookmarkError(response?.error, t('onboarding.bookmarksNotSupported')) ?? t('onboarding.error.generic')
     }
   } catch (err) {
     decisionError.value = String(err)
@@ -203,7 +203,7 @@ async function handleActivateSubmit() {
     if (response?.success) {
       decisionDone.value = 'activate'
     } else {
-      decisionError.value = response?.error ?? t('onboarding.error.generic')
+      decisionError.value = shownBookmarkError(response?.error, t('onboarding.bookmarksNotSupported')) ?? t('onboarding.error.generic')
     }
   } catch (err) {
     decisionError.value = String(err)

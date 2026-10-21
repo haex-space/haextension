@@ -2,8 +2,10 @@
 import type { OnboardingDecisionMessage } from '~/bookmarks/messages'
 import {
   BOOKMARKS_CONFIRM_DELETIONS,
+  BOOKMARKS_NOT_SUPPORTED,
   BOOKMARKS_ONBOARDING_DECISION,
   BOOKMARKS_REJECT_DELETIONS,
+  shownBookmarkError,
 } from '~/bookmarks/messages'
 import { validateTrimmedText } from '~/bookmarks/model'
 import { useBookmarkSync } from '~/composables/useBookmarkSync'
@@ -72,7 +74,7 @@ async function confirmBookmarkCreate() {
       bookmarkNewName.value = ''
       await loadBookmarkStatus()
     } else {
-      bookmarkSwitchError.value = response?.error ?? t('settings.bookmarks.error.generic')
+      bookmarkSwitchError.value = shownBookmarkError(response?.error, t('settings.bookmarks.notSupported')) ?? t('settings.bookmarks.error.generic')
     }
   } catch (err) {
     bookmarkSwitchError.value = String(err)
@@ -156,7 +158,8 @@ onMounted(loadBookmarkStatus)
         <div><span class="text-muted-foreground">{{ t('settings.bookmarks.device') }}:</span> {{ bookmarkStatus.deviceLabel }} ({{ bookmarkStatus.replicaId.slice(0, 8) }})</div>
         <div>
           <span class="text-muted-foreground">{{ t('settings.bookmarks.status') }}:</span>
-          <span v-if="bookmarkStatus.lastError" class="text-red-500">{{ bookmarkStatus.lastError }}</span>
+          <span v-if="bookmarkStatus.lastError === BOOKMARKS_NOT_SUPPORTED" class="text-muted-foreground">{{ t('settings.bookmarks.notSupported') }}</span>
+          <span v-else-if="bookmarkStatus.lastError" class="text-red-500">{{ bookmarkStatus.lastError }}</span>
           <span v-else-if="bookmarkStatus.dirty" class="text-amber-500">{{ t('settings.bookmarks.dirty') }}</span>
           <span v-else class="text-green-500">{{ t('settings.bookmarks.synced') }}</span>
         </div>

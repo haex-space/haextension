@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mustUseBrowserNative, parseVaultPasskeys, vaultCanAnswerGet } from '../webauthn-routing'
+import { mustUseBrowserNative, parseVaultPasskeys, passkeyListReply, vaultCanAnswerGet } from '../webauthn-routing'
 
 const challenge = new Uint8Array([1, 2, 3])
 
@@ -82,5 +82,18 @@ describe('parseVaultPasskeys', () => {
   it('returns nothing for a malformed answer', () => {
     expect(parseVaultPasskeys(undefined)).toEqual([])
     expect(parseVaultPasskeys({ passkeys: 'nope' })).toEqual([])
+  })
+})
+
+describe('passkeyListReply', () => {
+  it('hands the passkeys to the bridge under data, where it reads them', () => {
+    const reply = passkeyListReply({ success: true, data: { passkeys: [{ credentialId: 'AAEC', isDiscoverable: true }, { credentialId: 7 }] } })
+    expect(reply.success).toBe(true)
+    expect(parseVaultPasskeys(reply.data)).toEqual([{ credentialId: 'AAEC', isDiscoverable: true }])
+  })
+
+  it('passes a failed answer through', () => {
+    const failed = { success: false, error: 'Not found' }
+    expect(passkeyListReply(failed)).toBe(failed)
   })
 })
