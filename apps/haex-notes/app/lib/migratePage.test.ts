@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PaperNoteImport } from "~/types/document";
-import { LEGACY_BACKGROUND_OPACITY, migratePageRow, serializePageDoc, type LegacyPageRow } from "./migratePage";
+import { drawingLayerId, LEGACY_BACKGROUND_OPACITY, migratePageRow, serializePageDoc, type LegacyPageRow } from "./migratePage";
 
 const legacyRow: LegacyPageRow = {
   strokes: [
@@ -172,5 +172,19 @@ describe("serializePageDoc", () => {
     const { layers, background, width, height } = imported;
     expect(migratePageRow({ layers, background, width, height, paperImport: imported.paperImport }).paperImport)
       .toEqual(paperImport);
+  });
+});
+
+describe("drawingLayerId", () => {
+  const layer = (id: string, locked: boolean) => ({ id, name: id, visible: true, locked, elements: [] });
+
+  it("is the topmost unlocked layer, never the locked original", () => {
+    expect(drawingLayerId([layer("original", true), layer("text", false), layer("own", false)])).toBe("own");
+    expect(drawingLayerId([layer("only", false)])).toBe("only");
+  });
+
+  it("falls back to the first layer when all are locked", () => {
+    expect(drawingLayerId([layer("a", true), layer("b", true)])).toBe("a");
+    expect(drawingLayerId([])).toBeNull();
   });
 });
