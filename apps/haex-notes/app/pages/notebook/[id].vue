@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
@@ -29,6 +29,7 @@ const isLandscape = computed(() => {
 // Per-page sharing (shares the currently open page)
 const sharePageId = ref<string | null>(null);
 const showPhotoImport = ref(false);
+const showPdfExport = ref(false);
 const showSharePageDialog = computed({
   get: () => sharePageId.value !== null,
   set: (v) => { if (!v) sharePageId.value = null; },
@@ -210,6 +211,13 @@ const addPage = async () => {
         >
           <Camera class="size-5" />
         </button>
+        <button
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('exportPdf')"
+          @click="showPdfExport = true"
+        >
+          <FileDown class="size-5" />
+        </button>
         <NotesPaperViewSwitch class="ml-1" />
       </div>
 
@@ -266,6 +274,7 @@ const addPage = async () => {
     </header>
 
     <NotesPaperNoteImportDialog v-model:open="showPhotoImport" />
+    <NotesPdfExportDialog v-model:open="showPdfExport" />
     <NotesShareDialog
       v-if="sharePageId"
       v-model:open="showSharePageDialog"
@@ -359,6 +368,7 @@ const addPage = async () => {
 de:
   addPage: Seite hinzufügen
   importPhoto: Foto importieren
+  exportPdf: Als PDF exportieren
   addTable: Tabelle einfügen
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
@@ -374,6 +384,7 @@ en:
   backToList: Back to overview
   addPage: Add Page
   importPhoto: Import a photo
+  exportPdf: Export as PDF
   addTable: Insert Table
   toggleOrientation: Portrait/Landscape
   sharePage: Share page

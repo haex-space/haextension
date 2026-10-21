@@ -3,7 +3,14 @@ import type { ImageSource } from "~/types/document";
 
 type Entry = { state: "loading" } | { state: "ready"; image: HTMLImageElement } | { state: "missing" };
 
-const keyOf = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
+/** Schlüssel einer Bildquelle: gleiche Assets und gleiche Data-URLs laden nur einmal. */
+export const imageSourceKey = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
+
+/** Ein Asset als Object-URL, oder null, wenn es auf diesem Gerät fehlt. Der Aufrufer gibt die URL frei. */
+export async function assetUrlAsync(assetStore: ReturnType<typeof useAssetStore>, assetId: string): Promise<string | null> {
+  const [bytes, meta] = await Promise.all([assetStore.readAsync(assetId), assetStore.metaAsync(assetId)]);
+  return bytes && meta ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: meta.mimeType })) : null;
+}
 
 /**
  * Bilder der Seitenelemente für den Renderer. `lookup` gibt zurück, was schon
@@ -28,19 +35,21 @@ export function useElementImages(onLoaded: () => void) {
   }
 
   async function loadAssetAsync(key: string, assetId: string) {
-    const [bytes, meta] = await Promise.all([assetStore.readAsync(assetId), assetStore.metaAsync(assetId)]);
-    if (disposed) return;
-    if (!bytes || !meta) {
-      entries.set(key, { state: "missing" });
+    const url = await assetUrlAsync(assetStore, assetId);
+    if (!url) {
+      if (!disposed) entries.set(key, { state: "missing" });
       return;
     }
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: meta.mimeType }));
     objectUrls.push(url);
+    if (disposed) {
+      URL.revokeObjectURL(url);
+      return;
+    }
     show(key, url);
   }
 
   const lookup: ImageLookup = (source) => {
-    const key = keyOf(source);
+    const key = imageSourceKey(source);
     const entry = entries.get(key);
     if (entry) return entry.state === "ready" ? entry.image : null;
     entries.set(key, { state: "loading" });
