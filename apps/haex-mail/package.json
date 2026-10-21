@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@haex-space/vault-sdk": "^4.6.0",
+    "@haex-space/vault-sdk": "^4.7.0",
     "@lucide/vue": "^1.45.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
