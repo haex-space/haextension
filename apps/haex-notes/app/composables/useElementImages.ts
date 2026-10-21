@@ -3,7 +3,8 @@ import type { ImageSource } from "~/types/document";
 
 type Entry = { state: "loading" } | { state: "ready"; image: HTMLImageElement } | { state: "missing" };
 
-const keyOf = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
+/** Schlüssel einer Bildquelle: gleiche Assets und gleiche Data-URLs laden nur einmal. */
+export const imageSourceKey = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
 
 /**
  * Bilder der Seitenelemente für den Renderer. `lookup` gibt zurück, was schon
@@ -40,7 +41,7 @@ export function useElementImages(onLoaded: () => void) {
   }
 
   const lookup: ImageLookup = (source) => {
-    const key = keyOf(source);
+    const key = imageSourceKey(source);
     const entry = entries.get(key);
     if (entry) return entry.state === "ready" ? entry.image : null;
     entries.set(key, { state: "loading" });
