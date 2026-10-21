@@ -6,17 +6,17 @@ type Entry = { state: "loading" } | { state: "ready"; image: HTMLImageElement } 
 /** Schlüssel einer Bildquelle: gleiche Assets und gleiche Data-URLs laden nur einmal. */
 export const imageSourceKey = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
 
-/**
- * Bilder der Seitenelemente für den Renderer. `lookup` gibt zurück, was schon
- * geladen ist, und stößt das Laden des Rests an; `onLoaded` fordert dann einen
- * neuen Frame an. Ein Asset, das auf diesem Gerät fehlt, bleibt ein Platzhalter.
- */
 /** Ein Asset als Object-URL, oder null, wenn es auf diesem Gerät fehlt. Der Aufrufer gibt die URL frei. */
 export async function assetUrlAsync(assetStore: ReturnType<typeof useAssetStore>, assetId: string): Promise<string | null> {
   const [bytes, meta] = await Promise.all([assetStore.readAsync(assetId), assetStore.metaAsync(assetId)]);
   return bytes && meta ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: meta.mimeType })) : null;
 }
 
+/**
+ * Bilder der Seitenelemente für den Renderer. `lookup` gibt zurück, was schon
+ * geladen ist, und stößt das Laden des Rests an; `onLoaded` fordert dann einen
+ * neuen Frame an. Ein Asset, das auf diesem Gerät fehlt, bleibt ein Platzhalter.
+ */
 export function useElementImages(onLoaded: () => void) {
   const assetStore = useAssetStore();
   const entries = new Map<string, Entry>();

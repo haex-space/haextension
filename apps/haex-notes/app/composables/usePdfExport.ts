@@ -34,9 +34,9 @@ export function usePdfExport() {
     const images = new Map<string, HTMLImageElement>();
     const urls: string[] = [];
     const release = () => { for (const url of urls) URL.revokeObjectURL(url); };
-    await Promise.all(sources.map(async (source) => {
-      const key = imageSourceKey(source);
-      if (images.has(key)) return;
+    // Eine Quelle je Schlüssel: dasselbe Bild auf mehreren Elementen lädt nur einmal.
+    const unique = new Map(sources.map((source) => [imageSourceKey(source), source]));
+    await Promise.all([...unique].map(async ([key, source]) => {
       try {
         const src = source.kind === "inline" ? source.dataUrl : await assetUrlAsync(assetStore, source.assetId);
         if (!src) return;
@@ -57,9 +57,10 @@ export function usePdfExport() {
     // Wie auf dem Bildschirm: nur ein eingebettetes Overlay wird gezeichnet.
     const overlay = doc.background.overlay;
     const overlaySource = overlay?.type === "image" && overlay.source.kind === "inline" ? overlay.source : null;
-    const images = await loadImagesAsync([...sourcesOf(elements), ...(overlaySource ? [overlaySource] : [])]);
+    // Die Canvas zuerst: schlägt ihre Anlage fehl (großer Speicherbedarf), sind noch keine Object-URLs offen.
     const page = scaledCanvas(doc.width, doc.height, scale);
     const content = scaledCanvas(doc.width, doc.height, scale);
+    const images = await loadImagesAsync([...sourcesOf(elements), ...(overlaySource ? [overlaySource] : [])]);
     try {
       drawPaper(page.context, doc.background, doc.width, doc.height, overlaySource ? images.lookup(overlaySource) : null);
       // Eigener Canvas wie auf dem Bildschirm: der Radierer stanzt Striche aus, nicht das Papier.
