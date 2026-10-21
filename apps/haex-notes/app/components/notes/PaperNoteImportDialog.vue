@@ -64,6 +64,7 @@ class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30" 
 import { Camera, ImageUp, Loader2, RotateCcw, RotateCw } from "@lucide/vue";
 import type { Photo } from "~/lib/paperNotes/importPage";
 import type { Rotation } from "~/lib/paperNotes/mapResult";
+import { DEFAULT_HANDWRITING } from "~/lib/paperNotes/fonts";
 import { decodeAsync, photoQuality, type QualityHint } from "~/lib/paperNotes/workingCopy";
 import { toast } from "vue-sonner";
 import { reportError } from "~/lib/errors";
@@ -74,9 +75,6 @@ const { t } = useI18n();
 const notebook = useNotebookStore();
 const recognition = usePaperNoteRecognition();
 const reading = recognition.reading;
-
-/** Bis die Handschrift-Fonts kommen (T003/T004 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/tasks.md), ein neutraler Font. */
-const FONT_FAMILY = "sans-serif";
 
 const photo = shallowRef<Omit<Photo, "rotation"> | null>(null);
 const bitmap = shallowRef<ImageBitmap | null>(null);
@@ -123,7 +121,7 @@ async function readAsync() {
   message.value = "";
   try {
     const imported = await recognition.readAsync(
-      { ...photo.value, rotation: rotation.value }, bitmap.value, getPageSize("portrait"), FONT_FAMILY,
+      { ...photo.value, rotation: rotation.value }, bitmap.value, getPageSize("portrait"), DEFAULT_HANDWRITING,
     );
     await notebook.addImportedPageAsync(imported);
     const { processing } = imported.paperImport;

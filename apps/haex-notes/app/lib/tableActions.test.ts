@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computed } from "vue";
 import type { TableElement } from "~/types/document";
 import type { PageDoc } from "./commands";
+import { clonePlain } from "./clone";
 import { createTableActions } from "./tableActions";
 import { createUndoStack } from "./undoStack";
 
@@ -17,7 +18,6 @@ function setup() {
   const tables = createTableActions({
     currentDoc: computed(() => page),
     activeLayer: computed(() => page.layers[0]!),
-    visibleElements: computed(() => page.layers[0]!.elements),
     runCommand: (command) => stack.push(command),
   });
   const position = (id: string) => {
@@ -25,7 +25,7 @@ function setup() {
     return [table.x, table.y];
   };
   const table = (id: string) => page.layers[0]!.elements.find((e) => e.id === id) as TableElement;
-  return { stack, tables, position, table };
+  return { stack, tables, position, table, page };
 }
 
 describe("resizeTable", () => {
@@ -106,5 +106,20 @@ describe("cells", () => {
     stack.undo();
 
     expect(table(id).cells).toEqual([[""]]);
+  });
+
+  it("does not expose or mutate tables on a locked layer", () => {
+    const { tables, table, page } = setup();
+    const id = tables.addTable(1, 1, 0, 0)!.id;
+    const before = clonePlain(table(id));
+    page.layers[0]!.locked = true;
+
+    expect(tables.tableElements.value).toEqual([]);
+    tables.addTableRow(id);
+    tables.removeTableColumn(id);
+    tables.resizeTable(id, "g", (value) => { value.x = 100; });
+    tables.removeTable(id);
+
+    expect(table(id)).toEqual(before);
   });
 });

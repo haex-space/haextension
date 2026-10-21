@@ -8,6 +8,7 @@ import { drawingLayerId, migratePageRow, serializePageDoc } from "~/lib/migrateP
 import { createTableActions } from "~/lib/tableActions";
 import { FULL_PAGES_TABLE } from "~/lib/tableNames";
 import { createUndoStack } from "~/lib/undoStack";
+import { setPaperView } from "~/lib/paperNotes/views";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
@@ -293,24 +294,42 @@ export const useNotebookStore = defineStore("notebook", () => {
 
   // --- Save ---
 
+  /** In der Ansicht „Original“ ist die Zeichenebene verborgen; was man neu hinzufügt, soll man sehen. */
+  const revealActiveLayer = () => {
+    if (activeLayer.value?.visible === false) applyEdit((doc) => setPaperView(doc, "compare"));
+  };
+
   const addStroke = (stroke: StrokeElement, label: string) => {
     const doc = currentDoc.value;
     const layer = activeLayer.value;
     if (!doc || !layer) return;
+    revealActiveLayer();
     stroke.bbox = computeBbox(stroke);
     runCommand(addElements(doc, layer.id, [stroke], label));
   };
 
+  /** Führt eine Bearbeitung der geöffneten Seite als Kommando aus; null heißt: nichts zu tun. */
+  const applyEdit = (make: (doc: PageDoc) => Command | null) => {
+    const doc = currentDoc.value;
+    const command = doc ? make(doc) : null;
+    if (command) runCommand(command);
+  };
+
   const {
     tableElements,
-    addTable,
+    addTable: addTableToLayer,
     removeTable,
     addTableRow,
     addTableColumn,
     removeTableRow,
     removeTableColumn,
     resizeTable,
-  } = createTableActions({ currentDoc, activeLayer, visibleElements, runCommand });
+  } = createTableActions({ currentDoc, activeLayer, runCommand });
+
+  const addTable = (rows: number, cols: number, x: number, y: number) => {
+    revealActiveLayer();
+    return addTableToLayer(rows, cols, x, y);
+  };
 
   const saveCurrentPageAsync = async () => {
     const db = haexVault.orm;
@@ -402,6 +421,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     canUndo,
     canRedo,
     addStroke,
+    applyEdit,
     undo,
     redo,
     listNotebooksAsync,

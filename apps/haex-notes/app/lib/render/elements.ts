@@ -25,8 +25,8 @@ export type ImageLookup = (source: ImageSource) => CanvasImageSource | null;
 /** Zeilenhöhe relativ zur Schriftgröße. */
 const LINE_HEIGHT = 1.25;
 /** Schrift und Innenabstand des Zelltexts. */
-const CELL_FONT_SIZE = 14;
-const CELL_PADDING = 4;
+export const CELL_FONT_SIZE = 14;
+export const CELL_PADDING = 4;
 
 /** Wandelt den Umriss aus perfect-freehand in einen geschlossenen SVG-Pfad. */
 export function strokeOutlineToPath(outline: [number, number][]): string {
@@ -120,10 +120,23 @@ function rotateAround(ctx: CanvasRenderingContext2D, box: { x: number; y: number
   ctx.translate(-cx, -cy);
 }
 
+type TextLayout = Pick<TextElement, "text" | "width" | "fontFamily" | "fontSize">;
+
+const fontOf = (text: TextLayout) => `${text.fontSize}px ${text.fontFamily}, sans-serif`;
+
+/** Höhe eines Textblocks, so umbrochen, wie drawText ihn zeichnet. */
+export function measureTextHeight(ctx: CanvasRenderingContext2D, text: TextLayout): number {
+  ctx.save();
+  ctx.font = fontOf(text);
+  const lines = wrapLines(ctx, text.text, text.width).length;
+  ctx.restore();
+  return lines * text.fontSize * LINE_HEIGHT;
+}
+
 function drawText(ctx: CanvasRenderingContext2D, text: TextElement) {
   ctx.save();
   rotateAround(ctx, text);
-  ctx.font = `${text.fontSize}px ${text.fontFamily}, sans-serif`;
+  ctx.font = fontOf(text);
   ctx.fillStyle = text.color;
   ctx.textBaseline = "top";
   fillLines(ctx, wrapLines(ctx, text.text, text.width), text.x, text.y, text.fontSize);

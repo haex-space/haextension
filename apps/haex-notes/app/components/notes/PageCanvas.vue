@@ -2,7 +2,9 @@
 import { useEventListener, useResizeObserver } from "@vueuse/core";
 import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
-import { drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
+import type { TextEdit } from "~/composables/useElementEditing";
+import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
+import { CELL_PADDING, drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
 
 const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
 const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
@@ -10,7 +12,6 @@ const contentCanvasEl = useTemplateRef<HTMLCanvasElement>("contentCanvasEl");
 const overlayCanvasEl = useTemplateRef<HTMLCanvasElement>("overlayCanvasEl");
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
-const { t } = useI18n();
 
 const pageSize = computed(() => {
   const doc = notebook.currentDoc;
@@ -129,7 +130,29 @@ function renderOverlay() {
   const ctx = prepare(overlayCanvasEl.value);
   if (!ctx) return;
   if (notebook.currentStroke) drawElement(ctx, notebook.currentStroke);
+  editing.drawSelection(ctx, viewport.zoom);
 }
+
+const editing = useElementEditing(() => scheduleRender("overlay"));
+const { selected, editing: textEdit } = editing;
+watch(() => pencilCase.selecting, (selecting) => { if (!selecting) editing.clear(); });
+
+/** Der Editor liegt genau über dem Text; Zelltext hat den Innenabstand des Renderers. */
+const editorStyle = ({ box, cell, fontFamily, fontSize }: TextEdit) => ({
+  left: `${box.x * viewport.zoom + viewport.x}px`,
+  top: `${box.y * viewport.zoom + viewport.y}px`,
+  width: `${box.width * viewport.zoom}px`,
+  minHeight: `${box.height * viewport.zoom}px`,
+  padding: cell ? `${CELL_PADDING * viewport.zoom}px` : "0",
+  font: `${fontSize * viewport.zoom}px ${fontFamily}, sans-serif`,
+});
+
+/** Die Stilwahl steht über einem ausgewählten Text, solange er nicht bearbeitet wird. */
+const pickerStyle = computed(() => {
+  const element = selected.value;
+  if (element?.type !== "text" || textEdit.value) return null;
+  return { left: `${element.x * viewport.zoom + viewport.x}px`, top: `${element.y * viewport.zoom + viewport.y - 34}px` };
+});
 
 // Background image cache
 const bgImage = ref<HTMLImageElement | null>(null);
@@ -160,12 +183,13 @@ watch(
 watch(() => notebook.currentDoc?.background, () => scheduleRender("bg"), { deep: true });
 watch(
   () => [notebook.currentPage?.id, notebook.contentVersion],
-  () => scheduleRender("content"),
+  () => scheduleRender("content", "overlay"),
 );
 watch(() => [viewport.x, viewport.y, viewport.zoom], () => scheduleRender("bg", "content", "overlay"));
 watch(pageSize, () => nextTick(() => { fitPage(); scheduleRender("bg", "content", "overlay"); }));
 useResizeObserver(hostEl, () => scheduleRender("bg", "content", "overlay"));
 onMounted(() => { nextTick(() => { fitPage(); scheduleRender("bg", "content", "overlay"); }); });
+onMounted(() => { void loadHandwritingFontsAsync(document.baseURI).then(() => scheduleRender("content")); });
 
 const fitPage = () => {
   const el = overlayCanvasEl.value;
@@ -289,6 +313,11 @@ const onPointerDown = (e: PointerEvent) => {
     return;
   }
 
+  if (pencilCase.selecting) {
+    editing.pointerDown(page, viewport.zoom);
+    return;
+  }
+
   const slot = pencilCase.activeSlot;
 
   notebook.currentStroke = {
@@ -333,6 +362,8 @@ const onPointerMove = (e: PointerEvent) => {
     return;
   }
 
+  if (pencilCase.selecting && editing.pointerMove(screenToPage(x, y))) return;
+
   if (notebook.isDrawing && notebook.currentStroke) {
     const page = screenToPage(x, y);
     notebook.currentStroke.points.push([page.x, page.y, pressure]);
@@ -346,7 +377,7 @@ const onPointerMove = (e: PointerEvent) => {
     if (hit?.type === "col") overlayCanvasEl.value.style.cursor = "col-resize";
     else if (hit?.type === "row") overlayCanvasEl.value.style.cursor = "row-resize";
     else if (hit?.type === "move") overlayCanvasEl.value.style.cursor = "move";
-    else overlayCanvasEl.value.style.cursor = "crosshair";
+    else overlayCanvasEl.value.style.cursor = pencilCase.selecting ? "default" : "crosshair";
   }
 };
 
@@ -363,6 +394,8 @@ const onPointerUp = (e: PointerEvent) => {
     tableDrag.value = null;
     return;
   }
+
+  if (editing.pointerUp()) return;
 
   if (notebook.isDrawing && notebook.currentStroke) {
     const stroke = { ...notebook.currentStroke };
@@ -430,61 +463,26 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
       style="cursor: crosshair"
     />
 
-    <!-- Table context menu -->
-    <div
+    <NotesTableContextMenu
       v-if="tableContextMenu"
-      class="fixed z-50 min-w-40 rounded-lg border border-border bg-popover p-1 shadow-xl"
-      :style="{ left: `${tableContextMenu.pageX}px`, top: `${tableContextMenu.pageY}px` }"
-    >
-      <button
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-        @click="notebook.addTableRow(tableContextMenu!.table.id); tableContextMenu = null"
-      >
-        {{ t("addRow") }}
-      </button>
-      <button
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-        @click="notebook.addTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
-      >
-        {{ t("addColumn") }}
-      </button>
-      <div class="my-1 h-px bg-border" />
-      <button
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-        :class="tableContextMenu!.table.rows <= 1 ? 'opacity-30 pointer-events-none' : ''"
-        @click="notebook.removeTableRow(tableContextMenu!.table.id); tableContextMenu = null"
-      >
-        {{ t("removeRow") }}
-      </button>
-      <button
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-        :class="tableContextMenu!.table.columns <= 1 ? 'opacity-30 pointer-events-none' : ''"
-        @click="notebook.removeTableColumn(tableContextMenu!.table.id); tableContextMenu = null"
-      >
-        {{ t("removeColumn") }}
-      </button>
-      <div class="my-1 h-px bg-border" />
-      <button
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
-        @click="notebook.removeTable(tableContextMenu!.table.id); tableContextMenu = null"
-      >
-        {{ t("deleteTable") }}
-      </button>
-    </div>
+      v-bind="tableContextMenu"
+      @close="tableContextMenu = null"
+    />
+
+    <NotesElementTextEditor
+      v-if="textEdit"
+      :key="`${textEdit.elementId}:${textEdit.cell?.row}:${textEdit.cell?.column}`"
+      :text="textEdit.text"
+      :box-style="editorStyle(textEdit)"
+      @commit="editing.commit"
+      @cancel="editing.cancel"
+    />
+    <NotesTextStylePicker
+      v-if="pickerStyle && selected?.type === 'text'"
+      :font-family="selected.fontFamily"
+      :box-style="pickerStyle"
+      @pick="editing.setFont"
+    />
   </div>
 </template>
 
-<i18n lang="yaml">
-de:
-  addRow: Zeile hinzufügen
-  addColumn: Spalte hinzufügen
-  removeRow: Zeile entfernen
-  removeColumn: Spalte entfernen
-  deleteTable: Tabelle löschen
-en:
-  addRow: Add row
-  addColumn: Add column
-  removeRow: Remove row
-  removeColumn: Remove column
-  deleteTable: Delete table
-</i18n>
