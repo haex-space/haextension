@@ -27,10 +27,13 @@ export const defaultPdfSettings = (showOriginal: boolean): PdfSettings => ({
 
 /** Pixel je Seiteneinheit (CSS-Pixel bei 96 dpi): 288, 192 und 96 dpi. */
 export const RASTER_SCALE: Record<Quality, number> = { high: 3, medium: 2, low: 1 };
-export const JPEG_QUALITY: Record<Quality, number> = { high: 0.92, medium: 0.85, low: 0.75 };
+export const PDF_JPEG_QUALITY: Record<Quality, number> = { high: 0.92, medium: 0.85, low: 0.75 };
 
-/** Mehr Rand ließe auf A4 kaum noch Seite übrig; ein leeres Feld zählt als kein Rand. */
+/** Mehr Rand ließe auf A4 kaum noch Seite übrig. */
 export const MAX_MARGIN_MM = 50;
+
+/** Der Rand, der wirklich gilt; ein leeres oder ungültiges Feld zählt als kein Rand. */
+export const clampMarginMm = (value: unknown) => Math.min(Math.max(0, Number(value) || 0), MAX_MARGIN_MM);
 
 const PT_PER_PX = 72 / 96;
 const PT_PER_MM = 72 / 25.4;
@@ -53,7 +56,7 @@ export function placePage(page: { width: number; height: number }, settings: Pdf
   const landscape = settings.orientation === "auto" ? page.width > page.height : settings.orientation === "landscape";
   if (landscape !== width > height) [width, height] = [height, width];
 
-  const margin = Math.min(Math.max(0, Number(settings.marginMm) || 0), MAX_MARGIN_MM) * PT_PER_MM;
+  const margin = clampMarginMm(settings.marginMm) * PT_PER_MM;
   const scale = Math.min((width - 2 * margin) / page.width, (height - 2 * margin) / page.height);
   const drawWidth = page.width * scale;
   const drawHeight = page.height * scale;

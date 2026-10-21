@@ -75,7 +75,7 @@ export function stretchLevels(pixels: Uint8ClampedArray): void {
   }
 }
 
-function canvas(width: number, height: number) {
+export function canvas(width: number, height: number) {
   const element = document.createElement("canvas");
   element.width = width;
   element.height = height;
@@ -84,9 +84,9 @@ function canvas(width: number, height: number) {
   return { element, context };
 }
 
-async function jpegBytesAsync(element: HTMLCanvasElement): Promise<Uint8Array> {
-  const blob = await new Promise<Blob | null>((resolve) => element.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
-  if (!blob) throw new Error("[haex-notes] Could not encode the working copy");
+export async function jpegBytesAsync(element: HTMLCanvasElement, quality = JPEG_QUALITY): Promise<Uint8Array> {
+  const blob = await new Promise<Blob | null>((resolve) => element.toBlob(resolve, "image/jpeg", quality));
+  if (!blob) throw new Error("[haex-notes] Could not encode an image as JPEG");
   return new Uint8Array(await blob.arrayBuffer());
 }
 

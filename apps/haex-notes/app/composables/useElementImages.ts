@@ -11,6 +11,12 @@ export const imageSourceKey = (source: ImageSource) => (source.kind === "asset" 
  * geladen ist, und stößt das Laden des Rests an; `onLoaded` fordert dann einen
  * neuen Frame an. Ein Asset, das auf diesem Gerät fehlt, bleibt ein Platzhalter.
  */
+/** Ein Asset als Object-URL, oder null, wenn es auf diesem Gerät fehlt. Der Aufrufer gibt die URL frei. */
+export async function assetUrlAsync(assetStore: ReturnType<typeof useAssetStore>, assetId: string): Promise<string | null> {
+  const [bytes, meta] = await Promise.all([assetStore.readAsync(assetId), assetStore.metaAsync(assetId)]);
+  return bytes && meta ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: meta.mimeType })) : null;
+}
+
 export function useElementImages(onLoaded: () => void) {
   const assetStore = useAssetStore();
   const entries = new Map<string, Entry>();
@@ -29,14 +35,16 @@ export function useElementImages(onLoaded: () => void) {
   }
 
   async function loadAssetAsync(key: string, assetId: string) {
-    const [bytes, meta] = await Promise.all([assetStore.readAsync(assetId), assetStore.metaAsync(assetId)]);
-    if (disposed) return;
-    if (!bytes || !meta) {
-      entries.set(key, { state: "missing" });
+    const url = await assetUrlAsync(assetStore, assetId);
+    if (!url) {
+      if (!disposed) entries.set(key, { state: "missing" });
       return;
     }
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: meta.mimeType }));
     objectUrls.push(url);
+    if (disposed) {
+      URL.revokeObjectURL(url);
+      return;
+    }
     show(key, url);
   }
 

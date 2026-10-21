@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SelectPage } from "~/database/schemas";
-import { renderPageTemplate } from "~/utils/pageTemplates";
 import { drawElements } from "~/lib/render/elements";
+import { drawPaper } from "~/lib/render/paper";
 import { migratePageRow } from "~/lib/migratePage";
 
 const props = defineProps<{
@@ -39,10 +39,7 @@ const render = () => {
     dpr * (ch - height * scale) / 2,
   );
 
-  ctx.fillStyle = background.paperColor;
-  ctx.fillRect(0, 0, width, height);
-
-  renderPageTemplate(ctx, background.template, width, height);
+  drawPaper(ctx, background, width, height);
 
   drawElements(ctx, doc.value.layers.filter((l) => l.visible).flatMap((l) => l.elements));
 };

@@ -19,6 +19,7 @@
           <input
             v-model.number="settings.marginMm" type="number" min="0" :max="MAX_MARGIN_MM" step="1"
             class="h-9 rounded-md border border-input bg-background px-2"
+            @change="settings.marginMm = clampMarginMm(settings.marginMm)"
           >
         </label>
         <label class="grid gap-1">
@@ -53,7 +54,7 @@
 import { Loader2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import { reportError } from "~/lib/errors";
-import { defaultPdfSettings, MAX_MARGIN_MM, type Orientation, type PaperSize, type PdfSettings, type Quality } from "~/lib/paperNotes/exportPdf";
+import { clampMarginMm, defaultPdfSettings, MAX_MARGIN_MM, type Orientation, type PaperSize, type PdfSettings, type Quality } from "~/lib/paperNotes/exportPdf";
 import { originalLayerId } from "~/lib/paperNotes/views";
 
 /** Exportiert die geöffnete Seite als PDF; die Voreinstellungen zeigen die Seite, wie sie gerade zu sehen ist. */
@@ -75,9 +76,13 @@ const hasOriginal = computed(() => originalLayer.value !== null);
 
 const settings = ref<PdfSettings>(defaultPdfSettings(false));
 const exporting = ref(false);
+/** Zählt jedes Öffnen; ein Export schließt nur den Dialog, aus dem er gestartet wurde. */
+let opened = 0;
 
 watch(isOpen, (open) => {
-  if (open) settings.value = defaultPdfSettings(originalLayer.value?.visible ?? false);
+  if (!open) return;
+  opened++;
+  settings.value = defaultPdfSettings(originalLayer.value?.visible ?? false);
 });
 
 /** Ein Dateiname ohne Zeichen, die ein Dateisystem ablehnt. */
@@ -90,12 +95,11 @@ async function exportAsync() {
   const doc = notebook.currentDoc;
   if (!doc) return;
   exporting.value = true;
+  const started = opened;
   try {
     const saved = await pdfExport.exportPageAsync(doc, { ...settings.value }, fileName(), t('title'));
-    if (saved) {
-      toast.success(t('saved'));
-      isOpen.value = false;
-    }
+    if (saved) toast.success(t('saved'));
+    if (saved && started === opened) isOpen.value = false;
   } catch (error) {
     reportError(error);
   } finally {

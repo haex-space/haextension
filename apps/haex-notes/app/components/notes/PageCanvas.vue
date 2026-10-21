@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useEventListener, useResizeObserver } from "@vueuse/core";
-import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
+import { PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
 import type { TextEdit } from "~/composables/useElementEditing";
 import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
 import { CELL_PADDING, drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
+import { drawPaper } from "~/lib/render/paper";
 
 const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
 const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
@@ -106,15 +107,7 @@ function renderBackground() {
   ctx.fillRect(0, 0, pageSize.value.width, pageSize.value.height);
   ctx.shadowColor = "transparent";
 
-  renderPageTemplate(ctx, doc.background.template, pageSize.value.width, pageSize.value.height);
-
-  const overlay = doc.background.overlay;
-  if (overlay?.type === "image" && bgImage.value) {
-    ctx.save();
-    ctx.globalAlpha = overlay.opacity;
-    ctx.drawImage(bgImage.value, 0, 0, pageSize.value.width, pageSize.value.height);
-    ctx.restore();
-  }
+  drawPaper(ctx, doc.background, pageSize.value.width, pageSize.value.height, bgImage.value);
 }
 
 const strokePaths: StrokePathCache = new WeakMap();
