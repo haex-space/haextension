@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2 } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, RotateCcw, Table2, RotateCw, Share2, Camera } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
@@ -28,6 +28,7 @@ const isLandscape = computed(() => {
 
 // Per-page sharing (shares the currently open page)
 const sharePageId = ref<string | null>(null);
+const showPhotoImport = ref(false);
 const showSharePageDialog = computed({
   get: () => sharePageId.value !== null,
   set: (v) => { if (!v) sharePageId.value = null; },
@@ -202,6 +203,13 @@ const addPage = async () => {
             </ShadcnDropdownMenuContent>
           </ShadcnDropdownMenu>
         </ShadcnButtonGroup>
+        <button
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('importPhoto')"
+          @click="showPhotoImport = true"
+        >
+          <Camera class="size-5" />
+        </button>
       </div>
 
       <!-- Right: Table + Undo/Redo -->
@@ -256,6 +264,7 @@ const addPage = async () => {
       </div>
     </header>
 
+    <NotesPaperNoteImportDialog v-model:open="showPhotoImport" />
     <NotesShareDialog
       v-if="sharePageId"
       v-model:open="showSharePageDialog"
@@ -348,6 +357,7 @@ const addPage = async () => {
 <i18n lang="yaml">
 de:
   addPage: Seite hinzufügen
+  importPhoto: Foto importieren
   addTable: Tabelle einfügen
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
@@ -362,6 +372,7 @@ en:
   retry: Retry
   backToList: Back to overview
   addPage: Add Page
+  importPhoto: Import a photo
   addTable: Insert Table
   toggleOrientation: Portrait/Landscape
   sharePage: Share page
