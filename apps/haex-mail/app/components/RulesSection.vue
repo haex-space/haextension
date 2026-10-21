@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Pencil, Plus, Trash2 } from "@lucide/vue";
+import { toast } from "vue-sonner";
+import { decodeMailboxName } from "~/lib/imap";
 import { roleLabelKey } from "~/lib/mail";
 import {
   describeRule,
@@ -9,6 +11,7 @@ import {
   type RuleAccount,
   type RuleDef,
 } from "~/lib/rules";
+import { getErrorMessage } from "~/lib/utils";
 
 /**
  * The "Rules" part of the settings: the list of mail rules with an on/off switch, edit and delete,
@@ -36,7 +39,7 @@ const conditionText = (part: ConditionPart) =>
   part.key === "attachment" ? t("part.attachment") : t(`part.${part.key}`, { text: part.text });
 const actionText = (part: ActionPart) => {
   if (part.key === "moveRole") return t("part.moveRole", { target: roleText(part.target) });
-  if (part.key === "moveMailbox") return t("part.moveMailbox", { target: part.target });
+  if (part.key === "moveMailbox") return t("part.moveMailbox", { target: decodeMailboxName(part.target) });
   return t(`part.${part.key}`);
 };
 const summary = (rule: RuleDef) => {
@@ -77,9 +80,21 @@ const confirmDelete = (id: string) => {
 };
 const executeDeleteAsync = async () => {
   if (!deleteRuleId.value) return;
-  await rulesStore.deleteRuleAsync(deleteRuleId.value);
-  deleteRuleId.value = null;
-  showDeleteConfirm.value = false;
+  try {
+    await rulesStore.deleteRuleAsync(deleteRuleId.value);
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  } finally {
+    deleteRuleId.value = null;
+    showDeleteConfirm.value = false;
+  }
+};
+const toggleAsync = async (rule: RuleDef, enabled: boolean) => {
+  try {
+    await rulesStore.setEnabledAsync(rule.id, enabled);
+  } catch (err) {
+    toast.error(getErrorMessage(err));
+  }
 };
 </script>
 
@@ -117,7 +132,7 @@ const executeDeleteAsync = async () => {
         class="mt-1 shrink-0"
         :model-value="rule.enabled"
         :aria-label="t('enabled')"
-        @update:model-value="(on: boolean) => rulesStore.setEnabledAsync(rule.id, on)"
+        @update:model-value="(on: boolean) => toggleAsync(rule, on)"
       />
       <UiButton
         variant="ghost"

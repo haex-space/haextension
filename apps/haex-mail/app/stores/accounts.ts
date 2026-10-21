@@ -147,6 +147,11 @@ export const useAccountsStore = defineStore("accounts", () => {
   const importAccountAsync = async (passwordItemId: string) => {
     if (!haexVault.orm) throw new Error("ORM not initialized");
 
+    // Two accounts on one password item would lose it when either is deleted.
+    if (accounts.value.some((a) => a.passwordItemId === passwordItemId)) {
+      throw new Error($i18n.t("accounts.errors.alreadyImported"));
+    }
+
     const item = await haexVault.client.passwords.readAsync(passwordItemId);
     const kv = Object.fromEntries(
       item.keyValues
@@ -349,9 +354,7 @@ export const useAccountsStore = defineStore("accounts", () => {
       .delete(schema.mailboxes)
       .where(eq(schema.mailboxes.accountId, accountId));
 
-    await haexVault.orm
-      .delete(schema.rules)
-      .where(eq(schema.rules.accountId, accountId));
+    await useRulesStore().deleteRulesOfAccountAsync(accountId);
     await haexVault.orm
       .delete(schema.accounts)
       .where(eq(schema.accounts.id, accountId));

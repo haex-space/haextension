@@ -27,6 +27,7 @@ export const useMessageChanges = (
     flag: string,
     add: boolean,
   ) => {
+    if (uids.length === 0) return;
     const account = await accountsStore.getCredentialsCachedAsync(accountId);
     if (!account) throw new Error($i18n.t("mail.errors.credentials"));
     await haexVault.client.mail.setFlagsAsync(account.imap, mailboxName, uids, [flag], add);

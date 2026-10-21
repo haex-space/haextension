@@ -7,7 +7,14 @@ import {
   type RuleDef,
   type RuleInput,
 } from "../lib/rules";
-import { isMailboxRole, optionalString, toolError, type ToolHandlers } from "./context";
+import {
+  errorText,
+  isMailboxRole,
+  optionalString,
+  resolveMailbox,
+  toolError,
+  type ToolHandlers,
+} from "./context";
 
 /** What the rule tools need from the stores (the settings use the same ones). */
 export interface RuleToolDeps {
@@ -83,6 +90,17 @@ export const createRuleTools = (deps: () => Promise<RuleToolDeps>): ToolHandlers
       conditions: asList(input.conditions).map(conditionOf),
       actions: asList(input.actions).map(actionOf),
     };
+    // list_mailboxes shows folder names decoded and in any case; the rule stores the server's name.
+    const account = rule.accountId
+      ? (await rules.loadRuleAccountsAsync()).find((a) => a.id === rule.accountId)
+      : undefined;
+    if (account) {
+      rule.actions = rule.actions.map((a) =>
+        "mailbox" in a
+          ? { ...a, mailbox: resolveMailbox(account.mailboxes, a.mailbox) ?? a.mailbox }
+          : a,
+      );
+    }
     let id: string;
     try {
       id = await rules.saveRuleAsync(rule, { origin: "agent" });
@@ -99,9 +117,14 @@ export const createRuleTools = (deps: () => Promise<RuleToolDeps>): ToolHandlers
       targetMissing: saved ? ruleTargetMissingKnown(saved, accounts) : false,
     };
     if (input.applyToExisting === true && saved) {
-      const { applied, limited } = await applyRuleToExistingAsync(saved);
-      result.applied = applied;
-      result.appliedLimit = limited;
+      // The rule is stored by now; a failing run must not read as a failed call (a retry would add it twice).
+      try {
+        const { applied, limited } = await applyRuleToExistingAsync(saved);
+        result.applied = applied;
+        result.appliedLimit = limited;
+      } catch (err) {
+        result.applyError = errorText(err);
+      }
     }
     return result;
   },

@@ -147,12 +147,13 @@ const onEmailBlur = () => {
   const domain = email.value.split("@")[1]!.toLowerCase();
   const preset = PROVIDER_PRESETS[domain];
   if (preset) {
-    imapHost.value = preset.imapHost;
-    imapPort.value = preset.imapPort;
-    imapSecurity.value = preset.imapSecurity;
-    smtpHost.value = preset.smtpHost;
-    smtpPort.value = preset.smtpPort;
-    smtpSecurity.value = preset.smtpSecurity;
+    // Details the agent supplied stay as they are; the preset only fills the rest.
+    if (!prefill?.imapHost) imapHost.value = preset.imapHost;
+    if (!prefill?.imapPort) imapPort.value = preset.imapPort;
+    if (!prefill?.imapSecurity) imapSecurity.value = preset.imapSecurity;
+    if (!prefill?.smtpHost) smtpHost.value = preset.smtpHost;
+    if (!prefill?.smtpPort) smtpPort.value = preset.smtpPort;
+    if (!prefill?.smtpSecurity) smtpSecurity.value = preset.smtpSecurity;
   } else if (!imapHost.value) {
     // Sensible default: imap.<domain>, smtp.<domain>.
     imapHost.value = `imap.${domain}`;

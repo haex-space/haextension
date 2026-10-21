@@ -28,6 +28,7 @@
       "accountNotFound": "Konto nicht gefunden",
       "passwordMissing": "Passwort fehlt",
       "importIncomplete": "Diesem Tresor-Eintrag fehlen E-Mail-Adresse oder IMAP-Einstellungen, er kann nicht importiert werden",
+      "alreadyImported": "Dieser Tresor-Eintrag gehört schon zu einem Konto",
       "importInvalid": "Port oder Verschlüsselung dieses Tresor-Eintrags sind ungültig, er kann nicht importiert werden"
     },
     "testMail": {

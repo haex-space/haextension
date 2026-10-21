@@ -3,6 +3,7 @@ import { Minus, Plus } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import { MAILBOX_ROLES } from "~/database/schemas";
 import type * as schema from "~/database/schemas";
+import { decodeMailboxName } from "~/lib/imap";
 import { roleLabelKey } from "~/lib/mail";
 import {
   MAX_CONDITIONS,
@@ -113,8 +114,13 @@ const saveAsync = async () => {
     const id = await rulesStore.saveRuleAsync(buildInput(), { id: props.rule?.id });
     const saved = rulesStore.rules.find((r) => r.id === id);
     if (applyToExisting.value && saved) {
-      const { applied, limited } = await mailStore.applyRuleToExistingAsync(saved);
-      toast.success(t(limited ? "appliedLimited" : "applied", { count: applied }));
+      // The rule is stored by now; a failing run must not read as a failed save.
+      try {
+        const { applied, limited } = await mailStore.applyRuleToExistingAsync(saved);
+        toast.success(t(limited ? "appliedLimited" : "applied", { count: applied }));
+      } catch (applyErr) {
+        toast.error(getErrorMessage(applyErr));
+      }
     }
     emit("saved");
   } catch (err) {
@@ -225,7 +231,7 @@ const saveAsync = async () => {
               :key="folder.name"
               :value="`box:${folder.name}`"
             >
-              {{ folder.name }}
+              {{ decodeMailboxName(folder.name) }}
             </ShadcnSelectItem>
           </ShadcnSelectContent>
         </ShadcnSelect>
