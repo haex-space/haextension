@@ -1,5 +1,13 @@
 import getStroke from "perfect-freehand";
-import type { BBox, PageElement, StrokeElement, TableElement } from "~/types/document";
+import type {
+  BBox,
+  ImageElement,
+  ImageSource,
+  PageElement,
+  StrokeElement,
+  TableElement,
+  TextElement,
+} from "~/types/document";
 
 /**
  * Pfade committeter Striche, damit Pan, Zoom und jeder neue Strich nicht alle
@@ -7,6 +15,18 @@ import type { BBox, PageElement, StrokeElement, TableElement } from "~/types/doc
  * jede Geometrieänderung setzt per Vertrag eine neue Hülle (computeBbox).
  */
 export type StrokePathCache = WeakMap<StrokeElement, { bbox: BBox; path: Path2D }>;
+
+/**
+ * Das geladene Bild einer Quelle, oder null, solange es lädt oder fehlt. Laden ist
+ * Sache des Aufrufers (asynchron); der Renderer zeichnet nur, was schon da ist.
+ */
+export type ImageLookup = (source: ImageSource) => CanvasImageSource | null;
+
+/** Zeilenhöhe relativ zur Schriftgröße. */
+const LINE_HEIGHT = 1.25;
+/** Schrift und Innenabstand des Zelltexts. */
+const CELL_FONT_SIZE = 14;
+const CELL_PADDING = 4;
 
 /** Wandelt den Umriss aus perfect-freehand in einen geschlossenen SVG-Pfad. */
 export function strokeOutlineToPath(outline: [number, number][]): string {
@@ -65,6 +85,97 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeElement, cache?
   ctx.restore();
 }
 
+/** Bricht Text an Wörtern auf `width` um; Zeilenumbrüche im Text bleiben. */
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, width: number): string[] {
+  const lines: string[] = [];
+  for (const paragraph of text.split("\n")) {
+    let line = "";
+    for (const word of paragraph.split(" ")) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(candidate).width > width) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+function fillLines(ctx: CanvasRenderingContext2D, lines: string[], x: number, y: number, fontSize: number) {
+  lines.forEach((line, i) => {
+    if (line) ctx.fillText(line, x, y + i * fontSize * LINE_HEIGHT);
+  });
+}
+
+/** Dreht um die Mitte einer Box; der Aufrufer klammert mit save/restore. */
+function rotateAround(ctx: CanvasRenderingContext2D, box: { x: number; y: number; width: number; height: number; rotation: number }) {
+  if (!box.rotation) return;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(box.rotation);
+  ctx.translate(-cx, -cy);
+}
+
+function drawText(ctx: CanvasRenderingContext2D, text: TextElement) {
+  ctx.save();
+  rotateAround(ctx, text);
+  ctx.font = `${text.fontSize}px ${text.fontFamily}, sans-serif`;
+  ctx.fillStyle = text.color;
+  ctx.textBaseline = "top";
+  fillLines(ctx, wrapLines(ctx, text.text, text.width), text.x, text.y, text.fontSize);
+  ctx.restore();
+}
+
+function drawImage(ctx: CanvasRenderingContext2D, image: ImageElement, images?: ImageLookup) {
+  ctx.save();
+  rotateAround(ctx, image);
+  const loaded = images?.(image.source) ?? null;
+  if (loaded) {
+    ctx.globalAlpha = image.opacity;
+    ctx.drawImage(loaded, image.x, image.y, image.width, image.height);
+  } else {
+    // Lädt noch oder liegt nicht auf diesem Gerät: Platz zeigen, nicht verschwinden.
+    ctx.fillStyle = "#f3f4f6";
+    ctx.fillRect(image.x, image.y, image.width, image.height);
+    ctx.strokeStyle = "#d1d5db";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(image.x, image.y, image.width, image.height);
+  }
+  ctx.restore();
+}
+
+/** Schreibt den Text jeder Zelle in ihre Zelle; ungültige Zellen (von fremden Geräten) bleiben leer. */
+function drawCells(ctx: CanvasRenderingContext2D, table: TableElement) {
+  if (!Array.isArray(table.cells)) return;
+  ctx.font = `${CELL_FONT_SIZE}px sans-serif`;
+  ctx.fillStyle = "#1f2937";
+  ctx.textBaseline = "top";
+  let top = table.y;
+  for (let r = 0; r < table.rows; r++) {
+    const row = table.cells[r];
+    let left = table.x;
+    for (let c = 0; c < table.columns; c++) {
+      const width = table.columnWidths[c]!;
+      const cell = Array.isArray(row) ? row[c] : undefined;
+      if (typeof cell === "string" && cell) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(left, top, width, table.rowHeights[r]!);
+        ctx.clip();
+        const lines = wrapLines(ctx, cell, width - 2 * CELL_PADDING);
+        fillLines(ctx, lines, left + CELL_PADDING, top + CELL_PADDING, CELL_FONT_SIZE);
+        ctx.restore();
+      }
+      left += width;
+    }
+    top += table.rowHeights[r]!;
+  }
+}
+
 function drawTable(ctx: CanvasRenderingContext2D, table: TableElement) {
   ctx.save();
   ctx.strokeStyle = "rgba(100, 120, 150, 0.5)";
@@ -93,21 +204,33 @@ function drawTable(ctx: CanvasRenderingContext2D, table: TableElement) {
     ctx.stroke();
   }
 
+  drawCells(ctx, table);
   ctx.restore();
 }
 
 /**
- * Zeichnet ein Element. Text, Bild, Form und LaTeX kommen in den Phasen 3 und 6
- * dazu — bis dahin werden sie still übersprungen, damit eine von einem neueren
- * Gerät synchronisierte Seite nicht den ganzen Renderer wirft.
+ * Zeichnet ein Element. Form und LaTeX kommen in Phase 6 dazu — bis dahin werden
+ * sie still übersprungen, damit eine von einem neueren Gerät synchronisierte
+ * Seite nicht den ganzen Renderer wirft.
  */
-export function drawElement(ctx: CanvasRenderingContext2D, element: PageElement, cache?: StrokePathCache) {
+export function drawElement(
+  ctx: CanvasRenderingContext2D,
+  element: PageElement,
+  cache?: StrokePathCache,
+  images?: ImageLookup,
+) {
   switch (element.type) {
     case "stroke":
       drawStroke(ctx, element, cache);
       return;
     case "table":
       drawTable(ctx, element);
+      return;
+    case "text":
+      drawText(ctx, element);
+      return;
+    case "image":
+      drawImage(ctx, element, images);
       return;
     default:
       return;
@@ -118,6 +241,7 @@ export function drawElements(
   ctx: CanvasRenderingContext2D,
   elements: readonly PageElement[],
   cache?: StrokePathCache,
+  images?: ImageLookup,
 ) {
-  for (const element of elements) drawElement(ctx, element, cache);
+  for (const element of elements) drawElement(ctx, element, cache, images);
 }
