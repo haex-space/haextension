@@ -11,8 +11,8 @@ export default {
     disconnected: 'Disconnected',
   },
   hint: {
-    vaultNotRunning: 'Make sure haex-vault is running on your computer.',
-    pendingApproval: 'Please approve this connection in haex-vault to continue.',
+    vaultNotRunning: 'Make sure HaexVault is running on your computer.',
+    pendingApproval: 'Please approve this connection in HaexVault to continue.',
     autoFillActive: 'Auto-fill is active. Click on the HaexPass icon in any login form to fill credentials.',
   },
   button: {
@@ -80,12 +80,12 @@ export default {
     },
     connection: {
       label: 'Connection',
-      description: 'Configure the connection to haex-vault.',
+      description: 'Configure the connection to HaexVault.',
       status: 'Connection Status',
     },
     port: {
       label: 'WebSocket Port',
-      description: 'The port haex-vault is listening on. Default: 19455',
+      description: 'The port HaexVault is listening on. Default: 19455',
       placeholder: 'Port (1-65535)',
       invalid: 'Port must be between 1 and 65535',
     },
@@ -94,7 +94,7 @@ export default {
     restartRequired: 'Reconnect required for changes to take effect.',
     disconnect: {
       label: 'Disconnect',
-      description: 'Disconnect the current connection to haex-vault.',
+      description: 'Disconnect the current connection to HaexVault.',
       button: 'Disconnect',
       success: 'Disconnected',
     },
@@ -110,7 +110,7 @@ export default {
     },
     bookmarks: {
       label: 'Bookmark sync',
-      description: 'Save and sync your bookmarks with haex-vault.',
+      description: 'Save and sync your bookmarks with HaexVault.',
       loading: 'Loading...',
       disabledHint: 'Bookmark sync is currently off.',
       enable: 'Set up bookmark sync',
@@ -153,8 +153,8 @@ export default {
   },
   onboarding: {
     title: 'Set up bookmark sync',
-    waitingForVault: 'Connecting to haex-vault...',
-    pendingApproval: 'Waiting for approval in haex-vault...',
+    waitingForVault: 'Connecting to HaexVault...',
+    pendingApproval: 'Waiting for approval in HaexVault...',
     collectionsLoadError: 'Could not load bookmark collections.',
     bookmarksNotSupported: 'Your vault app does not sync bookmarks. Passwords and passkeys keep working.',
     retry: 'Retry',

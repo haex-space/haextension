@@ -1,6 +1,6 @@
 # HaexPass Browser Extension
 
-Browser extension for the [HaexPass](https://github.com/haex-space/haex-pass) password manager. Seamlessly autofill your credentials from haex-vault directly in your browser.
+Browser extension for the [HaexPass](https://github.com/haex-space/haex-pass) password manager. Seamlessly autofill your credentials from HaexVault directly in your browser.
 
 <p align="center">
   <img src="extension/assets/haex-pass-logo.png" alt="HaexPass" width="128">
@@ -8,7 +8,7 @@ Browser extension for the [HaexPass](https://github.com/haex-space/haex-pass) pa
 
 ## Features
 
-- **Secure Connection** - Encrypted WebSocket connection to haex-vault
+- **Secure Connection** - Encrypted WebSocket connection to HaexVault
 - **Auto-Detection** - Automatically detects login forms on websites
 - **Smart Autofill** - Fill username and password with one click
 - **Multi-Browser Support** - Works on Chrome, Firefox, and Chromium-based browsers
@@ -32,10 +32,10 @@ Download the latest `.zip` from the [Releases](https://github.com/haex-space/hae
 
 ## Usage
 
-1. **Start haex-vault** on your computer
+1. **Start HaexVault** on your computer
 2. Click the HaexPass icon in your browser toolbar
 3. Click "Connect" to establish a connection
-4. Approve the connection in haex-vault
+4. Approve the connection in HaexVault
 5. Navigate to any login page - click the HaexPass icon in input fields to autofill
 
 ## Settings
@@ -43,7 +43,7 @@ Download the latest `.zip` from the [Releases](https://github.com/haex-space/hae
 Access settings via the extension popup (gear icon):
 
 - **Language** - Choose between Auto, English, or German
-- **WebSocket Port** - Configure the port haex-vault listens on (default: 19455)
+- **WebSocket Port** - Configure the port HaexVault listens on (default: 19455)
 
 ## Development
 
@@ -110,7 +110,7 @@ src/
 - **TypeScript** - Type safety
 - **Tailwind CSS** - Styling
 - **webext-bridge** - Cross-context messaging
-- **@haex-space/vault-sdk** - haex-vault communication
+- **@haex-space/vault-sdk** - HaexVault communication
 
 ## License
 
