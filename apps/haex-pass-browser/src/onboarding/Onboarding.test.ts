@@ -52,7 +52,7 @@ describe('connection gating', () => {
     mockConnectionState(ExternalConnectionState.DISCONNECTED)
     const wrapper = mountOnboarding()
     await flushPromises()
-    expect(wrapper.text()).toContain('Connecting to haex-vault')
+    expect(wrapper.text()).toContain('Connecting to HaexVault')
   })
 
   it('never requests the bookmarks permission before any click', async () => {
