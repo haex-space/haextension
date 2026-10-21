@@ -4,7 +4,7 @@ import { renderPageTemplate, PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
 import type { TextEdit } from "~/composables/useElementEditing";
 import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
-import { drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
+import { CELL_PADDING, drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
 
 const hostEl = useTemplateRef<HTMLDivElement>("hostEl");
 const bgCanvasEl = useTemplateRef<HTMLCanvasElement>("bgCanvasEl");
@@ -143,7 +143,7 @@ const editorStyle = ({ box, cell, fontFamily, fontSize }: TextEdit) => ({
   top: `${box.y * viewport.zoom + viewport.y}px`,
   width: `${box.width * viewport.zoom}px`,
   minHeight: `${box.height * viewport.zoom}px`,
-  padding: cell ? `${4 * viewport.zoom}px` : "0",
+  padding: cell ? `${CELL_PADDING * viewport.zoom}px` : "0",
   font: `${fontSize * viewport.zoom}px ${fontFamily}, sans-serif`,
 });
 
@@ -445,11 +445,6 @@ useEventListener(overlayCanvasEl, "contextmenu", (e: MouseEvent) => {
   }
 });
 useEventListener(overlayCanvasEl, "wheel", onWheel, { passive: false });
-useEventListener(overlayCanvasEl, "dblclick", (e: MouseEvent) => {
-  if (!pencilCase.selecting) return;
-  const rect = overlayCanvasEl.value!.getBoundingClientRect();
-  editing.doubleClick(screenToPage(e.clientX - rect.left, e.clientY - rect.top));
-});
 
 const resetZoom = () => fitPage();
 

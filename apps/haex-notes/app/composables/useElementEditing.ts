@@ -1,6 +1,6 @@
 import type { TextElement } from "~/types/document";
 import { editableElement, editCell, editText, placeElement, setFontFamily, type Box } from "~/lib/elementEdits";
-import { measureTextHeight } from "~/lib/render/elements";
+import { CELL_FONT_SIZE, measureTextHeight } from "~/lib/render/elements";
 import { boxOf, cellAt, draggedBox, elementAt, HANDLE_RADIUS, isSelectable, onResizeHandle, type Point, type Selectable } from "~/lib/selection";
 import { cellsOf } from "~/lib/tableActions";
 
@@ -15,7 +15,12 @@ export interface TextEdit {
 }
 
 /** Schrift des Zelltexts, wie der Renderer ihn zeichnet. */
-const CELL_FONT = { fontFamily: "sans-serif", fontSize: 14 };
+const CELL_FONT = { fontFamily: "sans-serif", fontSize: CELL_FONT_SIZE };
+/** Erst ab dieser Strecke (Bildschirmpixel) ist ein Tippen ein Ziehen; ein Stift zittert immer etwas. */
+const DRAG_THRESHOLD = 3;
+/** Zwei Tipps so kurz und so nah hintereinander sind ein Doppeltipp, auch wo kein dblclick kommt. */
+const DOUBLE_TAP_MS = 400;
+const DOUBLE_TAP_DISTANCE = 8;
 
 /**
  * Auswählen, Verschieben und Skalieren von Text, Bild und Tabelle, und das Bearbeiten von Text
@@ -26,12 +31,15 @@ export function useElementEditing(redrawOverlay: () => void) {
   const notebook = useNotebookStore();
   const selectedId = ref<string | null>(null);
   const editing = ref<TextEdit | null>(null);
-  let drag: { mode: "move" | "resize"; start: Box; origin: Point; gestureId: string } | null = null;
+  let drag: { mode: "move" | "resize"; start: Box; origin: Point; gestureId: string; zoom: number; moved: boolean } | null = null;
+  let lastTap: { point: Point; time: number } | null = null;
 
+  /** Nur auf sichtbaren Ebenen: in der Ansicht „Original“ bleibt kein Rahmen über dem Foto stehen. */
   const selected = computed<Selectable | null>(() => {
     const doc = notebook.currentDoc;
     const element = doc && selectedId.value ? editableElement(doc, selectedId.value) : null;
-    return element && isSelectable(element) ? element : null;
+    const visible = doc?.layers.some((layer) => layer.visible && layer.elements.some((e) => e === element));
+    return element && visible && isSelectable(element) ? element : null;
   });
 
   const clear = () => {
@@ -49,13 +57,22 @@ export function useElementEditing(redrawOverlay: () => void) {
   };
 
   function pointerDown(point: Point, zoom: number) {
+    const now = Date.now();
+    const isDoubleTap = !!lastTap && now - lastTap.time < DOUBLE_TAP_MS
+      && Math.hypot(point.x - lastTap.point.x, point.y - lastTap.point.y) < DOUBLE_TAP_DISTANCE / zoom;
+    lastTap = isDoubleTap ? null : { point, time: now };
+    if (isDoubleTap) {
+      drag = null;
+      doubleClick(point);
+      return;
+    }
     const current = selected.value;
     const onHandle = !!current && onResizeHandle(current, point, zoom);
     const doc = notebook.currentDoc;
     const target = onHandle ? current : doc ? elementAt(doc.layers, point) : null;
     selectedId.value = target?.id ?? null;
     drag = target
-      ? { mode: onHandle ? "resize" : "move", start: boxOf(target), origin: point, gestureId: crypto.randomUUID() }
+      ? { mode: onHandle ? "resize" : "move", start: boxOf(target), origin: point, gestureId: crypto.randomUUID(), zoom, moved: false }
       : null;
     redrawOverlay();
   }
@@ -66,7 +83,8 @@ export function useElementEditing(redrawOverlay: () => void) {
     if (!drag || !element) return false;
     const dx = point.x - drag.origin.x;
     const dy = point.y - drag.origin.y;
-    if (dx === 0 && dy === 0) return true;
+    if (!drag.moved && Math.hypot(dx, dy) * drag.zoom < DRAG_THRESHOLD) return true;
+    drag.moved = true;
     const box = draggedBox(drag.start, dx, dy, drag.mode, element.type === "image");
     // Ein Text wird breiter oder schmaler; seine Höhe folgt dem Umbruch.
     if (element.type === "text") box.height = heightOf({ ...element, width: box.width });
@@ -144,5 +162,5 @@ export function useElementEditing(redrawOverlay: () => void) {
     ctx.restore();
   }
 
-  return { selected, editing, pointerDown, pointerMove, pointerUp, doubleClick, commit, cancel, setFont, drawSelection, clear };
+  return { selected, editing, pointerDown, pointerMove, pointerUp, commit, cancel, setFont, drawSelection, clear };
 }

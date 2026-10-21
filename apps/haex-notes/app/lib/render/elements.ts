@@ -25,8 +25,8 @@ export type ImageLookup = (source: ImageSource) => CanvasImageSource | null;
 /** Zeilenhöhe relativ zur Schriftgröße. */
 const LINE_HEIGHT = 1.25;
 /** Schrift und Innenabstand des Zelltexts. */
-const CELL_FONT_SIZE = 14;
-const CELL_PADDING = 4;
+export const CELL_FONT_SIZE = 14;
+export const CELL_PADDING = 4;
 
 /** Wandelt den Umriss aus perfect-freehand in einen geschlossenen SVG-Pfad. */
 export function strokeOutlineToPath(outline: [number, number][]): string {

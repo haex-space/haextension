@@ -76,7 +76,6 @@ const notebook = useNotebookStore();
 const recognition = usePaperNoteRecognition();
 const reading = recognition.reading;
 
-
 const photo = shallowRef<Omit<Photo, "rotation"> | null>(null);
 const bitmap = shallowRef<ImageBitmap | null>(null);
 const previewUrl = ref("");

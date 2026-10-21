@@ -66,6 +66,8 @@ describe("element edits", () => {
     stack.undo();
     expect(find<TextElement>(page, "text").x).toBe(40);
     expect(stack.undo()).toBeNull();
+    stack.redo();
+    expect(find<TextElement>(page, "text").x).toBe(70);
   });
 
   it("move a table but leave its size to its lines", () => {
