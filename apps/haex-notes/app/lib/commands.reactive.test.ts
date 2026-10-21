@@ -141,7 +141,6 @@ describe("commands on reactive store state", () => {
     const tables = createTableActions({
       currentDoc: computed(() => page),
       activeLayer: computed(() => page.layers[0]!),
-      visibleElements: computed(() => page.layers.flatMap((l) => l.elements)),
       runCommand: (command) => stack.push(command),
     });
 

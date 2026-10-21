@@ -324,7 +324,7 @@ export const useNotebookStore = defineStore("notebook", () => {
     removeTableRow,
     removeTableColumn,
     resizeTable,
-  } = createTableActions({ currentDoc, activeLayer, visibleElements, runCommand });
+  } = createTableActions({ currentDoc, activeLayer, runCommand });
 
   const addTable = (rows: number, cols: number, x: number, y: number) => {
     revealActiveLayer();
