@@ -11,8 +11,8 @@ export default {
     disconnected: 'Nicht verbunden',
   },
   hint: {
-    vaultNotRunning: 'Stelle sicher, dass HaexVault auf deinem Computer gestartet ist.',
-    pendingApproval: 'Bitte genehmige diese Verbindung in HaexVault, um fortzufahren.',
+    vaultNotRunning: 'Stelle sicher, dass haex-vault auf deinem Computer gestartet ist.',
+    pendingApproval: 'Bitte genehmige diese Verbindung in haex-vault, um fortzufahren.',
     autoFillActive: 'Auto-Ausfüllen ist aktiv. Klicke auf das HaexPass Symbol in einem Login-Formular, um Zugangsdaten einzufügen.',
   },
   button: {
@@ -80,12 +80,12 @@ export default {
     },
     connection: {
       label: 'Verbindung',
-      description: 'Konfiguriere die Verbindung zu HaexVault.',
+      description: 'Konfiguriere die Verbindung zu haex-vault.',
       status: 'Verbindungsstatus',
     },
     port: {
       label: 'WebSocket Port',
-      description: 'Der Port, auf dem HaexVault lauscht. Standard: 19455',
+      description: 'Der Port, auf dem haex-vault lauscht. Standard: 19455',
       placeholder: 'Port (1-65535)',
       invalid: 'Port muss zwischen 1 und 65535 liegen',
     },
@@ -94,7 +94,7 @@ export default {
     restartRequired: 'Neuverbindung erforderlich, damit Änderungen wirksam werden.',
     disconnect: {
       label: 'Verbindung trennen',
-      description: 'Trenne die aktuelle Verbindung zu HaexVault.',
+      description: 'Trenne die aktuelle Verbindung zu haex-vault.',
       button: 'Trennen',
       success: 'Verbindung getrennt',
     },
@@ -110,7 +110,7 @@ export default {
     },
     bookmarks: {
       label: 'Lesezeichen-Sync',
-      description: 'Speichere und synchronisiere deine Lesezeichen mit HaexVault.',
+      description: 'Speichere und synchronisiere deine Lesezeichen mit haex-vault.',
       loading: 'Lädt...',
       disabledHint: 'Lesezeichen-Sync ist derzeit aus.',
       enable: 'Lesezeichen-Sync einrichten',
@@ -153,8 +153,8 @@ export default {
   },
   onboarding: {
     title: 'Lesezeichen-Sync einrichten',
-    waitingForVault: 'Verbinde mit HaexVault...',
-    pendingApproval: 'Warte auf Genehmigung in HaexVault...',
+    waitingForVault: 'Verbinde mit haex-vault...',
+    pendingApproval: 'Warte auf Genehmigung in haex-vault...',
     collectionsLoadError: 'Sammlungen konnten nicht geladen werden.',
     bookmarksNotSupported: 'Deine Vault-App synchronisiert keine Lesezeichen. Passwörter und Passkeys funktionieren weiter.',
     retry: 'Erneut versuchen',
