@@ -7,6 +7,12 @@
 import type { BrowserFamily } from './model'
 
 export const BOOKMARKS_LIST_COLLECTIONS = 'BOOKMARKS_LIST_COLLECTIONS'
+export const BOOKMARKS_ONBOARDING_DECISION = 'BOOKMARKS_ONBOARDING_DECISION'
+export const BOOKMARKS_SYNC_NOW = 'BOOKMARKS_SYNC_NOW'
+export const BOOKMARKS_SWITCH_COLLECTION = 'BOOKMARKS_SWITCH_COLLECTION'
+export const BOOKMARKS_CONFIRM_DELETIONS = 'BOOKMARKS_CONFIRM_DELETIONS'
+export const BOOKMARKS_REJECT_DELETIONS = 'BOOKMARKS_REJECT_DELETIONS'
+export const BOOKMARKS_GET_STATUS = 'BOOKMARKS_GET_STATUS'
 
 /**
  * Kept as the error of a bookmark call when the vault app answers that it has
@@ -24,12 +30,6 @@ export function shownBookmarkError(error: string | undefined, notSupported: stri
 export function bookmarkErrorText(err: unknown): string {
   return (err as { errorCode?: unknown } | null)?.errorCode === 'NOT_SUPPORTED' ? BOOKMARKS_NOT_SUPPORTED : String(err)
 }
-export const BOOKMARKS_ONBOARDING_DECISION = 'BOOKMARKS_ONBOARDING_DECISION'
-export const BOOKMARKS_SYNC_NOW = 'BOOKMARKS_SYNC_NOW'
-export const BOOKMARKS_SWITCH_COLLECTION = 'BOOKMARKS_SWITCH_COLLECTION'
-export const BOOKMARKS_CONFIRM_DELETIONS = 'BOOKMARKS_CONFIRM_DELETIONS'
-export const BOOKMARKS_REJECT_DELETIONS = 'BOOKMARKS_REJECT_DELETIONS'
-export const BOOKMARKS_GET_STATUS = 'BOOKMARKS_GET_STATUS'
 
 export interface DeviceIdentity {
   replicaId: string
