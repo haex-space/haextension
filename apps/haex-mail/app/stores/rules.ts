@@ -72,6 +72,13 @@ export const useRulesStore = defineStore("rules", () => {
       ),
     };
     if (id) {
+      // A rule can be gone (removed by a sync, or by the agent) while its dialog is open.
+      const existing = await haexVault.orm
+        .select({ id: schema.rules.id })
+        .from(schema.rules)
+        .where(eq(schema.rules.id, id))
+        .limit(1);
+      if (existing.length === 0) throw new Error("The rule no longer exists");
       await haexVault.orm.update(schema.rules).set(values).where(eq(schema.rules.id, id));
     } else {
       id = crypto.randomUUID();

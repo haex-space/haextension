@@ -230,6 +230,10 @@ export const planActions = (
  * and the server's UIDNEXT (so a mail that arrives in an empty inbox still counts as new), because
  * a new rule must not reorder the whole inbox. The caller stores `nextThrough` once the run went
  * through, so a failed run is tried again.
+ *
+ * `uids` are only the messages one fetch looked at (the newest 50 of a normal fetch). If more than
+ * that arrive between two fetches, the older ones fall below the new `nextThrough` and no rule runs
+ * for them; "apply to existing" is the way to catch up.
  */
 export const planRuleRun = (
   through: number | null,

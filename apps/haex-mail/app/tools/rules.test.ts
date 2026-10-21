@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeMailboxName } from "../lib/imap";
 import { validateRule, RuleValidationError, type RuleDef, type RuleInput } from "../lib/rules";
 import { createRuleTools, type RuleToolDeps } from "./rules";
 
@@ -8,6 +9,7 @@ const noSignal = { signal: new AbortController().signal };
 const fakeDeps = (accountIds = ["a1"]) => {
   const rules: RuleDef[] = [];
   const applied: string[] = [];
+  const state = { applyFails: false };
   const deps: RuleToolDeps = {
     rules: {
       rules,
@@ -18,6 +20,7 @@ const fakeDeps = (accountIds = ["a1"]) => {
           mailboxes: [
             { name: "INBOX", role: "inbox" },
             { name: "Archive", role: "archive" },
+            { name: encodeMailboxName("Ärger"), role: null },
           ],
         },
       ],
@@ -36,11 +39,12 @@ const fakeDeps = (accountIds = ["a1"]) => {
       },
     },
     applyRuleToExistingAsync: async (rule) => {
+      if (state.applyFails) throw new Error("IMAP is down");
       applied.push(rule.id);
       return { applied: 3, limited: false };
     },
   };
-  return { deps, rules, applied, tools: createRuleTools(async () => deps) };
+  return { deps, rules, applied, state, tools: createRuleTools(async () => deps) };
 };
 
 const newsletter = {
@@ -74,11 +78,30 @@ describe("add_rule", () => {
     expect(rules[0]!.accountId).toBe("a1");
   });
 
+  it("stores a folder the agent read from list_mailboxes under the name the server uses", async () => {
+    const { tools, rules } = fakeDeps();
+    const result = await tools.add_rule!(
+      { ...newsletter, account: "a1", actions: [{ type: "move", to: "ärger" }] },
+      noSignal,
+    );
+    expect(rules[0]!.actions).toEqual([{ type: "move", mailbox: encodeMailboxName("Ärger") }]);
+    expect(result).toEqual({ id: "r1", targetMissing: false });
+  });
+
   it("runs the rule once on the existing mails when asked and says how many it touched", async () => {
     const { tools, applied } = fakeDeps();
     const result = await tools.add_rule!({ ...newsletter, applyToExisting: true }, noSignal);
     expect(result).toMatchObject({ id: "r1", applied: 3, appliedLimit: false });
     expect(applied).toEqual(["r1"]);
+  });
+
+  it("keeps the stored rule and reports it when running on the existing mails fails", async () => {
+    const { tools, rules, state } = fakeDeps();
+    state.applyFails = true;
+    const result = await tools.add_rule!({ ...newsletter, applyToExisting: true }, noSignal);
+    expect(result).toMatchObject({ id: "r1", applyError: "IMAP is down" });
+    expect(result).not.toHaveProperty("applied");
+    expect(rules).toHaveLength(1);
   });
 
   it("does not touch existing mails by default", async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MailMessage } from "@haex-space/vault-sdk";
+import { encodeMailboxName } from "../lib/imap";
 import { createReadMessageTools, MAX_TEXT, type ReadMessageDeps } from "./readMessage";
 
 const noSignal = { signal: new AbortController().signal };
@@ -62,6 +63,15 @@ describe("get_message", () => {
       truncated: false,
       attachments: [{ name: "a.pdf", type: "application/pdf", size: 12 }],
     });
+  });
+
+  it("names a folder with umlauts the way find_messages and list_mailboxes do", async () => {
+    const folder = encodeMailboxName("Ärger");
+    const fetched: unknown[] = [];
+    const tools = createReadMessageTools(async () => fakeDeps(message(), fetched));
+    const result = await tools.get_message!({ id: `a1::${folder}::9` }, noSignal);
+    expect(fetched).toEqual([[folder, 9]]);
+    expect(result).toMatchObject({ id: `a1::${folder}::9`, mailbox: "Ärger" });
   });
 
   it("reports the state from the flags", async () => {

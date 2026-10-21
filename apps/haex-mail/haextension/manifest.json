@@ -462,7 +462,7 @@
                 },
                 "to": {
                   "type": "string",
-                  "description": "For move: a mailbox role (archive, trash, junk, sent, drafts) or, for one account, a folder name."
+                  "description": "For move: a mailbox role (archive, trash, junk, sent, drafts) or, for one account, a folder name. A name that is a role name, in any case, always means the role, so a custom folder called like a role cannot be targeted."
                 }
               },
               "required": [

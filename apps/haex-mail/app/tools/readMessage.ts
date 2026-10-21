@@ -1,5 +1,6 @@
 import type { ImapConfig, MailMessage } from "@haex-space/vault-sdk";
 import { formatAddressList } from "../lib/address";
+import { decodeMailboxName } from "../lib/imap";
 import {
   connectionOf,
   findAccount,
@@ -42,7 +43,7 @@ export const createReadMessageTools = (deps: () => Promise<ReadMessageDeps>): To
     return {
       id: formatMessageId(parsed.accountId, parsed.mailboxName, envelope.uid),
       account: parsed.accountId,
-      mailbox: parsed.mailboxName,
+      mailbox: decodeMailboxName(parsed.mailboxName),
       from: formatAddressList(envelope.from),
       to: formatAddressList(envelope.to),
       cc: formatAddressList(envelope.cc),

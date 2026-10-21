@@ -22,6 +22,8 @@ onMounted(async () => {
 // --- Add / edit dialog ---
 const showAccountDialog = ref(false);
 const editAccount = ref<schema.SelectAccount | null>(null);
+// Bumped by every request of the agent, so a form that is already open starts over with the new details.
+const createKey = ref(0);
 
 const openCreate = () => {
   editAccount.value = null;
@@ -34,6 +36,7 @@ watch(
   (requested) => {
     if (!requested) return;
     uiStore.accountSetupRequested = false;
+    createKey.value++;
     openCreate();
   },
   { immediate: true },
@@ -172,7 +175,7 @@ const executeDeleteAsync = async () => {
             :account="editAccount"
             @saved="onSaved"
           />
-          <AccountCreateTabs v-else @saved="onSaved" />
+          <AccountCreateTabs v-else :key="createKey" @saved="onSaved" />
         </div>
       </template>
     </UiDrawerModal>
