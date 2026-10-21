@@ -100,11 +100,11 @@ export default {
     },
     passkeyPrefs: {
       label: 'Passkey-Entscheidungen pro Seite',
-      description: 'Hier siehst du, für welche Seiten du festgelegt hast, ob haex-vault oder dein Browser Passkey-Anfragen bearbeitet. Lösche einen Eintrag, um beim nächsten Besuch erneut gefragt zu werden.',
+      description: 'Hier siehst du, für welche Seiten du festgelegt hast, ob HaexVault oder dein Browser Passkey-Anfragen bearbeitet. Lösche einen Eintrag, um beim nächsten Besuch erneut gefragt zu werden.',
       empty: 'Noch keine Entscheidungen gespeichert.',
       remove: 'Entfernen',
       choice: {
-        haexPass: 'Über haex-vault',
+        haexPass: 'Über HaexVault',
         browser: 'Browser / Hardware-Key',
       },
     },

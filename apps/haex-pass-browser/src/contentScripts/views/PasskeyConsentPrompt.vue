@@ -77,7 +77,7 @@ function cancel() {
 
       <div class="hp-actions">
         <button class="hp-btn hp-btn-primary" @click="pick('haex-pass')">
-          <span class="hp-btn-title">haex-vault</span>
+          <span class="hp-btn-title">HaexVault</span>
           <span class="hp-btn-hint">Passkey in deinem Vault speichern</span>
         </button>
         <button class="hp-btn hp-btn-secondary" @click="pick('browser')">

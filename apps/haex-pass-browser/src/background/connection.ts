@@ -190,7 +190,7 @@ class VaultConnectionManager {
             return
           }
           console.error('[haex-pass] WebSocket error:', err)
-          this.status.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is haex-vault running?')
+          this.status.setError(ExternalConnectionErrorCode.CONNECTION_FAILED, 'Connection failed - is HaexVault running?')
           this.status.state = ExternalConnectionState.DISCONNECTED
           this.stopPing()
           this.rejectPendingRequests('Connection failed')
