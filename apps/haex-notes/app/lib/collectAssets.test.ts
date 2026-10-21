@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ImageElement, PageBackground, PageLayer } from "~/types/document";
+import type { ImageElement, PageBackground, PageLayer, PaperNoteImport } from "~/types/document";
 import { collectAssetIds } from "./collectAssets";
 
 const image = (assetId: string): ImageElement => ({
@@ -40,6 +40,14 @@ describe("collectAssetIds", () => {
       overlay: { type: "image", source: { kind: "inline", dataUrl: "data:," }, opacity: 0.3 },
     };
     expect(collectAssetIds([layer()], background)).toEqual([]);
+  });
+
+  it("collects the original and the working copy of a photo import", () => {
+    const paperImport = {
+      version: 1, originalAssetId: "original", workingAssetId: "working",
+    } as PaperNoteImport;
+    expect(collectAssetIds([layer(image("crop"))], plainBackground, paperImport))
+      .toEqual(["crop", "original", "working"]);
   });
 
   it("deduplicates", () => {

@@ -3,6 +3,11 @@ import type { PageElement, PageLayer, TableElement } from "~/types/document";
 import { addElements, mutateElements, removeElements, type Command, type PageDoc } from "./commands";
 import { computeBbox } from "./bbox";
 
+/** Die Zellen einer Tabelle; eine Tabelle älterer Versionen hat noch keine, dann sind alle leer. */
+function cellsOf(table: TableElement): string[][] {
+  return table.cells ?? Array.from({ length: table.rows }, () => Array<string>(table.columns).fill(""));
+}
+
 interface TableActionsContext {
   currentDoc: ComputedRef<PageDoc | null>;
   activeLayer: ComputedRef<PageLayer | null>;
@@ -30,6 +35,7 @@ export function createTableActions({ currentDoc, activeLayer, visibleElements, r
       rows,
       columnWidths: Array(cols).fill(80),
       rowHeights: Array(rows).fill(30),
+      cells: Array.from({ length: rows }, () => Array<string>(cols).fill("")),
       bbox: [0, 0, 0, 0],
     };
     table.bbox = computeBbox(table);
@@ -66,14 +72,23 @@ export function createTableActions({ currentDoc, activeLayer, visibleElements, r
   };
 
   const addTableRow = (id: string) =>
-    mutateTable(id, "Zeile hinzufügen", (t) => { t.rows++; t.rowHeights.push(30); });
+    mutateTable(id, "Zeile hinzufügen", (t) => {
+      t.cells = [...cellsOf(t), Array<string>(t.columns).fill("")];
+      t.rows++;
+      t.rowHeights.push(30);
+    });
 
   const addTableColumn = (id: string) =>
-    mutateTable(id, "Spalte hinzufügen", (t) => { t.columns++; t.columnWidths.push(80); });
+    mutateTable(id, "Spalte hinzufügen", (t) => {
+      t.cells = cellsOf(t).map((row) => [...row, ""]);
+      t.columns++;
+      t.columnWidths.push(80);
+    });
 
   const removeTableRow = (id: string) =>
     mutateTable(id, "Zeile entfernen", (t) => {
       if (t.rows <= 1) return;
+      t.cells = cellsOf(t).slice(0, -1);
       t.rows--;
       t.rowHeights.pop();
     });
@@ -81,6 +96,7 @@ export function createTableActions({ currentDoc, activeLayer, visibleElements, r
   const removeTableColumn = (id: string) =>
     mutateTable(id, "Spalte entfernen", (t) => {
       if (t.columns <= 1) return;
+      t.cells = cellsOf(t).map((row) => row.slice(0, -1));
       t.columns--;
       t.columnWidths.pop();
     });

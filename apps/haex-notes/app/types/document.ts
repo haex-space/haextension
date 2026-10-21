@@ -96,6 +96,11 @@ export interface TableElement extends ElementBase {
   rows: number;
   columnWidths: number[];
   rowHeights: number[];
+  /**
+   * Zelltext, `rows` Zeilen zu je `columns` Zellen; eine leere Zelle ist `""`.
+   * Fehlt bei Tabellen von älteren Versionen — dann ist jede Zelle leer.
+   */
+  cells?: string[][];
 }
 
 export interface LatexElement extends ElementBase {
@@ -149,4 +154,47 @@ export interface PageBackground {
   paperColor: string;
   template: PageTemplate;
   overlay?: ImageOverlay | PdfOverlay;
+}
+
+/** Wo ein Modell gelesen hat, aus Sicht des Geräts (holzi Spec 055). */
+export type RecognitionPlace = "this_device" | "network" | "cloud";
+
+/** Warum eine Erkennung nichts geliefert hat. */
+export type RecognitionError = "no_capable_model" | "consent_denied" | "unusable" | "timeout" | "unavailable";
+
+/** Stand und Herkunft der Erkennung eines importierten Fotos. Adresse und Schlüssel des Modells kennt nur holzi. */
+export interface PaperNoteProcessing {
+  state: "manual" | "processing" | "ready" | "failed";
+  /** Name des Modells, das die Seite gelesen hat. */
+  model?: string;
+  place?: RecognitionPlace;
+  error?: RecognitionError;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+/** Eine übernommene Region: wo sie auf der Arbeitskopie stand und welche Elemente daraus wurden. */
+export interface RecognizedRegion {
+  id: string;
+  kind: "text" | "table" | "image";
+  /** `[x1, y1, x2, y2]`, je 0–1000 relativ zur Arbeitskopie. */
+  sourceBox: [number, number, number, number];
+  elementIds: string[];
+}
+
+/** Herkunft einer Seite, die aus einem Foto entstand (holzi Spec 046). */
+export interface PaperNoteImport {
+  version: number;
+  originalAssetId: string;
+  /** Die entzerrte, gedrehte Kopie, die gelesen wurde. */
+  workingAssetId: string;
+  /** Drehung der Arbeitskopie gegenüber dem Original, im Uhrzeigersinn. */
+  rotation: 0 | 90 | 180 | 270;
+  sourceMimeType: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  processing: PaperNoteProcessing;
+  regions: RecognizedRegion[];
+  createdAt: string;
+  updatedAt: string;
 }

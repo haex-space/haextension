@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaperNoteImport } from "~/types/document";
 import { LEGACY_BACKGROUND_OPACITY, migratePageRow, serializePageDoc, type LegacyPageRow } from "./migratePage";
 
 const legacyRow: LegacyPageRow = {
@@ -12,6 +13,20 @@ const legacyRow: LegacyPageRow = {
   template: "grid",
   backgroundImage: null,
   orientation: "portrait",
+};
+
+const paperImport: PaperNoteImport = {
+  version: 1,
+  originalAssetId: "original",
+  workingAssetId: "working",
+  rotation: 90,
+  sourceMimeType: "image/jpeg",
+  sourceWidth: 3000,
+  sourceHeight: 4000,
+  processing: { state: "ready", model: "qwen3-vl:4b-instruct", place: "this_device" },
+  regions: [{ id: "r1", kind: "text", sourceBox: [10, 20, 500, 80], elementIds: ["e1"] }],
+  createdAt: "2026-10-21T10:00:00.000Z",
+  updatedAt: "2026-10-21T10:00:30.000Z",
 };
 
 describe("migratePageRow", () => {
@@ -93,6 +108,36 @@ describe("migratePageRow", () => {
   });
 });
 
+describe("migratePageRow with a photo import", () => {
+  const layers = [{
+    id: "l1", name: "Ebene 1", visible: true, locked: false,
+    elements: [{
+      id: "t1", type: "table", x: 0, y: 0, columns: 2, rows: 1, columnWidths: [80, 80], rowHeights: [30],
+      cells: [["Tag", ""]], bbox: [0, 0, 160, 30],
+    }],
+  }];
+
+  it("keeps the cells of a stored table", () => {
+    const { layers: migrated } = migratePageRow({ layers });
+    expect(migrated[0]!.elements[0]).toMatchObject({ cells: [["Tag", ""]] });
+  });
+
+  it("has no paper import for an ordinary page", () => {
+    expect(migratePageRow(legacyRow).paperImport).toBeUndefined();
+  });
+
+  it("keeps a stored paper import, also of a later version", () => {
+    expect(migratePageRow({ layers, paperImport }).paperImport).toEqual(paperImport);
+    const later = { ...paperImport, version: 7, unknown: true };
+    expect(migratePageRow({ layers, paperImport: later }).paperImport).toEqual(later);
+  });
+
+  it("ignores a malformed paper import", () => {
+    expect(migratePageRow({ layers, paperImport: { version: "1" } }).paperImport).toBeUndefined();
+    expect(migratePageRow({ layers, paperImport: "x" }).paperImport).toBeUndefined();
+  });
+});
+
 describe("serializePageDoc", () => {
   const row: LegacyPageRow = { ...legacyRow, backgroundImage: "data:image/png;base64,AAA", orientation: "landscape" };
   const doc = { id: "p1", ...migratePageRow(row) };
@@ -115,5 +160,15 @@ describe("serializePageDoc", () => {
 
   it("returns copies detached from the document", () => {
     expect(serializePageDoc(doc).layers).not.toBe(doc.layers);
+  });
+
+  it("writes the paper import, and null for an ordinary page", () => {
+    expect(serializePageDoc(doc).paperImport).toBeNull();
+    const imported = serializePageDoc({ ...doc, paperImport });
+    expect(imported.paperImport).toEqual(paperImport);
+    expect(imported.paperImport).not.toBe(paperImport);
+    const { layers, background, width, height } = imported;
+    expect(migratePageRow({ layers, background, width, height, paperImport: imported.paperImport }).paperImport)
+      .toEqual(paperImport);
   });
 });

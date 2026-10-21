@@ -1,13 +1,18 @@
-import type { PageBackground, PageLayer } from "~/types/document";
+import type { PageBackground, PageLayer, PaperNoteImport } from "~/types/document";
 
 /**
  * Asset-Ids, auf die eine Seite verweist.
  *
  * Wird beim Teilen gebraucht: die Asset-Zeilen gehen in denselben Space wie die
  * Seite, damit der Empfänger Name, Typ und Größe kennt und einen sprechenden
- * Platzhalter sieht, wenn die Datei bei ihm nicht liegt.
+ * Platzhalter sieht, wenn die Datei bei ihm nicht liegt. Eine Seite aus einem
+ * Foto nimmt dessen Original und die gelesene Arbeitskopie mit.
  */
-export function collectAssetIds(layers: PageLayer[], background: PageBackground): string[] {
+export function collectAssetIds(
+  layers: PageLayer[],
+  background: PageBackground,
+  paperImport?: PaperNoteImport,
+): string[] {
   const ids = new Set<string>();
 
   const overlay = background.overlay;
@@ -20,6 +25,11 @@ export function collectAssetIds(layers: PageLayer[], background: PageBackground)
         ids.add(element.source.assetId);
       }
     }
+  }
+
+  if (paperImport) {
+    ids.add(paperImport.originalAssetId);
+    ids.add(paperImport.workingAssetId);
   }
 
   return [...ids];
