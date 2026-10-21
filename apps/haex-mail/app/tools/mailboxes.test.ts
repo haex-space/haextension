@@ -3,6 +3,7 @@ import type { MailboxInfo } from "@haex-space/vault-sdk";
 import type { AccountsPort } from "./context";
 import { createMailboxTools, type MailboxToolDeps } from "./mailboxes";
 
+const refreshed: string[] = [];
 const noSignal = { signal: new AbortController().signal };
 const imap = { host: "imap.hidden.example", port: 993, security: "tls", username: "u", password: "p" } as const;
 
@@ -16,6 +17,7 @@ const box = (name: string, flags: string[], unseen: number, exists: number): Mai
 const fakeDeps = (
   servers: Record<string, MailboxInfo[] | Error>,
   cached: Record<string, { name: string; role: string | null; unseen: number; exists: number }[]> = {},
+  created: { account: string; name: string }[] = [],
 ): MailboxToolDeps => {
   const accounts: AccountsPort = {
     accounts: [
@@ -32,8 +34,16 @@ const fakeDeps = (
         if (answer instanceof Error) throw answer;
         return answer;
       },
+      createMailboxAsync: async (conn, name) => {
+        const exists = created.some((c) => c.account === conn.username && c.name === name);
+        created.push({ account: conn.username, name });
+        return !exists;
+      },
     },
     cachedMailboxes: async (id) => cached[id] ?? [],
+    refreshMailboxes: async (id) => {
+      refreshed.push(id);
+    },
   };
 };
 
@@ -87,5 +97,33 @@ describe("list_mailboxes", () => {
       fakeDeps({ a1: [box("INBOX", [], 1, 1)], a2: new Error("IMAP: no") }),
     );
     expect(JSON.stringify(await tools.list_mailboxes!({}, noSignal))).not.toContain("hidden.example");
+  });
+});
+
+describe("create_mailbox", () => {
+  it("creates a folder, sends the server its encoded name and refreshes the cached list", async () => {
+    refreshed.length = 0;
+    const created: { account: string; name: string }[] = [];
+    const tools = createMailboxTools(async () => fakeDeps({}, {}, created));
+    expect(await tools.create_mailbox!({ account: "a1", name: " Überweisungen " }, noSignal)).toEqual({
+      created: true,
+      name: "Überweisungen",
+    });
+    expect(created).toEqual([{ account: "a1", name: "&ANw-berweisungen" }]);
+    expect(refreshed).toEqual(["a1"]);
+  });
+
+  it("says created: false for a folder that was there, without an error", async () => {
+    const tools = createMailboxTools(async () => fakeDeps({}, {}, [{ account: "a1", name: "Steuer" }]));
+    expect(await tools.create_mailbox!({ account: "a1", name: "Steuer" }, noSignal)).toEqual({
+      created: false,
+      name: "Steuer",
+    });
+  });
+
+  it("refuses an unknown account and a blank name", async () => {
+    const tools = createMailboxTools(async () => fakeDeps({}));
+    await expect(tools.create_mailbox!({ account: "nope", name: "X" }, noSignal)).rejects.toThrow("no such account");
+    await expect(tools.create_mailbox!({ account: "a1", name: "  " }, noSignal)).rejects.toThrow("name is");
   });
 });

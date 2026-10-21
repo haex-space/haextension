@@ -61,7 +61,21 @@ export const useMessageChanges = (
     await sync.refreshMailboxStatusAsync(accountId, [mailboxName, destinationName]);
   };
 
-  return { setFlagForUidsAsync, moveUidsAsync };
+  /** Remove messages of one mailbox for good (no trash) and drop their cache rows. */
+  const deleteUidsAsync = async (accountId: string, mailboxName: string, uids: number[]) => {
+    if (!haexVault.orm || uids.length === 0) return;
+    const account = await accountsStore.getCredentialsCachedAsync(accountId);
+    if (!account) throw new Error($i18n.t("mail.errors.credentials"));
+    await haexVault.client.mail.deleteMessagesAsync(account.imap, mailboxName, uids);
+    const ids = cacheIds(accountId, mailboxName, uids);
+    await haexVault.orm.delete(schema.messages).where(inArray(schema.messages.id, ids));
+    await haexVault.orm
+      .delete(schema.messageBodies)
+      .where(inArray(schema.messageBodies.messageId, ids));
+    await sync.refreshMailboxStatusAsync(accountId, [mailboxName]);
+  };
+
+  return { setFlagForUidsAsync, moveUidsAsync, deleteUidsAsync };
 };
 
 export type MessageChanges = ReturnType<typeof useMessageChanges>;

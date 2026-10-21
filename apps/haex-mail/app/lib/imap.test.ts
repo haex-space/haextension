@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStatusOrdering, decodeMailboxName, quoteImapString } from "./imap";
+import { createStatusOrdering, decodeMailboxName, encodeMailboxName, quoteImapString } from "./imap";
 
 describe("quoteImapString", () => {
   it("wraps a plain name in double quotes", () => {
@@ -62,5 +62,24 @@ describe("decodeMailboxName", () => {
 
   it("keeps a malformed run as it is", () => {
     expect(decodeMailboxName("a&A-b")).toBe("a&A-b");
+  });
+});
+
+describe("encodeMailboxName", () => {
+  it("leaves plain ASCII alone and doubles an ampersand", () => {
+    expect(encodeMailboxName("Steuer/2026")).toBe("Steuer/2026");
+    expect(encodeMailboxName("Q&A")).toBe("Q&-A");
+  });
+
+  it("writes non-ASCII runs as modified UTF-7", () => {
+    expect(encodeMailboxName("Entwürfe")).toBe("Entw&APw-rfe");
+    expect(encodeMailboxName("日本語")).toBe("&ZeVnLIqe-");
+    expect(encodeMailboxName("a€b ü")).toBe("a&IKw-b &APw-");
+  });
+
+  it("is the inverse of decodeMailboxName", () => {
+    for (const name of ["Überweisungen", "Rechnungen & Belege", "Ünï/cödé 日本", "😀 Spaß"]) {
+      expect(decodeMailboxName(encodeMailboxName(name))).toBe(name);
+    }
   });
 });
