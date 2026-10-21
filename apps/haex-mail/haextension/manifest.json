@@ -190,7 +190,7 @@
         "de": "Mail-Entwurf anlegen",
         "en": "Create a mail draft"
       },
-      "description": "Stores a new mail, a reply or a forward as a draft in the drafts folder of an account. It never sends. With replyTo (a message id) the recipient, subject, thread and the quoted original are taken from that message; to, cc and subject override them. Attachments of the original are not carried over. Returns the draft id and what the draft says; send_mail sends it.",
+      "description": "Stores a new mail, a reply or a forward as a draft in the drafts folder of an account. It never sends. With replyTo (a message id) the recipient, subject, thread and the quoted original are taken from that message; to, cc and subject override them. Attachments of the original are not carried over. Returns the draft id and what the draft says (to lists every recipient, cc included); send_mail sends it.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -528,6 +528,243 @@
           "Remove the rule named Newsletter",
           "I no longer need the rule for my bank",
           "Remove the rule called Invoices"
+        ]
+      }
+    },
+    {
+      "name": "find_messages",
+      "title": {
+        "de": "Mails suchen und filtern",
+        "en": "Search and filter mails"
+      },
+      "description": "Finds mails of one or all accounts in a folder (the inbox when omitted) by sender, recipient, subject, free text in the whole mailbox, date range, unread, flagged or attachment, searched on the server so older mails are found too. Newest first by default, one page at a time (at most 50). Returns ids to use with get_message, mark_messages, move_messages and delete_messages, plus total and hasMore. window says only the newest hits were looked at; fallback says the server refused the text and only sender, recipients and subject were checked.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account id from list_accounts; every account when omitted."
+          },
+          "mailbox": {
+            "type": "string",
+            "description": "A mailbox role (inbox, sent, drafts, trash, junk, archive) or a folder name; the inbox when omitted."
+          },
+          "unread": {
+            "type": "boolean",
+            "description": "true for unread mails only, false for read ones only."
+          },
+          "flagged": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": "string",
+            "description": "Part of the sender name or address."
+          },
+          "to": {
+            "type": "string",
+            "description": "Part of a recipient name or address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Part of the subject."
+          },
+          "text": {
+            "type": "string",
+            "description": "Free text searched in the whole mailbox on the server."
+          },
+          "since": {
+            "type": "string",
+            "description": "YYYY-MM-DD, this day and later."
+          },
+          "before": {
+            "type": "string",
+            "description": "YYYY-MM-DD, earlier than this day."
+          },
+          "hasAttachment": {
+            "type": "boolean"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "date",
+              "sender",
+              "subject"
+            ],
+            "description": "date when omitted."
+          },
+          "descending": {
+            "type": "boolean",
+            "description": "true (newest first, Z to A) when omitted."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Page size, 25 when omitted, at most 50."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Hits to skip, for the next page."
+          }
+        }
+      },
+      "effect": "read",
+      "examples": {
+        "de": [
+          "Zeig mir die Mails von Anna",
+          "Suche die Mail mit dem Wort Elektriker",
+          "Was ist letzte Woche angekommen?",
+          "Welche ungelesenen Mails habe ich von meiner Bank?",
+          "Finde alle Mails mit Anhang von shop.de"
+        ],
+        "en": [
+          "Show me the mails from Anna",
+          "Find the mail that mentions the electrician",
+          "What arrived last week?",
+          "Which unread mails do I have from my bank?",
+          "Find all mails with an attachment from shop.de"
+        ]
+      }
+    },
+    {
+      "name": "create_mailbox",
+      "title": {
+        "de": "Mail-Ordner anlegen",
+        "en": "Create a mail folder"
+      },
+      "description": "Creates a new folder in one account. If the folder already exists nothing changes and created is false. Afterwards move_messages and find_messages can use it by name.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account id from list_accounts."
+          },
+          "name": {
+            "type": "string",
+            "description": "The folder name as the user writes it; a slash makes a subfolder on most servers."
+          }
+        },
+        "required": [
+          "account",
+          "name"
+        ]
+      },
+      "effect": "change",
+      "examples": {
+        "de": [
+          "Leg einen Ordner Steuer an",
+          "Erstelle einen neuen Mail-Ordner für Rechnungen",
+          "Mach mir einen Unterordner Versicherungen",
+          "Ich brauche einen neuen Ordner Reisen"
+        ],
+        "en": [
+          "Create a folder called Taxes",
+          "Make a new mail folder for invoices",
+          "Add a subfolder Insurance",
+          "I need a new folder named Travel"
+        ]
+      }
+    },
+    {
+      "name": "send_mail",
+      "title": {
+        "de": "Entwurf senden",
+        "en": "Send a draft"
+      },
+      "description": "Sends a draft made with create_draft; this cannot be undone. The user is asked to agree to what the input says, so pass the draft exactly as create_draft returned it: draftId, to (every recipient, cc included), subject and body. If anything differs from the stored draft nothing is sent and the error names the draft's values. A copy goes to the sent folder and the draft is removed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "description": "The draftId create_draft returned."
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "All recipients of the draft."
+          },
+          "subject": {
+            "type": "string",
+            "description": "The subject of the draft."
+          },
+          "body": {
+            "type": "string",
+            "description": "The text of the draft."
+          }
+        },
+        "required": [
+          "draftId",
+          "to",
+          "subject",
+          "body"
+        ]
+      },
+      "effect": "destructive",
+      "examples": {
+        "de": [
+          "Sende den Entwurf an Anna",
+          "Schick die Antwort ab",
+          "Verschicke die Mail, die du vorbereitet hast",
+          "Versende den Entwurf jetzt"
+        ],
+        "en": [
+          "Send the draft to Anna",
+          "Send the reply now",
+          "Mail out the draft you prepared",
+          "Dispatch the draft"
+        ]
+      }
+    },
+    {
+      "name": "delete_messages",
+      "title": {
+        "de": "Mails endgültig löschen",
+        "en": "Delete mails for good"
+      },
+      "description": "Removes mails from the server for good, with no way back and not into the trash. To delete in the usual way use move_messages with the trash. The user is asked to agree, so pass each mail with its id and its exact subject; a mail whose subject differs on the server is not deleted. At most 100 mails. Answers per mail which were deleted and which failed with a reason.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The message id from find_messages."
+                },
+                "subject": {
+                  "type": "string",
+                  "description": "The subject of that mail."
+                }
+              },
+              "required": [
+                "id",
+                "subject"
+              ]
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ]
+      },
+      "effect": "destructive",
+      "examples": {
+        "de": [
+          "Lösche die Mail mit dem Betreff Test endgültig",
+          "Entferne diese Mails unwiderruflich vom Server",
+          "Wirf die Mails von shop.de ganz weg, nicht in den Papierkorb",
+          "Lösch die Werbung dauerhaft"
+        ],
+        "en": [
+          "Delete the mail with the subject Test permanently",
+          "Remove these mails from the server for good",
+          "Erase the mails from shop.de, not into the trash",
+          "Permanently delete the ads"
         ]
       }
     }

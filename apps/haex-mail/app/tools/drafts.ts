@@ -123,7 +123,8 @@ export const createDraftTools = (deps: () => Promise<DraftToolDeps>): ToolHandle
 
     return {
       draftId: formatMessageId(account.id, drafts.name, stored.uid),
-      to: to.map((a) => a.email),
+      // Everyone the mail goes to, cc included: `send_mail` takes exactly this list, so the consent shows it all.
+      to: [...to, ...cc].map((a) => a.email),
       subject,
       body: bodyText,
     };

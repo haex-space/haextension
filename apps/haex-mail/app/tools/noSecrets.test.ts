@@ -7,6 +7,7 @@ const noSignal = { signal: new AbortController().signal };
 /** What must never reach the agent: the secrets and the server details of an account. */
 const SECRET = "geheim-7f1c-MARKER";
 const HOST = "imap.hidden.example";
+const SMTP_HOST = "smtp.hidden.example";
 
 /**
  * Stores and a mail client that hold a secret in every place a real account does: the password item
@@ -24,12 +25,13 @@ const deps = (): ToolDeps => {
     password: SECRET,
   };
   const imap = { host: HOST, port: 993, security: "tls", username: "me", password: SECRET } as const;
+  const smtp = { host: SMTP_HOST, port: 465, security: "tls", username: "me", password: SECRET } as const;
   const envelope = {
     uid: 9,
     flags: [],
     subject: "Rechnung",
     from: [{ name: "Anna", email: "anna@example.org" }],
-    to: [],
+    to: [{ email: "anna@example.org" }],
     cc: [],
     references: [],
     hasAttachments: false,
@@ -38,7 +40,7 @@ const deps = (): ToolDeps => {
   return {
     accounts: {
       accounts: [account],
-      getCredentialsCachedAsync: async () => ({ imap, smtp: null }),
+      getCredentialsCachedAsync: async () => ({ imap, smtp }),
       listImportableVaultAccountsAsync: async () => [
         { id: "p1", title: "Arbeit", username: "work@example.org", password: SECRET } as never,
       ],
@@ -63,6 +65,9 @@ const deps = (): ToolDeps => {
     applyRuleToExistingAsync: async () => ({ applied: 0, limited: false }),
     mailClient: {
       listMailboxesAsync: async () => [{ name: "INBOX", flags: [], unseen: 1, exists: 2 }],
+      createMailboxAsync: async () => true,
+      searchMessagesAsync: async () => ({ uids: [9], total: 1 }),
+      sendMessageAsync: async () => {},
       fetchMessageAsync: async () => ({ envelope, bodyText: "Hallo", attachments: [] }),
       buildRfc822Async: async () => btoa("Message-ID: <draft-1@example.org>\r\n\r\nx"),
       appendMessageAsync: async () => {},
@@ -74,12 +79,19 @@ const deps = (): ToolDeps => {
       { name: "Archive", role: "archive", unseen: 0, exists: 0 },
     ],
     htmlToText: (html: string) => html,
-    changes: { setFlagForUidsAsync: async () => {}, moveUidsAsync: async () => {} },
+    refreshMailboxes: async () => {},
+    changes: {
+      setFlagForUidsAsync: async () => {},
+      moveUidsAsync: async () => {},
+      deleteUidsAsync: async () => {},
+    },
     replyPrefill: async () => ({ accountId: "a1", to: "anna@example.org", subject: "Re: Rechnung" }),
   };
 };
 
 const INPUTS: Record<string, Record<string, unknown>> = {
+  list_accounts: {},
+  list_rules: {},
   list_mailboxes: {},
   get_message: { id: "a1::INBOX::9" },
   mark_messages: { ids: ["a1::INBOX::9"], read: true },
@@ -93,12 +105,17 @@ const INPUTS: Record<string, Record<string, unknown>> = {
     actions: [{ type: "markRead" }],
   },
   remove_rule: { id: "r1" },
+  find_messages: { text: "Rechnung", unread: true },
+  create_mailbox: { account: "a1", name: "Steuer" },
+  send_mail: { draftId: "a1::Drafts::9", to: ["anna@example.org"], subject: "Rechnung", body: "Hallo" },
+  delete_messages: { messages: [{ id: "a1::INBOX::9", subject: "Rechnung" }] },
 };
 
 describe("no tool hands a secret to the agent", () => {
   it("in an answer or in an error, for every tool", async () => {
     const tools = createTools(async () => deps());
     for (const [name, handler] of Object.entries(tools)) {
+      expect(INPUTS[name], `${name} needs an input in this test`).toBeDefined();
       let text: string;
       try {
         text = JSON.stringify(await handler(INPUTS[name] ?? {}, noSignal));
@@ -107,6 +124,7 @@ describe("no tool hands a secret to the agent", () => {
       }
       expect(text, name).not.toContain(SECRET);
       expect(text, name).not.toContain(HOST);
+      expect(text, name).not.toContain(SMTP_HOST);
     }
   });
 

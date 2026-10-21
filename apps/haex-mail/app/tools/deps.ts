@@ -74,6 +74,11 @@ export const buildToolDeps = async (nuxtApp: App): Promise<ToolDeps> => {
     changes: {
       setFlagForUidsAsync: mailStore.setFlagForUidsAsync,
       moveUidsAsync: mailStore.moveUidsAsync,
+      deleteUidsAsync: mailStore.deleteUidsAsync,
+    },
+    refreshMailboxes: async (accountId: string) => {
+      const account = await accountsStore.getCredentialsCachedAsync(accountId);
+      if (account) await mailStore.refreshMailboxesAsync(account);
     },
     replyPrefill: async (messageId: string, mode: ReplyMode) =>
       mailStore.buildReplyContextAsync(await cachedMessage(messageId), mode),

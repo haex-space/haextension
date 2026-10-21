@@ -109,7 +109,10 @@ describe("create_draft", () => {
       inReplyTo: "orig@example.org",
       references: ["a@x", "orig@example.org"],
     });
-    expect(result).toMatchObject({ subject: "Re: Rechnung", to: ["anna@example.org"] });
+    expect(result).toMatchObject({
+      subject: "Re: Rechnung",
+      to: ["anna@example.org", "boss@example.org"],
+    });
   });
 
   it("lets what was given override the prefill", async () => {
