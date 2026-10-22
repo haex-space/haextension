@@ -68,5 +68,9 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ["@vueuse/core"],
     },
+    // haex-ui's Toaster and this app's toast() must share one vue-sonner, or toasts never show.
+    resolve: {
+      dedupe: ["vue-sonner"],
+    },
   },
 });
