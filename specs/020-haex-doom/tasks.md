@@ -114,7 +114,7 @@ description: "Task list for haex-doom"
 
 **Prerequisite outside this repository** (start early; the extension tasks wait for the SDK release):
 
-- [ ] T037 [US3] haex-vault: implement PR 1 of the host spec (`haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` `tasks.md`): permission kind `peers`, ALPN, verification of foreign devices against the signed device list, fast/reliable channel, cleanup
+- [ ] T037 [US3] haex-vault: implement PR 1 of the host spec (`haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` `tasks.md`): permission kind `peers`, ALPN, verification of foreign devices against the signed device list, fast/reliable channel, cleanup
 - [ ] T038 [US3] haex-vault: implement PR 2 of the host spec: lobbies, join codes, admission of non-contacts for public lobbies (ADR 0016), rate limiting
 - [ ] T039 [US3] haex-vault: implement PR 3 of the host spec: invitations to all of a contact's devices, the vault's own invitation prompt and notification
 - [ ] T040 [US3] haex-vault: implement PR 4 of the host spec: bridge methods `extension_peers_*`, `peers:*` events, error mapping, documentation in spec 017's `bridge.md`

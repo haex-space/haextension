@@ -2,7 +2,7 @@
 
 The host side is specified in the vault host repository, which is the source of truth for the bridge, the wire protocol and the SDK surface:
 
-- `haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` — `spec.md`, `contracts/bridge.md`, `contracts/wire-protocol.md`, `contracts/sdk.md`, ADR `docs/adr/0016-non-contact-devices-for-public-lobbies.md`.
+- `haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` — `spec.md`, `contracts/bridge.md`, `contracts/wire-protocol.md`, `contracts/sdk.md`, ADR `docs/adr/0016-non-contact-devices-for-public-lobbies.md`.
 
 The SDK change (`client.peers`) lands in `haex-space/vault-sdk`. This file lists only what haex-doom relies on; where it differs from the host's contract, the host's contract wins.
 

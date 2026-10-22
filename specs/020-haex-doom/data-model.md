@@ -101,4 +101,4 @@ open ──start (≥ 1 guest joined)──▶ running ──host leaves / consi
 
 ## Invitations, lobbies and channels in the vault host
 
-Specified by the host: `haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` `data-model.md`. haex-doom sees only the events and calls in [contracts/peers-api.md](contracts/peers-api.md); the invited player accepts in the vault's own prompt, and the join code is opaque to the extension.
+Specified by the host: `haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` `data-model.md`. haex-doom sees only the events and calls in [contracts/peers-api.md](contracts/peers-api.md); the invited player accepts in the vault's own prompt, and the join code is opaque to the extension.

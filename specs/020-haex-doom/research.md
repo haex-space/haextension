@@ -68,7 +68,7 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 
 ## R-10 Multiplayer transport (host change H3, SDK change S1)
 
-> Superseded in detail by the host's own spec and plan: `haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` (`research.md` R1–R18). Notable changes: devices are verified against the signed device list (ADR-0015), fast messages are capped at 1,024 bytes, framing and errors follow the host's conventions. The decisions below remain the haex-doom view.
+> Superseded in detail by the host's own spec and plan: `haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` (`research.md` R1–R18). Notable changes: devices are verified against the signed device list (ADR-0015), fast messages are capped at 1,024 bytes, framing and errors follow the host's conventions. The decisions below remain the haex-doom view.
 
 - **Decision**:
   - **Topology**: the DOOM server runs in the host player's engine (`-privateserver`); each guest has one channel to the host (star). Up to 4 players (`MAXPLAYERS`).
