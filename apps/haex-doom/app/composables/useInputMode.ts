@@ -21,11 +21,23 @@ function startListening() {
   }, true);
 }
 
+let beforeGamepad: InputMode = "keyboard";
+
+/** A gamepad was used; remembers the mode to return to when it goes away. */
+function gamepadUsed() {
+  if (mode.value !== "gamepad") beforeGamepad = mode.value;
+  mode.value = "gamepad";
+}
+
+function gamepadGone() {
+  if (mode.value === "gamepad") mode.value = beforeGamepad;
+}
+
 /**
  * The input the player used last (FR-016); the touch overlay shows only in touch mode. One
  * shared state per page, because there is only one player in front of it.
  */
 export function useInputMode() {
   startListening();
-  return { mode: readonly(mode) };
+  return { mode: readonly(mode), gamepadUsed, gamepadGone };
 }

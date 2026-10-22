@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AXIS_MAX, buttonMask, stickToAxes, swipeToTurn, TOUCH_BUTTONS } from "./touchMapping";
+import { AXIS_MAX, buttonMask, stickToAxes, swipeToTurn, VIRTUAL_BUTTONS } from "./touchMapping";
 
 describe("stickToAxes", () => {
   it("stays centred inside the dead zone", () => {
@@ -60,11 +60,11 @@ describe("engine config", () => {
     const bound = (name: string) => Number(all.match(new RegExp(`^${name}\\s+(-?\\d+)`, "m"))?.[1] ?? 0);
 
     // joyb_fire is not in the file because the engine's default (0) is used.
-    expect(TOUCH_BUTTONS.fire).toBe(0);
-    expect(bound("joyb_use")).toBe(TOUCH_BUTTONS.use);
-    expect(bound("joyb_menu_activate")).toBe(TOUCH_BUTTONS.menu);
-    expect(bound("joyb_toggle_automap")).toBe(TOUCH_BUTTONS.automap);
-    expect(bound("joyb_prevweapon")).toBe(TOUCH_BUTTONS.prevWeapon);
-    expect(bound("joyb_nextweapon")).toBe(TOUCH_BUTTONS.nextWeapon);
+    expect(VIRTUAL_BUTTONS.fire).toBe(0);
+    expect(bound("joyb_use")).toBe(VIRTUAL_BUTTONS.use);
+    expect(bound("joyb_menu_activate")).toBe(VIRTUAL_BUTTONS.menu);
+    expect(bound("joyb_toggle_automap")).toBe(VIRTUAL_BUTTONS.automap);
+    expect(bound("joyb_prevweapon")).toBe(VIRTUAL_BUTTONS.prevWeapon);
+    expect(bound("joyb_nextweapon")).toBe(VIRTUAL_BUTTONS.nextWeapon);
   });
 });
