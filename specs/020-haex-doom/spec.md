@@ -70,7 +70,7 @@ A user starts a multiplayer game and lets one to three people join: by inviting 
 **Acceptance Scenarios**:
 
 1. **Given** the start screen, **When** the user chooses "Multiplayer", **Then** they can pick a game, a mode (cooperative or deathmatch), a starting map, a skill level, and a visibility (contacts only or public), and open a lobby that shows its join code.
-2. **Given** an open lobby, **When** the host invites a vault contact, **Then** that contact receives an invitation in their vault naming the host, the game, and the mode, and can accept or decline it; if the contact has several devices with an open vault, the invitation appears on all of them, and once it is accepted on one, it disappears from the others.
+2. **Given** an open lobby, **When** the host invites a vault contact, **Then** that contact's vault asks them, in its own prompt, whether to join the host's game (naming the game and the mode), and they can accept or decline; if the contact has several devices with an open vault, the invitation appears on all of them, and once it is accepted on one, it disappears from the others.
 3. **Given** an open public lobby, **When** someone who is not the host's contact enters its join code, **Then** they join the lobby under the display name they chose, marked as not verified.
 4. **Given** an open contacts-only lobby, **When** someone who is not the host's contact enters its join code, **Then** they are refused with a message that only the host's contacts may join.
 5. **Given** a lobby, **When** the host removes a player, **Then** that player leaves the lobby and cannot rejoin it with the same code until the host opens a new lobby.
@@ -213,7 +213,7 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 **Multiplayer**
 
 - **FR-027**: Users MUST be able to host a multiplayer game for 2 to 4 players in cooperative or deathmatch mode, choosing game, starting map, and skill level. Deathmatch MUST use the "2.0" rules (picked-up items respawn); for deathmatch the host MUST be able to set monsters on/off (default off) and a time limit of off, 10, or 20 minutes (default 10), after which the level ends and the frag table is shown.
-- **FR-028**: The host MUST be able to invite vault contacts; an invited contact MUST explicitly accept before joining. A vault MUST accept invitations only from its own contacts. An invitation MUST be delivered to all of the contact's reachable devices at once; the first acceptance wins and the invitation MUST be withdrawn on the other devices.
+- **FR-028**: The host MUST be able to invite vault contacts; an invited contact MUST explicitly accept in the vault's own prompt before joining. A vault MUST accept invitations only from its own contacts. An invitation MUST be delivered to all of the contact's reachable devices at once; the first acceptance wins and the invitation MUST be withdrawn on the other devices.
 - **FR-042**: The host MUST choose each lobby's visibility: "contacts only" (default) or "public".
 - **FR-043**: Each open lobby MUST have a join code that the host can copy and share; it MUST contain a random per-lobby secret and MUST stop working when the lobby starts its game or closes.
 - **FR-044**: In a contacts-only lobby, only the host's contacts MUST be able to join with the code; in a public lobby, anyone with the code MAY join, shown with their self-chosen name marked as not verified.

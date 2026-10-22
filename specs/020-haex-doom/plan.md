@@ -134,8 +134,8 @@ haex-space/vault-sdk
 | 6 | haex-vault | H2 pointer lock + fullscreen | — |
 | 7 | haextension | Mouse look, fullscreen toggle with fallback — **US6** | 2, 6 |
 | 8 | haextension | Gamepad defaults and verification — **US7** | 2 |
-| 9 | haex-vault | H3 peer channels: permission kind, ALPN + handshake + datagrams, bridge methods, events, invitation notification | — |
-| 10 | vault-sdk | S1 `client.peers` API, events, types; release | 9 |
+| 9 | haex-vault | H3 as host spec `057-extension-peer-channels` (spec, plan, tasks, ADR 0016), delivered as its PR 1–4 | — |
+| 10 | vault-sdk | S1 `client.peers` per the host spec's `contracts/sdk.md`; release | 9 (PR 4) |
 | 11 | haextension | `net_bridge.c`, lobby, invitations, multiplayer start/leave — **US3** | 2, 9, 10 released |
 
 Slices 2 and 9 are the largest; tasks will split them further into reviewable commits, and slice 9 may be split into "channel + handshake" and "bridge + invitations" pull requests if it exceeds the review-size warning substantially.

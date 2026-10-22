@@ -54,5 +54,5 @@ Arguments (`callMain`):
 
 - Exactly one `net_addr_t` per peer number, created on first use and reused for every packet from that peer (the server matches clients by pointer).
 - `FreeAddress` releases the mapping only; the channel itself is closed by the shell.
-- Packets larger than 1,100 bytes are dropped and logged (QUIC datagram limit with headroom); DOOM packets stay far below it.
+- Packets larger than 1,024 bytes are dropped and logged (the vault's limit for fast messages); DOOM packets stay far below it.
 - `InitServer`/`InitClient` succeed only when the shell reports an active peer session.

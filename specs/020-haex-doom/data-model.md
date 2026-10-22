@@ -99,30 +99,6 @@ open ──start (≥ 1 guest joined)──▶ running ──host leaves / consi
 (the join code stops working when the lobby leaves `open`, FR-043)
 ```
 
-## Invitation (host-side, in the vault host)
+## Invitations, lobbies and channels in the vault host
 
-Lives in the vault host's memory and expires after 5 minutes; the extension sees it only through events (see [contracts/peers-api.md](contracts/peers-api.md)).
-
-| Field | Rules |
-|---|---|
-| `inviteId` | Random, unique per invitation. |
-| `extension` | Public key + name of the inviting extension; delivered only to the same extension. |
-| `from` | The inviting vault's identity, resolved to the recipient's contact (display name). |
-| `payload` | Opaque JSON from the extension, at most 4 KiB (here: lobby id, game title and fingerprint, mode, map, skill, extension version). |
-| `state` | `pending` → `accepted` \| `declined` \| `expired` \| `withdrawn`. |
-| `devices` | All reachable devices of the contact receive it at once; the first `accepted` wins and the others get `withdrawn` (FR-028). |
-
-## Host lobby registration (in the vault host)
-
-What the host's vault keeps while a lobby is open, so it can admit joiners by code (FR-041, FR-043–FR-045). In memory only.
-
-| Field | Rules |
-|---|---|
-| `lobbyId` | From the extension. |
-| `extension` | Public key + name; joins are delivered only to this extension. |
-| `visibility` | `contacts` or `public`. |
-| `secret` | 128 random bits; part of the join code; compared in constant time. |
-| `banned` | Device endpoints removed by the host; refused for this lobby. |
-| `open` | While true, the join code works; set false on start or close. |
-
-Join code: `haexpeer1:` + base32 of `{ endpoint_id, relay_url, lobby_id, secret }`; opaque to the extension.
+Specified by the host: `haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` `data-model.md`. haex-doom sees only the events and calls in [contracts/peers-api.md](contracts/peers-api.md); the invited player accepts in the vault's own prompt, and the join code is opaque to the extension.

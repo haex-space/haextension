@@ -68,6 +68,8 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 
 ## R-10 Multiplayer transport (host change H3, SDK change S1)
 
+> Superseded in detail by the host's own spec and plan: `haex-space/haex-vault` @ `0e69e48563d9758a33d60c22460ce1414cb19e59` : `specs/057-extension-peer-channels/` (`research.md` R1–R18). Notable changes: devices are verified against the signed device list (ADR-0015), fast messages are capped at 1,024 bytes, framing and errors follow the host's conventions. The decisions below remain the haex-doom view.
+
 - **Decision**:
   - **Topology**: the DOOM server runs in the host player's engine (`-privateserver`); each guest has one channel to the host (star). Up to 4 players (`MAXPLAYERS`).
   - **Engine side**: `net_bridge.c` provides `net_sdl_module` (SDL2_net disabled). `SendPacket`/`RecvPacket` call JS through `EM_JS`; each peer channel maps to one stable `net_addr_t*` (the server matches clients by pointer, `net_server.c:581`). Received packets are queued in JS and drained non-blockingly.
@@ -80,6 +82,8 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 - **Alternatives considered**: Reliable streams for game packets (stutter on loss); a central WebSocket relay like Cloudflare's (a server to run, not peer to peer); mesh topology (the engine is client/server).
 
 ## R-11 Invitations
+
+> Clarified in the host spec: the invited user accepts in the vault's own prompt (not in the extension); invitations dial the addresses on the contact's card until knocking from host spec 056 exists, and an outdated card yields `unreachable` with a hint.
 
 - **Decision**: `peers.invite(contactId, payload)` makes the inviting host dial the contact's devices and send an `Invite` frame naming the extension. The receiving host checks that the extension is installed and enabled and that the inviter is a contact; if the extension's frame is open it emits `peers:invitation` to it, otherwise it shows a vault notification whose action opens the extension tab with `?invite=<id>` (the frame shim's `navigate`). The invitee accepts or declines in the extension; the inviter gets `peers:invite-status` (`accepted`, `declined`, `not-installed`, `unreachable`, `expired`).
 - **Rationale**: There is no cross-vault delivery mechanism in the host today (spaces and data shares are drafts); the invitation reuses the same connection that later carries the game.
