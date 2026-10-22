@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import { resumeIfSuspended } from '~/lib/audioUnlock'
 
 const { t } = useI18n()
 const engine = useEngine()
+const { mode } = useInputMode()
+
+const portrait = useMediaQuery('(orientation: portrait)')
+/** Phones are played in landscape (FR-013); the game waits while the device is upright. */
+const askToRotate = computed(() => mode.value === 'touch' && portrait.value)
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 /** Set when the app went to the background; the player resumes with a tap (FR-006). */
@@ -21,8 +27,13 @@ function onBlur() {
 }
 
 function onFocus() {
-  if (!waitingToContinue.value) engine.setPaused(false)
+  if (!waitingToContinue.value && !askToRotate.value) engine.setPaused(false)
 }
+
+watch(askToRotate, (rotate) => {
+  if (rotate) engine.setPaused(true)
+  else if (!waitingToContinue.value) engine.setPaused(false)
+})
 
 function onVisibilityChange() {
   if (document.visibilityState === 'hidden') {
@@ -65,8 +76,15 @@ defineExpose({ canvas })
       @pointerdown="resumeIfSuspended(engine.audioContext())"
       @contextmenu.prevent
     />
+    <DoomTouchOverlay v-if="mode === 'touch' && !askToRotate && !waitingToContinue" />
     <div
-      v-if="waitingToContinue"
+      v-if="askToRotate"
+      class="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center text-white"
+    >
+      {{ t('rotate') }}
+    </div>
+    <div
+      v-else-if="waitingToContinue"
       class="absolute inset-0 flex items-center justify-center bg-black/70"
     >
       <ShadcnButton
@@ -82,6 +100,8 @@ defineExpose({ canvas })
 <i18n lang="yaml">
 de:
   continue: Weiterspielen
+  rotate: Bitte dreh dein Gerät ins Querformat.
 en:
   continue: Continue
+  rotate: Please turn your device to landscape.
 </i18n>
