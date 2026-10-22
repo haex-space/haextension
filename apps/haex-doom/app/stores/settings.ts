@@ -15,6 +15,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const haptics = ref(DEFAULT_SETTINGS.haptics);
   const touchTurnSensitivity = ref(DEFAULT_SETTINGS.touchTurnSensitivity);
   let loaded: Promise<void> | null = null;
+  let saving = false;
 
   function load(): Promise<void> {
     loaded ??= storage()
@@ -23,11 +24,18 @@ export const useSettingsStore = defineStore("settings", () => {
         const settings = parseSettings(text);
         haptics.value = settings.haptics;
         touchTurnSensitivity.value = settings.touchTurnSensitivity;
-        watch([haptics, touchTurnSensitivity], save);
       })
       .catch((error: unknown) => {
-        // Without stored settings the defaults still give a working game.
+        // Without stored settings the defaults still give a working game; the next load tries again.
         console.error("[haex-doom] Could not load settings:", error);
+        loaded = null;
+      })
+      .finally(() => {
+        // Only after the first attempt, so loading does not write the stored values back, but
+        // also after a failed one, so the player's changes are still kept.
+        if (saving) return;
+        saving = true;
+        watch([haptics, touchTurnSensitivity], save);
       });
     return loaded;
   }
