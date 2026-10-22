@@ -68,7 +68,7 @@ async function onFileRemoved(path: string) {
   }
   catch (error) {
     console.error('[haex-doom] Could not remove', path, error)
-    toast.error(t('removeFailed'))
+    toast.error(t('saveRemoveFailed'))
   }
 }
 
@@ -162,7 +162,7 @@ watch(engine.state, (state) => {
 de:
   savesUnavailable: Spielstände konnten nicht geladen werden. Das Spiel startet ohne sie.
   saveFailed: Der Spielstand wurde nicht im Vault gespeichert. Bitte versuche es erneut.
-  removeFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
+  saveRemoveFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
   loading: Lädt …
   hostOutdated: Bitte aktualisiere deinen Vault, um DOOM zu spielen. Diese Version erlaubt Erweiterungen noch kein WebAssembly.
   errors:
@@ -172,7 +172,7 @@ de:
 en:
   savesUnavailable: Save games could not be loaded. The game starts without them.
   saveFailed: The save game was not stored in the vault. Please try again.
-  removeFailed: The save game was not removed from the vault and will be back next time.
+  saveRemoveFailed: The save game was not removed from the vault and will be back next time.
   loading: Loading …
   hostOutdated: Please update your vault to play DOOM. This version does not let extensions run WebAssembly yet.
   errors:
