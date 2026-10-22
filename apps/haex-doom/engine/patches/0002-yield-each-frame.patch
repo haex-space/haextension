@@ -1,0 +1,27 @@
+diff --git a/src/i_video.c b/src/i_video.c
+index f71f6062..b48b61a1 100644
+--- a/src/i_video.c
++++ b/src/i_video.c
+@@ -41,6 +41,9 @@
+ #include "i_system.h"
+ #include "i_timer.h"
+ #include "i_video.h"
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
+ #include "m_argv.h"
+ #include "m_config.h"
+ #include "m_misc.h"
+@@ -922,6 +925,12 @@ void I_FinishUpdate (void)
+ 
+     SDL_RenderPresent(renderer);
+ 
++#ifdef __EMSCRIPTEN__
++    // haex-doom: hand the browser its thread back once per frame (the loop never blocks on
++    // vsync there), paced by the display.
++    haex_wait_frame();
++#endif
++
+     if (crispy->uncapped && !singletics)
+     {
+         // Limit framerate

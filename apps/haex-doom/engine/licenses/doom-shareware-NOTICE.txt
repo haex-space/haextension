@@ -1,0 +1,9 @@
+DOOM shareware episode (DOOM1.WAD, version 1.9)
+
+Copyright (c) id Software. haex-doom ships this file unmodified and free of charge, as id
+Software's shareware terms ask, so that DOOM can be tried without buying it. The file is
+taken from the DOOM 1.9 shareware release; id Software's README.TXT from that release is
+included next to this notice.
+
+The full game (The Ultimate DOOM, DOOM II, Final DOOM) is not included. If you own it, you
+can import your own game file in haex-doom.
