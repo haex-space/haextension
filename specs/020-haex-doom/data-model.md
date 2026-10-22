@@ -15,14 +15,15 @@ A playable base game. Bundled games are not stored: they are described by a cons
 | `family` | text | `doom1` (episodes E1–E4) or `doom2` (MAP01–MAP32); drives the engine's `-iwad` mode. |
 | `file_name` | text | Name the engine sees in MEMFS (`doom2.wad`, `tnt.wad`, …), from the recognised title; the engine identifies the game by it. |
 | `size` | integer | Bytes. |
+| `chunk_count` | integer | Number of rows in `game_file_chunks_no_sync`; checked when the file is reassembled. |
 | `imported_at` | text | ISO 8601. |
 
 **Table `game_file_chunks_no_sync`**
 
 | Column | Type | Rules |
 |---|---|---|
-| `fingerprint` | text | References `game_files_no_sync.fingerprint`; deleted with it (FR-025). |
-| `index` | integer | 0-based; primary key together with `fingerprint`. |
+| `fingerprint` | text | Matches `game_files_no_sync.fingerprint` (no foreign key); the app deletes the chunks with the file (FR-025). |
+| `chunk_index` | integer | 0-based; primary key together with `fingerprint`. |
 | `data` | blob | 1 MiB except the last chunk. |
 
 **Validation** (pure function in `app/lib/wad.ts`, before anything is stored, FR-022):

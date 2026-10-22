@@ -62,9 +62,9 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 
 ## R-9 Importing game files
 
-- **Decision**: Pick the file with a plain `<input type="file">` inside the frame, read it with `File.arrayBuffer()`, validate in a pure TypeScript module (`app/lib/wad.ts`): header `IWAD`, lump directory inside the file, known lumps to identify the game (`MAP01` → DOOM II family; `E4M1` → The Ultimate DOOM; `E1M1` only → DOOM/shareware), known SHA-1 table for exact titles (DOOM II, TNT, Plutonia, …). `PWAD` is rejected as a modification file. Fingerprint: SHA-256 via `crypto.subtle`.
+- **Decision**: Pick the file with a plain `<input type="file">` inside the frame, read it with `File.arrayBuffer()`, validate in a pure TypeScript module (`app/lib/wad.ts`): header `IWAD`, lump directory inside the file, known lumps to identify the game family (`MAP01` → DOOM II family; `E4M1` → The Ultimate DOOM; `E1M1` only → DOOM/shareware), the picked file name for the exact title (DOOM II, TNT, Plutonia, …) when it fits the family; no checksum table, since re-releases of the same game have different checksums. `PWAD` is rejected as a modification file. Fingerprint: SHA-256 via `crypto.subtle`.
 - **Rationale**: The SDK's `selectFile` + `readFile` caps the response at 16 MiB by default (base64 inflates by a third), which Final DOOM files exceed. A file input needs no permission and no host round trip; Android's WebView implements `onShowFileChooser` in the host (`RustWebChromeClient.kt:312`).
-- **Verification needed in the task**: `crypto.subtle` requires a secure context; the custom scheme `holzi-ext://` must be checked on Linux/macOS/iOS. Fallback: a SHA-256 from a dependency already in the lockfile.
+- **Verification (T064)**: `crypto.subtle` requires a secure context. haex-notes already hashes with it inside vault frames (`apps/haex-notes/app/lib/assetPath.ts`), so no fallback was added; the check on real devices runs with T069.
 
 ## R-10 Multiplayer transport (host change H3, SDK change S1)
 

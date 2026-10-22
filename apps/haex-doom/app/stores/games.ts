@@ -6,6 +6,8 @@ import { checkWad, fingerprint, type WadRejection } from "~/lib/wad";
 const FILES = tableName("game_files_no_sync");
 const CHUNKS = tableName("game_file_chunks_no_sync");
 const CHUNK_SIZE = 1024 * 1024;
+/** The largest base games are about 30 MB; reading far larger files only to reject them can exhaust a phone's memory. */
+const MAX_FILE_SIZE = 64 * 1024 * 1024;
 
 export interface PlayableGame {
   id: string;
@@ -19,7 +21,7 @@ export interface PlayableGame {
 
 export type ImportResult =
   | { ok: true; title: string }
-  | { ok: false; reason: WadRejection | "already-available" | "storage-failed" };
+  | { ok: false; reason: WadRejection | "too-large" | "already-available" | "storage-failed" };
 
 /** Bundled games plus the base games imported on this device (FR-004, FR-021–FR-025). */
 export const useGamesStore = defineStore("games", () => {
@@ -41,12 +43,19 @@ export const useGamesStore = defineStore("games", () => {
   }
 
   async function importFile(file: File): Promise<ImportResult> {
+    if (file.size > MAX_FILE_SIZE) return { ok: false, reason: "too-large" };
     const bytes = new Uint8Array(await file.arrayBuffer());
     const check = checkWad(bytes, file.name);
     if (!check.ok) return check;
 
     const fp = await fingerprint(bytes);
-    if (all.value.some((game) => game.fingerprint === fp)) return { ok: false, reason: "already-available" };
+    // Asks the vault, not the loaded list: that list may still be loading or have failed to load,
+    // and storing a file that is already there would end in removing its chunks.
+    await vault.initializeAsync();
+    const stored = await vault.client.database.query<[number]>(`SELECT 1 FROM "${FILES}" WHERE fingerprint = ?`, [fp]);
+    if (stored.length > 0 || BUNDLED_GAMES.some((game) => game.fingerprint === fp)) {
+      return { ok: false, reason: "already-available" };
+    }
 
     try {
       await storeFile(fp, bytes, check);

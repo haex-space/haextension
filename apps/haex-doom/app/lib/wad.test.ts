@@ -55,6 +55,22 @@ describe("checkWad", () => {
     new DataView(wad.buffer).setInt32(13, 1_000_000, true);
     expect(checkWad(wad, "doom2.wad")).toEqual({ ok: false, reason: "truncated" });
   });
+
+  it("rejects a header with no lumps, a directory inside the header or a lump count past the end", () => {
+    for (const [field, value] of [[4, 0], [4, -1], [8, 4], [8, -16], [4, 0x7fffffff]] as const) {
+      const wad = buildWad("IWAD", ["MAP01"]);
+      new DataView(wad.buffer).setInt32(field, value, true);
+      expect(checkWad(wad, "doom2.wad")).toEqual({ ok: false, reason: "truncated" });
+    }
+  });
+
+  it("rejects a lump with a negative offset or size", () => {
+    for (const field of [13, 17]) {
+      const wad = buildWad("IWAD", ["MAP01"]);
+      new DataView(wad.buffer).setInt32(field, -1, true);
+      expect(checkWad(wad, "doom2.wad")).toEqual({ ok: false, reason: "truncated" });
+    }
+  });
 });
 
 describe("fingerprint", () => {

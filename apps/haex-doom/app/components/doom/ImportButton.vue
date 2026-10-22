@@ -18,6 +18,9 @@ async function onPicked() {
     const result = await games.importFile(file)
     if (result.ok) toast.success(t('imported', { title: result.title }))
     else toast.error(t(`rejected.${result.reason}`))
+  } catch (error) {
+    console.error('[haex-doom] Could not import the game file:', error)
+    toast.error(t('failed'))
   } finally {
     importing.value = false
   }
@@ -49,9 +52,11 @@ de:
   import: Eigene Spieldatei importieren
   importing: Wird importiert …
   imported: "{title} ist jetzt verfügbar."
+  failed: Die Datei konnte nicht importiert werden.
   rejected:
     too-small: Das ist keine DOOM-Spieldatei.
     not-wad: Das ist keine DOOM-Spieldatei.
+    too-large: Die Datei ist zu groß für eine DOOM-Spieldatei.
     pwad: Das ist eine Modifikation, keine Spieldatei. Mods werden noch nicht unterstützt.
     truncated: Die Datei ist beschädigt oder unvollständig.
     unknown-game: Diese Spieldatei enthält kein bekanntes DOOM-Spiel.
@@ -61,9 +66,11 @@ en:
   import: Import your own game file
   importing: Importing …
   imported: "{title} is now available."
+  failed: The file could not be imported.
   rejected:
     too-small: This is not a DOOM game file.
     not-wad: This is not a DOOM game file.
+    too-large: The file is too large for a DOOM game file.
     pwad: This is a modification, not a game file. Mods are not supported yet.
     truncated: The file is damaged or incomplete.
     unknown-game: This game file does not contain a known DOOM game.
