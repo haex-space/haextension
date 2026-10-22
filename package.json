@@ -15,7 +15,8 @@
     "release:haex-tetris": "node scripts/release.js haex-tetris",
     "release:haex-mail": "node scripts/release.js haex-mail",
     "release:haex-game-unicorn": "node scripts/release.js haex-game-unicorn",
-    "release:haex-pass-browser": "node scripts/release.js haex-pass-browser"
+    "release:haex-pass-browser": "node scripts/release.js haex-pass-browser",
+    "release:haex-doom": "node scripts/release.js haex-doom"
   },
   "pnpm": {
     "overrides": {

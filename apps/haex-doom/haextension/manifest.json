@@ -1,0 +1,24 @@
+{
+  "publicKey": "b4401f13f65e576b8a30ff9fd83df82a8bb707e1994d40c99996fe88603cefca",
+  "signature": "",
+  "permissions": {
+    "database": [],
+    "filesystem": [],
+    "shell": [],
+    "http": []
+  },
+  "icon": "haextension/haex-doom-logo.png",
+  "singleInstance": true,
+  "displayMode": "auto",
+  "description": "DOOM with Freedoom and the shareware episode, on desktop and mobile",
+  "i18n": {
+    "de": {
+      "name": "DOOM",
+      "description": "DOOM mit Freedoom und der Shareware-Episode, am PC und auf dem Handy"
+    },
+    "en": {
+      "name": "DOOM",
+      "description": "DOOM with Freedoom and the shareware episode, on desktop and mobile"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "dev": {
+    "port": 4011,
+    "host": "localhost"
+  },
+  "build": {
+    "distDir": "dist"
+  }
+}

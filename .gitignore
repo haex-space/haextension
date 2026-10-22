@@ -51,3 +51,9 @@ private.key
 # direnv's per-checkout cache (flake profile symlinks). Every worktree gets
 # its own on `direnv allow`; never meant to be committed.
 .direnv/
+
+# haex-doom build output (engine, bundled game data, licences) and engine build cache
+apps/haex-doom/public/engine/
+apps/haex-doom/public/wads/
+apps/haex-doom/public/licenses/
+apps/haex-doom/engine/.build/

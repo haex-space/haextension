@@ -102,7 +102,7 @@ apps/haex-doom/
     │   ├── lobbyProtocol.ts (+ .test.ts)
     │   ├── saveStore.ts (+ .test.ts)         # MEMFS path ↔ save row mapping
     │   └── engine/imports.ts                 # EM_JS import implementations
-    └── locales/de.json, en.json
+    (translations: per-component <i18n lang="yaml"> blocks, repository convention)
 ```
 
 Root changes: `package.json` gets `release:haex-doom`; `.gitignore` covers `apps/haex-doom/public/engine/` and `public/wads/`.
