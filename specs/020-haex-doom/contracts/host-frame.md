@@ -4,7 +4,7 @@ Host changes H1 and H2 in `haex-space/haex-vault`, each its own pull request. Th
 
 ## H1 — WebAssembly
 
-`src-tauri/src/extensions/protocol/csp.rs`, `policy()`:
+`haex-space/haex-vault@bdfc0bc90a74f49b2d8a30583c3e00b7b3f51742:src-tauri/src/extensions/protocol/csp.rs`, `policy()`:
 
 ```text
 script-src {prefix} 'wasm-unsafe-eval' {inline hashes}
@@ -14,7 +14,7 @@ Check: an extension page can call `WebAssembly.instantiateStreaming(fetch('x.was
 
 ## H2 — Pointer lock and fullscreen
 
-`src/components/extensions/ExtensionFrame.vue`:
+`haex-space/haex-vault@bdfc0bc90a74f49b2d8a30583c3e00b7b3f51742:src/components/extensions/ExtensionFrame.vue`:
 
 ```html
 <iframe sandbox="allow-scripts allow-pointer-lock" allow="fullscreen" …>

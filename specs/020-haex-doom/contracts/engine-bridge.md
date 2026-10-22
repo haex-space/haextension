@@ -9,9 +9,11 @@ The shell loads `engine/crispy-doom.js` and creates the module with:
 | Module option | Value |
 |---|---|
 | `canvas` | The game `<canvas>`. |
-| `noInitialRun` | `true`; the shell calls `callMain(args)` after preparing MEMFS. |
-| `locateFile` | Resolves `crispy-doom.wasm` relative to the extension prefix. |
-| `print` / `printErr` | Forwarded to the shell log in debug builds only. |
+| `haexImports` | The shell's handlers for the engine's imports (below). |
+| `SDL2.audioContext` | The `AudioContext` created in the start gesture; SDL plays through it. |
+| `onExit` / `onAbort` | Back to the start screen; the engine is linked with `EXIT_RUNTIME`, so Quit reaches `onExit`. |
+
+The engine is linked with `INVOKE_RUN=0`, so the shell calls `callMain(args)` after preparing MEMFS, and `crispy-doom.wasm` is found next to `crispy-doom.js` without a `locateFile`.
 
 Before `callMain`, the shell writes into MEMFS:
 
@@ -36,7 +38,7 @@ Arguments (`callMain`):
 
 | Function | Signature | Meaning |
 |---|---|---|
-| `haex_post_event` | `void (int type, int data1, …, int data6)` | Calls `D_PostEvent` with the fields of `event_t`. `type`: 0 `ev_keydown`, 1 `ev_keyup`, 2 `ev_mouse`, 3 `ev_joystick` (values of `evtype_t` in upstream `src/d_event.h`). Key codes from `doomkeys.h`. `ev_mouse`: `data2` = horizontal turn delta (8 angle units per unit at default sensitivity). `ev_joystick`: `data1` = button bits (indices are the `joyb_*` config values), `data2` = turn, `data3` = move (positive = backward), `data4` = strafe, each −65536…65536 (`FRACUNIT`), `data6` = direction bits (`JOY_DIR_*` of `src/i_joystick.h`, left stick at shift 4) that drive the menus. The engine keeps the last joystick state until the next event. |
+| `haex_post_event` | `void (int type, int data1, …, int data6)` | Calls `D_PostEvent` with the fields of `event_t`. `type`: 0 `ev_keydown`, 1 `ev_keyup`, 2 `ev_mouse`, 3 `ev_joystick` (values of `evtype_t` in upstream `src/d_event.h`). Key codes from `doomkeys.h`. `ev_mouse`: `data2` = horizontal turn delta (8 angle units per unit at default sensitivity). `ev_joystick`: `data1` = button bits (indices are the `joyb_*` config values), `data2` = turn, `data3` = move (positive = backward), `data4` = strafe, each −65536…65536 (`FRACUNIT`), `data6` = direction bits (`JOY_DIR_*` of `src/i_joystick.h`, left stick at shift 4) that drive the menus. The engine keeps the last joystick state until the next event or level load; the menus and the automap act on every event, so the shell sends menu directions and the Menu/Map buttons only on the event where they change. |
 | `haex_set_paused` | `void (int paused)` | Pauses or resumes a single-player game (FR-006); ignored in netgames. |
 | `haex_net_peer_closed` | `void (int peer)` | A peer channel closed; the engine treats it like a timed-out node. |
 
