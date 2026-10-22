@@ -6,6 +6,7 @@ import { loadBundledWad } from '~/lib/wadLoader'
 
 const { t } = useI18n()
 const engine = useEngine()
+const settings = useSettingsStore()
 
 const hostSupportsEngine = canCompileWebAssembly()
 const playing = ref(false)
@@ -39,7 +40,10 @@ async function startGame(game: BundledGame) {
       'crispy_widescreen',
       widescreenFor(canvas.clientWidth, canvas.clientHeight),
     )
-    await engine.start({ canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, audioContext })
+    await engine.start({
+      canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, audioContext,
+      imports: { haptic: settings.vibrate },
+    })
     canvas.focus()
   } catch (error) {
     console.error('[haex-doom] Could not start the game:', error)
@@ -94,7 +98,10 @@ watch(engine.state, (state) => {
         />
       </template>
 
-      <DoomAboutDialog />
+      <div class="flex gap-2">
+        <DoomSettingsDialog />
+        <DoomAboutDialog />
+      </div>
     </main>
   </div>
 </template>

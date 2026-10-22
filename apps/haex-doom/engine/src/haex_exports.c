@@ -9,7 +9,7 @@
 extern boolean sendpause;
 
 EMSCRIPTEN_KEEPALIVE
-void haex_post_event(int type, int data1, int data2, int data3, int data4)
+void haex_post_event(int type, int data1, int data2, int data3, int data4, int data5, int data6)
 {
     event_t event = {0};
 
@@ -18,6 +18,8 @@ void haex_post_event(int type, int data1, int data2, int data3, int data4)
     event.data2 = data2;
     event.data3 = data3;
     event.data4 = data4;
+    event.data5 = data5;
+    event.data6 = data6;
     D_PostEvent(&event);
 }
 

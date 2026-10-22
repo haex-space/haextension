@@ -97,7 +97,7 @@ export function useEngine() {
         onAbort: () => stopped("crashed"),
       });
       instance = module;
-      postEventFn = module.cwrap("haex_post_event", null, ["number", "number", "number", "number", "number"]);
+      postEventFn = module.cwrap("haex_post_event", null, ["number", "number", "number", "number", "number", "number", "number"]);
       setPausedFn = module.cwrap("haex_set_paused", null, ["number"]);
 
       const saveDir = prepareFileSystem(module, options);
@@ -123,8 +123,8 @@ export function useEngine() {
     state.value = reason ? "failed" : "idle";
   }
 
-  function postEvent(type: number, data1 = 0, data2 = 0, data3 = 0, data4 = 0) {
-    postEventFn?.(type, data1, data2, data3, data4);
+  function postEvent(type: number, data1 = 0, data2 = 0, data3 = 0, data4 = 0, data5 = 0, data6 = 0) {
+    postEventFn?.(type, data1, data2, data3, data4, data5, data6);
   }
 
   function pressKey(key: number, down: boolean) {

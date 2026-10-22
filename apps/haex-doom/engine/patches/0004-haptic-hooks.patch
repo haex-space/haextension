@@ -1,0 +1,57 @@
+diff --git a/src/doom/p_inter.c b/src/doom/p_inter.c
+index 645f8203..bda97d39 100644
+--- a/src/doom/p_inter.c
++++ b/src/doom/p_inter.c
+@@ -38,6 +38,9 @@
+ #include "s_sound.h"
+ 
+ #include "p_inter.h"
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
+ 
+ 
+ #define BONUSADD	6
+@@ -959,6 +962,13 @@ P_DamageMobj
+ 	    damage -= saved;
+ 	}
+ 	player->health -= damage; 	// mirror mobj health here for Dave
++#ifdef __EMSCRIPTEN__
++	// haex-doom: a longer vibration when the player at this device is hurt.
++	if (player == &players[consoleplayer])
++	{
++	    haex_haptic(1);
++	}
++#endif
+ 	// [crispy] negative player health
+ 	player->neghealth = player->health;
+ 	if (player->neghealth < -99)
+diff --git a/src/doom/p_pspr.c b/src/doom/p_pspr.c
+index 27d7938f..df979f4c 100644
+--- a/src/doom/p_pspr.c
++++ b/src/doom/p_pspr.c
+@@ -35,6 +35,9 @@
+ 
+ #include "p_pspr.h"
+ #include "a11y.h" // [crispy] A11Y
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
+ 
+ #define LOWERSPEED		FRACUNIT*6
+ #define RAISESPEED		FRACUNIT*6
+@@ -291,6 +294,14 @@ void P_FireWeapon (player_t* player)
+     newstate = weaponinfo[player->readyweapon].atkstate;
+     P_SetPsprite (player, ps_weapon, newstate);
+     P_NoiseAlert (player->mo, player->mo);
++
++#ifdef __EMSCRIPTEN__
++    // haex-doom: a short vibration when the player at this device fires.
++    if (player == &players[consoleplayer])
++    {
++        haex_haptic(0);
++    }
++#endif
+ }
+ 
+ 
