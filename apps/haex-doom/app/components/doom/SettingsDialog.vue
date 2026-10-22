@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TOUCH_TURN_SENSITIVITY } from '~/stores/settings'
+import { TOUCH_TURN_SENSITIVITY } from '~/lib/settings'
 
 const { t } = useI18n()
 const settings = useSettingsStore()

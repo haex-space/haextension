@@ -2,11 +2,18 @@
 import { unlockAudio } from '~/lib/audioUnlock'
 import { BUNDLED_GAMES, type BundledGame } from '~/lib/bundledGames'
 import { setConfigValue, widescreenFor } from '~/lib/engineConfig'
+import { parseSavePath, saveDescription } from '~/lib/saveStore'
 import { loadBundledWad } from '~/lib/wadLoader'
+import { toast } from 'vue-sonner'
 
 const { t } = useI18n()
 const engine = useEngine()
 const settings = useSettingsStore()
+const saves = useSavesStore()
+
+onMounted(() => {
+  void settings.load()
+})
 
 const hostSupportsEngine = canCompileWebAssembly()
 const playing = ref(false)
@@ -22,6 +29,36 @@ async function loadDefaultConfigs(): Promise<Record<string, string>> {
   return Object.fromEntries(names.map((name, i) => [name, texts[i]!]))
 }
 
+/** Saves of the game, or none when the vault cannot be read; the game still starts. */
+async function loadSaves(fingerprint: string): Promise<Map<number, Uint8Array>> {
+  try {
+    return await saves.listForGame(fingerprint)
+  } catch (error) {
+    console.error('[haex-doom] Could not load saves:', error)
+    toast.error(t('savesUnavailable'))
+    return new Map()
+  }
+}
+
+/** Stores what the engine wrote: save games in the vault, config files on the device. */
+async function onFileWritten(path: string) {
+  const data = engine.readFile(path)
+  if (!data) return
+  const save = parseSavePath(path)
+  try {
+    if (save) {
+      await saves.upsert(save.fingerprint, save.slot, saveDescription(data), data)
+    }
+    else if (path.startsWith('/config/')) {
+      await settings.storeEngineConfig(path.slice('/config/'.length), new TextDecoder().decode(data))
+    }
+  }
+  catch (error) {
+    console.error('[haex-doom] Could not store', path, error)
+    if (save) toast.error(t('saveFailed'))
+  }
+}
+
 async function startGame(game: BundledGame) {
   // Must run inside the tap, before any await (research R-14).
   const audioContext = unlockAudio()
@@ -31,9 +68,11 @@ async function startGame(game: BundledGame) {
   if (!canvas) return
 
   try {
-    const [wad, configs] = await Promise.all([
+    await settings.load()
+    const [wad, configs, gameSaves] = await Promise.all([
       loadBundledWad(new URL(game.asset, document.baseURI).href),
-      loadDefaultConfigs(),
+      loadDefaultConfigs().then(settings.engineConfigs),
+      loadSaves(game.fingerprint),
     ])
     configs['crispy-doom.cfg'] = setConfigValue(
       configs['crispy-doom.cfg'] ?? '',
@@ -41,8 +80,8 @@ async function startGame(game: BundledGame) {
       widescreenFor(canvas.clientWidth, canvas.clientHeight),
     )
     await engine.start({
-      canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, audioContext,
-      imports: { haptic: settings.vibrate },
+      canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
+      imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path) },
     })
     canvas.focus()
   } catch (error) {
@@ -108,6 +147,8 @@ watch(engine.state, (state) => {
 
 <i18n lang="yaml">
 de:
+  savesUnavailable: Spielstände konnten nicht geladen werden. Das Spiel startet ohne sie.
+  saveFailed: Der Spielstand wurde nicht im Vault gespeichert. Bitte versuche es erneut.
   loading: Lädt …
   hostOutdated: Bitte aktualisiere deinen Vault, um DOOM zu spielen. Diese Version erlaubt Erweiterungen noch kein WebAssembly.
   errors:
@@ -115,6 +156,8 @@ de:
     crashed: Das Spiel wurde unerwartet beendet.
     host-outdated: ''
 en:
+  savesUnavailable: Save games could not be loaded. The game starts without them.
+  saveFailed: The save game was not stored in the vault. Please try again.
   loading: Loading …
   hostOutdated: Please update your vault to play DOOM. This version does not let extensions run WebAssembly yet.
   errors:
