@@ -8,6 +8,13 @@
       "when": 1792708290544,
       "tag": "0000_magical_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792709017605,
+      "tag": "0001_hard_marauders",
+      "breakpoints": true
     }
   ]
 }

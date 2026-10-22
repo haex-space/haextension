@@ -29,7 +29,7 @@ A playable base game. Bundled games are not stored: they are described by a cons
 
 - At least 12 bytes; magic is `IWAD`. `PWAD` → rejected as "modification file, needs a base game".
 - `numlumps` > 0; directory offset + 16 × `numlumps` ≤ file size; every lump's offset + size ≤ file size.
-- Identification: known SHA-1 → exact title; otherwise `MAP01` present → `doom2` family ("DOOM II-compatible game"); `E1M1` present → `doom1` family (`E4M1` → "The Ultimate DOOM", `E2M1` → "DOOM", else "DOOM (shareware)"); neither → rejected.
+- Identification: the lumps give the family (`MAP01` → `doom2`; `E1M1` → `doom1`, with `E4M1` → "The Ultimate DOOM", `E2M1` → "DOOM", else "DOOM (shareware)"); neither → rejected. The title and the engine's file name come from the picked file's name when it is a known base game of that family (`DOOM2.WAD`, `TNT.WAD`, `PLUTONIA.WAD`, `DOOM.WAD`, …), as the engine itself identifies games by name; otherwise the generic `doom2.wad`/`doom.wad`/`doom1.wad`. No checksum table: re-releases of the same game have different checksums.
 - A bundled game's fingerprint or an existing fingerprint → "already available", nothing stored.
 
 ## Save game
