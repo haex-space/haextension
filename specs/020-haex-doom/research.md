@@ -85,6 +85,18 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 - **Rationale**: There is no cross-vault delivery mechanism in the host today (spaces and data shares are drafts); the invitation reuses the same connection that later carries the game.
 - **Alternatives considered**: Nostr gift-wrap mailbox (only implemented for one's own devices).
 
+## R-11a Lobby visibility and join codes (clarified 2026-10-22)
+
+- **Decision**: The host's vault registers each open lobby (`peers.openLobbyAsync`) and returns a join code `haexpeer1:` + base32 `{ endpoint_id, relay_url, lobby_id, secret }` with a 128-bit random secret. A joiner's vault dials the endpoint (adding the relay to `MemoryLookup`) and sends `Join`. The host's vault admits only while the lobby is open, with a constant-time secret match, and — for contacts-only lobbies — only verified contacts; removed devices are banned per lobby. Non-contact connections on the ALPN are accepted only while a public lobby is open and must send `Join` within 5 s. Invitations stay contacts-only and are dialed to all of a contact's devices in parallel; the first acceptance wins and the others receive `Withdraw`.
+- **Rationale**: A bare endpoint id is not a secret (it is in every contact card) and identifies a device, not a game; a per-lobby secret makes the code a short-lived capability, the same idea as iroh tickets. One code for both visibilities keeps one join path; visibility only changes the admission check. No browsable list of contacts' games, because that would require polling every contact device and reveal who is online.
+- **Alternatives considered**: Joining by bare endpoint id (permanent, device-wide exposure); browsing open games of all contacts (polling cost, presence leak); invitations from non-contacts (spam).
+- **Privacy note**: In a public lobby, directly connected players learn the host's network address; the lobby says so.
+
+## R-17 Save conflicts between devices (clarified 2026-10-22)
+
+- **Decision**: `saves.id` = `<game_fingerprint>:<slot>`, written as an upsert, so both devices write the same row and the sync keeps the later write. The task verifies how the host's sync orders concurrent writes to one row (per-row or per-column last-writer-wins) and that `saved_at` and `data` cannot end up from different writes; if they can, all columns are written in one statement and the row is treated as a unit there.
+- **Rationale**: Random ids would create two rows for one slot after a sync and break the uniqueness of (game, slot).
+
 ## R-12 Local-network discovery
 
 - **Decision**: Not built. Players on the same network are invited as contacts like everyone else; iroh exchanges local addresses through the relay during connection setup and then connects directly on the LAN.

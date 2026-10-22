@@ -6,7 +6,7 @@
 
 ## Summary
 
-A new haextension `apps/haex-doom` runs Crispy DOOM 7.2, compiled to WebAssembly with the engine's upstream Emscripten support, inside the vault's extension frame. A Nuxt shell (structure of `apps/haex-tetris`) provides the start screen, touch overlay, game-file import, settings and multiplayer lobby, and talks to the engine through a small exported/imported function set ([contracts/engine-bridge.md](contracts/engine-bridge.md)). Freedoom 1/2 and the shareware episode ship gzip-compressed to fit the bundle limits. Saves sync through an extension table; settings and imported game files stay on the device. Multiplayer replaces the engine's UDP module with peer channels that the vault host carries over its iroh endpoint as QUIC datagrams between contacts. Three host changes (WebAssembly CSP, pointer lock/fullscreen, peer channels) and one SDK change (`client.peers`) are delivered as separate pull requests in their repositories. Decisions and evidence: [research.md](research.md).
+A new haextension `apps/haex-doom` runs Crispy DOOM 7.2, compiled to WebAssembly with the engine's upstream Emscripten support, inside the vault's extension frame. A Nuxt shell (structure of `apps/haex-tetris`) provides the start screen, touch overlay, game-file import, settings and multiplayer lobby, and talks to the engine through a small exported/imported function set ([contracts/engine-bridge.md](contracts/engine-bridge.md)). Freedoom 1/2 and the shareware episode ship gzip-compressed to fit the bundle limits. Saves sync through an extension table; settings and imported game files stay on the device. Multiplayer replaces the engine's UDP module with peer channels that the vault host carries over its iroh endpoint as QUIC datagrams; players join by invitation (contacts) or by a per-lobby join code, which works for contacts only or for anyone, as the host chooses. Three host changes (WebAssembly CSP, pointer lock/fullscreen, peer channels) and one SDK change (`client.peers`) are delivered as separate pull requests in their repositories. Decisions and evidence: [research.md](research.md).
 
 ## Technical Context
 
@@ -117,9 +117,9 @@ haex-space/haex-vault
   H2 src/components/extensions/ExtensionFrame.vue                             pointer lock, fullscreen
   H3 src-tauri/src/extensions/peers/ (new), permissions/model.rs, target.rs,
      manifest_map.rs, bridge/allowlist.rs, sync/endpoint.rs (ALPN + datagrams),
-     notification + i18n, specs/017-extension-host/contracts/bridge.md          peer channels, invitations
+     notification + i18n, specs/017-extension-host/contracts/bridge.md          peer channels, invitations, lobbies + join codes
 haex-space/vault-sdk
-  S1 src/commands/peers.ts, src/api/peers.ts, client.ts, events.ts, types       client.peers
+  S1 src/commands/peers.ts, src/api/peers.ts, client.ts, events.ts, types       client.peers (lobbies, join, invite, channels)
 ```
 
 ## Delivery (pull requests, in order)
@@ -150,6 +150,7 @@ Slices 2 and 9 are the largest; tasks will split them further into reviewable co
 | Hole punching fails between two mobile networks | Relay fallback is automatic; SC-010 allows 150 ms round trip. |
 | A contact's card lists an outdated relay or endpoint (the host resolves addresses only from cards, `MemoryLookup`) | Invitation reports `unreachable` with a hint to exchange cards again; slice 9 tests dialing with the card's `iroh_relay`. |
 | The invitee's vault is locked (endpoint only runs while a vault is open) | Invitation reports `unreachable`; the lobby lets the host retry. |
+| Strangers probe the peer ALPN while a public lobby is open | Non-contacts are accepted only while a public lobby is open, must present the lobby secret within 5 s, are rate-limited per endpoint, and wrong codes get one uniform answer (research R-11a). |
 | Engine gamepad support insufficient in the browser | Shell-side Gamepad API mapping via `haex_post_event` (R-15). |
 
 ## Complexity Tracking

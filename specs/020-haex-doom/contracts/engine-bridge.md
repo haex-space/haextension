@@ -27,7 +27,8 @@ Arguments (`callMain`):
 -iwad /wads/<file_name> -config /config/default.cfg -extraconfig /config/crispy-doom.cfg
 -savedir /saves/<game_fingerprint>/
 [single player]  -skill <n> (optional) 
-[multiplayer host]  -privateserver -nodes <players> [-deathmatch] -skill <n> -warp <map>
+[multiplayer host]  -privateserver -nodes <players> -skill <n> -warp <map>
+                    [deathmatch: -altdeath [-nomonsters] [-timer <10|20>]]
 [multiplayer guest] -connect host
 ```
 

@@ -16,6 +16,10 @@
 - Q: Is multiplayer in scope? → A: Yes. It matters for demonstrations, and it runs peer to peer between vaults over their existing iroh connections.
 - Q: Which engine? → A: Crispy DOOM instead of Chocolate DOOM, after comparing Boom-compatible engines (see Assumptions).
 - Planning (research R-8, R-10, R-12): no local-network discovery, because players on one network connect directly through the vault's peer connections anyway; a player in the background is dropped after the engine's own 30-second timeout; imported game files stay on the device they were imported on.
+- Q: From whom may a vault accept game invitations and joins? → A: The host sets each lobby's visibility. "Contacts only" (default): only the host's contacts may join, by invitation or join code. "Public": anyone holding the lobby's join code may join. Invitations (pushed into another vault) go only to contacts, and the recipient's vault accepts them only from its own contacts. The join code carries a per-lobby secret, not just the device address, and expires when the lobby starts or closes.
+- Q: On which devices does an invitation appear when the invited contact has several devices with an open vault? → A: On all reachable devices at once; the first acceptance wins and the invitation is withdrawn on the others.
+- Q: Which deathmatch rules can the host set? → A: Deathmatch always uses the "2.0" rules (items respawn); the host sets monsters on/off (default off) and a time limit of off, 10, or 20 minutes (default 10).
+- Q: Which save game remains when the same slot is saved on two devices before they sync? → A: The most recently saved one (by save time); the older one is overwritten.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -57,7 +61,7 @@ A vault user opens the extension on an Android or iOS device, starts a game, and
 
 ### User Story 3 - Play together with other vault users (Priority: P3)
 
-A user starts a multiplayer game and invites one to three people from their vault contacts; everyone joins from their own device — desktop or mobile — and they play cooperatively or against each other.
+A user starts a multiplayer game and lets one to three people join: by inviting them from their vault contacts or by sharing a join code, which in a public game works for anyone; everyone joins from their own device — desktop or mobile — and they play cooperatively or against each other.
 
 **Why this priority**: Multiplayer is what makes the extension worth demonstrating: it shows vaults talking directly to each other. It builds on US1 and US2 and needs the peer-to-peer channel from haex-vault (FR-036 to FR-038).
 
@@ -65,12 +69,15 @@ A user starts a multiplayer game and invites one to three people from their vaul
 
 **Acceptance Scenarios**:
 
-1. **Given** the start screen, **When** the user chooses "Multiplayer", **Then** they can pick a game, a mode (cooperative or deathmatch), a starting map, and a skill level, and open a lobby.
-2. **Given** an open lobby, **When** the host invites a vault contact, **Then** that contact receives an invitation in their vault naming the host, the game, and the mode, and can accept or decline it.
-3. **Given** every player in the lobby has the selected game file, **When** the host starts the game, **Then** all players enter the same map at the same time.
-4. **Given** an invited player does not have the selected game file (e.g. an imported commercial game they do not own), **When** they try to join, **Then** they are told which game is missing and are not admitted; the extension never transfers that file between players.
-5. **Given** a game in progress, **When** a guest leaves or loses their connection, **Then** the remaining players continue and see a notice; **When** the host leaves, **Then** the game ends for everyone with a notice.
-6. **Given** players on different devices, **When** they play, **Then** each player's game reacts to their own input as quickly as the connection allows, and all players see the same events in the same order.
+1. **Given** the start screen, **When** the user chooses "Multiplayer", **Then** they can pick a game, a mode (cooperative or deathmatch), a starting map, a skill level, and a visibility (contacts only or public), and open a lobby that shows its join code.
+2. **Given** an open lobby, **When** the host invites a vault contact, **Then** that contact receives an invitation in their vault naming the host, the game, and the mode, and can accept or decline it; if the contact has several devices with an open vault, the invitation appears on all of them, and once it is accepted on one, it disappears from the others.
+3. **Given** an open public lobby, **When** someone who is not the host's contact enters its join code, **Then** they join the lobby under the display name they chose, marked as not verified.
+4. **Given** an open contacts-only lobby, **When** someone who is not the host's contact enters its join code, **Then** they are refused with a message that only the host's contacts may join.
+5. **Given** a lobby, **When** the host removes a player, **Then** that player leaves the lobby and cannot rejoin it with the same code until the host opens a new lobby.
+6. **Given** every player in the lobby has the selected game file, **When** the host starts the game, **Then** all players enter the same map at the same time.
+7. **Given** a joining player does not have the selected game file (e.g. an imported commercial game they do not own), **When** they try to join, **Then** they are told which game is missing and are not admitted; the extension never transfers that file between players.
+8. **Given** a game in progress, **When** a guest leaves or loses their connection, **Then** the remaining players continue and see a notice; **When** the host leaves, **Then** the game ends for everyone with a notice.
+9. **Given** players on different devices, **When** they play, **Then** each player's game reacts to their own input as quickly as the connection allows, and all players see the same events in the same order.
 
 ---
 
@@ -145,6 +152,7 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 - The selected file for import is not a base game file (wrong format, truncated, or a modification file that needs a base game): the import is rejected with an explanation and nothing is stored.
 - The selected file is very large or the vault lacks storage space: the import fails with a clear message and no partial file remains.
 - Saving fails because the vault cannot be written: the user sees that the save did not succeed and the game keeps running, with no existing save overwritten or corrupted.
+- The same slot is saved on two devices while they are not in sync: after syncing, the slot holds the later save only (FR-046).
 - An imported game file was removed but save games for it remain: those saves are not offered in other games, and they become usable again if the same game file is imported again.
 - The extension is opened on a vault version without pointer capture, fullscreen, or the peer-to-peer channel: those features are hidden and single-player keyboard (or touch) play works normally.
 - The browser engine blocks audio until a user gesture: the start screen's start action unlocks audio, so the game never starts silently.
@@ -155,6 +163,9 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 - The players' games diverge (a consistency failure): the game ends for everyone with a notice instead of continuing in different states.
 - A direct connection between two players cannot be established: the connection falls back to a relay, and the game still starts.
 - An invited contact has not installed the extension: the host is told that the contact cannot join.
+- A join code is mistyped, belongs to a lobby that has started or closed, or carries a wrong secret: joining fails with "This game is no longer open" and nothing else is revealed about the host.
+- Someone tries to invite a user whose vault does not list them as a contact: the recipient's vault refuses the invitation and the inviter sees that the contact could not be reached.
+- A public lobby is open: the lobby tells the host that other players can see their network address when they connect directly.
 
 ## Requirements *(mandatory)*
 
@@ -188,6 +199,7 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 - **FR-018**: The extension MUST store save games, per game, in the user's vault so that they survive restarts of the extension and the vault and follow the vault's sync between devices.
 - **FR-019**: The extension MUST store user settings in the user's vault and restore them on start.
 - **FR-020**: A failed save MUST be reported to the user and MUST NOT damage existing saves.
+- **FR-046**: When the same game and slot are saved on two devices before they sync, the most recently saved game MUST remain after syncing and the older one MUST be replaced; a slot MUST never show two saves.
 
 **Imported game files**
 
@@ -200,8 +212,12 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 
 **Multiplayer**
 
-- **FR-027**: Users MUST be able to host a multiplayer game for 2 to 4 players in cooperative or deathmatch mode, choosing game, starting map, and skill level.
-- **FR-028**: The host MUST be able to invite vault contacts; an invited contact MUST explicitly accept before joining.
+- **FR-027**: Users MUST be able to host a multiplayer game for 2 to 4 players in cooperative or deathmatch mode, choosing game, starting map, and skill level. Deathmatch MUST use the "2.0" rules (picked-up items respawn); for deathmatch the host MUST be able to set monsters on/off (default off) and a time limit of off, 10, or 20 minutes (default 10), after which the level ends and the frag table is shown.
+- **FR-028**: The host MUST be able to invite vault contacts; an invited contact MUST explicitly accept before joining. A vault MUST accept invitations only from its own contacts. An invitation MUST be delivered to all of the contact's reachable devices at once; the first acceptance wins and the invitation MUST be withdrawn on the other devices.
+- **FR-042**: The host MUST choose each lobby's visibility: "contacts only" (default) or "public".
+- **FR-043**: Each open lobby MUST have a join code that the host can copy and share; it MUST contain a random per-lobby secret and MUST stop working when the lobby starts its game or closes.
+- **FR-044**: In a contacts-only lobby, only the host's contacts MUST be able to join with the code; in a public lobby, anyone with the code MAY join, shown with their self-chosen name marked as not verified.
+- **FR-045**: The host MUST be able to remove a player from the lobby; a removed player MUST NOT be able to rejoin that lobby.
 - **FR-029**: *(withdrawn in planning, see research R-12: players on the same network are invited as contacts and connect directly.)*
 - **FR-030**: Before admitting a player, the extension MUST check that the player has the same game file (by content fingerprint) and a compatible extension version, and MUST tell them precisely why they cannot join otherwise.
 - **FR-031**: Desktop and mobile players MUST be able to play in the same game.
@@ -219,15 +235,15 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 **haex-vault and vault SDK (dependencies, separate changes)**
 
 - **FR-039**: haex-vault MUST allow extensions to capture the pointer and to enter fullscreen, either for all extensions or for those that declare it in their manifest; capture and fullscreen MUST always be ended by the user with Esc.
-- **FR-040**: haex-vault and the vault SDK MUST give an extension that declares it in its manifest a message channel to the same extension on other vaults' devices, reachable via the user's contacts, with low-latency delivery that tolerates message loss.
-- **FR-041**: haex-vault MUST open such a channel only to peers the user chose (an accepted invitation), and MUST keep extensions isolated from each other and from the vault UI after these changes.
+- **FR-040**: haex-vault and the vault SDK MUST give an extension that declares it in its manifest a message channel to the same extension on other vaults' devices, reachable via the user's contacts or via a join code the extension's lobby issued, with low-latency delivery that tolerates message loss.
+- **FR-041**: haex-vault MUST open such a channel only to peers the user chose (an accepted invitation) or that present a valid join code of an open lobby (and, for contacts-only lobbies, are contacts); it MUST accept connections from non-contacts only while a public lobby is open, MUST drop connections that do not present a valid code within a few seconds, and MUST keep extensions isolated from each other and from the vault UI after these changes.
 
 ### Key Entities *(include if feature involves data)*
 
 - **Game file**: A base game the user can play. Bundled or imported; has a recognised title (e.g. "DOOM II", "Freedoom: Phase 1"), a content fingerprint used for duplicate detection, matching saves, and checking multiplayer compatibility, and its size. Imported game files live in the vault on the importing device.
 - **Save game**: A saved single-player state. Belongs to exactly one game file (by fingerprint), has a slot number, the name the user typed, and the time it was saved.
 - **Settings**: The user's preferences for this extension: volumes, turning sensitivities, haptics on/off, and the most recently played game.
-- **Lobby**: An open multiplayer game before it starts. Has a host, the chosen game file (by fingerprint), mode, starting map, skill level, and up to four players with their join state (invited, accepted, declined).
+- **Lobby**: An open multiplayer game before it starts. Has a host, the chosen game file (by fingerprint), mode, starting map, skill level, for deathmatch the monster switch and time limit, visibility (contacts only or public), a join code, and up to four players with their join state (invited, joined, declined, removed) and whether they are a verified contact.
 - **Invitation**: A host's offer to a contact to join a lobby. Has sender, recipient, lobby summary, and a state (pending, accepted, declined, expired).
 
 ## Success Criteria *(mandatory)*
@@ -241,7 +257,7 @@ A user connects a gamepad on desktop or mobile and plays with it without configu
 - **SC-005**: Importing a 15 MB game file takes under 30 seconds and the game is listed on the start screen right after.
 - **SC-006**: 100 % of non-game files in a test set (images, documents, truncated game files, modification files) are rejected without storing anything.
 - **SC-007**: On a vault without the pointer-capture, fullscreen, or peer-to-peer changes, the extension starts and single-player play is fully playable, with no visible errors.
-- **SC-008**: From sending an invitation to all players standing in the first map takes under 60 seconds when invitees accept promptly.
+- **SC-008**: From sending an invitation or sharing the join code to all players standing in the first map takes under 60 seconds when the other players act promptly.
 - **SC-009**: Four players, mixing desktop and mobile, finish a 10-minute deathmatch on stable connections without a consistency failure or a dropped player.
 - **SC-010**: With players connected directly within the same country, at least 4 of 5 testers report no noticeable input delay; with a connection round trip of up to 150 ms, the game still runs at full speed.
 

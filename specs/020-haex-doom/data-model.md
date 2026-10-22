@@ -38,7 +38,7 @@ A playable base game. Bundled games are not stored: they are described by a cons
 
 | Column | Type | Rules |
 |---|---|---|
-| `id` | text, primary key | UUID. |
+| `id` | text, primary key | `<game_fingerprint>:<slot>`, deterministic, so the same slot saved on two devices is the same row and the sync keeps the later write (FR-046). |
 | `game_fingerprint` | text | Fingerprint of the game file the save belongs to; for bundled games, the SHA-256 of the uncompressed WAD (constant in `bundledGames.ts`). |
 | `slot` | integer | 0–7 (the engine's eight slots). Unique together with `game_fingerprint`. |
 | `name` | text | Description the user typed in the save menu (read from the save header). |
@@ -46,7 +46,7 @@ A playable base game. Bundled games are not stored: they are described by a cons
 | `saved_at` | text | ISO 8601. |
 
 - Saves are listed and restored only for the active game's fingerprint (US4 scenario 2).
-- Writing is an upsert on (`game_fingerprint`, `slot`) inside one statement. A failed write leaves the previous row unchanged and is reported (FR-020).
+- Writing is an upsert on `id` inside one statement, setting `saved_at` to the save time; after a sync conflict the most recently written row wins (FR-046; how the host's sync orders concurrent writes is verified in the task). A failed write leaves the previous row unchanged and is reported (FR-020).
 - Saves of a removed imported game stay until the user deletes them (FR-025) and become visible again when the same file is imported again.
 
 ## Settings
@@ -70,26 +70,33 @@ Not persisted. Lives in a Pinia store for the duration of a multiplayer session.
 | `id` | text | UUID chosen by the host. |
 | `role` | `host` \| `guest` | |
 | `game` | `{ fingerprint, title }` | The host's chosen game. |
-| `mode` | `coop` \| `deathmatch` | `deathmatch` maps to the engine's `-deathmatch`. |
+| `mode` | `coop` \| `deathmatch` | `deathmatch` maps to the engine's `-altdeath` ("2.0" rules, FR-027). |
+| `monsters` | boolean | Deathmatch only; default `false` → `-nomonsters`. Coop always has monsters. |
+| `timeLimit` | `0` \| `10` \| `20` | Deathmatch only, minutes; default `10` → `-timer 10`; `0` = no limit. |
+| `visibility` | `contacts` \| `public` | Default `contacts` (FR-042). |
+| `joinCode` | text | Issued by the host's vault when the lobby opens (FR-043); shown with a copy action. |
 | `map` | text | `E1M1`-style or `MAP01`-style, matching the game's family. |
 | `skill` | 1–5 | |
-| `players` | list of `{ channelId, contactId, displayName, state, version }` | At most 3 guests (FR-027). |
+| `players` | list of `{ channelId, contactId \| null, displayName, verified, state, version }` | At most 3 guests (FR-027). `verified` = the player is one of the host's contacts; otherwise the name is self-chosen (FR-044). |
 
 **Player state transitions**
 
 ```text
 invited ──accept──▶ joined ──host starts──▶ playing ──leave/timeout──▶ left
-   │                  │
+   │                  │  ▲
+   │                  │  └── join code (contacts-only: contacts; public: anyone)
+   │                  ├──host removes──▶ removed   (cannot rejoin this lobby, FR-045)
+   │                  └──fingerprint or version mismatch──▶ rejected   (FR-030)
    ├──decline──▶ declined
-   ├──not-installed / unreachable / expired──▶ failed
-   └──(joined) fingerprint or version mismatch──▶ rejected   (FR-030)
+   └──not-installed / unreachable / expired──▶ failed
 ```
 
 **Lobby state transitions**
 
 ```text
-open ──start (all players joined)──▶ running ──host leaves / consistency failure──▶ ended
+open ──start (≥ 1 guest joined)──▶ running ──host leaves / consistency failure──▶ ended
   └──host cancels──▶ ended
+(the join code stops working when the lobby leaves `open`, FR-043)
 ```
 
 ## Invitation (host-side, in the vault host)
@@ -102,4 +109,20 @@ Lives in the vault host's memory and expires after 5 minutes; the extension sees
 | `extension` | Public key + name of the inviting extension; delivered only to the same extension. |
 | `from` | The inviting vault's identity, resolved to the recipient's contact (display name). |
 | `payload` | Opaque JSON from the extension, at most 4 KiB (here: lobby id, game title and fingerprint, mode, map, skill, extension version). |
-| `state` | `pending` → `accepted` \| `declined` \| `expired`. |
+| `state` | `pending` → `accepted` \| `declined` \| `expired` \| `withdrawn`. |
+| `devices` | All reachable devices of the contact receive it at once; the first `accepted` wins and the others get `withdrawn` (FR-028). |
+
+## Host lobby registration (in the vault host)
+
+What the host's vault keeps while a lobby is open, so it can admit joiners by code (FR-041, FR-043–FR-045). In memory only.
+
+| Field | Rules |
+|---|---|
+| `lobbyId` | From the extension. |
+| `extension` | Public key + name; joins are delivered only to this extension. |
+| `visibility` | `contacts` or `public`. |
+| `secret` | 128 random bits; part of the join code; compared in constant time. |
+| `banned` | Device endpoints removed by the host; refused for this lobby. |
+| `open` | While true, the join code works; set false on start or close. |
+
+Join code: `haexpeer1:` + base32 of `{ endpoint_id, relay_url, lobby_id, secret }`; opaque to the extension.
