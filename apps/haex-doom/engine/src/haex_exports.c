@@ -21,13 +21,32 @@ void haex_post_event(int type, int data1, int data2, int data3, int data4)
     D_PostEvent(&event);
 }
 
+// Whether the shell caused the current pause; a pause the player chose stays until the player ends it.
+static boolean shell_paused = false;
+
 // Pausing a netgame would stop every player, so only single-player games follow the shell.
 EMSCRIPTEN_KEEPALIVE
 void haex_set_paused(int pause)
 {
-    if (!netgame && (boolean) (pause != 0) != paused)
+    // sendpause toggles the pause on the next tic, so a request within one tic must count it.
+    boolean will_be_paused = paused != sendpause;
+
+    if (netgame)
     {
-        sendpause = true;
+        return;
+    }
+    if (pause && !will_be_paused)
+    {
+        sendpause = !sendpause;
+        shell_paused = true;
+    }
+    else if (!pause && shell_paused)
+    {
+        shell_paused = false;
+        if (will_be_paused)
+        {
+            sendpause = !sendpause;
+        }
     }
 }
 

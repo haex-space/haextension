@@ -9,9 +9,11 @@ The shell loads `engine/crispy-doom.js` and creates the module with:
 | Module option | Value |
 |---|---|
 | `canvas` | The game `<canvas>`. |
-| `noInitialRun` | `true`; the shell calls `callMain(args)` after preparing MEMFS. |
-| `locateFile` | Resolves `crispy-doom.wasm` relative to the extension prefix. |
-| `print` / `printErr` | Forwarded to the shell log in debug builds only. |
+| `haexImports` | The shell's handlers for the engine's imports (below). |
+| `SDL2.audioContext` | The `AudioContext` created in the start gesture; SDL plays through it. |
+| `onExit` / `onAbort` | Back to the start screen; the engine is linked with `EXIT_RUNTIME`, so Quit reaches `onExit`. |
+
+The engine is linked with `INVOKE_RUN=0`, so the shell calls `callMain(args)` after preparing MEMFS, and `crispy-doom.wasm` is found next to `crispy-doom.js` without a `locateFile`.
 
 Before `callMain`, the shell writes into MEMFS:
 
