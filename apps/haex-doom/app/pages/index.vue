@@ -37,6 +37,8 @@ async function removeGame(game: PlayableGame) {
 
 const hostSupportsEngine = canCompileWebAssembly()
 const playing = ref(false)
+/** Game file and saves are being read, before the engine itself loads. */
+const preparing = ref(false)
 const gameView = ref<{ canvas: HTMLCanvasElement | null } | null>(null)
 
 async function loadDefaultConfigs(): Promise<Record<string, string>> {
@@ -94,9 +96,14 @@ async function startGame(game: PlayableGame) {
   // Must run inside the tap, before any await (research R-14).
   const audioContext = unlockAudio()
   playing.value = true
+  preparing.value = true
   await nextTick()
   const canvas = gameView.value?.canvas
-  if (!canvas) return
+  if (!canvas) {
+    preparing.value = false
+    void audioContext.close()
+    return
+  }
 
   try {
     await settings.load()
@@ -110,6 +117,7 @@ async function startGame(game: PlayableGame) {
       'crispy_widescreen',
       widescreenFor(canvas.clientWidth, canvas.clientHeight),
     )
+    preparing.value = false
     await engine.start({
       canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
       imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path), fileRemoved: (path) => void onFileRemoved(path) },
@@ -117,6 +125,9 @@ async function startGame(game: PlayableGame) {
     canvas.focus()
   } catch (error) {
     console.error('[haex-doom] Could not start the game:', error)
+    toast.error(t('errors.load-failed'))
+    void audioContext.close()
+    preparing.value = false
     playing.value = false
   }
 }
@@ -134,7 +145,7 @@ watch(engine.state, (state) => {
       ref="gameView"
     />
     <div
-      v-if="playing && engine.state.value === 'loading'"
+      v-if="playing && (preparing || engine.state.value === 'loading')"
       class="absolute inset-0 flex items-center justify-center bg-black text-white"
     >
       {{ t('loading') }}
