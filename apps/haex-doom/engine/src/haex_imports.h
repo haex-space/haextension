@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 void haex_file_written(const char *path);
+void haex_file_removed(const char *path);
 void haex_haptic(int kind);
 void haex_net_send(int peer, const uint8_t *data, int len);
 int haex_net_recv(uint8_t *buf, int cap);

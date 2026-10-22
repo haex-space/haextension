@@ -35,7 +35,7 @@ A vault user opens the "DOOM" extension on their PC, picks one of the bundled ga
 
 1. **Given** the extension is installed and no game data has been imported, **When** the user opens it, **Then** a start screen lists Freedoom and the DOOM shareware episode as available games.
 2. **Given** the start screen is shown, **When** the user selects a game and confirms, **Then** the game's title screen appears and its music plays.
-3. **Given** a level is running, **When** the user uses the standard DOOM keyboard controls (arrows/WASD to move, Ctrl to fire, Space/E to use, number keys for weapons, Tab for the automap, Esc for the menu), **Then** the game responds to each input without noticeable delay.
+3. **Given** a level is running, **When** the user uses the standard DOOM keyboard controls (arrows/WASD to move, Ctrl to fire, E to use, number keys for weapons, Tab for the automap, Esc for the menu), **Then** the game responds to each input without noticeable delay.
 4. **Given** a single-player level is running, **When** the extension window loses focus, **Then** the game pauses and its audio stops until the window is focused again.
 
 ---

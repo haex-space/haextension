@@ -12,10 +12,16 @@ describe("parseSavePath", () => {
     expect(parseSavePath(`/saves/${FINGERPRINT}//doomsav0.dsg`)).toEqual({ fingerprint: FINGERPRINT, slot: 0 });
   });
 
-  it("ignores other files and slots outside 0–7", () => {
+  it("reads slots on the save menu's later pages", () => {
+    expect(parseSavePath(`/saves/${FINGERPRINT}//doomsav11.dsg`)).toEqual({ fingerprint: FINGERPRINT, slot: 11 });
+    expect(parseSavePath(`/saves/${FINGERPRINT}//doomsav77.dsg`)).toEqual({ fingerprint: FINGERPRINT, slot: 77 });
+  });
+
+  it("ignores other files and slots outside the menu's pages", () => {
     expect(parseSavePath("/config/default.cfg")).toBeNull();
     expect(parseSavePath(`/saves/${FINGERPRINT}/temp.dsg`)).toBeNull();
     expect(parseSavePath(`/saves/${FINGERPRINT}/doomsav8.dsg`)).toBeNull();
+    expect(parseSavePath(`/saves/${FINGERPRINT}/doomsav80.dsg`)).toBeNull();
     expect(parseSavePath("/saves/not-a-fingerprint/doomsav1.dsg")).toBeNull();
   });
 });

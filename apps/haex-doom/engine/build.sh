@@ -16,7 +16,9 @@ EXPORTS="_main,_haex_post_event,_haex_set_paused,_haex_net_peer_closed"
 # ponytail: the engine calls state actions such as A_Look(mobj_t *) through a three-argument
 # pointer, which WebAssembly traps on; EMULATE_FUNCTION_POINTER_CASTS makes every indirect call
 # a little slower. Upgrade path: patch the action prototypes in src/doom to one signature.
-LINK_FLAGS="-O3 -sEMULATE_FUNCTION_POINTER_CASTS=1 -sMODULARIZE=1 -sEXPORT_ES6=1 \
+# EXIT_RUNTIME lets exit() from the engine's Quit reach Module.onExit, so the shell returns to
+# the start screen.
+LINK_FLAGS="-O3 -sEMULATE_FUNCTION_POINTER_CASTS=1 -sEXIT_RUNTIME=1 -sMODULARIZE=1 -sEXPORT_ES6=1 \
 -sEXPORT_NAME=createCrispyDoom -sINVOKE_RUN=0 -sENVIRONMENT=web \
 -sEXPORTED_RUNTIME_METHODS=FS,callMain,cwrap -sEXPORTED_FUNCTIONS=$EXPORTS"
 

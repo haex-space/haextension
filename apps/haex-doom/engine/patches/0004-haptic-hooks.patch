@@ -17,8 +17,8 @@ index 645f8203..bda97d39 100644
  	}
  	player->health -= damage; 	// mirror mobj health here for Dave
 +#ifdef __EMSCRIPTEN__
-+	// haex-doom: a longer vibration when the player at this device is hurt.
-+	if (player == &players[consoleplayer])
++	// haex-doom: a longer vibration when the player at this device is hurt, not in demos.
++	if (player == &players[consoleplayer] && !demoplayback)
 +	{
 +	    haex_haptic(1);
 +	}
@@ -46,8 +46,8 @@ index 27d7938f..df979f4c 100644
      P_NoiseAlert (player->mo, player->mo);
 +
 +#ifdef __EMSCRIPTEN__
-+    // haex-doom: a short vibration when the player at this device fires.
-+    if (player == &players[consoleplayer])
++    // haex-doom: a short vibration when the player at this device fires, not in demos.
++    if (player == &players[consoleplayer] && !demoplayback)
 +    {
 +        haex_haptic(0);
 +    }

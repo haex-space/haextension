@@ -41,7 +41,7 @@ A playable base game. Bundled games are not stored: they are described by a cons
 |---|---|---|
 | `id` | text, primary key | `<game_fingerprint>:<slot>`, deterministic, so the same slot saved on two devices is the same row and the sync keeps the later write (FR-046). |
 | `game_fingerprint` | text | Fingerprint of the game file the save belongs to; for bundled games, the SHA-256 of the uncompressed WAD (constant in `bundledGames.ts`). |
-| `slot` | integer | 0–7 (the engine's eight slots). Unique together with `game_fingerprint`. |
+| `slot` | integer | The engine's save file number, 10 × page + slot over eight pages of eight slots (0–7, 10–17, …, 70–77). Unique together with `game_fingerprint`. |
 | `name` | text | Description the user typed in the save menu (read from the save header). |
 | `data` | blob | The engine's `doomsavN.dsg` file. |
 | `saved_at` | text | ISO 8601. |
@@ -102,4 +102,4 @@ open ──start (≥ 1 guest joined)──▶ running ──host leaves / consi
 
 ## Invitations, lobbies and channels in the vault host
 
-Specified by the host: `haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` `data-model.md`. haex-doom sees only the events and calls in [contracts/peers-api.md](contracts/peers-api.md); the invited player accepts in the vault's own prompt, and the join code is opaque to the extension.
+Specified by the host: `haex-space/haex-vault@8973b7afd02542aa7077d6a43e5d238f5b7cf2e5:specs/057-extension-peer-channels/` `data-model.md`. haex-doom sees only the events and calls in [contracts/peers-api.md](contracts/peers-api.md); the invited player accepts in the vault's own prompt, and the join code is opaque to the extension.

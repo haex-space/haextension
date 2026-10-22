@@ -9,6 +9,10 @@ EM_JS(void, haex_file_written, (const char *path), {
     Module.haexImports?.fileWritten?.(UTF8ToString(path));
 });
 
+EM_JS(void, haex_file_removed, (const char *path), {
+    Module.haexImports?.fileRemoved?.(UTF8ToString(path));
+});
+
 EM_JS(void, haex_haptic, (int kind), {
     Module.haexImports?.haptic?.(kind);
 });

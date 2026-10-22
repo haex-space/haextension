@@ -12,7 +12,8 @@ export function saveId(fingerprint: string, slot: number): string {
   return `${fingerprint}:${slot}`;
 }
 
-const SAVE_PATH = /^\/saves\/([0-9a-f]{64})\/+doomsav([0-7])\.dsg$/;
+/** Crispy's save menu has eight pages of eight slots; the file number is 10 × page + slot. */
+const SAVE_PATH = /^\/saves\/([0-9a-f]{64})\/+doomsav([1-7]?[0-7])\.dsg$/;
 
 /** The game and slot of a save file the engine wrote, or null for any other file. */
 export function parseSavePath(path: string): { fingerprint: string; slot: number } | null {

@@ -77,6 +77,19 @@ async function onFileWritten(path: string) {
   }
 }
 
+/** A save the player deleted in the game's menu goes from the vault too. */
+async function onFileRemoved(path: string) {
+  const save = parseSavePath(path)
+  if (!save) return
+  try {
+    await saves.remove(save.fingerprint, save.slot)
+  }
+  catch (error) {
+    console.error('[haex-doom] Could not remove', path, error)
+    toast.error(t('saveRemoveFailed'))
+  }
+}
+
 async function startGame(game: PlayableGame) {
   // Must run inside the tap, before any await (research R-14).
   const audioContext = unlockAudio()
@@ -99,7 +112,7 @@ async function startGame(game: PlayableGame) {
     )
     await engine.start({
       canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
-      imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path) },
+      imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path), fileRemoved: (path) => void onFileRemoved(path) },
     })
     canvas.focus()
   } catch (error) {
@@ -170,6 +183,7 @@ de:
   removeFailed: Die Spieldatei konnte nicht entfernt werden.
   savesUnavailable: Spielstände konnten nicht geladen werden. Das Spiel startet ohne sie.
   saveFailed: Der Spielstand wurde nicht im Vault gespeichert. Bitte versuche es erneut.
+  saveRemoveFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
   loading: Lädt …
   hostOutdated: Bitte aktualisiere deinen Vault, um DOOM zu spielen. Diese Version erlaubt Erweiterungen noch kein WebAssembly.
   errors:
@@ -180,6 +194,7 @@ en:
   removeFailed: The game file could not be removed.
   savesUnavailable: Save games could not be loaded. The game starts without them.
   saveFailed: The save game was not stored in the vault. Please try again.
+  saveRemoveFailed: The save game was not removed from the vault and will be back next time.
   loading: Loading …
   hostOutdated: Please update your vault to play DOOM. This version does not let extensions run WebAssembly yet.
   errors:
