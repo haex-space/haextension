@@ -36,7 +36,7 @@ Arguments (`callMain`):
 
 | Function | Signature | Meaning |
 |---|---|---|
-| `haex_post_event` | `void (int type, int data1, int data2, int data3)` | Calls `D_PostEvent`. `type`: 0 `ev_keydown`, 1 `ev_keyup`, 2 `ev_mouse`, 3 `ev_joystick`. Key codes from `doomkeys.h`. `ev_mouse`: `data2` = horizontal turn delta. `ev_joystick`: `data2`/`data3` = strafe/forward axis, −32768…32767. |
+| `haex_post_event` | `void (int type, int data1, int data2, int data3, int data4)` | Calls `D_PostEvent`. `type`: 0 `ev_keydown`, 1 `ev_keyup`, 2 `ev_mouse`, 3 `ev_joystick` (values of `evtype_t` in upstream `src/d_event.h`). Key codes from `doomkeys.h`. `ev_mouse`: `data2` = horizontal turn delta. `ev_joystick`: `data2` = turn, `data3` = forward, `data4` = strafe axis, −32768…32767. |
 | `haex_set_paused` | `void (int paused)` | Pauses or resumes a single-player game (FR-006); ignored in netgames. |
 | `haex_net_peer_closed` | `void (int peer)` | A peer channel closed; the engine treats it like a timed-out node. |
 

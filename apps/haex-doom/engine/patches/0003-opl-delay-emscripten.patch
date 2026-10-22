@@ -1,0 +1,39 @@
+diff --git a/opl/opl.c b/opl/opl.c
+index e99821cb..742e1add 100644
+--- a/opl/opl.c
++++ b/opl/opl.c
+@@ -28,7 +28,7 @@
+ 
+ //#define OPL_DEBUG_TRACE
+ 
+-#ifdef EMSCRIPTEN
++#ifdef __EMSCRIPTEN__
+ #include <emscripten.h>
+ #endif
+ 
+@@ -495,12 +495,24 @@ void OPL_Delay(uint64_t us)
+ 
+     SDL_LockMutex(delay_data.mutex);
+ 
++#ifdef __EMSCRIPTEN__
++    // haex-doom: the callback only fires while the browser plays audio; give up after a second
++    // more than asked rather than wait forever (OPL detection then fails and music stays off).
++    Uint32 give_up = SDL_GetTicks() + us / 1000 + 1000;
++#endif
++
+     while (!delay_data.finished)
+     {
+         SDL_CondWait(delay_data.cond, delay_data.mutex);
+-#ifdef EMSCRIPTEN
++#ifdef __EMSCRIPTEN__
+         // Use async sleep to avoid locking browser main thread
+         emscripten_sleep(us / 1000);
++        if (SDL_TICKS_PASSED(SDL_GetTicks(), give_up))
++        {
++            // The pending callback points at delay_data on this stack frame.
++            OPL_ClearCallbacks();
++            break;
++        }
+ #endif
+     }
+ 
