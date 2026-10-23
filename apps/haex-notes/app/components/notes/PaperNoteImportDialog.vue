@@ -224,7 +224,7 @@ de:
     blurry: Das Foto wirkt unscharf.
     retake: Ein neues Foto wird besser gelesen.
   error:
-    no_capable_model: Die Seite enthält nur das Foto. Gib in holzi ein Modell frei, das Bilder annimmt.
+    no_capable_model: Die Seite enthält nur das Foto, weil holzi kein Modell kennt, das Bilder annimmt. Richte in holzi unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
     consent_denied: Die Seite enthält nur das Foto, weil die Übertragung abgelehnt wurde.
     unusable: Auf dem Foto wurde nichts Brauchbares erkannt. Die Seite enthält nur das Foto; ein neues Foto hilft oft.
     timeout: Das Lesen hat zu lange gedauert. Die Seite enthält nur das Foto.
@@ -236,7 +236,7 @@ de:
     pageChanged: Inzwischen ist eine andere Seite offen. Die Stelle bleibt, wie sie war; öffne die Seite und lies sie erneut.
     description: Fotografiere nur die Stelle aus der Nähe. Was holzi darauf liest, ersetzt den Entwurf im Rechteck; Rückgängig holt ihn zurück.
     error:
-      no_capable_model: Die Stelle bleibt, wie sie war. Gib in holzi ein Modell frei, das Bilder annimmt.
+      no_capable_model: Die Stelle bleibt, wie sie war, weil holzi kein Modell kennt, das Bilder annimmt. Richte in holzi unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
       consent_denied: Die Stelle bleibt, wie sie war, weil die Übertragung abgelehnt wurde.
       unusable: Auf dem Nahfoto wurde nichts Brauchbares erkannt. Die Stelle bleibt, wie sie war.
       timeout: Das Lesen hat zu lange gedauert. Die Stelle bleibt, wie sie war.
@@ -267,7 +267,7 @@ en:
     blurry: The photo looks blurred.
     retake: A new photo is read better.
   error:
-    no_capable_model: The page holds only the photo. Allow a model that takes images in holzi.
+    no_capable_model: The page holds only the photo because holzi knows no model that takes images. Set one up in holzi under Settings → AI; on a model server, choose “Takes images” for the model.
     consent_denied: The page holds only the photo because sending it was refused.
     unusable: Nothing usable was found on the photo. The page holds only the photo; a new photo often helps.
     timeout: Reading took too long. The page holds only the photo.
@@ -279,7 +279,7 @@ en:
     pageChanged: Another page is open now. The area stays as it was; open the page and read it again.
     description: Take a close photo of just this area. What holzi reads replaces the draft inside the rectangle; Undo brings it back.
     error:
-      no_capable_model: The area stays as it was. Allow a model that takes images in holzi.
+      no_capable_model: The area stays as it was because holzi knows no model that takes images. Set one up in holzi under Settings → AI; on a model server, choose “Takes images” for the model.
       consent_denied: The area stays as it was because sending was refused.
       unusable: Nothing usable was found on the close-up. The area stays as it was.
       timeout: Reading took too long. The area stays as it was.
