@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { assets, type SelectAsset } from "~/database/schemas";
 import { assetRelPath, extensionFor, isSha256Hex, sha256Hex } from "~/lib/assetPath";
+import { insertAssetIfNew } from "~/lib/assetInsert";
 
 /** Verzeichnis unterhalb des Dokumenten-Ordners. */
 const ASSET_DIR = "haex-notes/assets";
@@ -65,10 +66,7 @@ export function useAssetStore() {
     await fs.writeFile(`${root}/${relPath}`, bytes);
 
     const id = crypto.randomUUID();
-    await db
-      .insert(assets)
-      .values({ id, sha256, fileName, mimeType, size: bytes.byteLength })
-      .onConflictDoNothing({ target: assets.sha256 });
+    await insertAssetIfNew(db, { id, sha256, fileName, mimeType, size: bytes.byteLength });
 
     const [asset] = await db.select().from(assets).where(eq(assets.sha256, sha256));
     if (!asset) throw new Error(`[haex-notes] Asset insert failed for ${sha256}`);
