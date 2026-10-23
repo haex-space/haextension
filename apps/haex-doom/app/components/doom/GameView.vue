@@ -30,6 +30,12 @@ function onFocus() {
   if (!waitingToContinue.value && !askToRotate.value) engine.setPaused(false)
 }
 
+// Losing the gamepad in the middle of a single-player game pauses it until the player continues (US7).
+useGamepad(() => {
+  engine.setPaused(true)
+  waitingToContinue.value = true
+})
+
 watch(askToRotate, (rotate) => {
   if (rotate) engine.setPaused(true)
   else if (!waitingToContinue.value) engine.setPaused(false)

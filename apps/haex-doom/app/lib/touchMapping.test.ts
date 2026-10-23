@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AXIS_MAX, buttonMask, joystickEvent, stickToAxes, swipeToTurn, TOUCH_BUTTONS } from "./touchMapping";
+import { AXIS_MAX, buttonMask, joystickEvent, stickToAxes, swipeToTurn, VIRTUAL_BUTTONS } from "./touchMapping";
 
 describe("stickToAxes", () => {
   it("stays centred inside the dead zone", () => {
@@ -53,9 +53,9 @@ describe("swipeToTurn", () => {
 });
 
 describe("joystickEvent", () => {
-  const menu = 1 << TOUCH_BUTTONS.menu;
-  const automap = 1 << TOUCH_BUTTONS.automap;
-  const fire = 1 << TOUCH_BUTTONS.fire;
+  const menu = 1 << VIRTUAL_BUTTONS.menu;
+  const automap = 1 << VIRTUAL_BUTTONS.automap;
+  const fire = 1 << VIRTUAL_BUTTONS.fire;
   const down = 0x2 << 4;
 
   it("sends Menu and Map only on the event that presses them, held buttons every time", () => {
@@ -79,14 +79,14 @@ describe("engine config", () => {
     const bound = (name: string) => Number(all.match(new RegExp(`^${name}\\s+(-?\\d+)`, "m"))?.[1] ?? 0);
 
     // joyb_fire is not in the file because the engine's default (0) is used.
-    expect(TOUCH_BUTTONS.fire).toBe(0);
-    expect(bound("joyb_use")).toBe(TOUCH_BUTTONS.use);
-    expect(bound("joyb_menu_activate")).toBe(TOUCH_BUTTONS.menu);
-    expect(bound("joyb_toggle_automap")).toBe(TOUCH_BUTTONS.automap);
-    expect(bound("joyb_prevweapon")).toBe(TOUCH_BUTTONS.prevWeapon);
-    expect(bound("joyb_nextweapon")).toBe(TOUCH_BUTTONS.nextWeapon);
+    expect(VIRTUAL_BUTTONS.fire).toBe(0);
+    expect(bound("joyb_use")).toBe(VIRTUAL_BUTTONS.use);
+    expect(bound("joyb_menu_activate")).toBe(VIRTUAL_BUTTONS.menu);
+    expect(bound("joyb_toggle_automap")).toBe(VIRTUAL_BUTTONS.automap);
+    expect(bound("joyb_prevweapon")).toBe(VIRTUAL_BUTTONS.prevWeapon);
+    expect(bound("joyb_nextweapon")).toBe(VIRTUAL_BUTTONS.nextWeapon);
     // The engine's defaults put strafe and speed on buttons 1 and 2; they must stay off the overlay's buttons.
     expect(bound("joyb_strafe")).toBe(-1);
-    expect(bound("joyb_speed")).toBeGreaterThan(Math.max(...Object.values(TOUCH_BUTTONS)));
+    expect(bound("joyb_speed")).toBeGreaterThan(Math.max(...Object.values(VIRTUAL_BUTTONS)));
   });
 });

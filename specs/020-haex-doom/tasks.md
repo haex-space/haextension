@@ -199,9 +199,10 @@ description: "Task list for haex-doom"
 
 **Independent Test**: Play a map with only a gamepad (quickstart US7).
 
-- [ ] T074 [US7] Enable the engine's game-controller support in `apps/haex-doom/engine/config/default.cfg`/`crispy-doom.cfg` (key names from upstream `src/m_config.c` and `src/i_joystick.c`): left stick move/strafe, right stick turn, right trigger fire, face buttons use/next weapon/menu; verify in the vault on desktop and Android that SDL sees the pad through the Gamepad API
-- [ ] T075 [US7] If T074 shows the engine does not receive the pad in a WebView: create `apps/haex-doom/app/composables/useGamepad.ts` polling `navigator.getGamepads()` per animation frame and posting `ev_joystick`/key events with the same mapping; otherwise skip this task and note why in the PR
-- [ ] T076 [US7] Pause a single-player game on `gamepaddisconnected` in `apps/haex-doom/app/composables/useInputMode.ts` and switch the input mode back to the previous mode (US7 scenario 2)
+- [X] T074 [US7] Enable the engine's game-controller support in `apps/haex-doom/engine/config/default.cfg`/`crispy-doom.cfg` (key names from upstream `src/m_config.c` and `src/i_joystick.c`): left stick move/strafe, right stick turn, right trigger fire, face buttons use/next weapon/menu; verify in the vault on desktop and Android that SDL sees the pad through the Gamepad API
+- [X] T075 [US7] If T074 shows the engine does not receive the pad in a WebView: create `apps/haex-doom/app/composables/useGamepad.ts` polling `navigator.getGamepads()` per animation frame and posting `ev_joystick`/key events with the same mapping; otherwise skip this task and note why in the PR
+- [X] T076 [US7] Pause a single-player game on `gamepaddisconnected` in `apps/haex-doom/app/composables/useInputMode.ts` and switch the input mode back to the previous mode (US7 scenario 2)
+  **Note (T074–T076)**: the engine's own gamepad support is not used: it looks for a pad only at start (no hotplug), while browsers reveal a pad only after its first button press. The shell polls the Gamepad API instead (`useGamepad.ts`, `lib/gamepadMapping.ts`) and sends the same virtual-gamepad events as the touch overlay; A/RT fire (and confirm in menus), B/X use (and go back), LB/RB weapons, Back automap, Start menu, left stick moves, right stick turns. `TOUCH_BUTTONS` became `VIRTUAL_BUTTONS`. To check on devices with T077: whether the frame's permissions policy lets the Gamepad API through in every WebView (if not, haex-vault would add `gamepad` to the frame's `allow`).
 - [ ] T077 [US7] Validate `specs/020-haex-doom/quickstart.md` row "US7 gamepad"; note results in the PR (slice 8)
 
 ---

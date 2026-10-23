@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { resumeIfSuspended } from '~/lib/audioUnlock'
-import { buttonMask, joystickEvent, stickToAxes, swipeToTurn, type JoystickState, type StickAxes, type TouchButton } from '~/lib/touchMapping'
+import { buttonMask, joystickEvent, stickToAxes, swipeToTurn, type JoystickState, type StickAxes, type VirtualButton } from '~/lib/touchMapping'
 
 const EV_MOUSE = 2
 const EV_JOYSTICK = 3
@@ -12,7 +12,7 @@ const { t } = useI18n()
 const engine = useEngine()
 const settings = useSettingsStore()
 
-const pressed = reactive(new Set<TouchButton>())
+const pressed = reactive(new Set<VirtualButton>())
 const axes = ref<StickAxes>({ strafe: 0, move: 0, directions: 0 })
 
 /** The floating stick: where the left thumb went down and where it is now. */
@@ -81,13 +81,13 @@ function onTurnUp(event: PointerEvent) {
   if (turn.value?.pointerId === event.pointerId) turn.value = null
 }
 
-function press(button: TouchButton, event: PointerEvent) {
+function press(button: VirtualButton, event: PointerEvent) {
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
   pressed.add(button)
   sendJoystick()
 }
 
-function release(button: TouchButton) {
+function release(button: VirtualButton) {
   if (!pressed.delete(button)) return
   sendJoystick()
 }
@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
   sendJoystick()
 })
 
-interface ButtonSpec { id: TouchButton, class: string, icon?: Component }
+interface ButtonSpec { id: VirtualButton, class: string, icon?: Component }
 
 // Corners only, so the centre of the picture stays visible (FR-012).
 const BUTTONS: ButtonSpec[] = [

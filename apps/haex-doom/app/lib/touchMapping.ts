@@ -13,8 +13,8 @@ export const DEAD_ZONE = 0.15;
 /** Mouse units per CSS pixel of swipe at sensitivity 1: about a quarter turn per 200 px. */
 export const TURN_UNITS_PER_PX = 10;
 
-/** Button bit indices; they must match the `joyb_*` values in engine/config/*.cfg. */
-export const TOUCH_BUTTONS = {
+/** Joystick button bits of the virtual gamepad (touch overlay and real pads); they must match the `joyb_*` values in engine/config/*.cfg. */
+export const VIRTUAL_BUTTONS = {
   fire: 0,
   use: 1,
   menu: 2,
@@ -23,7 +23,7 @@ export const TOUCH_BUTTONS = {
   nextWeapon: 5,
 } as const;
 
-export type TouchButton = keyof typeof TOUCH_BUTTONS;
+export type VirtualButton = keyof typeof VIRTUAL_BUTTONS;
 
 // JOY_DIR_* of upstream src/i_joystick.h; the left stick sits at bit 4.
 const DIR_UP = 0x1;
@@ -72,7 +72,7 @@ function menuDirections(x: number, y: number): number {
 }
 
 /** Buttons the menus and the automap act on in every event that carries them. */
-const TOGGLE_BUTTONS = (1 << TOUCH_BUTTONS.menu) | (1 << TOUCH_BUTTONS.automap);
+const TOGGLE_BUTTONS = (1 << VIRTUAL_BUTTONS.menu) | (1 << VIRTUAL_BUTTONS.automap);
 
 export interface JoystickState {
   buttons: number;
@@ -92,9 +92,9 @@ export function joystickEvent(next: JoystickState, last: JoystickState): Joystic
 }
 
 /** The engine's button bitfield for the pressed overlay buttons. */
-export function buttonMask(pressed: Iterable<TouchButton>): number {
+export function buttonMask(pressed: Iterable<VirtualButton>): number {
   let mask = 0;
-  for (const button of pressed) mask |= 1 << TOUCH_BUTTONS[button];
+  for (const button of pressed) mask |= 1 << VIRTUAL_BUTTONS[button];
   return mask;
 }
 
