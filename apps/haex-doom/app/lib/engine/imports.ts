@@ -5,6 +5,7 @@
  */
 export interface HaexImports {
   fileWritten: (path: string) => void;
+  fileRemoved: (path: string) => void;
   /** 0 = the player fired, 1 = the player was hurt. */
   haptic: (kind: number) => void;
   netSend: (peer: number, data: Uint8Array) => void;
@@ -17,6 +18,7 @@ export interface HaexImports {
 export function createHaexImports(): HaexImports {
   return {
     fileWritten: () => {},
+    fileRemoved: () => {},
     haptic: () => {},
     netSend: () => {},
     netRecv: () => 0,

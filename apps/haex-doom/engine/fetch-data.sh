@@ -19,7 +19,9 @@ DOOM1_WAD_SHA1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d"
 download() {
   local url="$1" target="$2" sha256="$3"
   if [[ ! -f "$target" ]] || ! echo "$sha256  $target" | sha256sum --check --status; then
-    curl --fail --location --silent --show-error --output "$target.part" "$url"
+    # archive.org answers with a 5xx now and then; curl retries those.
+    curl --fail --location --silent --show-error --retry 5 --retry-delay 5 --retry-connrefused \
+      --output "$target.part" "$url" || { echo "download failed: $url" >&2; exit 1; }
     echo "$sha256  $target.part" | sha256sum --check --quiet
     mv "$target.part" "$target"
   fi

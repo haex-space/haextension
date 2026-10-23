@@ -1,4 +1,5 @@
 import { IDLE_PAD, padToState, samePadState, type PadState } from "~/lib/gamepadMapping";
+import { joystickEvent } from "~/lib/touchMapping";
 
 const EV_JOYSTICK = 3;
 
@@ -13,9 +14,12 @@ export function useGamepad(onDisconnected: () => void) {
   let last: PadState = IDLE_PAD;
   let frame = 0;
 
+  // Menu and Map buttons and menu directions act on every joystick event in the engine, so they
+  // go out only on the event where they change (see joystickEvent).
   function send(state: PadState) {
+    const sent = joystickEvent(state, last);
     last = state;
-    engine.postEvent(EV_JOYSTICK, state.buttons, state.turn, state.move, state.strafe, 0, state.directions);
+    engine.postEvent(EV_JOYSTICK, sent.buttons, state.turn, state.move, state.strafe, 0, sent.directions);
   }
 
   function poll() {

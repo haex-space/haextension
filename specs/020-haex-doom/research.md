@@ -40,7 +40,7 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 
 ## R-6 Keyboard shortcuts of the host
 
-- **Decision**: Ship a default `crispy-doom.cfg` / `default.cfg` with a WASD layout (W/S move, A/D strafe, arrows turn, mouse turn + fire, E use, Ctrl and left mouse fire, always-run on) and no Alt-strafe binding.
+- **Decision**: Ship a default `crispy-doom.cfg` / `default.cfg` with a WASD layout (W/S move, A/D strafe through Crispy's `key_alt_*` defaults, so the arrows keep their default bindings; arrows turn, mouse turn + fire, E use, Ctrl and left mouse fire, always-run on) and no Alt-strafe binding.
 - **Rationale**: The host's frame shim (`src-tauri/src/extensions/protocol/shim.rs:89-96`) swallows registered chords; the defaults are `Alt+ArrowLeft/Right` (tab navigation, `src/lib/actions/wmActions.ts:35-56`), which collide with DOOM's classic Alt-strafe. With always-run on, Shift chords never form either.
 - **Alternatives considered**: A host "game mode" that suspends chords while a frame holds the pointer lock (host change, kept as upgrade path if users rebind to Alt).
 
@@ -62,13 +62,13 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 
 ## R-9 Importing game files
 
-- **Decision**: Pick the file with a plain `<input type="file">` inside the frame, read it with `File.arrayBuffer()`, validate in a pure TypeScript module (`app/lib/wad.ts`): header `IWAD`, lump directory inside the file, known lumps to identify the game (`MAP01` → DOOM II family; `E4M1` → The Ultimate DOOM; `E1M1` only → DOOM/shareware), known SHA-1 table for exact titles (DOOM II, TNT, Plutonia, …). `PWAD` is rejected as a modification file. Fingerprint: SHA-256 via `crypto.subtle`.
+- **Decision**: Pick the file with a plain `<input type="file">` inside the frame, read it with `File.arrayBuffer()`, validate in a pure TypeScript module (`app/lib/wad.ts`): header `IWAD`, lump directory inside the file, known lumps to identify the game family (`MAP01` → DOOM II family; `E4M1` → The Ultimate DOOM; `E1M1` only → DOOM/shareware), the picked file name for the exact title (DOOM II, TNT, Plutonia, …) when it fits the family; no checksum table, since re-releases of the same game have different checksums. `PWAD` is rejected as a modification file. Fingerprint: SHA-256 via `crypto.subtle`.
 - **Rationale**: The SDK's `selectFile` + `readFile` caps the response at 16 MiB by default (base64 inflates by a third), which Final DOOM files exceed. A file input needs no permission and no host round trip; Android's WebView implements `onShowFileChooser` in the host (`RustWebChromeClient.kt:312`).
-- **Verification needed in the task**: `crypto.subtle` requires a secure context; the custom scheme `holzi-ext://` must be checked on Linux/macOS/iOS. Fallback: a SHA-256 from a dependency already in the lockfile.
+- **Verification (T064)**: `crypto.subtle` requires a secure context. haex-notes already hashes with it inside vault frames (`apps/haex-notes/app/lib/assetPath.ts`), so no fallback was added; the check on real devices runs with T069.
 
 ## R-10 Multiplayer transport (host change H3, SDK change S1)
 
-> Superseded in detail by the host's own spec and plan: `haex-space/haex-vault` @ `8973b7afd02542aa7077d6a43e5d238f5b7cf2e5` : `specs/057-extension-peer-channels/` (`research.md` R1–R18). Notable changes: devices are verified against the signed device list (ADR-0015), fast messages are capped at 1,024 bytes, framing and errors follow the host's conventions. The decisions below remain the haex-doom view.
+> Superseded in detail by the host's own spec and plan: `haex-space/haex-vault@8973b7afd02542aa7077d6a43e5d238f5b7cf2e5:specs/057-extension-peer-channels/` (`research.md` R1–R18). Notable changes: devices are verified against the signed device list (ADR-0015), fast messages are capped at 1,024 bytes, framing and errors follow the host's conventions. The decisions below remain the haex-doom view.
 
 - **Decision**:
   - **Topology**: the DOOM server runs in the host player's engine (`-privateserver`); each guest has one channel to the host (star). Up to 4 players (`MAXPLAYERS`).

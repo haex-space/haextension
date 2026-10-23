@@ -71,6 +71,26 @@ function menuDirections(x: number, y: number): number {
   return bits;
 }
 
+/** Buttons the menus and the automap act on in every event that carries them. */
+const TOGGLE_BUTTONS = (1 << VIRTUAL_BUTTONS.menu) | (1 << VIRTUAL_BUTTONS.automap);
+
+export interface JoystickState {
+  buttons: number;
+  directions: number;
+}
+
+/**
+ * The buttons and directions to send for a new state. The menus and the automap react to every
+ * joystick event, not to changes, so a held Menu or Map button or a held menu direction would
+ * repeat with each stick movement; they go out only on the event where they change.
+ */
+export function joystickEvent(next: JoystickState, last: JoystickState): JoystickState {
+  return {
+    buttons: (next.buttons & ~TOGGLE_BUTTONS) | (next.buttons & ~last.buttons & TOGGLE_BUTTONS),
+    directions: next.directions !== last.directions ? next.directions : 0,
+  };
+}
+
 /** The engine's button bitfield for the pressed overlay buttons. */
 export function buttonMask(pressed: Iterable<VirtualButton>): number {
   let mask = 0;

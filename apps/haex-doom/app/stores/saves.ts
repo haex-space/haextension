@@ -35,5 +35,10 @@ export const useSavesStore = defineStore("saves", () => {
     );
   }
 
-  return { listForGame, upsert };
+  async function remove(fingerprint: string, slot: number): Promise<void> {
+    await vault.initializeAsync();
+    await vault.client.database.execute(`DELETE FROM "${SAVES}" WHERE id = ?`, [saveId(fingerprint, slot)]);
+  }
+
+  return { listForGame, upsert, remove };
 });

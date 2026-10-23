@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
-import { buttonMask, stickToAxes, swipeToTurn, type StickAxes, type VirtualButton } from '~/lib/touchMapping'
+import { resumeIfSuspended } from '~/lib/audioUnlock'
+import { buttonMask, joystickEvent, stickToAxes, swipeToTurn, type JoystickState, type StickAxes, type VirtualButton } from '~/lib/touchMapping'
 
 const EV_MOUSE = 2
 const EV_JOYSTICK = 3
@@ -18,10 +19,15 @@ const axes = ref<StickAxes>({ strafe: 0, move: 0, directions: 0 })
 const stick = ref<{ pointerId: number, originX: number, originY: number, x: number, y: number } | null>(null)
 const turn = ref<{ pointerId: number, lastX: number, carry: number } | null>(null)
 
+let lastSent: JoystickState = { buttons: 0, directions: 0 }
+
 // The engine keeps the last joystick state, so it only needs to hear about changes.
 function sendJoystick() {
   const { move, strafe, directions } = axes.value
-  engine.postEvent(EV_JOYSTICK, buttonMask(pressed), 0, move, strafe, 0, directions)
+  const next = { buttons: buttonMask(pressed), directions }
+  const sent = joystickEvent(next, lastSent)
+  lastSent = next
+  engine.postEvent(EV_JOYSTICK, sent.buttons, 0, move, strafe, 0, sent.directions)
 }
 
 function onStickDown(event: PointerEvent) {
@@ -106,7 +112,10 @@ const BUTTONS: ButtonSpec[] = [
 </script>
 
 <template>
-  <div class="absolute inset-0 select-none touch-none">
+  <div
+    class="absolute inset-0 select-none touch-none"
+    @pointerdown.capture="resumeIfSuspended(engine.audioContext())"
+  >
     <div
       class="absolute left-0 top-0 bottom-0 w-1/2"
       @pointerdown="onStickDown"
