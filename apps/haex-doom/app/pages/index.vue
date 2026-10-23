@@ -1,22 +1,44 @@
 <script setup lang="ts">
 import { unlockAudio } from '~/lib/audioUnlock'
-import { BUNDLED_GAMES, type BundledGame } from '~/lib/bundledGames'
 import { setConfigValue, widescreenFor } from '~/lib/engineConfig'
 import { parseSavePath, saveDescription } from '~/lib/saveStore'
 import { loadBundledWad } from '~/lib/wadLoader'
 import { toast } from 'vue-sonner'
+import type { PlayableGame } from '~/stores/games'
 
 const { t } = useI18n()
 const engine = useEngine()
 const settings = useSettingsStore()
 const saves = useSavesStore()
+const games = useGamesStore()
 
 onMounted(() => {
   void settings.load()
+  games.load().catch((error: unknown) => {
+    // The bundled games still work without the vault's list of imported ones.
+    console.error('[haex-doom] Could not list imported games:', error)
+  })
 })
+
+function loadWad(game: PlayableGame): Promise<Uint8Array> {
+  return game.asset
+    ? loadBundledWad(new URL(game.asset, document.baseURI).href)
+    : games.loadImported(game.fingerprint)
+}
+
+async function removeGame(game: PlayableGame) {
+  try {
+    await games.remove(game.fingerprint)
+  } catch (error) {
+    console.error('[haex-doom] Could not remove', game.title, error)
+    toast.error(t('removeFailed'))
+  }
+}
 
 const hostSupportsEngine = canCompileWebAssembly()
 const playing = ref(false)
+/** Game file and saves are being read, before the engine itself loads. */
+const preparing = ref(false)
 const gameView = ref<{ canvas: HTMLCanvasElement | null } | null>(null)
 
 async function loadDefaultConfigs(): Promise<Record<string, string>> {
@@ -48,12 +70,10 @@ async function onFileWritten(path: string) {
   try {
     if (save) {
       await saves.upsert(save.fingerprint, save.slot, saveDescription(data), data)
-    }
-    else if (path.startsWith('/config/')) {
+    } else if (path.startsWith('/config/')) {
       await settings.storeEngineConfig(path.slice('/config/'.length), new TextDecoder().decode(data))
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[haex-doom] Could not store', path, error)
     if (save) toast.error(t('saveFailed'))
   }
@@ -72,18 +92,23 @@ async function onFileRemoved(path: string) {
   }
 }
 
-async function startGame(game: BundledGame) {
+async function startGame(game: PlayableGame) {
   // Must run inside the tap, before any await (research R-14).
   const audioContext = unlockAudio()
   playing.value = true
+  preparing.value = true
   await nextTick()
   const canvas = gameView.value?.canvas
-  if (!canvas) return
+  if (!canvas) {
+    preparing.value = false
+    void audioContext.close()
+    return
+  }
 
   try {
     await settings.load()
     const [wad, configs, gameSaves] = await Promise.all([
-      loadBundledWad(new URL(game.asset, document.baseURI).href),
+      loadWad(game),
       loadDefaultConfigs().then(settings.engineConfigs),
       loadSaves(game.fingerprint),
     ])
@@ -92,6 +117,7 @@ async function startGame(game: BundledGame) {
       'crispy_widescreen',
       widescreenFor(canvas.clientWidth, canvas.clientHeight),
     )
+    preparing.value = false
     await engine.start({
       canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
       imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path), fileRemoved: (path) => void onFileRemoved(path) },
@@ -99,6 +125,9 @@ async function startGame(game: BundledGame) {
     canvas.focus()
   } catch (error) {
     console.error('[haex-doom] Could not start the game:', error)
+    toast.error(t('errors.load-failed'))
+    void audioContext.close()
+    preparing.value = false
     playing.value = false
   }
 }
@@ -116,7 +145,7 @@ watch(engine.state, (state) => {
       ref="gameView"
     />
     <div
-      v-if="playing && engine.state.value === 'loading'"
+      v-if="playing && (preparing || engine.state.value === 'loading')"
       class="absolute inset-0 flex items-center justify-center bg-black text-white"
     >
       {{ t('loading') }}
@@ -144,10 +173,12 @@ watch(engine.state, (state) => {
           {{ t(`errors.${engine.error.value}`) }}
         </p>
         <DoomGameList
-          :games="BUNDLED_GAMES"
+          :games="games.all"
           :disabled="engine.state.value === 'loading'"
           @start="startGame"
+          @remove="removeGame"
         />
+        <DoomImportButton class="w-full" />
       </template>
 
       <div class="flex gap-2">
@@ -160,6 +191,7 @@ watch(engine.state, (state) => {
 
 <i18n lang="yaml">
 de:
+  removeFailed: Die Spieldatei konnte nicht entfernt werden.
   savesUnavailable: Spielstände konnten nicht geladen werden. Das Spiel startet ohne sie.
   saveFailed: Der Spielstand wurde nicht im Vault gespeichert. Bitte versuche es erneut.
   saveRemoveFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
@@ -170,6 +202,7 @@ de:
     crashed: Das Spiel wurde unerwartet beendet.
     host-outdated: ''
 en:
+  removeFailed: The game file could not be removed.
   savesUnavailable: Save games could not be loaded. The game starts without them.
   saveFailed: The save game was not stored in the vault. Please try again.
   saveRemoveFailed: The save game was not removed from the vault and will be back next time.
