@@ -97,15 +97,21 @@ function fakes(outcomes: PageJobOutcome[], options: { failCrop?: boolean } = {})
   return { deps, assets, copies, jobs };
 }
 
+/** Reads the close-up and takes the result over. */
+async function commandOf(doc: PageDoc, deps: ImportDeps, from = photo) {
+  const result = await readCloseUpAsync(from, box, doc, "Caveat", deps);
+  if (result.kind !== "read") throw new Error(result.kind);
+  return { result, command: await result.commitAsync() };
+}
+
 const ids = (doc: PageDoc, layerId: string) => doc.layers.find((l) => l.id === layerId)!.elements.map((e) => e.id);
 
 describe("readCloseUpAsync", () => {
   it("fits the regions of the close-up into the rectangle", async () => {
     const doc = page();
     const { deps } = fakes([read]);
-    const result = await readCloseUpAsync(photo, box, doc, "Caveat", deps);
-    if (result.kind !== "replaced") throw new Error(result.kind);
-    result.command.apply();
+    const { result, command } = await commandOf(doc, deps);
+    command.apply();
 
     const added = doc.layers.flatMap((l) => l.elements).filter((e) => e.id.startsWith("id-"));
     expect(added.map((e) => e.type).sort()).toEqual(["image", "text"]);
@@ -123,9 +129,7 @@ describe("readCloseUpAsync", () => {
     const doc = page();
     const before = clonePlain(doc);
     const { deps } = fakes([read]);
-    const result = await readCloseUpAsync(photo, box, doc, "Caveat", deps);
-    if (result.kind !== "replaced") throw new Error(result.kind);
-    result.command.apply();
+    (await commandOf(doc, deps)).command.apply();
 
     expect(ids(doc, "l-text")).toEqual(expect.arrayContaining(["across", "outside"]));
     expect(ids(doc, "l-text")).not.toContain("inside");
@@ -136,9 +140,7 @@ describe("readCloseUpAsync", () => {
   it("records the close-up and its regions and drops the replaced ones", async () => {
     const doc = page();
     const { deps, assets } = fakes([read]);
-    const result = await readCloseUpAsync(photo, box, doc, "Caveat", deps);
-    if (result.kind !== "replaced") throw new Error(result.kind);
-    result.command.apply();
+    (await commandOf(doc, deps)).command.apply();
 
     const { closeUps, regions, processing, updatedAt } = doc.paperImport!;
     expect(closeUps).toEqual([{
@@ -150,28 +152,51 @@ describe("readCloseUpAsync", () => {
     expect(regions.filter((r) => r.closeUpId === closeUps![0]!.id)).toHaveLength(2);
     expect(processing).toEqual(page().paperImport!.processing);
     expect(updatedAt).toBe("t1");
-    expect(assets[0]).toBe("stelle.jpg");
+    expect(assets).toContain("stelle.jpg");
   });
 
-  it("undoes elements and origin in one step", async () => {
+  it("undoes elements and origin in one step, and redoes them", async () => {
     const doc = page();
     const before = clonePlain(doc);
     const { deps } = fakes([read]);
-    const result = await readCloseUpAsync(photo, box, doc, "Caveat", deps);
-    if (result.kind !== "replaced") throw new Error(result.kind);
     const stack = createUndoStack();
-    stack.push(result.command);
+    stack.push((await commandOf(doc, deps)).command);
+    const after = clonePlain(doc);
     stack.undo();
     expect(doc).toEqual(before);
+    stack.redo();
+    expect(doc).toEqual(after);
+  });
+
+  it("stores nothing until the result is taken over, and then reads the page as it is", async () => {
+    const doc = page();
+    const { deps, assets } = fakes([read]);
+    const result = await readCloseUpAsync(photo, box, doc, "Caveat", deps);
+    if (result.kind !== "read") throw new Error(result.kind);
+    expect(assets).toEqual([]);
+
+    // While reading, the student deleted "inside" and its region went with it.
+    doc.layers[1]!.elements = doc.layers[1]!.elements.filter((e) => e.id !== "inside");
+    doc.paperImport = { ...doc.paperImport!, regions: doc.paperImport!.regions.filter((r) => r.id !== "r-inside") };
+    (await result.commitAsync()).apply();
+
+    expect(assets.sort()).toEqual([expect.stringMatching(/^crop-/), "stelle.jpg"]);
+    expect(doc.paperImport!.regions.map((r) => r.id)).toEqual(expect.arrayContaining(["r-across", "r-outside"]));
+    expect(doc.paperImport!.regions.filter((r) => !r.closeUpId)).toHaveLength(2);
+  });
+
+  it("reports an empty result as unusable instead of clearing the area", async () => {
+    const { deps } = fakes([{ ...read, regions: [{ kind: "text", box: [0, 0, 100, 100], text: " " }], texts: [] }]);
+    expect(await readCloseUpAsync(photo, box, page(), "Caveat", deps)).toEqual({ kind: "failed", error: "unusable" });
   });
 
   it("follows a rotation hint once", async () => {
+    const doc = page();
     const { deps, copies, jobs } = fakes([{ ...read, rotation: 90 }, { ...read, rotation: 90 }]);
-    const result = await readCloseUpAsync({ ...photo, rotation: 270 }, box, page(), "Caveat", deps);
+    (await commandOf(doc, deps, { ...photo, rotation: 270 })).command.apply();
     expect(copies).toEqual([270, 0]);
     expect(jobs).toHaveLength(2);
-    if (result.kind !== "replaced") throw new Error(result.kind);
-    result.command.apply();
+    expect(doc.paperImport!.closeUps![0]!.rotation).toBe(0);
   });
 
   it("changes nothing and stores nothing on an error, a cancel or a failed crop", async () => {

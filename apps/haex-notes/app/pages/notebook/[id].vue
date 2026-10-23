@@ -38,6 +38,12 @@ const onAreaPicked = (box: Box) => {
   showPhotoImport.value = true;
 };
 watch(showPhotoImport, (open) => { if (!open) closeUpBox.value = null; });
+// Ein Rechteck gehört zu einer Fotoseite; auf der nächsten Seite wird wieder geschrieben.
+watch(() => notebook.currentPage?.id, () => { pencilCase.pickingArea = false; });
+const togglePickingArea = () => {
+  if (pencilCase.pickingArea) pencilCase.pickingArea = false;
+  else pencilCase.startPickingArea();
+};
 const showSharePageDialog = computed({
   get: () => sharePageId.value !== null,
   set: (v) => { if (!v) sharePageId.value = null; },
@@ -224,7 +230,7 @@ const addPage = async () => {
           class="rounded p-1.5 hover:bg-accent hover:text-foreground"
           :class="pencilCase.pickingArea ? 'bg-accent text-foreground' : 'text-muted-foreground'"
           :title="t('closeUp')"
-          @click="pencilCase.startPickingArea()"
+          @click="togglePickingArea"
         >
           <Crop class="size-5" />
         </button>
