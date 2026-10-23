@@ -41,7 +41,7 @@ class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30" 
         </template>
 
         <p v-if="reading" class="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 class="size-4 animate-spin" />{{ t('reading') }}
+          <Loader2 class="size-4 animate-spin" />{{ closeUpBox ? t('closeUp.reading') : t('reading') }}
         </p>
         <p v-if="message" class="rounded-md bg-muted px-3 py-2 text-sm">{{ message }}</p>
       </div>
@@ -101,7 +101,12 @@ function reset() {
   message.value = "";
 }
 
-watch(isOpen, (open) => { if (!open) reset(); });
+watch(isOpen, (open) => {
+  if (open) return;
+  // Ein Nahfoto, dessen Dialog weg ist, soll die Seite nicht mehr ändern; eine Seite aus einem Foto entsteht dagegen weiter.
+  if (props.closeUpBox) recognition.cancel();
+  reset();
+});
 onUnmounted(reset);
 
 const turn = (by: Rotation) => { rotation.value = ((rotation.value + by) % 360) as Rotation; };
@@ -138,12 +143,24 @@ async function readCloseUpAsync(box: Box) {
     photo.value = null;
     return;
   }
-  if (result.kind === "replaced") {
-    notebook.applyEdit(() => result.command);
-    await notebook.saveCurrentPageAsync();
-    toastReadBy(result.model, result.place);
+  if (result.kind === "cancelled") {
+    isOpen.value = false;
+    return;
   }
+  // Nur auf der Seite übernehmen, auf der gelesen wurde; sonst ginge das Ergebnis beim Speichern verloren.
+  if (notebook.currentDoc !== doc) {
+    message.value = t("closeUp.pageChanged");
+    return;
+  }
+  const command = await result.commitAsync();
+  if (notebook.currentDoc !== doc) {
+    message.value = t("closeUp.pageChanged");
+    return;
+  }
+  notebook.applyEdit(() => command);
   isOpen.value = false;
+  toastReadBy(result.model, result.place);
+  await notebook.saveCurrentPageAsync();
 }
 
 async function readAsync() {
@@ -206,6 +223,8 @@ de:
     processing_failed: Die Seite enthält nur das Foto, weil die Verarbeitung fehlgeschlagen ist.
   closeUp:
     title: Stelle neu fotografieren
+    reading: Die Stelle wird gelesen …
+    pageChanged: Inzwischen ist eine andere Seite offen. Die Stelle bleibt, wie sie war; öffne die Seite und lies sie erneut.
     description: Fotografiere nur die Stelle aus der Nähe. Was holzi darauf liest, ersetzt den Entwurf im Rechteck; Rückgängig holt ihn zurück.
     error:
       no_capable_model: Die Stelle bleibt, wie sie war. Gib in holzi ein Modell frei, das Bilder annimmt.
@@ -247,6 +266,8 @@ en:
     processing_failed: The page holds only the photo because processing failed.
   closeUp:
     title: Photograph this area again
+    reading: Reading the area …
+    pageChanged: Another page is open now. The area stays as it was; open the page and read it again.
     description: Take a close photo of just this area. What holzi reads replaces the draft inside the rectangle; Undo brings it back.
     error:
       no_capable_model: The area stays as it was. Allow a model that takes images in holzi.

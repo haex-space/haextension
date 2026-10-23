@@ -69,20 +69,20 @@ const layer = (id: string, name: string, elements: PageElement[], locked = false
 
 /**
  * Liest eine Arbeitskopie. Ein Drehhinweis wird einmal befolgt (research R10 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md);
- * ein zweiter nicht, sonst droht eine Schleife. `onCopy` sieht jede Kopie, bevor sie gelesen wird.
+ * ein zweiter nicht, sonst droht eine Schleife. `onCopy` sieht jede Kopie mit ihrer Drehung, bevor sie gelesen wird.
  */
 export async function readTurnedAsync(
   rotation: Rotation,
   deps: Pick<ImportDeps, "makeWorkingCopy" | "runJob">,
-  onCopy: (copy: Copy) => Promise<void> = async () => {},
+  onCopy: (copy: Copy, rotation: Rotation) => Promise<void> = async () => {},
 ): Promise<{ copy: Copy; outcome: PageJobOutcome; rotation: Rotation }> {
   let copy = await deps.makeWorkingCopy(rotation);
-  await onCopy(copy);
+  await onCopy(copy, rotation);
   let outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
   if (outcome.kind === "completed" && outcome.rotation !== 0) {
     rotation = turn(rotation, outcome.rotation);
     copy = await deps.makeWorkingCopy(rotation);
-    await onCopy(copy);
+    await onCopy(copy, rotation);
     outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
   }
   return { copy, outcome, rotation };
@@ -131,7 +131,9 @@ export async function importPhotoAsync(
     };
   };
   try {
-    ({ copy, outcome, rotation } = await readTurnedAsync(rotation, deps, async (next) => {
+    // Die Drehung schon beim Kopieren übernehmen: scheitert die gedrehte Kopie, steht das Original wie gedreht.
+    ({ copy, outcome, rotation } = await readTurnedAsync(rotation, deps, async (next, turned) => {
+      rotation = turned;
       workingAssetId = await deps.putAsset(next.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
     }));
   } catch {
