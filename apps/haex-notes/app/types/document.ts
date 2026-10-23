@@ -183,9 +183,24 @@ export interface PaperNoteProcessing {
 export interface RecognizedRegion {
   id: string;
   kind: "text" | "table" | "image";
-  /** `[x1, y1, x2, y2]`, je 0–1000 relativ zur Arbeitskopie. */
+  /** `[x1, y1, x2, y2]`, je 0–1000 relativ zur gelesenen Aufnahme. */
   sourceBox: [number, number, number, number];
   elementIds: string[];
+  /** Gesetzt, wenn die Region aus einem Nahfoto stammt. */
+  closeUpId?: string;
+}
+
+/** Ein Nahfoto einer Stelle, das die erzeugten Elemente in seinem Rechteck ersetzt hat. */
+export interface PaperNoteCloseUp {
+  id: string;
+  /** Das unveränderte Nahfoto. */
+  assetId: string;
+  rotation: 0 | 90 | 180 | 270;
+  /** Das Rechteck auf der Seite, `[x, y, width, height]` in Seitenkoordinaten. */
+  pageBox: [number, number, number, number];
+  model?: string;
+  place?: RecognitionPlace;
+  createdAt: string;
 }
 
 /** Herkunft einer Seite, die aus einem Foto entstand (holzi Spec 046). */
@@ -201,6 +216,7 @@ export interface PaperNoteImport {
   sourceHeight: number;
   processing: PaperNoteProcessing;
   regions: RecognizedRegion[];
+  closeUps?: PaperNoteCloseUp[];
   createdAt: string;
   updatedAt: string;
 }

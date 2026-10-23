@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { boxToRect, fitImage, fontSizeFor, MAX_FONT_SIZE, MIN_FONT_SIZE, PAGE_MARGIN, tidy } from "./layout";
+import { boxToRect, fitImage, fitInRect, fontSizeFor, MAX_FONT_SIZE, MIN_FONT_SIZE, PAGE_MARGIN, tidy } from "./layout";
+
+describe("fitInRect", () => {
+  it("fits a photo into a rectangle, centred across and at its top", () => {
+    expect(fitInRect(1000, 500, { x: 100, y: 300, width: 400, height: 400 })).toEqual({ x: 100, y: 300, width: 400, height: 200, scale: 0.4 });
+    expect(fitInRect(500, 1000, { x: 100, y: 300, width: 400, height: 400 })).toEqual({ x: 200, y: 300, width: 200, height: 400, scale: 0.4 });
+  });
+});
 
 describe("fitImage", () => {
   it("fits a photo into the page with a margin, centred and at the top", () => {

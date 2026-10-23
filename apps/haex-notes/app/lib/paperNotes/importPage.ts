@@ -67,6 +67,27 @@ const layer = (id: string, name: string, elements: PageElement[], locked = false
   id, name, visible: true, locked, elements,
 });
 
+/**
+ * Liest eine Arbeitskopie. Ein Drehhinweis wird einmal befolgt (research R10 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md);
+ * ein zweiter nicht, sonst droht eine Schleife. `onCopy` sieht jede Kopie, bevor sie gelesen wird.
+ */
+export async function readTurnedAsync(
+  rotation: Rotation,
+  deps: Pick<ImportDeps, "makeWorkingCopy" | "runJob">,
+  onCopy: (copy: Copy) => Promise<void> = async () => {},
+): Promise<{ copy: Copy; outcome: PageJobOutcome; rotation: Rotation }> {
+  let copy = await deps.makeWorkingCopy(rotation);
+  await onCopy(copy);
+  let outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
+  if (outcome.kind === "completed" && outcome.rotation !== 0) {
+    rotation = turn(rotation, outcome.rotation);
+    copy = await deps.makeWorkingCopy(rotation);
+    await onCopy(copy);
+    outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
+  }
+  return { copy, outcome, rotation };
+}
+
 /** Liest ein Foto und baut daraus die Ebenen und die Herkunft einer neuen Seite. */
 export async function importPhotoAsync(
   photo: Photo,
@@ -109,17 +130,10 @@ export async function importPhotoAsync(
       },
     };
   };
-  // Ein Drehhinweis wird einmal befolgt (research R10 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md); ein zweiter nicht, sonst droht eine Schleife.
   try {
-    copy = await deps.makeWorkingCopy(rotation);
-    workingAssetId = await deps.putAsset(copy.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
-    outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
-    if (outcome.kind === "completed" && outcome.rotation !== 0) {
-      rotation = turn(rotation, outcome.rotation);
-      copy = await deps.makeWorkingCopy(rotation);
-      workingAssetId = await deps.putAsset(copy.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
-      outcome = await deps.runJob(buildPageJob(toBase64(copy.bytes)));
-    }
+    ({ copy, outcome, rotation } = await readTurnedAsync(rotation, deps, async (next) => {
+      workingAssetId = await deps.putAsset(next.bytes, "image/jpeg", `working-${photo.fileName}.jpg`);
+    }));
   } catch {
     return originalOnlyPage(deps.now());
   }

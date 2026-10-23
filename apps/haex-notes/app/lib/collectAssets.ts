@@ -6,7 +6,7 @@ import type { PageBackground, PageLayer, PaperNoteImport } from "~/types/documen
  * Wird beim Teilen gebraucht: die Asset-Zeilen gehen in denselben Space wie die
  * Seite, damit der Empfänger Name, Typ und Größe kennt und einen sprechenden
  * Platzhalter sieht, wenn die Datei bei ihm nicht liegt. Eine Seite aus einem
- * Foto nimmt dessen Original und die gelesene Arbeitskopie mit.
+ * Foto nimmt dessen Original, die gelesene Arbeitskopie und ihre Nahfotos mit.
  */
 export function collectAssetIds(
   layers: PageLayer[],
@@ -30,6 +30,7 @@ export function collectAssetIds(
   if (paperImport) {
     ids.add(paperImport.originalAssetId);
     if (paperImport.workingAssetId) ids.add(paperImport.workingAssetId);
+    for (const closeUp of paperImport.closeUps ?? []) ids.add(closeUp.assetId);
   }
 
   return [...ids];

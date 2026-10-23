@@ -282,6 +282,25 @@ export function mutateLayer(
   };
 }
 
+/** Setzt die Herkunft einer Fotoseite; zusammen mit Elementänderungen ein Undo-Schritt. */
+export function setPaperImport(page: PageDoc, next: PaperNoteImport, label: string): Command {
+  const after = clonePlain(next);
+  let before: PaperNoteImport | undefined | null = null;
+  return {
+    label,
+    pageId: page.id,
+    apply() {
+      if (before === null) before = page.paperImport ? clonePlain(page.paperImport) : undefined;
+      page.paperImport = clonePlain(after);
+    },
+    revert() {
+      if (before === null) return;
+      if (before) page.paperImport = clonePlain(before);
+      else delete page.paperImport;
+    },
+  };
+}
+
 export function setPageBackground(page: PageDoc, next: PageBackground, label: string): Command {
   const after = clonePlain(next);
   let before: PageBackground | null = null;
