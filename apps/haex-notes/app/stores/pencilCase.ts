@@ -20,6 +20,8 @@ export const usePencilCaseStore = defineStore("pencilCase", () => {
   const activeSlot = computed(() => slots.value.find(s => s.id === activeSlotId.value) ?? slots.value[0]!);
   /** Statt zu schreiben Text, Bilder und Tabellen auswählen; ein Stift beendet das. */
   const selecting = ref(false);
+  /** Ein Rechteck über eine Stelle ziehen, die per Nahfoto neu gelesen wird; ein Stift beendet das. */
+  const pickingArea = ref(false);
 
   const loadAsync = async () => {
     const db = haexVault.orm;
@@ -53,10 +55,17 @@ export const usePencilCaseStore = defineStore("pencilCase", () => {
   const selectSlot = (id: string) => {
     activeSlotId.value = id;
     selecting.value = false;
+    pickingArea.value = false;
   };
 
   const startSelecting = () => {
     selecting.value = true;
+    pickingArea.value = false;
+  };
+
+  const startPickingArea = () => {
+    pickingArea.value = true;
+    selecting.value = false;
   };
 
   const updateSlot = async (id: string, updates: Partial<PenSlot>) => {
@@ -101,6 +110,8 @@ export const usePencilCaseStore = defineStore("pencilCase", () => {
     activeSlot,
     selecting,
     startSelecting,
+    pickingArea,
+    startPickingArea,
     isLoaded,
     loadAsync,
     selectSlot,

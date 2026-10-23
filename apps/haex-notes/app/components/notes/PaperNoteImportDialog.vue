@@ -1,5 +1,9 @@
 <template>
-  <UiDrawerModal v-model:open="isOpen" :title="t('title')" :description="t('description')">
+  <UiDrawerModal
+    v-model:open="isOpen"
+    :title="closeUpBox ? t('closeUp.title') : t('title')"
+    :description="closeUpBox ? t('closeUp.description') : t('description')"
+  >
     <template #content>
       <div class="space-y-4 p-4">
         <div v-if="!photo" class="flex flex-wrap gap-2">
@@ -62,6 +66,7 @@ class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30" 
 
 <script setup lang="ts">
 import { Camera, ImageUp, Loader2, RotateCcw, RotateCw } from "@lucide/vue";
+import type { Box } from "~/lib/elementEdits";
 import type { Photo } from "~/lib/paperNotes/importPage";
 import type { Rotation } from "~/lib/paperNotes/mapResult";
 import { DEFAULT_HANDWRITING } from "~/lib/paperNotes/fonts";
@@ -71,6 +76,8 @@ import { reportError } from "~/lib/errors";
 import { getPageSize } from "~/utils/pageTemplates";
 
 const isOpen = defineModel<boolean>("open", { default: false });
+/** Gesetzt, wenn ein Nahfoto die Stelle unter diesem Rechteck neu liest, statt eine Seite anzulegen. */
+const props = defineProps<{ closeUpBox?: Box | null }>();
 const { t } = useI18n();
 const notebook = useNotebookStore();
 const recognition = usePaperNoteRecognition();
@@ -116,10 +123,37 @@ async function onFileAsync(event: Event) {
   }
 }
 
+const toastReadBy = (model: string | undefined, place: string | undefined) =>
+  toast.success(t("readBy", { model: model ?? "?", place: t(`place.${place ?? "this_device"}`) }));
+
+/** Die Stelle unter dem Rechteck neu lesen; ein Fehler oder Abbruch lässt die Seite, wie sie war. */
+async function readCloseUpAsync(box: Box) {
+  const doc = notebook.currentDoc;
+  if (!doc || !photo.value || !bitmap.value) return;
+  const result = await recognition.readCloseUpAsync(
+    { ...photo.value, rotation: rotation.value }, bitmap.value, doc, box, DEFAULT_HANDWRITING,
+  );
+  if (result.kind === "failed") {
+    message.value = t(`closeUp.error.${result.error}`);
+    photo.value = null;
+    return;
+  }
+  if (result.kind === "replaced") {
+    notebook.applyEdit(() => result.command);
+    await notebook.saveCurrentPageAsync();
+    toastReadBy(result.model, result.place);
+  }
+  isOpen.value = false;
+}
+
 async function readAsync() {
   if (!photo.value || !bitmap.value) return;
   message.value = "";
   try {
+    if (props.closeUpBox) {
+      await readCloseUpAsync(props.closeUpBox);
+      return;
+    }
     const imported = await recognition.readAsync(
       { ...photo.value, rotation: rotation.value }, bitmap.value, getPageSize("portrait"), DEFAULT_HANDWRITING,
     );
@@ -130,9 +164,7 @@ async function readAsync() {
       photo.value = null;
       return;
     }
-    if (processing.state === "ready") {
-      toast.success(t("readBy", { model: processing.model ?? "?", place: t(`place.${processing.place ?? "this_device"}`) }));
-    }
+    if (processing.state === "ready") toastReadBy(processing.model, processing.place);
     isOpen.value = false;
   } catch (error) {
     reportError(error);
@@ -172,6 +204,16 @@ de:
     timeout: Das Lesen hat zu lange gedauert. Die Seite enthält nur das Foto.
     unavailable: Das Modell war nicht erreichbar. Die Seite enthält nur das Foto.
     processing_failed: Die Seite enthält nur das Foto, weil die Verarbeitung fehlgeschlagen ist.
+  closeUp:
+    title: Stelle neu fotografieren
+    description: Fotografiere nur die Stelle aus der Nähe. Was holzi darauf liest, ersetzt den Entwurf im Rechteck; Rückgängig holt ihn zurück.
+    error:
+      no_capable_model: Die Stelle bleibt, wie sie war. Gib in holzi ein Modell frei, das Bilder annimmt.
+      consent_denied: Die Stelle bleibt, wie sie war, weil die Übertragung abgelehnt wurde.
+      unusable: Auf dem Nahfoto wurde nichts Brauchbares erkannt. Die Stelle bleibt, wie sie war.
+      timeout: Das Lesen hat zu lange gedauert. Die Stelle bleibt, wie sie war.
+      unavailable: Das Modell war nicht erreichbar. Die Stelle bleibt, wie sie war.
+      processing_failed: Die Verarbeitung ist fehlgeschlagen. Die Stelle bleibt, wie sie war.
 en:
   title: Import a photo
   description: Take a photo of notes, a blackboard or a worksheet. holzi reads it with the model you allowed there.
@@ -203,4 +245,14 @@ en:
     timeout: Reading took too long. The page holds only the photo.
     unavailable: The model could not be reached. The page holds only the photo.
     processing_failed: The page holds only the photo because processing failed.
+  closeUp:
+    title: Photograph this area again
+    description: Take a close photo of just this area. What holzi reads replaces the draft inside the rectangle; Undo brings it back.
+    error:
+      no_capable_model: The area stays as it was. Allow a model that takes images in holzi.
+      consent_denied: The area stays as it was because sending was refused.
+      unusable: Nothing usable was found on the close-up. The area stays as it was.
+      timeout: Reading took too long. The area stays as it was.
+      unavailable: The model could not be reached. The area stays as it was.
+      processing_failed: Processing failed. The area stays as it was.
 </i18n>
