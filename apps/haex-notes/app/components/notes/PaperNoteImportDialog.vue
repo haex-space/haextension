@@ -89,6 +89,7 @@ const previewUrl = ref("");
 const rotation = ref<Rotation>(0);
 const hints = ref<QualityHint[]>([]);
 const message = ref("");
+let closeUpReading = false;
 
 function reset() {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
@@ -104,7 +105,7 @@ function reset() {
 watch(isOpen, (open) => {
   if (open) return;
   // Ein Nahfoto, dessen Dialog weg ist, soll die Seite nicht mehr ändern; eine Seite aus einem Foto entsteht dagegen weiter.
-  if (props.closeUpBox) recognition.cancel();
+  if (closeUpReading) recognition.cancel();
   reset();
 });
 onUnmounted(reset);
@@ -135,9 +136,16 @@ const toastReadBy = (model: string | undefined, place: string | undefined) =>
 async function readCloseUpAsync(box: Box) {
   const doc = notebook.currentDoc;
   if (!doc || !photo.value || !bitmap.value) return;
-  const result = await recognition.readCloseUpAsync(
-    { ...photo.value, rotation: rotation.value }, bitmap.value, doc, box, DEFAULT_HANDWRITING,
-  );
+  closeUpReading = true;
+  let result: Awaited<ReturnType<typeof recognition.readCloseUpAsync>>;
+  try {
+    result = await recognition.readCloseUpAsync(
+      { ...photo.value, rotation: rotation.value }, bitmap.value, doc, box, DEFAULT_HANDWRITING,
+    );
+  } finally {
+    closeUpReading = false;
+  }
+  if (!isOpen.value) return;
   if (result.kind === "failed") {
     message.value = t(`closeUp.error.${result.error}`);
     photo.value = null;
@@ -153,6 +161,7 @@ async function readCloseUpAsync(box: Box) {
     return;
   }
   const command = await result.commitAsync();
+  if (!isOpen.value) return;
   if (notebook.currentDoc !== doc) {
     message.value = t("closeUp.pageChanged");
     return;
