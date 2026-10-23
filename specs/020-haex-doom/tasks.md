@@ -125,7 +125,7 @@ description: "Task list for haex-doom"
 
 **Extension side** (after T043 is released):
 
-- [ ] T044 [US3] Raise `@haex-space/vault-sdk` to the S1 release in `apps/haex-doom/package.json` and the root `package.json` `pnpm.overrides`; `pnpm install`
+- [X] T044 [US3] Raise `@haex-space/vault-sdk` to the S1 release in `apps/haex-doom/package.json` and the root `package.json` `pnpm.overrides`; `pnpm install` (4.9.0)
 - [ ] T045 [US3] Add `"peers": [{ "target": "*", "action": "connect" }]` and `"contacts": [{ "target": "*", "action": "read" }]` to `apps/haex-doom/haextension/manifest.json`
 - [ ] T046 [P] [US3] Create `apps/haex-doom/app/lib/lobbyProtocol.ts` per [contracts/lobby-protocol.md](contracts/lobby-protocol.md): `encodeMessage`, `decodeMessage` (validate shape; unknown `t` or `v ≠ 1` → `null`), `parseInvitePayload`, `checkCompatibility(payload, localGames, version)` → `ok | game-missing | version`; tests in `apps/haex-doom/app/lib/lobbyProtocol.test.ts`
 - [ ] T047 [US3] Write `apps/haex-doom/engine/src/net_bridge.c` providing `net_sdl_module` per [contracts/engine-bridge.md](contracts/engine-bridge.md) "Network module rules" (one `net_addr_t` per peer number kept in a table, `SendPacket` → `haex_net_send`, non-blocking `RecvPacket` → `haex_net_recv` with 4-byte LE peer prefix, `ResolveAddress` → `haex_net_resolve`, packets > 1,024 bytes dropped); `engine/patches/0005-net-bridge.patch` builds it and removes the stub `net_sdl_module` in upstream `src/net_sdl.c` when SDL2_net is disabled; implement `haex_net_peer_closed` in `engine/src/haex_exports.c` by marking the peer's address so the server/client treats it as disconnected

@@ -12,7 +12,7 @@ A new haextension `apps/haex-doom` runs Crispy DOOM 7.2, compiled to WebAssembly
 
 **Language/Version**: TypeScript 5.9 + Vue 3.5 / Nuxt 4 (shell); C99 compiled with Emscripten (engine patches); Rust (host changes in haex-vault).
 
-**Primary Dependencies**: Crispy DOOM `crispy-doom-7.2` (`fdeabe4c23a833534b70aa84a22f1685aae7125d`), Emscripten SDL2 + SDL2_mixer ports, `@haex-space/vault-sdk` ≥ 4.8.1 (≥ the S1 release for multiplayer), haex-ui layer, Drizzle ORM, Pinia, @nuxtjs/i18n. No new npm dependency planned.
+**Primary Dependencies**: Crispy DOOM `crispy-doom-7.2` (`fdeabe4c23a833534b70aa84a22f1685aae7125d`), Emscripten SDL2 + SDL2_mixer ports, `@haex-space/vault-sdk` ≥ 4.9.0 (the released S1 peer API for multiplayer), haex-ui layer, Drizzle ORM, Pinia, @nuxtjs/i18n. No new npm dependency planned.
 
 **Storage**: Extension tables via the SDK database API (`saves` synced; `game_files_no_sync`, `game_file_chunks_no_sync` device-local); SDK `storage` for settings and engine config ([data-model.md](data-model.md)).
 
