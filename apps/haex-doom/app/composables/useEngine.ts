@@ -1,4 +1,5 @@
 import { createHaexImports, type HaexImports } from "~/lib/engine/imports";
+import { saveDirectory, savePath } from "~/lib/saveStore";
 
 /** The part of the Emscripten module the shell uses (contracts/engine-bridge.md). */
 interface EngineModule {
@@ -65,7 +66,7 @@ async function loadFactory(): Promise<EngineFactory> {
 }
 
 function prepareFileSystem(module: EngineModule, options: EngineStartOptions): string {
-  const saveDir = `/saves/${options.fingerprint}/`;
+  const saveDir = saveDirectory(options.fingerprint);
   module.FS.mkdirTree("/wads");
   module.FS.mkdirTree("/config");
   module.FS.mkdirTree(saveDir);
@@ -74,7 +75,7 @@ function prepareFileSystem(module: EngineModule, options: EngineStartOptions): s
     module.FS.writeFile(`/config/${name}`, contents);
   }
   for (const [slot, data] of options.saves ?? []) {
-    module.FS.writeFile(`${saveDir}doomsav${slot}.dsg`, data);
+    module.FS.writeFile(savePath(options.fingerprint, slot), data);
   }
   return saveDir;
 }

@@ -1,0 +1,90 @@
+diff --git a/src/doom/g_game.c b/src/doom/g_game.c
+index f7f7f42d..d07f3d11 100644
+--- a/src/doom/g_game.c
++++ b/src/doom/g_game.c
+@@ -82,6 +82,9 @@
+ #include "memio.h"
+ 
+ #include "d_pwad.h" // [crispy] kex secret level
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
+ 
+ #define SAVEGAMESIZE	0x2c000
+ 
+@@ -2669,6 +2672,10 @@ void G_DoSaveGame (void)
+ 
+     M_remove(savegame_file);
+     M_rename(temp_savegame_file, savegame_file);
++#ifdef __EMSCRIPTEN__
++    // haex-doom: the shell stores the finished save in the vault.
++    haex_file_written(savegame_file);
++#endif
+ 
+     gameaction = ga_nothing;
+     M_StringCopy(savedescription, "", sizeof(savedescription));
+diff --git a/src/doom/m_menu.c b/src/doom/m_menu.c
+index 919258a5..01edf27c 100644
+--- a/src/doom/m_menu.c
++++ b/src/doom/m_menu.c
+@@ -67,6 +67,10 @@
+ #include "v_trans.h" // [crispy] colored "invert mouse" message
+ 
+ #include "d_pwad.h" // [crispy] kex secret level
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#include "m_config.h"
++#endif
+ 
+ //
+ // defaulted values
+@@ -3274,6 +3278,12 @@ void M_ClearMenus (void)
+ {
+     menuactive = 0;
+ 
++#ifdef __EMSCRIPTEN__
++    // haex-doom: a browser tab is closed rather than quit, so options changed in the menu are
++    // saved when it closes instead of only at exit.
++    M_SaveDefaults();
++#endif
++
+     // [crispy] entering menus while recording demos pauses the game
+     if (demorecording && paused)
+         sendpause = true;
+@@ -3583,6 +3593,10 @@ static void M_ConfirmDeleteGameResponse (int key)
+ 
+ 		M_StringCopy(name, P_SaveGameFile(itemOn), sizeof(name));
+ 		remove(name);
++#ifdef __EMSCRIPTEN__
++		// haex-doom: the shell removes the save from the vault as well.
++		haex_file_removed(name);
++#endif
+ 
+ 		if (itemOn == quickSaveSlot)
+ 			quickSaveSlot = -1;
+diff --git a/src/m_config.c b/src/m_config.c
+index 3f0dcf0b..11c87329 100644
+--- a/src/m_config.c
++++ b/src/m_config.c
+@@ -38,6 +38,9 @@
+ #include "m_misc.h"
+ 
+ #include "z_zone.h"
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
+ 
+ //
+ // DEFAULTS
+@@ -2987,6 +2990,11 @@ void M_SaveDefaults (void)
+ {
+     SaveDefaultCollection(&doom_defaults);
+     SaveDefaultCollection(&extra_defaults);
++#ifdef __EMSCRIPTEN__
++    // haex-doom: the shell stores the config files on the device.
++    haex_file_written(doom_defaults.filename);
++    haex_file_written(extra_defaults.filename);
++#endif
+ }
+ 
+ //

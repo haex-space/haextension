@@ -46,7 +46,8 @@ Arguments (`callMain`):
 
 | Function | When | Shell action |
 |---|---|---|
-| `haex_file_written(const char *path)` | After `G_DoSaveGame` renamed the save into place; at the end of `M_SaveDefaults`. | Reads the file with `FS.readFile` and persists it (`saves` table or `storage`). A failure is shown to the user and does not stop the game (FR-020). |
+| `haex_file_written(const char *path)` | After `G_DoSaveGame` renamed the save into place; at the end of `M_SaveDefaults`. | Reads the file with `FS.readFile` and persists it (`saves` table or `storage`). A failed save is shown to the user and does not stop the game (FR-020); a failed config write is only logged. |
+| `haex_file_removed(const char *path)` | After the save menu deleted a save (`M_ConfirmDeleteGameResponse`). | Deletes the save's row from the `saves` table; a failure is shown to the user. |
 | `haex_haptic(int kind)` | 0 = player fired (`P_FireWeapon`), 1 = player damaged (`P_DamageMobj` on the console player). | `navigator.vibrate` with 15 ms / 40 ms if haptics are on (FR-014). |
 | `haex_net_send(int peer, const uint8_t *data, int len)` | `net_sdl_module.SendPacket`. | Copies the bytes and sends them on the peer's channel as a datagram. |
 | `haex_net_recv(uint8_t *buf, int cap) → int` | `net_sdl_module.RecvPacket`, polled. | Writes the next queued datagram (prefixed by a 4-byte little-endian peer number) and returns its length, or 0 when the queue is empty. |
