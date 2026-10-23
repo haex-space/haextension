@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PageElement, StrokeElement } from "~/types/document";
+import type { PageElement, PaperNoteImport, StrokeElement } from "~/types/document";
 import {
   addElements,
   addLayer,
@@ -10,6 +10,7 @@ import {
   removeLayer,
   replaceElements,
   setPageBackground,
+  setPaperImport,
   type PageDoc,
 } from "./commands";
 
@@ -154,6 +155,31 @@ describe("layer commands", () => {
     expect(page.layers[0]!.visible).toBe(false);
     cmd.revert();
     expect(page.layers[0]!.visible).toBe(true);
+  });
+});
+
+describe("setPaperImport", () => {
+  const paperImport = (updatedAt: string) => ({
+    version: 1, originalAssetId: "photo", rotation: 0, sourceMimeType: "image/jpeg", sourceWidth: 10, sourceHeight: 10,
+    processing: { state: "ready" }, regions: [], createdAt: "t0", updatedAt,
+  }) as PaperNoteImport;
+
+  it("sets the origin of a photo page and restores the previous one", () => {
+    const page = { ...doc(), paperImport: paperImport("t1") };
+    const cmd = setPaperImport(page, paperImport("t2"), "Nahfoto");
+    cmd.apply();
+    expect(page.paperImport.updatedAt).toBe("t2");
+    cmd.revert();
+    expect(page.paperImport.updatedAt).toBe("t1");
+  });
+
+  it("removes it again on a page that had none", () => {
+    const page = doc();
+    const cmd = setPaperImport(page, paperImport("t2"), "Nahfoto");
+    cmd.apply();
+    expect(page.paperImport?.updatedAt).toBe("t2");
+    cmd.revert();
+    expect("paperImport" in page).toBe(false);
   });
 });
 

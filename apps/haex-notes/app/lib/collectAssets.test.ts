@@ -50,6 +50,13 @@ describe("collectAssetIds", () => {
       .toEqual(["crop", "original", "working"]);
   });
 
+  it("collects the close-up photos of a photo import", () => {
+    const paperImport = {
+      version: 1, originalAssetId: "original", closeUps: [{ id: "c1", assetId: "close-up" }],
+    } as PaperNoteImport;
+    expect(collectAssetIds([layer()], plainBackground, paperImport)).toEqual(["original", "close-up"]);
+  });
+
   it("deduplicates", () => {
     expect(collectAssetIds([layer(image("a"), image("a"))], plainBackground)).toEqual(["a"]);
   });

@@ -138,6 +138,12 @@ describe("migratePageRow with a photo import", () => {
     const { workingAssetId: _omitted, ...withoutWorkingCopy } = paperImport;
     expect(migratePageRow({ layers, paperImport: withoutWorkingCopy }).paperImport).toEqual(withoutWorkingCopy);
   });
+
+  it("keeps the close-ups of a paper import and rejects malformed ones", () => {
+    const withCloseUp = { ...paperImport, closeUps: [{ id: "c1", assetId: "close-up", rotation: 0, pageBox: [0, 0, 10, 10], createdAt: "t" }] };
+    expect(migratePageRow({ layers, paperImport: withCloseUp }).paperImport).toEqual(withCloseUp);
+    expect(migratePageRow({ layers, paperImport: { ...paperImport, closeUps: [{ id: "c1" }] } }).paperImport).toBeUndefined();
+  });
 });
 
 describe("serializePageDoc", () => {

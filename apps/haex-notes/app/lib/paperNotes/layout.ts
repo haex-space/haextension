@@ -27,11 +27,18 @@ export const MIN_FONT_SIZE = 12;
 export const MAX_FONT_SIZE = 32;
 export const LINE_HEIGHT = 1.25;
 
+/** Passt ein Bild der Größe `width` × `height` in ein Rechteck, oben bündig und mittig. */
+export function fitInRect(width: number, height: number, rect: Rect): Fit {
+  const scale = Math.min(rect.width / width, rect.height / height);
+  const fitted = { width: width * scale, height: height * scale };
+  return { x: rect.x + (rect.width - fitted.width) / 2, y: rect.y, scale, ...fitted };
+}
+
 /** Passt ein Bild der Größe `width` × `height` mit Rand in die Seite, oben bündig und mittig. */
 export function fitImage(width: number, height: number, pageWidth: number, pageHeight: number): Fit {
-  const scale = Math.min((pageWidth - 2 * PAGE_MARGIN) / width, (pageHeight - 2 * PAGE_MARGIN) / height);
-  const fitted = { width: width * scale, height: height * scale };
-  return { x: (pageWidth - fitted.width) / 2, y: PAGE_MARGIN, scale, ...fitted };
+  return fitInRect(width, height, {
+    x: PAGE_MARGIN, y: PAGE_MARGIN, width: pageWidth - 2 * PAGE_MARGIN, height: pageHeight - 2 * PAGE_MARGIN,
+  });
 }
 
 /** Eine Box `[x1, y1, x2, y2]` (0–1000 relativ zur Arbeitskopie) auf der Seite; null, wenn sie leer ist. */
