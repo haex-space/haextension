@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
+import type { Box } from "~/lib/elementEdits";
 import { getErrorMessage, reportError } from "~/lib/errors";
 import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
@@ -30,6 +31,13 @@ const isLandscape = computed(() => {
 const sharePageId = ref<string | null>(null);
 const showPhotoImport = ref(false);
 const showPdfExport = ref(false);
+/** Das Rechteck, dessen Stelle ein Nahfoto neu liest; null beim Import einer ganzen Seite. */
+const closeUpBox = ref<Box | null>(null);
+const onAreaPicked = (box: Box) => {
+  closeUpBox.value = box;
+  showPhotoImport.value = true;
+};
+watch(showPhotoImport, (open) => { if (!open) closeUpBox.value = null; });
 const showSharePageDialog = computed({
   get: () => sharePageId.value !== null,
   set: (v) => { if (!v) sharePageId.value = null; },
@@ -212,6 +220,15 @@ const addPage = async () => {
           <Camera class="size-5" />
         </button>
         <button
+          v-if="notebook.currentDoc?.paperImport"
+          class="rounded p-1.5 hover:bg-accent hover:text-foreground"
+          :class="pencilCase.pickingArea ? 'bg-accent text-foreground' : 'text-muted-foreground'"
+          :title="t('closeUp')"
+          @click="pencilCase.startPickingArea()"
+        >
+          <Crop class="size-5" />
+        </button>
+        <button
           class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           :title="t('exportPdf')"
           @click="showPdfExport = true"
@@ -273,7 +290,7 @@ const addPage = async () => {
       </div>
     </header>
 
-    <NotesPaperNoteImportDialog v-model:open="showPhotoImport" />
+    <NotesPaperNoteImportDialog v-model:open="showPhotoImport" :close-up-box="closeUpBox" />
     <NotesPdfExportDialog v-model:open="showPdfExport" />
     <NotesShareDialog
       v-if="sharePageId"
@@ -311,7 +328,7 @@ const addPage = async () => {
           <NotesTrashPagePreview :page="trashPreviewPage" class="flex-1" />
         </div>
 
-        <NotesPageCanvas ref="pageCanvasRef" />
+        <NotesPageCanvas ref="pageCanvasRef" @area-picked="onAreaPicked" />
 
         <!-- Zoom indicator (bottom right) -->
         <button
@@ -369,6 +386,7 @@ de:
   addPage: Seite hinzufügen
   importPhoto: Foto importieren
   exportPdf: Als PDF exportieren
+  closeUp: Stelle neu fotografieren – Rechteck über die Stelle ziehen
   addTable: Tabelle einfügen
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
@@ -385,6 +403,7 @@ en:
   addPage: Add Page
   importPhoto: Import a photo
   exportPdf: Export as PDF
+  closeUp: Photograph an area again – drag a rectangle over it
   addTable: Insert Table
   toggleOrientation: Portrait/Landscape
   sharePage: Share page

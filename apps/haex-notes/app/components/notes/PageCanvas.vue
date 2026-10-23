@@ -3,6 +3,7 @@ import { useEventListener, useResizeObserver } from "@vueuse/core";
 import { PAGE_SIZE } from "~/utils/pageTemplates";
 import type { TableElement } from "~/types/document";
 import type { TextEdit } from "~/composables/useElementEditing";
+import type { Box } from "~/lib/elementEdits";
 import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
 import { CELL_PADDING, drawElement, drawElements, type StrokePathCache } from "~/lib/render/elements";
 import { drawPaper } from "~/lib/render/paper";
@@ -124,7 +125,14 @@ function renderOverlay() {
   if (!ctx) return;
   if (notebook.currentStroke) drawElement(ctx, notebook.currentStroke);
   editing.drawSelection(ctx, viewport.zoom);
+  areaPick.drawArea(ctx, viewport.zoom);
 }
+
+const emit = defineEmits<{ areaPicked: [box: Box] }>();
+const areaPick = useAreaPick(() => scheduleRender("overlay"), (box) => {
+  pencilCase.pickingArea = false;
+  emit("areaPicked", box);
+});
 
 const editing = useElementEditing(() => scheduleRender("overlay"));
 const { selected, editing: textEdit } = editing;
@@ -290,6 +298,11 @@ const onPointerDown = (e: PointerEvent) => {
   // Close context menu on any click
   tableContextMenu.value = null;
 
+  if (pencilCase.pickingArea) {
+    areaPick.pointerDown(page, viewport.zoom);
+    return;
+  }
+
   // Check table line hit first
   const hit = hitTestTableLines(page.x, page.y);
   if (hit) {
@@ -355,6 +368,7 @@ const onPointerMove = (e: PointerEvent) => {
     return;
   }
 
+  if (areaPick.pointerMove(screenToPage(x, y))) return;
   if (pencilCase.selecting && editing.pointerMove(screenToPage(x, y))) return;
 
   if (notebook.isDrawing && notebook.currentStroke) {
@@ -388,7 +402,7 @@ const onPointerUp = (e: PointerEvent) => {
     return;
   }
 
-  if (editing.pointerUp()) return;
+  if (areaPick.pointerUp() || editing.pointerUp()) return;
 
   if (notebook.isDrawing && notebook.currentStroke) {
     const stroke = { ...notebook.currentStroke };
