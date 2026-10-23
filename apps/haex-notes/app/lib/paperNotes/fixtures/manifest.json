@@ -1,0 +1,201 @@
+{
+  "about": "Two invented pages for the contract and the canvas, not for the quality of a model. They are rendered from the OFL handwriting fonts of haex-notes (Caveat, Patrick Hand, Kalam): no student data. The results are recorded outputs of the two-step page job (contracts/page-job.md) from qwen3-vl:4b-instruct on Ollama 0.40.1, temperature 0, on 2026-10-23, with the instructions of pageJob.ts. Re-record them when READ_INSTRUCTION or FIX_INSTRUCTION change.",
+  "model": "qwen3-vl:4b-instruct",
+  "recordedAt": "2026-10-23",
+  "fixtures": [
+    {
+      "file": "seite.jpg",
+      "width": 1032,
+      "height": 1400,
+      "orientation": "upright",
+      "description": "A heading, four lines of text with the misspelling \"Seure\", a table of three columns and three rows, and a sketch of a beaker with an arrow.",
+      "expect": {
+        "rotationHint": 0,
+        "texts": 2,
+        "tables": 1,
+        "images": 1,
+        "readHasTypo": true,
+        "typoFixed": true
+      },
+      "read": {
+        "regions": [
+          {
+            "kind": "text",
+            "box": [
+              77,
+              77,
+              444,
+              123
+            ],
+            "text": "Säuren und Basen"
+          },
+          {
+            "kind": "text",
+            "box": [
+              77,
+              170,
+              666,
+              294
+            ],
+            "text": "Säuren schmecken sauer und färben Lackmus rot.\nBasen fühlen sich seifig an. Lösungen von Basen\nfärben Lackmus blau. Der pH-Wert sagt, wie stark\neine Seure oder Base ist (0 bis 14)."
+          },
+          {
+            "kind": "table",
+            "box": [
+              80,
+              343,
+              915,
+              505
+            ],
+            "rows": [
+              [
+                "Stoff",
+                "pH-Wert",
+                "Farbe"
+              ],
+              [
+                "Zitronensaft",
+                "2",
+                "rot"
+              ],
+              [
+                "Seifenlauge",
+                "12",
+                "blau"
+              ]
+            ]
+          },
+          {
+            "kind": "image",
+            "box": [
+              318,
+              585,
+              658,
+              808
+            ]
+          }
+        ],
+        "rotation": 0
+      },
+      "fix": {
+        "texts": [
+          "Säuren und Basen",
+          "Säuren schmecken sauer und färben Lackmus rot.\nBasen fühlen sich seifig an. Lösungen von Basen\nfärben Lackmus blau. Der pH-Wert sagt, wie stark\neine Säure oder Base ist (0 bis 14).",
+          "Stoff\tpH-Wert\tFarbe\nZitronensaft\t2\trot\nSeifenlauge\t12\tblau"
+        ]
+      }
+    },
+    {
+      "file": "seite-seitlich.jpg",
+      "width": 1400,
+      "height": 1032,
+      "orientation": "turned a quarter clockwise",
+      "description": "The same page turned 90 degrees clockwise. The model reads it, but its boxes follow the turned photo and it reports no turn; the student turns the photo in the dialog.",
+      "expect": {
+        "rotationHint": 0,
+        "texts": 4,
+        "tables": 1,
+        "images": 1,
+        "readHasTypo": false,
+        "typoFixed": true
+      },
+      "read": {
+        "regions": [
+          {
+            "kind": "text",
+            "box": [
+              870,
+              78,
+              938,
+              448
+            ],
+            "text": "Säuren und Basen"
+          },
+          {
+            "kind": "text",
+            "box": [
+              870,
+              448,
+              938,
+              800
+            ],
+            "text": "Säuren schmecken sauer und färben Lackmus rot. Basen fühlen sich seifig an. Lösungen von Basen färben Lackmus blau. Der pH-Wert sagt, wie stark eine Säure oder Base ist (0 bis 14)."
+          },
+          {
+            "kind": "table",
+            "box": [
+              492,
+              83,
+              655,
+              900
+            ],
+            "rows": [
+              [
+                "Stoff",
+                "pH-Wert",
+                "Farbe"
+              ],
+              [
+                "Zitronensaft",
+                "2",
+                "rot"
+              ],
+              [
+                "Seifenlauge",
+                "12",
+                "blau"
+              ]
+            ]
+          },
+          {
+            "kind": "image",
+            "box": [
+              188,
+              318,
+              400,
+              650
+            ]
+          },
+          {
+            "kind": "text",
+            "box": [
+              188,
+              530,
+              230,
+              650
+            ],
+            "text": "Probe prüfen"
+          },
+          {
+            "kind": "text",
+            "box": [
+              390,
+              570,
+              410,
+              620
+            ],
+            "text": "Lackmus"
+          }
+        ],
+        "rotation": 0
+      },
+      "fix": {
+        "texts": [
+          "Säuren und Basen",
+          "Säuren schmecken sauer und färben Lackmus rot. Basen fühlen sich seifig an. Lösungen von Basen färben Lackmus blau. Der pH-Wert sagt, wie stark eine Säure oder Base ist (0 bis 14).",
+          "Stoff",
+          "pH-Wert",
+          "Farbe",
+          "Zitronensaft",
+          "2",
+          "rot",
+          "Seifenlauge",
+          "12",
+          "blau",
+          "Probe prüfen",
+          "Lackmus"
+        ]
+      }
+    }
+  ]
+}

@@ -36,9 +36,22 @@ describe("outcomeOf", () => {
     expect([outcome.model, outcome.place]).toEqual(["qwen3-vl:4b-instruct", "this_device"]);
   });
 
-  it("keeps the read texts when the number of corrected texts does not match", () => {
-    expect(done(completed(read, { texts: ["nur einer"] })).texts).toBeNull();
+  it("matches each corrected text to the read text it is most like, not by position", () => {
+    const reordered = { texts: ["Zur Auswahl!", "Reaktion von Säurelösungen\nmit Metallen."] };
+    expect(done(completed(read, reordered)).texts).toEqual(["Reaktion von Säurelösungen\nmit Metallen.", "Zur Auswahl!"]);
+  });
+
+  it("ignores extra texts, such as table cells the model wrote out, and keeps what has no correction", () => {
+    const extra = { texts: ["Tag", "Fach", "Di", "Reaktion von Säurelösungen\nmit Metallen"] };
+    expect(done(completed(read, extra)).texts).toEqual(["Reaktion von Säurelösungen\nmit Metallen", "Zur Auswahl"]);
+    expect(done(completed(read, { texts: ["nur einer"] })).texts).toEqual(["Reaktion von Säurelösungen\nmit Metallen", "Zur Auswahl"]);
+  });
+
+  it("refuses a rewrite and answers without the format of a text fix", () => {
+    const rewritten = { texts: ["Alles ganz anders formuliert, mit neuem Inhalt", "Zur Auswahl"] };
+    expect(done(completed(read, rewritten)).texts).toEqual(["Reaktion von Säurelösungen\nmit Metallen", "Zur Auswahl"]);
     expect(done(completed(read, { texts: [1, 2] })).texts).toBeNull();
+    expect(done(completed(read, { other: [] })).texts).toBeNull();
   });
 
   it("reads the rotation hint and ignores anything but a quarter turn", () => {
@@ -71,9 +84,9 @@ describe("placeRegions", () => {
     expect(placed[1]!.rows).toEqual([["Tag", "Fach"], ["Di", ""]]);
   });
 
-  it("uses the corrected texts in order, and the read ones without a fitting correction", () => {
-    const corrected = placeRegions(done(completed(read, { texts: ["Reaktion", "Auswahl"] })), fit, 794);
-    expect([corrected[0]!.text, corrected[3]!.text]).toEqual(["Reaktion", "Auswahl"]);
+  it("uses the corrected texts, and the read ones without a fitting correction", () => {
+    const corrected = placeRegions(done(completed(read, { texts: ["Reaktion von Säurelösungen\nmit Metallen.", "Zur Auswahl!"] })), fit, 794);
+    expect([corrected[0]!.text, corrected[3]!.text]).toEqual(["Reaktion von Säurelösungen\nmit Metallen.", "Zur Auswahl!"]);
     const unfixed = placeRegions(done(completed(read, { texts: ["x"] })), fit, 794);
     expect(unfixed[3]!.text).toBe("Zur Auswahl");
   });

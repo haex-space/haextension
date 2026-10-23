@@ -30,7 +30,7 @@ export type PageJobOutcome =
       kind: "completed";
       regions: ReadRegion[];
       rotation: Rotation;
-      /** Die korrigierten Texte, oder null, wenn sie nicht zu den gelesenen passen. */
+      /** Die Texte der Regionen mit Text nach der Korrektur, oder null, wenn der Korrekturschritt nichts Brauchbares lieferte. */
       texts: string[] | null;
       model?: string;
       place?: RecognitionPlace;
@@ -60,11 +60,63 @@ function readRegions(read: unknown): { regions: ReadRegion[]; rotation: Rotation
 
 const hasText = (region: ReadRegion) => typeof region.text === "string" && region.text.trim() !== "";
 
-/** Die korrigierten Texte, wenn es je gelesenem Text genau einen gibt (research R12 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/research.md). */
+/** Ab dieser Ähnlichkeit gilt ein Text des Korrekturschritts als Korrektur eines gelesenen Textes. */
+const MIN_SIMILARITY = 0.5;
+
+interface Grams {
+  clean: string;
+  counts: Map<string, number>;
+  total: number;
+}
+
+const gramsOf = (text: string): Grams => {
+  const clean = text.toLowerCase().replace(/\s+/g, " ").trim();
+  const counts = new Map<string, number>();
+  for (let i = 0; i < clean.length - 1; i++) {
+    const gram = clean.slice(i, i + 2);
+    counts.set(gram, (counts.get(gram) ?? 0) + 1);
+  }
+  return { clean, counts, total: Math.max(0, clean.length - 1) };
+};
+
+/** Dice-Ähnlichkeit zweier Texte über ihre Zeichenpaare, 0 bis 1. */
+function similarity(a: Grams, b: Grams): number {
+  if (a.clean === b.clean) return 1;
+  let common = 0;
+  for (const [gram, count] of a.counts) common += Math.min(count, b.counts.get(gram) ?? 0);
+  const total = a.total + b.total;
+  return total === 0 ? 0 : (2 * common) / total;
+}
+
+/**
+ * Die Texte der Regionen mit Text nach dem Korrekturschritt (research R12 in haex-space/haex-vault@e4b28be9d22e8c0839f8652908b35b78e04c9c6e:specs/046-paper-notes-canvas/research.md).
+ * Ein kleines Modell liefert selten genau einen Text je Region; es schreibt etwa Tabellenzellen als eigene Texte
+ * mit. Darum wird jede korrigierte Fassung dem ähnlichsten gelesenen Text zugeordnet, nicht der Reihe nach.
+ * Was keinem ähnlich genug ist, ein Umschreiben oder eine Zelle, ändert nichts; ein Text ohne Korrektur bleibt,
+ * wie er gelesen wurde. Null, wenn die Antwort kein Format `text-fix` hat.
+ */
 function fixedTexts(fix: unknown, regions: ReadRegion[]): string[] | null {
-  const texts = isRecord(fix) && Array.isArray(fix.texts) ? fix.texts : null;
-  if (!texts || !texts.every((t) => typeof t === "string")) return null;
-  return texts.length === regions.filter(hasText).length ? (texts as string[]) : null;
+  const fixed = isRecord(fix) && Array.isArray(fix.texts) ? fix.texts : null;
+  if (!fixed || !fixed.every((t) => typeof t === "string")) return null;
+  const read = regions.filter(hasText).map((region) => region.text!);
+  const readGrams = read.map(gramsOf);
+  const fixedGrams = (fixed as string[]).map(gramsOf);
+  const pairs: { read: number; fixed: number; score: number }[] = [];
+  read.forEach((_, i) => (fixed as string[]).forEach((_candidate, j) => {
+    const score = similarity(readGrams[i]!, fixedGrams[j]!);
+    if (score >= MIN_SIMILARITY) pairs.push({ read: i, fixed: j, score });
+  }));
+  pairs.sort((a, b) => b.score - a.score || a.read - b.read);
+  const result = [...read];
+  const usedRead = new Set<number>();
+  const usedFixed = new Set<number>();
+  for (const pair of pairs) {
+    if (usedRead.has(pair.read) || usedFixed.has(pair.fixed)) continue;
+    usedRead.add(pair.read);
+    usedFixed.add(pair.fixed);
+    result[pair.read] = (fixed as string[])[pair.fixed]!;
+  }
+  return result;
 }
 
 /** Das Ende eines Auftrags: die SDK-Antwort oder die Ablehnung des Starts. */
