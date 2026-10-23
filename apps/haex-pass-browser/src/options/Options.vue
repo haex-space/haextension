@@ -22,6 +22,7 @@ const portInput = ref<string>('19455')
 const portError = ref<string | null>(null)
 const portSaved = ref(false)
 const {
+  connection,
   isConnecting,
   canSendRequests,
   statusText,
@@ -31,6 +32,9 @@ const {
   disconnect: handleDisconnect,
 } = useVaultConnectionState()
 const passkeyPrefs = ref<PasskeyPrefs>({})
+
+// This instance's id in groups of four, as HaexVault's approval dialog shows it.
+const fingerprint = computed(() => connection.value.clientId?.match(/.{1,4}/g)?.join(' ') ?? '')
 
 const passkeyPrefList = computed(() => {
   return Object.entries(passkeyPrefs.value)
@@ -207,6 +211,17 @@ onMounted(async () => {
             >
               {{ t('settings.disconnect.button') }}
             </button>
+          </div>
+
+          <!-- This instance's id, to compare with HaexVault's approval dialog -->
+          <div v-if="fingerprint" class="pt-3 mt-3 border-t">
+            <span class="block text-sm font-medium mb-1">
+              {{ t('settings.connection.fingerprint') }}
+            </span>
+            <p class="text-xs text-muted-foreground mb-2">
+              {{ t('settings.connection.fingerprintHint') }}
+            </p>
+            <code class="block font-mono text-sm break-all" data-testid="client-fingerprint">{{ fingerprint }}</code>
           </div>
         </div>
 

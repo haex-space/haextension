@@ -82,6 +82,8 @@ export default {
       label: 'Verbindung',
       description: 'Konfiguriere die Verbindung zu HaexVault.',
       status: 'Verbindungsstatus',
+      fingerprint: 'Kennung dieser Erweiterung',
+      fingerprintHint: 'HaexVault zeigt diese Kennung, wenn du die Erweiterung zulässt. Lass sie nur zu, wenn beide gleich sind.',
     },
     port: {
       label: 'WebSocket Port',
@@ -150,6 +152,8 @@ export default {
     decryptionFailed: 'Entschlüsselung fehlgeschlagen',
     invalidMessage: 'Ungültige Nachricht empfangen',
     unknown: 'Unbekannter Fehler',
+    protocolUpdateRequired: 'HaexVault braucht eine neuere Version dieser Erweiterung. Bitte aktualisiere haex-pass.',
+    proofFailed: 'HaexVault konnte diese Erweiterung nicht als die zugelassene erkennen. Bitte verbinde erneut.',
   },
   onboarding: {
     title: 'Lesezeichen-Sync einrichten',

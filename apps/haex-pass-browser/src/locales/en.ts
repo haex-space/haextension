@@ -82,6 +82,8 @@ export default {
       label: 'Connection',
       description: 'Configure the connection to HaexVault.',
       status: 'Connection Status',
+      fingerprint: 'ID of this extension',
+      fingerprintHint: 'HaexVault shows this ID when you approve the extension. Only approve it if both match.',
     },
     port: {
       label: 'WebSocket Port',
@@ -150,6 +152,8 @@ export default {
     decryptionFailed: 'Decryption failed',
     invalidMessage: 'Invalid message received',
     unknown: 'Unknown error',
+    protocolUpdateRequired: 'HaexVault needs a newer version of this extension. Please update haex-pass.',
+    proofFailed: 'HaexVault could not confirm this extension as the approved one. Please connect again.',
   },
   onboarding: {
     title: 'Set up bookmark sync',

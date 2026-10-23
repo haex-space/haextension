@@ -29,6 +29,9 @@ const errorText = computed(() => {
     connection_closed: 'error.connectionClosed',
     decryption_failed: 'error.decryptionFailed',
     invalid_message: 'error.invalidMessage',
+    // The vault's own refusals (holzi 049 FR-048, FR-049)
+    PROTOCOL_UPDATE_REQUIRED: 'error.protocolUpdateRequired',
+    PROOF_FAILED: 'error.proofFailed',
   }
 
   const translationKey = errorKeyMap[code] || 'error.unknown'

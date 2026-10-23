@@ -1,6 +1,6 @@
 import type { ExternalConnection } from '@haex-space/vault-sdk'
 import type { EncryptedMessage, KeyPair } from './crypto'
-import type { AuthorizationUpdate, EncryptedEnvelope, HandshakeResponse, ProtocolMessage } from './protocol'
+import type { AuthorizationUpdate, ChallengeMessage, EncryptedEnvelope, HandshakeResponse, ProtocolMessage } from './protocol'
 import {
 
   ExternalConnectionErrorCode,
@@ -19,7 +19,7 @@ import {
   toHex,
 } from './crypto'
 import { loadKeypair, saveAndVerifyKeypair } from './keypairStorage'
-import { createHandshakeRequest, createRequestEnvelope } from './protocol'
+import { createHandshakeRequest, createProofMessage, createRequestEnvelope } from './protocol'
 
 // 25 s is comfortably below the typical 30 s MV3 service-worker idle timeout
 // and below most stateful firewalls' connection-track timeouts.
@@ -30,6 +30,10 @@ const PING_INTERVAL_MS = 25000
 // and may ask for a wider grant before saving an entry (049 FR-015). The extra
 // seconds let a last-moment answer still arrive.
 const USER_CONFIRMATION_TIMEOUT_MS = 130000
+
+// The vault's own reasons for refusing a connection. It closes the socket right
+// after; the close must not hide why.
+const VAULT_REFUSALS = new Set<string>(['PROTOCOL_UPDATE_REQUIRED', 'PROOF_FAILED', 'PERMISSIONS_DECLARATION_REQUIRED'])
 
 // Re-export SDK types for use in the extension
 export { type ExternalConnection, ExternalConnectionErrorCode, ExternalConnectionState }
@@ -177,7 +181,8 @@ class VaultConnectionManager {
             return
           console.log('[haex-pass] WebSocket closed')
           this.status.state = ExternalConnectionState.DISCONNECTED
-          this.status.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
+          if (!VAULT_REFUSALS.has(this.status.errorCode))
+            this.status.setError(ExternalConnectionErrorCode.CONNECTION_CLOSED)
           this.serverPublicKey = null
           this.stopPing()
           this.rejectPendingRequests('Connection closed')
@@ -255,6 +260,10 @@ class VaultConnectionManager {
           await this.handleHandshakeResponse(message)
           break
 
+        case 'challenge':
+          await this.handleChallenge(message)
+          break
+
         case 'response':
           await this.handleEncryptedResponse(message)
           break
@@ -308,6 +317,37 @@ class VaultConnectionManager {
     }
 
     this.status.notify()
+  }
+
+  /**
+   * Protocol v3: proves that this client holds the private key of its id
+   * (holzi 049 FR-048). The challenge only opens with that key; the proof goes
+   * back sealed to the vault's key. Without an answer the vault closes.
+   */
+  private async handleChallenge(challenge: ChallengeMessage): Promise<void> {
+    if (!this.ws || !this.keyPair || !this.clientId)
+      return
+
+    this.serverPublicKey = await importPublicKey(challenge.serverPublicKey)
+    const opened = await decryptMessageEnvelope(
+      {
+        action: 'challenge',
+        message: challenge.message,
+        iv: challenge.iv,
+        clientID: this.clientId,
+        publicKey: challenge.publicKey,
+      },
+      this.keyPair.privateKey,
+    ) as { challenge?: unknown } | null
+    if (typeof opened?.challenge !== 'string') {
+      console.error('[haex-pass] Could not open the vault\'s challenge')
+      this.status.setError(ExternalConnectionErrorCode.DECRYPTION_FAILED)
+      this.status.notify()
+      return
+    }
+
+    const sealed = await createEncryptedMessage('proof', { challenge: opened.challenge }, this.clientId, this.serverPublicKey)
+    this.ws.send(JSON.stringify(createProofMessage(sealed)))
   }
 
   private async handleEncryptedResponse(envelope: EncryptedEnvelope): Promise<void> {
