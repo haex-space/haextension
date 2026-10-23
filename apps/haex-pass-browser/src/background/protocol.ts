@@ -3,7 +3,11 @@ import type { EncryptedMessage } from './crypto'
 // Protocol v2: the vault requires clients to declare their requested
 // permissions in the handshake (`ClientInfo.permissions`); v1 handshakes are
 // rejected with PERMISSIONS_DECLARATION_REQUIRED.
-const PROTOCOL_VERSION = 2
+// Protocol v3 (holzi, spec 049 FR-048): after the handshake the vault sends a
+// challenge sealed to this client's key, and the client proves it holds that
+// key by sending it back sealed to the vault's key. A vault that sends no
+// challenge answers the handshake directly, as with v2.
+const PROTOCOL_VERSION = 3
 const CLIENT_NAME = 'haex-pass Browser Extension'
 
 // All requests from this browser extension target the haex-vault core directly,
@@ -74,6 +78,23 @@ export interface AuthorizationUpdate {
   authorized: boolean
 }
 
+/** Protocol v3: a challenge sealed to this client's public key, like a response. */
+export interface ChallengeMessage {
+  type: 'challenge'
+  serverPublicKey: string
+  publicKey: string // Ephemeral public key of the vault
+  iv: string
+  message: string
+}
+
+/** Protocol v3: the challenge, sealed back to the vault's key like a request. */
+interface ProofMessage {
+  type: 'proof'
+  publicKey: string // Ephemeral public key of this client
+  iv: string
+  message: string
+}
+
 interface ErrorMessage {
   type: 'error'
   code: string
@@ -91,6 +112,8 @@ interface PongMessage {
 export type ProtocolMessage
   = | HandshakeRequest
     | HandshakeResponse
+    | ChallengeMessage
+    | ProofMessage
     | EncryptedEnvelope
     | AuthorizationUpdate
     | ErrorMessage
@@ -133,5 +156,14 @@ export function createRequestEnvelope(encrypted: EncryptedMessage): EncryptedEnv
     publicKey: encrypted.publicKey,
     extensionPublicKey: CORE_TARGET_PUBLIC_KEY,
     extensionName: CORE_TARGET_NAME,
+  }
+}
+
+export function createProofMessage(encrypted: EncryptedMessage): ProofMessage {
+  return {
+    type: 'proof',
+    publicKey: encrypted.publicKey,
+    iv: encrypted.iv,
+    message: encrypted.message,
   }
 }

@@ -1,6 +1,6 @@
 import type { vaultConnection as VaultConnection } from '../connection'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { exportPublicKey, generateKeyPair } from '../crypto'
+import { createEncryptedMessage, decryptMessageEnvelope, exportPublicKey, generateKeyPair, importPublicKey } from '../crypto'
 
 vi.mock('../keypairStorage', () => ({
   loadKeypair: async () => generateKeyPair(),
@@ -114,5 +114,81 @@ describe('vaultConnection.sendRequest', () => {
     socket.close()
 
     expect(await settled(request)).toBe('rejected')
+  })
+})
+
+/** Opens a connection and returns the socket and the client's public key from its handshake. */
+async function handshaken(): Promise<{ socket: FakeWebSocket, handshake: { version: number, client: { publicKey: string } } }> {
+  const connected = connection.connect()
+  const socket = await nextSocket()
+  socket.open()
+  await connected
+  await vi.waitFor(() => expect(socket.sent.length).toBeGreaterThan(0))
+  return { socket, handshake: JSON.parse(socket.sent[0]) }
+}
+
+/** A challenge as holzi seals it: to `recipient`, the client's public key from the handshake. */
+async function challengeFor(recipient: string, server: CryptoKeyPair, challenge: string) {
+  const sealed = await createEncryptedMessage('challenge', { challenge }, '', await importPublicKey(recipient))
+  return {
+    type: 'challenge',
+    serverPublicKey: await exportPublicKey(server.publicKey),
+    publicKey: sealed.publicKey,
+    iv: sealed.iv,
+    message: sealed.message,
+  }
+}
+
+describe('protocol 3 (holzi 049 FR-048)', () => {
+  it('sends a handshake for protocol 3', async () => {
+    const { handshake } = await handshaken()
+
+    expect(handshake.version).toBe(3)
+  })
+
+  it('answers a challenge with a proof that the vault key opens to the same bytes', async () => {
+    const { socket, handshake } = await handshaken()
+    const server = await generateKeyPair()
+
+    socket.receive(await challengeFor(handshake.client.publicKey, server, 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8='))
+
+    await vi.waitFor(() => expect(socket.sent.some(frame => frame.includes('"type":"proof"'))).toBe(true))
+    const proof = JSON.parse(socket.sent.find(frame => frame.includes('"type":"proof"'))!)
+    const opened = await decryptMessageEnvelope(
+      { action: 'proof', message: proof.message, iv: proof.iv, clientID: '', publicKey: proof.publicKey },
+      server.privateKey,
+    )
+    expect(opened).toEqual({ challenge: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=' })
+  })
+
+  it('pairs as before when the vault answers the handshake without a challenge', async () => {
+    const { socket } = await handshaken()
+    const server = await generateKeyPair()
+
+    socket.receive({ type: 'handshakeResponse', version: 2, serverPublicKey: await exportPublicKey(server.publicKey), authorized: true, pendingApproval: false })
+
+    await vi.waitFor(() => expect(connection.getState().state).toBe('paired'))
+    expect(socket.sent.some(frame => frame.includes('"type":"proof"'))).toBe(false)
+  })
+
+  it('sends no proof for a challenge sealed to another key', async () => {
+    const { socket } = await handshaken()
+    const server = await generateKeyPair()
+    const stranger = await generateKeyPair()
+
+    socket.receive(await challengeFor(await exportPublicKey(stranger.publicKey), server, 'c2VjcmV0'))
+
+    await vi.waitFor(() => expect(connection.getState().errorCode).toBe('decryption_failed'))
+    expect(socket.sent.some(frame => frame.includes('"type":"proof"'))).toBe(false)
+  })
+
+  it('keeps the vault\'s refusal when the vault then closes the connection', async () => {
+    const { socket } = await handshaken()
+
+    socket.receive({ type: 'error', code: 'PROOF_FAILED', message: 'The client did not prove its key' })
+    socket.close()
+
+    await vi.waitFor(() => expect(connection.getState().state).toBe('disconnected'))
+    expect(connection.getState().errorCode).toBe('PROOF_FAILED')
   })
 })
