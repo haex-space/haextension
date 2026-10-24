@@ -4,11 +4,16 @@
  * where it cannot work (an Android WebView may refuse). Esc leaves fullscreen by itself.
  */
 export function useFullscreen(target: Ref<HTMLElement | null>) {
-  const available = ref(typeof document !== "undefined" && document.fullscreenEnabled === true);
+  const available = ref(
+    typeof document !== "undefined"
+    && typeof Element !== "undefined"
+    && document.fullscreenEnabled === true
+    && "requestFullscreen" in Element.prototype,
+  );
   const active = ref(false);
 
   function onChange() {
-    active.value = document.fullscreenElement !== null;
+    active.value = document.fullscreenElement === target.value;
   }
 
   async function toggle() {
