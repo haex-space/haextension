@@ -5,6 +5,8 @@
 #include "d_event.h"
 #include "doomstat.h"
 
+extern void I_SetMouseMotionEnabled(boolean enabled);
+
 // Set by G_Responder when the pause key is pressed; the next tic sends the pause.
 extern boolean sendpause;
 
@@ -21,6 +23,12 @@ void haex_post_event(int type, int data1, int data2, int data3, int data4, int d
     event.data5 = data5;
     event.data6 = data6;
     D_PostEvent(&event);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void haex_set_mouse_motion(int enabled)
+{
+    I_SetMouseMotionEnabled(enabled != 0);
 }
 
 // Whether the shell caused the current pause; a pause the player chose stays until the player ends it.
