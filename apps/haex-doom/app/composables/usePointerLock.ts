@@ -24,6 +24,7 @@ export function usePointerLock(target: Ref<HTMLElement | null>) {
 
   function onChange() {
     locked.value = document.pointerLockElement === target.value;
+    engine.setMouseMotionEnabled(!locked.value);
   }
 
   function onMove(event: MouseEvent) {
@@ -40,6 +41,7 @@ export function usePointerLock(target: Ref<HTMLElement | null>) {
     document.removeEventListener("pointerlockchange", onChange);
     document.removeEventListener("mousemove", onMove);
     if (locked.value) document.exitPointerLock();
+    engine.setMouseMotionEnabled(true);
   });
 
   return { locked: readonly(locked), lock };

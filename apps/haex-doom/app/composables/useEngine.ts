@@ -39,7 +39,9 @@ const EV_KEYUP = 1;
 
 let instance: EngineModule | null = null;
 let postEventFn: ((...args: number[]) => void) | null = null;
+let setMouseMotionFn: ((...args: number[]) => void) | null = null;
 let setPausedFn: ((...args: number[]) => void) | null = null;
+let mouseMotionEnabled = true;
 
 const state = ref<EngineState>("idle");
 const error = ref<EngineError | null>(null);
@@ -99,6 +101,8 @@ export function useEngine() {
       });
       instance = module;
       postEventFn = module.cwrap("haex_post_event", null, ["number", "number", "number", "number", "number", "number", "number"]);
+      setMouseMotionFn = module.cwrap("haex_set_mouse_motion", null, ["number"]);
+      setMouseMotionFn(mouseMotionEnabled ? 1 : 0);
       setPausedFn = module.cwrap("haex_set_paused", null, ["number"]);
 
       const saveDir = prepareFileSystem(module, options);
@@ -119,13 +123,20 @@ export function useEngine() {
   function stopped(reason: EngineError | null) {
     instance = null;
     postEventFn = null;
+    setMouseMotionFn = null;
     setPausedFn = null;
+    mouseMotionEnabled = true;
     error.value = reason;
     state.value = reason ? "failed" : "idle";
   }
 
   function postEvent(type: number, data1 = 0, data2 = 0, data3 = 0, data4 = 0, data5 = 0, data6 = 0) {
     postEventFn?.(type, data1, data2, data3, data4, data5, data6);
+  }
+
+  function setMouseMotionEnabled(enabled: boolean) {
+    mouseMotionEnabled = enabled;
+    setMouseMotionFn?.(enabled ? 1 : 0);
   }
 
   function pressKey(key: number, down: boolean) {
@@ -145,5 +156,5 @@ export function useEngine() {
     return instance?.FS.readFile(path) ?? null;
   }
 
-  return { state: readonly(state), error: readonly(error), start, postEvent, pressKey, setPaused, audioContext, readFile };
+  return { state: readonly(state), error: readonly(error), start, postEvent, pressKey, setMouseMotionEnabled, setPaused, audioContext, readFile };
 }

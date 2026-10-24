@@ -1,0 +1,50 @@
+diff --git a/src/i_input.c b/src/i_input.c
+index d92ee794..5f9f1301 100644
+--- a/src/i_input.c
++++ b/src/i_input.c
+@@ -83,6 +83,9 @@ static boolean text_input_enabled = true;
+ // Bit mask of mouse button state.
+ static unsigned int mouse_button_state = 0;
+ 
++// haex-doom: the shell supplies relative motion while pointer lock is active.
++static boolean haex_mouse_motion_enabled = true;
++
+ // Disallow mouse and joystick movement to cause forward/backward
+ // motion.  Specified with the '-novert' command line parameter.
+ // This is an int to allow saving to config file
+@@ -547,6 +550,11 @@ double I_AccelerateMouseY(int val)
+ //
+ // This is to combine all mouse movement for a tic into one mouse
+ // motion event.
++void I_SetMouseMotionEnabled(boolean enabled)
++{
++    haex_mouse_motion_enabled = enabled;
++}
++
+ void I_ReadMouse(void)
+ {
+     int x, y;
+@@ -555,6 +563,11 @@ void I_ReadMouse(void)
+     SDL_GetRelativeMouseState(&x, &y);
+     UpdateMouseAccel(x, y); // [crispy]
+ 
++    if (!haex_mouse_motion_enabled)
++    {
++        return;
++    }
++
+     if (x != 0 || y != 0) 
+     {
+         ev.type = ev_mouse;
+@@ -583,6 +596,11 @@ void I_ReadMouseUncapped(void)
+     SDL_GetRelativeMouseState(&x, &y);
+     UpdateMouseAccel(x, y);
+ 
++    if (!haex_mouse_motion_enabled)
++    {
++        return;
++    }
++
+     if (x != 0 || y != 0)
+     {
+         fastmouse.data2 = x;
