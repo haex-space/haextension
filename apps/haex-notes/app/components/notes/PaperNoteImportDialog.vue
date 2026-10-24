@@ -47,7 +47,10 @@ class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30" 
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end gap-2">
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <button v-if="!reading" class="mr-auto flex items-center gap-1 px-1 py-2 text-sm text-muted-foreground hover:text-foreground" @click="openModelSettingsAsync">
+          <SlidersHorizontal class="size-4" />{{ t('models') }}
+        </button>
         <button v-if="reading" class="px-3 py-2 text-sm text-muted-foreground" @click="recognition.cancel()">
           {{ t('cancel') }}
         </button>
@@ -65,7 +68,7 @@ class="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-30" 
 </template>
 
 <script setup lang="ts">
-import { Camera, ImageUp, Loader2, RotateCcw, RotateCw } from "@lucide/vue";
+import { Camera, ImageUp, Loader2, RotateCcw, RotateCw, SlidersHorizontal } from "@lucide/vue";
 import type { Box } from "~/lib/elementEdits";
 import type { Photo } from "~/lib/paperNotes/importPage";
 import type { Rotation } from "~/lib/paperNotes/mapResult";
@@ -81,6 +84,7 @@ const props = defineProps<{ closeUpBox?: Box | null }>();
 const { t } = useI18n();
 const notebook = useNotebookStore();
 const recognition = usePaperNoteRecognition();
+const haexVault = useHaexVaultStore();
 const reading = recognition.reading;
 
 const photo = shallowRef<Omit<Photo, "rotation"> | null>(null);
@@ -126,6 +130,15 @@ async function onFileAsync(event: Event) {
   } catch (error) {
     console.warn("[haex-notes] Could not open the photo:", error);
     message.value = t("unreadable");
+  }
+}
+
+/** Modelle und Aufwand wählt der Nutzer in holzi; dieser Weg führt auf die Seite dieser Erweiterung. */
+async function openModelSettingsAsync() {
+  try {
+    await haexVault.client.models.openSettingsAsync();
+  } catch (error) {
+    reportError(error);
   }
 }
 
@@ -201,6 +214,7 @@ async function readAsync() {
 <i18n lang="yaml">
 de:
   title: Foto importieren
+  models: Modelle in holzi festlegen
   description: Fotografiere eine Mitschrift, ein Tafelbild oder ein Arbeitsblatt. holzi liest es mit dem Modell, das du dort freigegeben hast.
   takePhoto: Foto aufnehmen
   chooseFile: Datei wählen
@@ -244,6 +258,7 @@ de:
       processing_failed: Die Verarbeitung ist fehlgeschlagen. Die Stelle bleibt, wie sie war.
 en:
   title: Import a photo
+  models: Choose models in holzi
   description: Take a photo of notes, a blackboard or a worksheet. holzi reads it with the model you allowed there.
   takePhoto: Take a photo
   chooseFile: Choose a file
