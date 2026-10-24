@@ -11,6 +11,9 @@ const portrait = useMediaQuery('(orientation: portrait)')
 const askToRotate = computed(() => mode.value === 'touch' && portrait.value)
 
 const canvas = ref<HTMLCanvasElement | null>(null)
+const container = ref<HTMLElement | null>(null)
+const { lock } = usePointerLock(canvas)
+const fullscreen = useFullscreen(container)
 /** Set when the app went to the background; the player resumes with a tap (FR-006). */
 const waitingToContinue = ref(false)
 
@@ -71,7 +74,10 @@ defineExpose({ canvas })
 </script>
 
 <template>
-  <div class="relative w-full h-full bg-black">
+  <div
+    ref="container"
+    class="relative w-full h-full bg-black"
+  >
     <!-- SDL2 finds its canvas through the selector `#canvas`. -->
     <canvas
       id="canvas"
@@ -79,8 +85,13 @@ defineExpose({ canvas })
       tabindex="0"
       class="block w-full h-full object-contain outline-none"
       @keydown="onKeydown"
-      @pointerdown="resumeIfSuspended(engine.audioContext())"
+      @pointerdown="resumeIfSuspended(engine.audioContext()); lock($event)"
       @contextmenu.prevent
+    />
+    <DoomFullscreenButton
+      v-if="fullscreen.available.value && mode !== 'touch'"
+      :active="fullscreen.active.value"
+      @toggle="fullscreen.toggle"
     />
     <DoomTouchOverlay v-if="mode === 'touch' && !askToRotate && !waitingToContinue" />
     <div
