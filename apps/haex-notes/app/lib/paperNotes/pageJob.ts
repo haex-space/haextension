@@ -100,7 +100,7 @@ export const TEXT_FIX_FORMAT: ModelJobFormat = {
   },
 };
 
-/** Der Auftrag für eine Arbeitskopie (JPEG, Base64). */
+/** Der Auftrag für eine Arbeitskopie (JPEG, Base64). Den Aufwand wählt der Nutzer je Modell in holzi, nicht diese Erweiterung. */
 export function buildPageJob(workingCopyBase64: string): ModelJob {
   const image: ModelJobImage = { mimeType: "image/jpeg", data: workingCopyBase64 };
   return {
@@ -111,7 +111,6 @@ export function buildPageJob(workingCopyBase64: string): ModelJob {
         instruction: READ_INSTRUCTION,
         input: { images: [image] },
         format: PAGE_FORMAT,
-        effort: "medium",
         maxOutputTokens: 8192,
       },
       {
@@ -120,7 +119,6 @@ export function buildPageJob(workingCopyBase64: string): ModelJob {
         instruction: FIX_INSTRUCTION,
         input: { from: { step: "read", pointer: "/regions" } },
         format: TEXT_FIX_FORMAT,
-        effort: "low",
       },
     ],
   };
