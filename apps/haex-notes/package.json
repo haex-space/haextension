@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@haex-space/vault-sdk": "^4.10.0",
+    "@lucide/vue": "^1.45.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/icon": "^2.1.1",
     "@nuxtjs/i18n": "^10.2.1",
@@ -28,9 +29,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
-    "@lucide/vue": "^1.45.0",
     "nuxt": "^4.2.2",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "5.7.284",
     "perfect-freehand": "^1.2.3",
     "reka-ui": "^2.6.1",
     "shadcn-nuxt": "2.3.2",
