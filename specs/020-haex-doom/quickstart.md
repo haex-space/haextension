@@ -37,4 +37,4 @@ Expected: `engine:build` writes `apps/haex-doom/public/engine/crispy-doom.{js,wa
 | US5 import | Import `DOOM2.WAD`; import it again; import a PNG and a PWAD; remove DOOM II. | DOOM II listed with its title; second import says "already available"; PNG and PWAD rejected with reasons and nothing stored; removal frees the entry, saves remain. |
 | US6 mouse/fullscreen | On desktop with H2: click into the game, move the mouse, left-click, Esc; toggle fullscreen. | Mouse turns and fires; Esc releases the cursor and opens the menu; fullscreen fills the screen and Esc leaves it. Without H2: options hidden, keyboard play unaffected. |
 | US7 gamepad | Connect a standard gamepad and play a map. Disconnect it. | Sticks move/turn, trigger fires; disconnect pauses a single-player game. |
-| SC-002 speed | Start `-timedemo demo1` via the debug start option on a mid-range phone. | Reported speed ≥ 35 tics/s with no audio dropouts. |
+| SC-002 speed | Tap the title "DOOM" seven times on the start screen, then "Speed check" (runs `-timedemo demo1`), on a mid-range phone. | Reported speed ≥ 35 tics/s with no audio dropouts. |

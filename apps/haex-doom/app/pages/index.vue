@@ -4,6 +4,7 @@ import { setConfigValue, widescreenFor } from '~/lib/engineConfig'
 import { parseSavePath, saveDescription } from '~/lib/saveStore'
 import { takeNetAudio } from '~/lib/netAudio'
 import type { StartRequest } from '~/lib/lobby'
+import { parseTimedemo, type TimedemoResult } from '~/lib/timedemo'
 import { loadBundledWad } from '~/lib/wadLoader'
 import { toast } from 'vue-sonner'
 import type { PlayableGame } from '~/stores/games'
@@ -106,8 +107,9 @@ async function onFileRemoved(path: string) {
   }
 }
 
-/** `netgame` starts a multiplayer game with the engine arguments the lobby chose. */
-async function startGame(game: PlayableGame, netgame?: Pick<StartRequest, 'args'>) {
+/** `netgame` starts a multiplayer game with the engine arguments the lobby chose; `args` alone adds engine arguments to a single-player game. */
+async function startGame(game: PlayableGame, options: { args?: string[], netgame?: boolean } = {}) {
+  const { args, netgame } = options
   // Must run inside the tap, before any await (research R-14); a netgame's context was made in the last tap of the lobby.
   const audioContext = netgame ? takeNetAudio() : unlockAudio()
   playing.value = true
@@ -135,7 +137,7 @@ async function startGame(game: PlayableGame, netgame?: Pick<StartRequest, 'args'
     preparing.value = false
     await engine.start({
       canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
-      args: netgame?.args,
+      args,
       imports: {
         haptic: settings.vibrate,
         fileWritten: (path) => void onFileWritten(path),
@@ -162,8 +164,30 @@ function onNetgameStart(request: StartRequest) {
     void lobby.leave()
     return
   }
-  void startGame(game, { args: request.args })
+  void startGame(game, { args: request.args, netgame: true })
 }
+
+// A hidden speed check (SC-002): seven taps on the title show it. The engine runs `-timedemo demo1`
+// as fast as it can and reports game tics per second of real time; 35 is real time.
+const titleTaps = ref(0)
+const speedCheck = ref(false)
+const speedResult = ref<TimedemoResult | null>(null)
+const showSpeedCheck = computed(() => titleTaps.value >= 7)
+
+function startSpeedCheck() {
+  const game = games.all.find(candidate => candidate.family === 'doom1') ?? games.all[0]
+  if (!game) return
+  speedResult.value = null
+  speedCheck.value = true
+  void startGame(game, { args: ['-timedemo', 'demo1'] })
+}
+
+watch(engine.lastExit, (reason) => {
+  if (!speedCheck.value || !reason) return
+  speedCheck.value = false
+  speedResult.value = parseTimedemo(reason.message)
+  if (!speedResult.value) toast.error(t('speedCheckFailed', { message: reason.message }))
+})
 
 // Back to the start screen when the engine quits or fails.
 watch(engine.state, (state) => {
@@ -190,7 +214,10 @@ watch(engine.state, (state) => {
       v-if="!playing"
       class="h-full flex flex-col items-center justify-center gap-6 p-6 max-w-md mx-auto overflow-y-auto"
     >
-      <h1 class="text-4xl font-black tracking-wide">
+      <h1
+        class="text-4xl font-black tracking-wide"
+        @click="titleTaps++"
+      >
         DOOM
       </h1>
 
@@ -239,6 +266,25 @@ watch(engine.state, (state) => {
         </section>
       </template>
 
+      <section
+        v-if="showSpeedCheck && hostSupportsEngine"
+        class="w-full flex flex-col gap-2"
+      >
+        <ShadcnButton
+          variant="outline"
+          :disabled="engine.state.value === 'loading'"
+          @click="startSpeedCheck"
+        >
+          {{ t('speedCheck') }}
+        </ShadcnButton>
+        <p
+          v-if="speedResult"
+          class="text-center text-sm"
+        >
+          {{ t('speedResult', { tics: speedResult.ticsPerSecond.toFixed(1), realtics: speedResult.realtics, gametics: speedResult.gametics }) }}
+        </p>
+      </section>
+
       <div class="flex gap-2">
         <DoomSettingsDialog />
         <DoomAboutDialog />
@@ -255,6 +301,9 @@ de:
   saveRemoveFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
   loading: Lädt …
   multiplayer: Mehrspieler
+  speedCheck: Geschwindigkeitsprüfung (Demo 1)
+  speedResult: "{tics} Spiel-Tics pro Sekunde ({gametics} Tics in {realtics} Takten; ab 35 läuft das Spiel in Echtzeit)"
+  speedCheckFailed: "Die Prüfung endete ohne Ergebnis: {message}"
   hostGame: Spiel hosten
   gameMissing: Die Spieldatei des Spiels fehlt auf diesem Gerät.
   hostOutdated: Bitte aktualisiere deinen Vault, um DOOM zu spielen. Diese Version erlaubt Erweiterungen noch kein WebAssembly.
@@ -269,6 +318,9 @@ en:
   saveRemoveFailed: The save game was not removed from the vault and will be back next time.
   loading: Loading …
   multiplayer: Multiplayer
+  speedCheck: Speed check (demo 1)
+  speedResult: "{tics} game tics per second ({gametics} tics in {realtics} ticks; 35 or more runs in real time)"
+  speedCheckFailed: "The check ended without a result: {message}"
   hostGame: Host a game
   gameMissing: This device does not have the game file of this game.
   hostOutdated: Please update your vault to play DOOM. This version does not let extensions run WebAssembly yet.

@@ -7,7 +7,7 @@
 //
 // Needs `playwright-core` (resolvable, or its directory in PLAYWRIGHT_CORE) and a Chromium
 // (CHROMIUM, default /usr/bin/chromium). Scenarios: coop, coop-doom1, deathmatch, latency, four,
-// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure. No scenario runs all.
+// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure, timedemo. No scenario runs all.
 // Exit code 1 when a scenario fails.
 
 import { createServer } from "node:http";
@@ -364,6 +364,22 @@ const scenarios = {
     const exit = (await guest.result()).exit;
     note(`  guest ${guestEnded ? `ended after ${Date.now() - quit} ms` : "did NOT end"}: exit ${JSON.stringify(exit)}`);
     return { ok: hostEnded && guestEnded && exit?.isError === false && /host/i.test(exit.message), game };
+  },
+
+  // SC-002 groundwork: one engine, `-timedemo demo1` as fast as it goes. The engine reports game tics per
+  // second of real time through the exit hook; 35 is real time. Chromium on a desktop is the baseline only:
+  // the figure that counts is the one of a mid-range phone, from the speed check in the app.
+  async timedemo({ context, origin }) {
+    const page = await context.newPage();
+    const query = new URLSearchParams({ id: "host", wad: "freedoom1", args: JSON.stringify(["-timedemo", "demo1"]), session: "0", bot: "0" });
+    await page.goto(`${origin}/harness.html?${query}`);
+    const ended = await until(() => page.evaluate(() => window.__harness.result.exited).catch(() => false), 180_000, 500);
+    const result = await page.evaluate(() => ({ ...window.__harness.result }));
+    note(`  exit ${JSON.stringify(result.exit)} status ${result.status} error ${result.error}`);
+    if (!result.exit) note((await page.evaluate(() => window.__harness.log.slice(-15))).join("\n"));
+    const report = /^timed (\d+) gametics in (\d+) realtics \(([\d.]+) fps\)$/.exec(result.exit?.message ?? "");
+    if (report) note(`  ${report[3]} game tics per second (${report[1]} tics in ${report[2]} ticks)`);
+    return { ok: ended && Boolean(report) && Number(report[3]) >= 35, game: { players: [] } };
   },
 
   // A guest cannot start a netgame when the shell has no peer session (haex_net_active false).
