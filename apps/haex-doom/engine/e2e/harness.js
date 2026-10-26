@@ -5,7 +5,8 @@
 //
 // Query: id (host | g1 | g2 | ...), wad (file name without .wad), args (JSON array),
 // latency (one-way delay in ms), loss (percent of datagrams dropped on send), bot (0 | 1),
-// session (0: no peer session).
+// session (0: no peer session), tamper (N: flips a bit in the commands of every Nth datagram
+// sent, which makes this instance's game diverge from the others: a control for the checks).
 //
 // Peer numbers, as the shell would assign them per device: the host knows guest gN as peer
 // 10 + N, a guest knows the host as peer 1.
@@ -18,6 +19,7 @@ const latency = Number(query.get("latency") ?? 0);
 const loss = Number(query.get("loss") ?? 0);
 const bot = query.get("bot") !== "0";
 // 0: the shell has no peer session (haex_net_active is false).
+const tamper = Number(query.get("tamper") ?? 0);
 const session = query.get("session") !== "0";
 
 const HOST_PEER = 1;
@@ -55,6 +57,10 @@ const imports = {
     if (Math.random() * 100 < loss) {
       stats.dropped++;
       return;
+    }
+    if (tamper > 0 && stats.sent > 400 && stats.sent % tamper === 0 && data.length > 12) {
+      data = data.slice();
+      data[data.length - 2] ^= 1;
     }
     channel.postMessage({ to: nameOf(peer), from: id, data });
   },

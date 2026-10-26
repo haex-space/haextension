@@ -7,7 +7,7 @@
 //
 // Needs `playwright-core` (resolvable, or its directory in PLAYWRIGHT_CORE) and a Chromium
 // (CHROMIUM, default /usr/bin/chromium). Scenarios: coop, deathmatch, latency, four,
-// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session. No scenario runs all.
+// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure. No scenario runs all.
 // Exit code 1 when a scenario fails.
 
 import { createServer } from "node:http";
@@ -70,11 +70,11 @@ class Player {
   }
 
   async open() {
-    const { wad, args, latency = 0, loss = 0 } = this.options;
+    const { wad, args, latency = 0, loss = 0, tamper = 0 } = this.options;
     this.page = await this.context.newPage();
     this.consoleErrors = [];
     this.page.on("pageerror", (error) => this.consoleErrors.push(String(error)));
-    const query = new URLSearchParams({ id: this.id, wad, args: JSON.stringify(args), latency, loss });
+    const query = new URLSearchParams({ id: this.id, wad, args: JSON.stringify(args), latency, loss, tamper });
     await this.page.goto(`${this.origin}/harness.html?${query}`);
   }
 
@@ -148,12 +148,12 @@ function guestIds(count) {
 }
 
 // A running netgame: one host and `guests` guests.
-async function startGame(context, origin, { guests = 1, hostArgs = HOST_ARGS, wad = "freedoom2", latency = 0, loss = 0, startTimeoutMs = 120_000 } = {}) {
+async function startGame(context, origin, { tamperGuest = 0, guests = 1, hostArgs = HOST_ARGS, wad = "freedoom2", latency = 0, loss = 0, startTimeoutMs = 120_000 } = {}) {
   const nodes = String(guests + 1);
   const args = hostArgs.map((arg, i, all) => (all[i - 1] === "-nodes" ? nodes : arg));
   const players = [new Player(context, origin, "host", { wad, args, latency, loss })];
   for (const id of guestIds(guests)) {
-    players.push(new Player(context, origin, id, { wad, args: GUEST_ARGS, latency, loss }));
+    players.push(new Player(context, origin, id, { wad, args: GUEST_ARGS, latency, loss, tamper: id === "g1" ? tamperGuest : 0 }));
   }
   for (const player of players) await player.open();
   const reached = await until(async () => (await Promise.all(players.map((p) => p.inLevel()))).every(Boolean), startTimeoutMs, 500);
@@ -251,6 +251,18 @@ const scenarios = {
     if (!game.reached) return { ok: false, game, why: "not all players reached the level" };
     const played = await playFor(game.players, seconds);
     return { ok: await verifyLockstep(game.players, played), game };
+  },
+
+  // Control for the checks: g1 sends corrupted commands, so its game diverges, and the engine
+  // must end the game with its consistency failure through the exit hook (FR-034).
+  async "consistency-failure"({ context, origin }) {
+    const game = await startGame(context, origin, { tamperGuest: 30 });
+    if (!game.reached) return { ok: false, game, why: "not all players reached the level" };
+    const ended = await until(async () => (await Promise.all(game.players.map((p) => p.hasExited()))).some(Boolean), 60_000, 250);
+    await sleep(3000);
+    const exits = await Promise.all(game.players.map((p) => p.result()));
+    game.players.forEach((p, i) => note(`  ${p.id}: exited=${exits[i].exited} exit ${JSON.stringify(exits[i].exit)}`));
+    return { ok: ended && exits.some((r) => r.exit?.isError && /consistency/i.test(r.exit.message)), game };
   },
 
   // A connection round trip of 150 ms (75 ms each way) with 2 % of the datagrams lost (SC-010).
