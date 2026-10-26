@@ -39,15 +39,13 @@ export interface SentMessage {
   data: Uint8Array;
 }
 
-type Handlers = { [T in PeerEventType]?: Set<(event: PeerEventMap[T]) => void> };
-
 export class FakeVault {
   readonly api: PeersApi;
   /** Names of the vaults whose owners are this vault's contacts. */
   readonly contacts = new Set<string>();
   /** Accept invitations at once, before `inviteAsync` of the inviting side returns. */
   autoAccept = false;
-  private readonly handlers: Handlers = {};
+  private readonly handlers = new Map<PeerEventType, Set<(event: never) => void>>();
 
   constructor(
     readonly name: string,
@@ -63,7 +61,8 @@ export class FakeVault {
       sendAsync: async (channelId, data, options) => network.send(this, channelId, data, options?.reliable ?? false),
       closeAsync: async (channelId) => network.close(channelId),
       on: (type, handler) => {
-        const set = (this.handlers[type] ??= new Set()) as Set<typeof handler>;
+        const set = this.handlers.get(type) ?? new Set();
+        this.handlers.set(type, set);
         set.add(handler);
         return () => set.delete(handler);
       },
@@ -75,7 +74,7 @@ export class FakeVault {
   }
 
   emit<T extends PeerEventType>(type: T, event: PeerEventMap[T]) {
-    for (const handler of [...(this.handlers[type] ?? [])]) (handler as (event: PeerEventMap[T]) => void)(event);
+    for (const handler of [...(this.handlers.get(type) ?? [])]) (handler as (event: PeerEventMap[T]) => void)(event);
   }
 }
 
