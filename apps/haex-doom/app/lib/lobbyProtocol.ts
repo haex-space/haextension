@@ -173,8 +173,11 @@ function parseStart(value: Json): StartMessage | null {
 
 type WithoutVersion<T> = T extends unknown ? Omit<T, "v"> : never;
 
-/** Serialises a message to the bytes `peers.sendAsync` takes; the version is added here. */
-export function encodeMessage(message: WithoutVersion<ProtocolMessage>): Uint8Array {
+/** A message as it is built for sending: the version is added by `encodeMessage`. */
+export type OutgoingMessage = WithoutVersion<ProtocolMessage>;
+
+/** Serialises a message to the bytes `peers.sendAsync` takes. */
+export function encodeMessage(message: OutgoingMessage): Uint8Array {
   return new TextEncoder().encode(JSON.stringify({ ...message, v: PROTOCOL_VERSION }));
 }
 

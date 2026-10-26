@@ -74,7 +74,7 @@ de:
       removed: Der Gastgeber hat dich aus dem Spiel entfernt.
     incompatible:
       game-missing: "Du kannst nicht beitreten: Dir fehlt die Spieldatei „{game}“. Importiere sie unter „Eigene Spieldatei importieren“."
-      version: Du kannst nicht beitreten: Du und der Gastgeber habt verschiedene DOOM-Versionen. Aktualisiert die Erweiterung.
+      version: "Du kannst nicht beitreten: Du und der Gastgeber habt verschiedene DOOM-Versionen. Aktualisiert die Erweiterung."
 en:
   gameEnded: "The game ended: {message}"
   notices:
@@ -90,5 +90,5 @@ en:
       removed: The host removed you from the game.
     incompatible:
       game-missing: "You cannot join: the game file \"{game}\" is missing. Import it with \"Import your own game file\"."
-      version: You cannot join: you and the host have different DOOM versions. Please update the extension.
+      version: "You cannot join: you and the host have different DOOM versions. Please update the extension."
 </i18n>
