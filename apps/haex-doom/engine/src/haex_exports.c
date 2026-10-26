@@ -3,6 +3,7 @@
 #include <emscripten.h>
 
 #include "d_event.h"
+#include "d_loop.h"
 #include "doomstat.h"
 
 #include "net_bridge.h"
@@ -67,4 +68,60 @@ EMSCRIPTEN_KEEPALIVE
 void haex_net_peer_closed(int peer)
 {
     NET_Bridge_PeerClosed(peer);
+}
+
+extern int prndindex;
+
+// Read-only probes of the running game, for the netgame measurements (T054) and the end-to-end
+// check of the lockstep (engine/e2e). They change nothing in the engine.
+// what: 0 gametic, 1 leveltime, 2 players in the game (bit n = player n), 3 console player,
+// 4 netgame (0 or 1), 5 position in the random table.
+EMSCRIPTEN_KEEPALIVE
+int haex_debug_game(int what)
+{
+    int i, mask = 0;
+
+    switch (what)
+    {
+        case 0: return gametic;
+        case 1: return leveltime;
+        case 2:
+            for (i = 0; i < MAXPLAYERS; ++i)
+            {
+                mask |= playeringame[i] ? 1 << i : 0;
+            }
+            return mask;
+        case 3: return consoleplayer;
+        case 4: return netgame ? 1 : 0;
+        case 5: return prndindex;
+        default: return -1;
+    }
+}
+
+// field: 0 x, 1 y, 2 angle (map units and binary angle of the player's mobj), 3 health; 0 when the player has no mobj.
+EMSCRIPTEN_KEEPALIVE
+int haex_debug_player(int player, int field)
+{
+    player_t *p;
+
+    if (player < 0 || player >= MAXPLAYERS || !playeringame[player])
+    {
+        return 0;
+    }
+    p = &players[player];
+    if (field == 3)
+    {
+        return p->health;
+    }
+    if (p->mo == NULL)
+    {
+        return 0;
+    }
+    switch (field)
+    {
+        case 0: return p->mo->x;
+        case 1: return p->mo->y;
+        case 2: return (int) p->mo->angle;
+        default: return 0;
+    }
 }

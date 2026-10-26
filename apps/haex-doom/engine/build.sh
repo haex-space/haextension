@@ -12,7 +12,7 @@ OUT_DIR="$APP_DIR/public/engine"
 UPSTREAM_URL="https://github.com/fabiangreffrath/crispy-doom.git"
 UPSTREAM_SHA="fdeabe4c23a833534b70aa84a22f1685aae7125d" # tag crispy-doom-7.2
 EMSDK_IMAGE="emscripten/emsdk:6.0.12@sha256:77638e6c215a65f25a704c0c831d5c2463a8c0468a58c6cb82489dbe621dfa05"
-EXPORTS="_main,_haex_post_event,_haex_set_mouse_motion,_haex_set_paused,_haex_net_peer_closed"
+EXPORTS="_main,_haex_post_event,_haex_set_mouse_motion,_haex_set_paused,_haex_net_peer_closed,_haex_debug_game,_haex_debug_player"
 # ponytail: the engine calls state actions such as A_Look(mobj_t *) through a three-argument
 # pointer, which WebAssembly traps on; EMULATE_FUNCTION_POINTER_CASTS makes every indirect call
 # a little slower. Upgrade path: patch the action prototypes in src/doom to one signature.
