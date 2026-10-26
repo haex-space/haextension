@@ -10,6 +10,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "engine:build": "bash engine/build.sh",
+    "engine:e2e": "node engine/e2e/run.mjs",
     "ext:dev": "haex dev",
     "package": "haex sign .output/public",
     "build:release": "pnpm build && pnpm package",
