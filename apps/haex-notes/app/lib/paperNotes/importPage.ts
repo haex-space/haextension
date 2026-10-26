@@ -1,6 +1,7 @@
 import type { ModelJob } from "@haex-space/vault-sdk";
-import type { ImageElement, PageElement, PageLayer, PaperNoteImport, RecognizedRegion } from "~/types/document";
+import type { ImageElement, PageAttachment, PageElement, PageLayer, PaperNoteImport, RecognizedRegion } from "~/types/document";
 import { computeBbox } from "../bbox";
+import { PHOTO_LAYER_NAME } from "../migratePage";
 import { fitImage, type Fit } from "./layout";
 import { imageElement, placeRegions, textOrTableElement, type PageJobOutcome, type Rotation } from "./mapResult";
 import { buildPageJob } from "./pageJob";
@@ -8,11 +9,12 @@ import { toBase64 } from "./workingCopy";
 
 /**
  * Eine Seite aus einem Foto (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md): Original und Arbeitskopie werden Assets, die
- * Arbeitskopie wird über holzi gelesen, und aus dem Ergebnis entstehen die Ebenen der Seite. Jeder
- * Fehler und ein Abbruch ergeben eine Seite mit dem Original, auf der man von Hand weiterarbeitet.
+ * Arbeitskopie wird über holzi gelesen, und aus dem Ergebnis entstehen die Ebenen der Seite. Das Original
+ * hängt als Anhang an der Seite (FR-022). Jeder Fehler und ein Abbruch ergeben eine Seite, auf der das
+ * Foto sichtbar steht (FR-025), damit man von Hand weiterarbeiten kann.
  */
 
-export const LAYER_NAMES = { original: "Original", text: "Text", objects: "Objekte", own: "Eigene Ergänzungen" };
+export const LAYER_NAMES = { photo: PHOTO_LAYER_NAME, text: "Text", objects: "Objekte", own: "Eigene Ergänzungen" };
 
 export interface Photo {
   bytes: Uint8Array;
@@ -43,6 +45,7 @@ export interface ImportDeps {
 export interface ImportedPage {
   layers: PageLayer[];
   paperImport: PaperNoteImport;
+  attachments: PageAttachment[];
 }
 
 const turn = (a: Rotation, b: Rotation) => ((a + b) % 360) as Rotation;
@@ -63,8 +66,13 @@ function originalElement(photo: Photo, assetId: string, rotation: Rotation, fit:
   return element;
 }
 
-const layer = (id: string, name: string, elements: PageElement[], locked = false): PageLayer => ({
-  id, name, visible: true, locked, elements,
+const layer = (id: string, name: string, elements: PageElement[]): PageLayer => ({
+  id, name, visible: true, locked: false, elements,
+});
+
+/** Der Anhang „Original“: das Foto, wie es aufgenommen wurde. */
+const originalOf = (photo: Photo, assetId: string, id: string, addedAt: string): PageAttachment => ({
+  id, kind: "original", assetId, name: photo.fileName, mimeType: photo.mimeType, size: photo.bytes.byteLength, addedAt,
 });
 
 /**
@@ -111,11 +119,12 @@ export async function importPhotoAsync(
     const original = originalElement(photo, originalAssetId, rotation, fallbackFit, deps.newId());
     return {
       layers: [
-        layer(deps.newId(), LAYER_NAMES.original, [original], true),
+        layer(deps.newId(), LAYER_NAMES.photo, [original]),
         layer(deps.newId(), LAYER_NAMES.text, []),
         layer(deps.newId(), LAYER_NAMES.objects, []),
         layer(deps.newId(), LAYER_NAMES.own, []),
       ],
+      attachments: [originalOf(photo, originalAssetId, deps.newId(), startedAt)],
       paperImport: {
         version: 1,
         originalAssetId,
@@ -167,13 +176,16 @@ export async function importPhotoAsync(
       : outcome.kind === "failed"
         ? { state: "failed", error: outcome.error, startedAt, finishedAt }
         : { state: "manual", startedAt, finishedAt };
+  // Ohne Entwurf stünde die Seite leer da: Dann steht das Foto auf ihr (FR-025).
+  const photoLayers = texts.length + objects.length === 0 ? [layer(deps.newId(), LAYER_NAMES.photo, [original])] : [];
   return {
     layers: [
-      layer(deps.newId(), LAYER_NAMES.original, [original], true),
+      ...photoLayers,
       layer(deps.newId(), LAYER_NAMES.text, texts),
       layer(deps.newId(), LAYER_NAMES.objects, objects),
       layer(deps.newId(), LAYER_NAMES.own, []),
     ],
+    attachments: [originalOf(photo, originalAssetId, deps.newId(), startedAt)],
     paperImport: {
       version: 1,
       originalAssetId,

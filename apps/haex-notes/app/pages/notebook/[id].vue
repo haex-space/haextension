@@ -14,6 +14,7 @@ const { t, locale } = useI18n();
 const haexVault = useHaexVaultStore();
 const notebook = useNotebookStore();
 const pencilCase = usePencilCaseStore();
+const attachmentViewer = useAttachmentViewerStore();
 
 const isLoaded = ref(false);
 const loadError = ref<string | null>(null);
@@ -241,7 +242,6 @@ const addPage = async () => {
         >
           <FileDown class="size-5" />
         </button>
-        <NotesPaperViewSwitch class="ml-1" />
       </div>
 
       <!-- Right: Table + Undo/Redo -->
@@ -256,6 +256,8 @@ const addPage = async () => {
         </button>
 
         <NotesPageBackgroundMenu />
+
+        <NotesPageAttachmentsMenu />
 
         <!-- Share current page -->
         <button
@@ -297,6 +299,9 @@ const addPage = async () => {
         </button>
       </div>
     </header>
+
+    <!-- Im Vollbild deckt der Anhang alles ab, die Seite ist nicht zu sehen -->
+    <NotesAttachmentViewer v-if="attachmentViewer.open?.mode === 'full'" />
 
     <NotesPaperNoteImportDialog v-model:open="showPhotoImport" :close-up-box="closeUpBox" />
     <NotesPdfExportDialog v-model:open="showPdfExport" />
@@ -348,6 +353,9 @@ const addPage = async () => {
           {{ pageCanvasRef.zoomPercent }}%
         </button>
       </div>
+
+      <!-- Anhang neben der Seite (Spec 046, FR-023) -->
+      <NotesAttachmentViewer v-if="attachmentViewer.open?.mode === 'side'" />
 
       <!-- Pages Sidebar (right) -->
       <div

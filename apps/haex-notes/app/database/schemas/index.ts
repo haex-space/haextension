@@ -3,7 +3,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { getTableName } from "@haex-space/vault-sdk";
 import manifest from "../../../haextension/manifest.json";
 import packageJson from "../../../package.json";
-import type { PageBackground, PageLayer, PaperNoteImport } from "../../types/document";
+import type { PageAttachment, PageBackground, PageLayer, PaperNoteImport } from "../../types/document";
 
 const tableName = (name: string) => getTableName(manifest.publicKey, packageJson.name, name);
 
@@ -66,6 +66,8 @@ export const pages = sqliteTable(
     height: integer(),
     /** Herkunft einer Seite, die aus einem Foto entstand (Spec 046). Null bei gewöhnlichen Seiten. */
     paperImport: text("paper_import", { mode: "json" }).$type<PaperNoteImport>(),
+    /** Dateien an der Seite, darunter das Original eines Fotos (Spec 046, FR-022). Null = keine. */
+    attachments: text({ mode: "json" }).$type<PageAttachment[]>(),
     /** Soft-delete timestamp (null = active, set = in trash) */
     deletedAt: integer("deleted_at", { mode: "timestamp" }),
     ...timestamps,

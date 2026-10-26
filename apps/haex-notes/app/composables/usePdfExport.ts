@@ -1,7 +1,6 @@
 import type { PageDoc } from "~/lib/commands";
 import { buildPdfAsync, exportLayers, PDF_JPEG_QUALITY, RASTER_SCALE, type PdfSettings } from "~/lib/paperNotes/exportPdf";
 import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
-import { originalLayerId } from "~/lib/paperNotes/views";
 import { canvas, jpegBytesAsync } from "~/lib/paperNotes/workingCopy";
 import { drawElements, type ImageLookup } from "~/lib/render/elements";
 import { drawPaper } from "~/lib/render/paper";
@@ -77,8 +76,7 @@ export function usePdfExport() {
   /** false, wenn der Schüler den Speichern-Dialog abbricht. */
   async function exportPageAsync(doc: PageDoc, settings: PdfSettings, fileName: string, dialogTitle: string): Promise<boolean> {
     await loadHandwritingFontsAsync(document.baseURI);
-    const originalId = doc.paperImport ? originalLayerId(doc.layers, doc.paperImport) : null;
-    const elements = exportLayers(doc.layers, originalId, settings.showOriginal).flatMap((layer) => layer.elements);
+    const elements = exportLayers(doc.layers).flatMap((layer) => layer.elements);
     const jpeg = await rasterAsync(doc, elements, settings);
     const pdf = await buildPdfAsync([{ size: doc, jpeg }], settings);
     const saved = await haexVault.client.filesystem.saveFileAsync(pdf, {
