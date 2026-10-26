@@ -99,7 +99,11 @@ export function renderLatex(source: string): MathResult {
 
 /** Lädt MathJax, wenn nötig, und setzt dann. */
 export async function renderLatexAsync(source: string): Promise<MathResult> {
-  await loadMathAsync();
+  try {
+    await loadMathAsync();
+  } catch (error) {
+    return { error: message(error) };
+  }
   return renderLatex(source);
 }
 
