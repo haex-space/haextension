@@ -8,6 +8,7 @@ import type {
   TextElement,
 } from "~/types/document";
 import { computeBbox } from "../bbox";
+import { FORMULA_INK, latexElementOf } from "../latexElement";
 import { renderLatexAsync } from "../math";
 import { boxToRect, fontSizeFor, LINE_HEIGHT, tidy, type Fit, type Rect } from "./layout";
 
@@ -232,7 +233,7 @@ export function textOrTableElement(placed: PlacedRegion, id: string, fontFamily:
  * höchstens so breit wie die Box. Lässt sich die Quelle nicht setzen, bleibt sie als Text stehen, damit
  * nichts verloren geht (FR-030).
  */
-export async function formulaElement(placed: PlacedRegion, id: string, fontFamily: string, color = "#1f2937"): Promise<LatexElement | TextElement> {
+export async function formulaElement(placed: PlacedRegion, id: string, fontFamily: string, color = FORMULA_INK): Promise<LatexElement | TextElement> {
   const { rect } = placed;
   const source = placed.latex ?? "";
   const set = await renderLatexAsync(source);
@@ -240,13 +241,9 @@ export async function formulaElement(placed: PlacedRegion, id: string, fontFamil
     return textOrTableElement({ ...placed, text: source, latex: undefined }, id, fontFamily) as TextElement;
   }
   const em = fontSizeFor(rect.height, 1);
-  const shrink = Math.min(1, rect.width / (set.width * em));
-  const width = set.width * em * shrink;
-  const height = set.height * em * shrink;
-  const element: LatexElement = {
-    id, type: "latex", x: rect.x, y: rect.y + Math.max(0, (rect.height - height) / 2), width, height, rotation: 0,
-    source, svg: set.svg, color, bbox: [0, 0, 0, 0],
-  };
+  const element = latexElementOf(id, source, set, { x: rect.x, y: rect.y }, em, { maxWidth: rect.width, color });
+  // Mittig in der Box, wenn die Formel niedriger ist als sie.
+  element.y = rect.y + Math.max(0, (rect.height - element.height) / 2);
   element.bbox = computeBbox(element);
   return element;
 }

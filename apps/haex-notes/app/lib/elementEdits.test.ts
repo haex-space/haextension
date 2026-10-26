@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ImageElement, PageLayer, TableElement, TextElement } from "~/types/document";
+import type { ImageElement, LatexElement, PageLayer, TableElement, TextElement } from "~/types/document";
 import { clonePlain } from "./clone";
 import type { PageDoc } from "./commands";
-import { editCell, editText, placeElement, setFontFamily } from "./elementEdits";
+import { editCell, editLatex, editText, placeElement, setFontFamily } from "./elementEdits";
 import { createUndoStack } from "./undoStack";
 
 const text = (id: string): TextElement => ({
@@ -90,5 +90,48 @@ describe("element edits", () => {
     expect(find<TableElement>(page, "table").cells).toEqual(table.cells);
     expect(editText(page, "drawing", "x", 10)).toBeNull();
     expect(editCell(page, "text", 0, 0, "x")).toBeNull();
+  });
+});
+
+describe("formula edits", () => {
+  const svg = (widthEm: number, heightEm: number) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -883.9 ${widthEm * 1000} ${heightEm * 1000}"><g fill="currentColor"/></svg>`;
+  const formula = (): LatexElement => ({
+    id: "formula", type: "latex", x: 40, y: 40, width: 120, height: 40, rotation: 0,
+    source: "x^2", svg: svg(3, 1), color: "#1f2937", bbox: [40, 40, 120, 40],
+  });
+  const page = (locked = false): PageDoc => ({
+    id: "p1", layers: [layer("text", [formula()], locked)],
+    background: { paperColor: "#ffffff", template: "blank" }, width: 794, height: 1123,
+  });
+
+  it("changes the source and the svg, keeps the font size when the height changes, and undoes it", () => {
+    const doc = page();
+    const before = clonePlain(doc);
+    const stack = createUndoStack();
+    // Before: 3 em wide and 1 em high at 40 px, so 40 px per em. A fraction is 2 em high and 4 em wide.
+    stack.push(editLatex(doc, "formula", "\\frac{a}{b}", { svg: svg(4, 2), width: 4, height: 2 })!);
+
+    expect(find<LatexElement>(doc, "formula")).toMatchObject({ source: "\\frac{a}{b}", width: 160, height: 80, x: 40, y: 40 });
+    expect(find<LatexElement>(doc, "formula").svg).toContain("4000 2000");
+    expect(find<LatexElement>(doc, "formula").bbox).toEqual([40, 40, 160, 80]);
+    stack.undo();
+    expect(doc).toEqual(before);
+  });
+
+  it("moves and scales like text and image, as one undo step of a drag", () => {
+    const doc = page();
+    const stack = createUndoStack();
+    stack.push(placeElement(doc, "formula", { x: 60, y: 90, width: 150, height: 50 }, "g1")!);
+    stack.push(placeElement(doc, "formula", { x: 70, y: 95, width: 180, height: 60 }, "g1")!);
+    expect(find<LatexElement>(doc, "formula")).toMatchObject({ x: 70, y: 95, width: 180, height: 60 });
+    stack.undo();
+    expect(find<LatexElement>(doc, "formula")).toMatchObject({ x: 40, y: 40, width: 120, height: 40 });
+    expect(stack.canUndo.value).toBe(false);
+  });
+
+  it("does not touch a formula on a locked layer or an element of another kind", () => {
+    expect(editLatex(page(true), "formula", "y", { svg: svg(1, 1), width: 1, height: 1 })).toBeNull();
+    expect(editLatex(photoPage(), "text", "y", { svg: svg(1, 1), width: 1, height: 1 })).toBeNull();
   });
 });
