@@ -235,6 +235,19 @@ describe("reliable messages and closing channels", () => {
     expect(gone).toHaveBeenCalledExactlyOnceWith(number);
   });
 
+  it("tells a running netgame that every peer is gone when the session resets", async () => {
+    const { host, hostSide } = await connected();
+    const gone = vi.fn();
+    const session = createPeerSession(host.api, { peerGone: gone });
+    session.register(hostSide);
+    session.register("second");
+    session.beginNetgame();
+    session.reset();
+    expect(gone.mock.calls).toEqual([[1], [2]]);
+    session.reset();
+    expect(gone).toHaveBeenCalledTimes(2);
+  });
+
   it("reports closed channels to the lobby and forgets their number", async () => {
     const { network, host, hostSide } = await connected();
     const session = createPeerSession(host.api);

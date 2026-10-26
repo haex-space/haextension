@@ -360,7 +360,7 @@ export function createLobby(deps: LobbyDeps) {
       entry.status = "left";
       invites.value = [...invites.value];
     }
-    if (announce && guest.state !== "connecting") say({ kind: "guest-left", name: guest.displayName });
+    if (announce && guest.state === "playing") say({ kind: "guest-left", name: guest.displayName });
     if (phase.value === "lobby") void broadcastLobby();
   }
 
