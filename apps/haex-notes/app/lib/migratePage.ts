@@ -225,8 +225,11 @@ function withAttachments(
   const holdsPhoto = (layer: PageLayer) => layer.locked && layer.name === LEGACY_ORIGINAL_LAYER
     && layer.elements.some((e) => e.type === "image" && e.source.kind === "asset" && e.source.assetId === paperImport?.originalAssetId);
   if (!paperImport || !layers.some(holdsPhoto)) return { layers, ...(attachments && { attachments }) };
+  // Ein erfolgreicher Auftrag kann trotzdem keine verwertbare Region geliefert haben.
+  // In diesem Fall ist die Seite ohne Entwurf und muss das Foto als Arbeitsfläche behalten.
+  const hasDraft = layers.some((layer) => !holdsPhoto(layer) && layer.elements.length > 0);
   const ready = paperImport.processing.state === "ready";
-  const next = ready
+  const next = ready && hasDraft
     ? layers.filter((layer) => !holdsPhoto(layer))
     : layers.map((layer) => (holdsPhoto(layer) ? { ...layer, name: PHOTO_LAYER_NAME, locked: false } : layer));
   return { layers: next.length ? next : [emptyLayer()], ...(attachments && { attachments }) };

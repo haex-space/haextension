@@ -183,6 +183,12 @@ describe("migratePageRow with attachments", () => {
     expect(migrated.attachments?.map((a) => a.kind)).toEqual(["original"]);
   });
 
+  it("keeps the photo layer when recognition was ready but produced no draft", () => {
+    const emptyReady = { ...paperImport, processing: { state: "ready" as const } };
+    const migrated = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport: emptyReady });
+    expect(migrated.layers.map((l) => [l.name, l.locked])).toEqual([["Foto", false], ["Text", false]]);
+  });
+
   it("is idempotent: a migrated page comes back as it is", () => {
     const once = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport });
     const again = migratePageRow({ layers: once.layers, paperImport, attachments: once.attachments });
