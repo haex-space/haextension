@@ -1,5 +1,6 @@
 import { toRaw } from "vue";
 import type {
+  PageAttachment,
   PageBackground,
   PageLayer,
   PageTemplate,
@@ -10,6 +11,7 @@ import type {
 import { getPageSize } from "~/utils/pageTemplates";
 import { computeBbox } from "./bbox";
 import { clonePlain } from "./clone";
+import { originalAttachment } from "./attachments";
 import type { PageDoc } from "./commands";
 
 /** Strichform der Spalte `pages.strokes` vor dem Element-Modell. */
@@ -52,6 +54,8 @@ export interface LegacyPageRow {
   orientation?: string | null;
   /** Ungeprüft, siehe `layers`. */
   paperImport?: unknown;
+  /** Ungeprüft, siehe `layers`. */
+  attachments?: unknown;
 }
 
 export interface MigratedPage {
@@ -60,6 +64,7 @@ export interface MigratedPage {
   width: number;
   height: number;
   paperImport?: PaperNoteImport;
+  attachments?: PageAttachment[];
 }
 
 /** Fester Layer-Name für alles, was aus der Zeit vor den Layern stammt. */
@@ -173,6 +178,60 @@ function isPaperNoteImport(value: unknown): value is PaperNoteImport {
       && value.closeUps.every((closeUp) => isObject(closeUp) && typeof closeUp.assetId === "string")));
 }
 
+function isAttachments(value: unknown): value is PageAttachment[] {
+  return Array.isArray(value) && value.every((item) => isObject(item)
+    && typeof item.id === "string"
+    && (item.kind === "original" || item.kind === "file")
+    && typeof item.assetId === "string"
+    && typeof item.name === "string"
+    && typeof item.mimeType === "string"
+    && (item.size === undefined || typeof item.size === "number")
+    && typeof item.addedAt === "string");
+}
+
+/** Name und Zustand der Ebene mit dem Foto vor den Anhängen (Spec 046 data-model.md). */
+const LEGACY_ORIGINAL_LAYER = "Original";
+/** Die Ebene mit dem Foto auf einer Seite ohne Entwurf (FR-025). */
+export const PHOTO_LAYER_NAME = "Foto";
+
+const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/**
+ * Stellt eine Fotoseite aus der Zeit der Originalebene auf die Anhänge um: Der Anhang `original`
+ * entsteht aus `paperImport`, und die gesperrte Ebene „Original“ entfällt, wenn es einen Entwurf
+ * gibt, sonst wird sie zur ungesperrten Ebene „Foto“. Rein und idempotent: eine umgestellte Seite
+ * hat keine gesperrte Ebene „Original“ mehr und kommt unverändert zurück.
+ */
+function withAttachments(
+  layers: PageLayer[],
+  paperImport: PaperNoteImport | undefined,
+  stored: PageAttachment[] | undefined,
+): { layers: PageLayer[]; attachments?: PageAttachment[] } {
+  let attachments = stored;
+  if (paperImport && !originalAttachment(attachments)) {
+    const extension = EXTENSIONS[paperImport.sourceMimeType] ?? "bin";
+    attachments = [
+      {
+        id: `original-${paperImport.originalAssetId}`,
+        kind: "original",
+        assetId: paperImport.originalAssetId,
+        name: `${LEGACY_ORIGINAL_LAYER}.${extension}`,
+        mimeType: paperImport.sourceMimeType,
+        addedAt: paperImport.createdAt,
+      },
+      ...(attachments ?? []),
+    ];
+  }
+  const holdsPhoto = (layer: PageLayer) => layer.locked && layer.name === LEGACY_ORIGINAL_LAYER
+    && layer.elements.some((e) => e.type === "image" && e.source.kind === "asset" && e.source.assetId === paperImport?.originalAssetId);
+  if (!paperImport || !layers.some(holdsPhoto)) return { layers, ...(attachments && { attachments }) };
+  const ready = paperImport.processing.state === "ready";
+  const next = ready
+    ? layers.filter((layer) => !holdsPhoto(layer))
+    : layers.map((layer) => (holdsPhoto(layer) ? { ...layer, name: PHOTO_LAYER_NAME, locked: false } : layer));
+  return { layers: next.length ? next : [emptyLayer()], ...(attachments && { attachments }) };
+}
+
 function isPageBackground(value: unknown): value is PageBackground {
   return isObject(value) && typeof value.paperColor === "string" && typeof value.template === "string";
 }
@@ -208,7 +267,16 @@ export function migratePageRow(row: LegacyPageRow): MigratedPage {
   }
   const paperImport = isPaperNoteImport(row.paperImport) ? row.paperImport : undefined;
 
-  return { layers, background, width, height, ...(paperImport && { paperImport }) };
+  if (row.attachments != null && !isAttachments(row.attachments)) {
+    console.warn("[haex-notes] Ignoring malformed attachments", row.attachments);
+  }
+  const upgraded = withAttachments(layers, paperImport, isAttachments(row.attachments) ? row.attachments : undefined);
+
+  return {
+    layers: upgraded.layers, background, width, height,
+    ...(paperImport && { paperImport }),
+    ...(upgraded.attachments?.length && { attachments: upgraded.attachments }),
+  };
 }
 
 /**
@@ -221,6 +289,7 @@ export function serializePageDoc(doc: PageDoc) {
   const layers = clonePlain(toRaw(doc.layers));
   const background = clonePlain(toRaw(doc.background));
   const paperImport = doc.paperImport ? clonePlain(toRaw(doc.paperImport)) : null;
+  const attachments = doc.attachments?.length ? clonePlain(toRaw(doc.attachments)) : null;
   const strokes = layers.flatMap((layer) =>
     layer.elements
       .filter((element): element is StrokeElement => element.type === "stroke")
@@ -258,6 +327,7 @@ export function serializePageDoc(doc: PageDoc) {
     width: doc.width,
     height: doc.height,
     paperImport,
+    attachments,
     // Keep the legacy representation in sync during the rollout so older
     // clients do not render a page as empty after a new client saves it.
     strokes,

@@ -203,6 +203,22 @@ export interface PaperNoteCloseUp {
   createdAt: string;
 }
 
+/**
+ * Eine Datei, die an einer Seite hängt (holzi Spec 046, FR-022). Das Original eines importierten
+ * Fotos ist der Anhang der Art `original`: unverändert, ungedreht und gegen Entfernen geschützt.
+ * Anhänge liegen nicht auf der Seite und sind keine Ebene.
+ */
+export interface PageAttachment {
+  id: string;
+  kind: "original" | "file";
+  assetId: string;
+  name: string;
+  mimeType: string;
+  /** Bytes; fehlt bei einem Anhang, der aus einer Seite vor den Anhängen abgeleitet wurde. */
+  size?: number;
+  addedAt: string;
+}
+
 /** Herkunft einer Seite, die aus einem Foto entstand (holzi Spec 046). */
 export interface PaperNoteImport {
   version: number;

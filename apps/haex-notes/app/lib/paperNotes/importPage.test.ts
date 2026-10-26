@@ -69,18 +69,21 @@ describe("importPhotoAsync", () => {
     });
   });
 
-  it("puts the original on a locked layer under text, objects and an own layer", async () => {
+  it("shows only the draft on the page and hangs the original on it as an attachment", async () => {
     const { deps } = fakes([read]);
-    const { layers, paperImport } = await importPhotoAsync(photo, page, "Caveat", deps);
+    const { layers, paperImport, attachments } = await importPhotoAsync(photo, page, "Caveat", deps);
 
     expect(layers.map((l) => [l.name, l.locked, l.elements.map((e) => e.type)])).toEqual([
-      [LAYER_NAMES.original, true, ["image"]],
       [LAYER_NAMES.text, false, ["text"]],
       [LAYER_NAMES.objects, false, ["table", "image"]],
       [LAYER_NAMES.own, false, []],
     ]);
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]).toMatchObject({
+      kind: "original", assetId: paperImport.originalAssetId, name: "seite.jpg", mimeType: "image/jpeg", size: 3,
+    });
     expect(paperImport.regions.map((r) => r.kind)).toEqual(["text", "table", "image"]);
-    const crop = layers[2]!.elements[1] as ImageElement;
+    const crop = layers[1]!.elements[1] as ImageElement;
     expect(crop.source).toEqual({ kind: "asset", assetId: `asset-crop-${crop.id}.jpg` });
     expect(paperImport.regions[2]!.elementIds).toEqual([crop.id]);
   });
@@ -92,19 +95,37 @@ describe("importPhotoAsync", () => {
     expect(copies).toEqual([270, 0]);
     expect(jobs).toHaveLength(2);
     expect(paperImport.rotation).toBe(0);
-    expect((layers[0]!.elements[0] as ImageElement).rotation).toBe(0);
+    expect(layers.map((l) => l.name)).not.toContain(LAYER_NAMES.photo);
   });
 
-  it("shows a turned original upright over the copy", async () => {
-    const { deps } = fakes([read]);
-    const { layers } = await importPhotoAsync({ ...photo, rotation: 90 }, page, "Caveat", deps);
+  it("keeps the attachment as taken, and shows a turned photo upright on a page without a draft", async () => {
+    const { deps } = fakes([{ kind: "failed", error: "unusable" }]);
+    const { layers, attachments } = await importPhotoAsync({ ...photo, rotation: 90 }, page, "Caveat", deps);
+    expect(attachments[0]).toMatchObject({ kind: "original", size: 3 });
     const original = layers[0]!.elements[0] as ImageElement;
     expect(original.rotation).toBeCloseTo(Math.PI / 2);
     // Turned by a quarter, its long side runs across the page like the copy's short side.
     expect(original.height).toBeCloseTo(original.width * (4000 / 3000));
   });
 
-  it("leaves a page with only the original for each error and a cancel", async () => {
+  it("puts the photo on a layer of its own on a page without a draft, and attaches it as well", async () => {
+    for (const outcome of [{ kind: "failed", error: "timeout" }, { kind: "cancelled" }] as const) {
+      const { deps } = fakes([outcome]);
+      const { layers, attachments, paperImport } = await importPhotoAsync(photo, page, "Caveat", deps);
+      expect(layers.map((l) => [l.name, l.locked, l.elements.length])).toEqual([
+        [LAYER_NAMES.photo, false, 1], [LAYER_NAMES.text, false, 0], [LAYER_NAMES.objects, false, 0], [LAYER_NAMES.own, false, 0],
+      ]);
+      expect(attachments.map((a) => a.assetId)).toEqual([paperImport.originalAssetId]);
+    }
+  });
+
+  it("treats a reading without a usable region as a page without a draft", async () => {
+    const { deps } = fakes([{ ...read, regions: [], texts: [] }]);
+    const { layers } = await importPhotoAsync(photo, page, "Caveat", deps);
+    expect(layers.map((l) => l.name)).toEqual([LAYER_NAMES.photo, LAYER_NAMES.text, LAYER_NAMES.objects, LAYER_NAMES.own]);
+  });
+
+  it("leaves a page with only the photo for each error and a cancel", async () => {
     for (const [outcome, state] of [
       [{ kind: "failed", error: "no_capable_model" }, "failed"],
       [{ kind: "failed", error: "consent_denied" }, "failed"],

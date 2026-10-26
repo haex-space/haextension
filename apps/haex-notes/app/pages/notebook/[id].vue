@@ -241,7 +241,6 @@ const addPage = async () => {
         >
           <FileDown class="size-5" />
         </button>
-        <NotesPaperViewSwitch class="ml-1" />
       </div>
 
       <!-- Right: Table + Undo/Redo -->

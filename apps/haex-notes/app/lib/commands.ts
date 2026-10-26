@@ -1,4 +1,4 @@
-import type { PageBackground, PageElement, PageLayer, PaperNoteImport } from "~/types/document";
+import type { PageAttachment, PageBackground, PageElement, PageLayer, PaperNoteImport } from "~/types/document";
 import { clonePlain } from "./clone";
 
 /**
@@ -16,6 +16,8 @@ export interface PageDoc {
   height: number;
   /** Nur bei Seiten, die aus einem Foto entstanden. */
   paperImport?: PaperNoteImport;
+  /** Dateien an der Seite; fehlt, wenn es keine gibt (Spec 046, FR-022). */
+  attachments?: PageAttachment[];
 }
 
 export interface Command {

@@ -9,11 +9,11 @@ const JPEG = Uint8Array.from(atob(
 ), (c) => c.charCodeAt(0));
 
 const portrait = { width: 794, height: 1123 };
-const settings = (patch: Partial<PdfSettings> = {}): PdfSettings => ({ ...defaultPdfSettings(true), ...patch });
+const settings = (patch: Partial<PdfSettings> = {}): PdfSettings => ({ ...defaultPdfSettings(), ...patch });
 
 describe("placePage", () => {
   it("by default makes the PDF page as large as the note page, without margin", () => {
-    expect(defaultPdfSettings(false)).toEqual({ paper: "auto", orientation: "auto", marginMm: 0, quality: "high", showOriginal: false });
+    expect(defaultPdfSettings()).toEqual({ paper: "auto", orientation: "auto", marginMm: 0, quality: "high" });
     const placed = placePage(portrait, settings());
     expect(placed.width).toBeCloseTo(595.5);
     expect(placed.height).toBeCloseTo(842.25);
@@ -54,13 +54,10 @@ describe("placePage", () => {
 
 describe("exportLayers", () => {
   const layer = (id: string, visible: boolean): PageLayer => ({ id, name: id, visible, locked: false, elements: [] });
-  const layers = [layer("original", true), layer("text", true), layer("hidden", false)];
 
-  it("keeps the visible layers and shows the original only when asked", () => {
-    expect(exportLayers(layers, "original", false).map((l) => l.id)).toEqual(["text"]);
-    expect(exportLayers(layers, "original", true).map((l) => l.id)).toEqual(["original", "text"]);
-    expect(exportLayers([layer("original", false), layer("text", true)], "original", true).map((l) => l.id)).toEqual(["original", "text"]);
-    expect(exportLayers(layers, null, false).map((l) => l.id)).toEqual(["original", "text"]);
+  it("keeps the visible layers; attachments are no layers and never reach the PDF", () => {
+    const layers = [layer("photo", true), layer("text", true), layer("hidden", false)];
+    expect(exportLayers(layers).map((l) => l.id)).toEqual(["photo", "text"]);
   });
 });
 

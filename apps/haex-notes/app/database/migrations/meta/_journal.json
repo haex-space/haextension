@@ -43,6 +43,13 @@
       "when": 1792609361364,
       "tag": "0005_magical_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793017708022,
+      "tag": "0006_hard_wasp",
+      "breakpoints": true
     }
   ]
 }

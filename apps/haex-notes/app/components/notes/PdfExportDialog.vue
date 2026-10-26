@@ -28,10 +28,6 @@
             <option v-for="value in QUALITIES" :key="value" :value="value">{{ t(`qualities.${value}`) }}</option>
           </select>
         </label>
-        <label v-if="hasOriginal" class="flex items-center gap-2">
-          <input v-model="settings.showOriginal" type="checkbox">
-          {{ t('showOriginal') }}
-        </label>
       </div>
     </template>
     <template #footer>
@@ -55,7 +51,6 @@ import { Loader2 } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import { reportError } from "~/lib/errors";
 import { clampMarginMm, defaultPdfSettings, MAX_MARGIN_MM, type Orientation, type PaperSize, type PdfSettings, type Quality } from "~/lib/paperNotes/exportPdf";
-import { originalLayerId } from "~/lib/paperNotes/views";
 
 /** Exportiert die geöffnete Seite als PDF; die Voreinstellungen zeigen die Seite, wie sie gerade zu sehen ist. */
 const isOpen = defineModel<boolean>("open", { default: false });
@@ -67,14 +62,7 @@ const PAPERS: PaperSize[] = ["auto", "a4", "letter"];
 const ORIENTATIONS: Orientation[] = ["auto", "portrait", "landscape"];
 const QUALITIES: Quality[] = ["high", "medium", "low"];
 
-const originalLayer = computed(() => {
-  const doc = notebook.currentDoc;
-  const id = doc?.paperImport ? originalLayerId(doc.layers, doc.paperImport) : null;
-  return doc?.layers.find((layer) => layer.id === id) ?? null;
-});
-const hasOriginal = computed(() => originalLayer.value !== null);
-
-const settings = ref<PdfSettings>(defaultPdfSettings(false));
+const settings = ref<PdfSettings>(defaultPdfSettings());
 const exporting = ref(false);
 /** Zählt jedes Öffnen; ein Export schließt nur den Dialog, aus dem er gestartet wurde. */
 let opened = 0;
@@ -82,7 +70,7 @@ let opened = 0;
 watch(isOpen, (open) => {
   if (!open) return;
   opened++;
-  settings.value = defaultPdfSettings(originalLayer.value?.visible ?? false);
+  settings.value = defaultPdfSettings();
 });
 
 /** Ein Dateiname ohne Zeichen, die ein Dateisystem ablehnt. */
@@ -128,7 +116,6 @@ de:
     high: Hoch
     medium: Mittel
     low: Niedrig (kleine Datei)
-  showOriginal: Originalfoto mit exportieren
   cancel: Abbrechen
   export: Exportieren
   saved: PDF gespeichert
@@ -153,7 +140,6 @@ en:
     high: High
     medium: Medium
     low: Low (small file)
-  showOriginal: Include the original photo
   cancel: Cancel
   export: Export
   saved: PDF saved

@@ -2,13 +2,12 @@ import { eq, asc, isNull, isNotNull, and } from "drizzle-orm";
 import { notebooks, pages, type SelectNotebook, type SelectPage, type PageTemplate } from "~/database/schemas";
 import { reactive } from "vue";
 import type { PageElement, PageLayer, StrokeElement } from "~/types/document";
-import { addElements, type Command, type PageDoc } from "~/lib/commands";
+import { addElements, mutateLayer, type Command, type PageDoc } from "~/lib/commands";
 import { computeBbox } from "~/lib/bbox";
 import { drawingLayerId, migratePageRow, serializePageDoc } from "~/lib/migratePage";
 import { createTableActions } from "~/lib/tableActions";
 import { FULL_PAGES_TABLE } from "~/lib/tableNames";
 import { createUndoStack } from "~/lib/undoStack";
-import { setPaperView } from "~/lib/paperNotes/views";
 
 export const useNotebookStore = defineStore("notebook", () => {
   const haexVault = useHaexVaultStore();
@@ -235,12 +234,13 @@ export const useNotebookStore = defineStore("notebook", () => {
   };
 
   /** Legt eine Seite aus einem gelesenen Foto an (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und öffnet sie. */
-  const addImportedPageAsync = async (imported: Pick<PageDoc, "layers" | "paperImport">) => {
+  const addImportedPageAsync = async (imported: Pick<PageDoc, "layers" | "paperImport" | "attachments">) => {
     await addPageAsync("blank");
     const doc = currentDoc.value;
     if (!doc) return;
     doc.layers = imported.layers;
     doc.paperImport = imported.paperImport;
+    if (imported.attachments?.length) doc.attachments = imported.attachments;
     activeLayerId.value = drawingLayerId(doc.layers);
     contentVersion.value++;
     await saveCurrentPageAsync();
@@ -294,9 +294,10 @@ export const useNotebookStore = defineStore("notebook", () => {
 
   // --- Save ---
 
-  /** In der Ansicht „Original“ ist die Zeichenebene verborgen; was man neu hinzufügt, soll man sehen. */
+  /** Eine ausgeblendete Zeichenebene würde Neues verbergen; was man neu hinzufügt, soll man sehen. */
   const revealActiveLayer = () => {
-    if (activeLayer.value?.visible === false) applyEdit((doc) => setPaperView(doc, "compare"));
+    const layer = activeLayer.value;
+    if (layer?.visible === false) applyEdit((doc) => mutateLayer(doc, layer.id, { visible: true }, "Ebene einblenden"));
   };
 
   const addStroke = (stroke: StrokeElement, label: string) => {

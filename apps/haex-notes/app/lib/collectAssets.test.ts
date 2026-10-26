@@ -18,6 +18,14 @@ const layer = (...elements: ImageElement[]): PageLayer => ({
 const plainBackground: PageBackground = { paperColor: "#ffffff", template: "lined" };
 
 describe("collectAssetIds", () => {
+  it("collects the assets of the attachments, also those of files the student attached", () => {
+    const attachments = [
+      { id: "a1", kind: "original" as const, assetId: "photo", name: "seite.jpg", mimeType: "image/jpeg", addedAt: "t" },
+      { id: "a2", kind: "file" as const, assetId: "worksheet", name: "blatt.pdf", mimeType: "application/pdf", addedAt: "t" },
+    ];
+    expect(collectAssetIds([layer()], plainBackground, undefined, attachments)).toEqual(["photo", "worksheet"]);
+  });
+
   it("returns nothing for a page without assets", () => {
     expect(collectAssetIds([layer()], plainBackground)).toEqual([]);
   });
