@@ -246,4 +246,28 @@ describe("contacts", () => {
     expect(lobby.contactsFailed.value).toBe(true);
     lobby.dispose();
   });
+
+  it("skips a contact with a malformed device list", async () => {
+    const host = participant("host");
+    const valid = { id: "1", displayName: "Valid" };
+    const malformed = { id: "2", displayName: "Malformed" };
+    const lobby = createLobby({
+      peers: host.session,
+      games: () => [],
+      version: () => "1.0.0",
+      displayName: () => "host",
+      contacts: {
+        listAsync: async () => ({ contacts: [valid, malformed], total: 2 }),
+        readAsync: async (id) => id === valid.id
+          ? { holziAddresses: { devices: [{}] } }
+          : { holziAddresses: { devices: null as unknown as unknown[] } },
+      },
+    });
+
+    await lobby.loadContacts();
+
+    expect(lobby.contacts.value).toEqual([valid]);
+    expect(lobby.contactsFailed.value).toBe(false);
+    lobby.dispose();
+  });
 });
