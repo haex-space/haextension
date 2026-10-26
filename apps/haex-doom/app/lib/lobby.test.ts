@@ -55,9 +55,6 @@ async function joinedByCode(host: Participant, guest: Participant, name = "Stran
   await network.settle();
 }
 
-const lobbyMessages = (to: string) =>
-  network.sent.filter((entry) => entry.to === to && entry.reliable).map((entry) => decodeMessage(entry.data)).filter((message) => message?.t === "lobby");
-
 beforeEach(() => {
   network = new FakeNetwork();
   vi.spyOn(console, "error").mockImplementation(() => {});

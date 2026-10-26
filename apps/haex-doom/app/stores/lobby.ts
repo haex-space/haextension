@@ -18,8 +18,8 @@ export const useLobbyStore = defineStore("lobby", () => {
     games: () => games.all,
     version: () => vault.client.extensionInfo?.version ?? "0.0.0",
     displayName: () => displayName.value || DEFAULT_NAME,
-    // A single-player game running here cannot take an invitation; a netgame is the lobby's own.
-    busy: () => engine.state.value === "loading" || engine.state.value === "running",
+    // A game running here, or a frame that cannot run the engine at all, cannot take an invitation.
+    busy: () => engine.state.value === "loading" || engine.state.value === "running" || !canCompileWebAssembly(),
     contacts: vault.client.contacts,
   });
 
