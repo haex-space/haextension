@@ -91,5 +91,6 @@ describe("millimetres", () => {
   it("converts between page pixels and millimetres", () => {
     expect(pxToMm(mmToPx(20))).toBe(20);
     expect(pxToMm(DEFAULT_MARGINS.left)).toBe(13);
+    expect(pxToMm(MARGIN_MAX)).toBe(80);
   });
 });

@@ -43,4 +43,14 @@ describe("drawPaper margins", () => {
     drawPaper(ctx, { ...grid, margins: { top: 100, bottom: 120, left: 140, right: 160 } }, 794, 1123);
     expect(bounds(points())).toEqual({ left: 140, right: 794 - 160, top: 100, bottom: 1123 - 120 });
   });
+
+  it("keeps every line-based template inside custom margins", () => {
+    const margins = { top: 100, bottom: 120, left: 140, right: 160 };
+    const templates = ["lined", "grid", "grid-large", "dotgrid", "lineatur1", "lineatur2", "lineatur3", "music", "millimeter"] as const;
+    for (const template of templates) {
+      const { ctx, points } = recordingContext();
+      drawPaper(ctx, { ...grid, template, margins }, 794, 1123);
+      expect(points().every(([x, y]) => x >= margins.left && x <= 794 - margins.right && y >= margins.top && y <= 1123 - margins.bottom)).toBe(true);
+    }
+  });
 });

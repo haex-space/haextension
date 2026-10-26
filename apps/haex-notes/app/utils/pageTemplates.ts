@@ -147,7 +147,7 @@ export function renderPageTemplate(
       ctx.lineWidth = 0.5;
       for (let y = m.top; y <= height - m.bottom; y += spacing) {
         ctx.beginPath();
-        ctx.moveTo(m.left - 10, y);
+        ctx.moveTo(m.left, y);
         ctx.lineTo(width - m.right, y);
         ctx.stroke();
       }
@@ -199,7 +199,7 @@ export function renderPageTemplate(
 
       ctx.lineWidth = 0.5;
 
-      for (let y = m.top; y <= height - m.bottom; y += spacing * 2) {
+      for (let y = m.top; y + spacing <= height - m.bottom; y += spacing * 2) {
         // Mittellinie (gestrichelt)
         ctx.strokeStyle = lineColor;
         ctx.setLineDash([4, 3]);

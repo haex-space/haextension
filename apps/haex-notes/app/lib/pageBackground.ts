@@ -28,10 +28,10 @@ export type MarginEdge = keyof PageMargins;
 
 export const MARGIN_EDGES: MarginEdge[] = ["top", "bottom", "left", "right"];
 
-/** Der größte Rand je Seite in Seitenpixeln (~8 cm); darüber bliebe auf einer Querseite zu wenig Fläche. */
-export const MARGIN_MAX = 300;
-
 const PX_PER_MM = 96 / 25.4;
+
+/** Der größte Rand je Seite in Seitenpixeln (80 mm); darüber bliebe auf einer Querseite zu wenig Fläche. */
+export const MARGIN_MAX = Math.round(80 * PX_PER_MM);
 
 /** Seitenpixel (96 dpi) in ganze Millimeter, in denen der Schüler den Rand sieht. */
 export function pxToMm(px: number): number {
