@@ -30,7 +30,8 @@ export async function listInvitableContacts(source: ContactsSource): Promise<Inv
     const batch = all.slice(start, start + READ_BATCH);
     const details = await Promise.all(batch.map((contact) => source.readAsync(contact.id).catch(() => null)));
     batch.forEach((contact, index) => {
-      if ((details[index]?.holziAddresses?.devices.length ?? 0) > 0) {
+      const devices = details[index]?.holziAddresses?.devices;
+      if (Array.isArray(devices) && devices.length > 0) {
         invitable.push({ id: contact.id, displayName: contact.displayName });
       }
     });
