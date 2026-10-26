@@ -182,7 +182,7 @@ export interface PaperNoteProcessing {
 /** Eine übernommene Region: wo sie auf der Arbeitskopie stand und welche Elemente daraus wurden. */
 export interface RecognizedRegion {
   id: string;
-  kind: "text" | "table" | "image";
+  kind: "text" | "table" | "image" | "formula";
   /** `[x1, y1, x2, y2]`, je 0–1000 relativ zur gelesenen Aufnahme. */
   sourceBox: [number, number, number, number];
   elementIds: string[];

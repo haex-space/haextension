@@ -1,12 +1,14 @@
 import type { ModelJobCompletion } from "@haex-space/vault-sdk";
 import type {
   ImageElement,
+  LatexElement,
   RecognitionError,
   RecognitionPlace,
   TableElement,
   TextElement,
 } from "~/types/document";
 import { computeBbox } from "../bbox";
+import { renderLatexAsync } from "../math";
 import { boxToRect, fontSizeFor, LINE_HEIGHT, tidy, type Fit, type Rect } from "./layout";
 
 /**
@@ -19,9 +21,11 @@ import { boxToRect, fontSizeFor, LINE_HEIGHT, tidy, type Fit, type Rect } from "
 export type Rotation = 0 | 90 | 180 | 270;
 
 export interface ReadRegion {
-  kind: "text" | "table" | "image";
+  kind: "text" | "table" | "image" | "formula";
   box: number[];
   text?: string;
+  /** LaTeX einer Formelzeile (Art `formula`). */
+  latex?: string;
   rows?: string[][];
 }
 
@@ -39,7 +43,7 @@ export type PageJobOutcome =
   | { kind: "cancelled" };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-const KINDS = ["text", "table", "image"] as const;
+const KINDS = ["text", "table", "image", "formula"] as const;
 const ROTATIONS = [0, 90, 180, 270] as const;
 const ERRORS: readonly RecognitionError[] = ["no_capable_model", "consent_denied", "unusable", "timeout", "unavailable"];
 
@@ -48,6 +52,11 @@ function readRegions(read: unknown): { regions: ReadRegion[]; rotation: Rotation
   const regions = (Array.isArray(page.regions) ? page.regions : []).flatMap((value): ReadRegion[] => {
     if (!isRecord(value) || !KINDS.includes(value.kind as ReadRegion["kind"]) || !Array.isArray(value.box)) return [];
     const region: ReadRegion = { kind: value.kind as ReadRegion["kind"], box: value.box.filter((n) => typeof n === "number") };
+    // Eine Formelzeile hat ihre Quelle in `latex`; ein `text` daneben gehört nicht in die Korrektur der Texte.
+    if (region.kind === "formula") {
+      if (typeof value.latex === "string") region.latex = value.latex;
+      return [region];
+    }
     if (typeof value.text === "string") region.text = value.text;
     if (Array.isArray(value.rows)) {
       region.rows = value.rows.map((row) => (Array.isArray(row) ? row.map((cell) => (typeof cell === "string" ? cell : "")) : []));
@@ -157,6 +166,8 @@ export interface PlacedRegion {
   rect: Rect;
   /** Der Text, korrigiert, wenn die Korrektur passte. */
   text?: string;
+  /** Die LaTeX-Quelle einer Formelzeile. */
+  latex?: string;
   /** Die Zeilen, auf die längste aufgefüllt. */
   rows?: string[][];
 }
@@ -168,6 +179,10 @@ export function placeRegions(outcome: Extract<PageJobOutcome, { kind: "completed
     const text = hasText(region) ? (outcome.texts?.[nextText] ?? region.text) : undefined;
     if (hasText(region)) nextText++;
     if (region.kind === "text") return text ? [{ region, text }] : [];
+    if (region.kind === "formula") {
+      const latex = region.latex?.trim();
+      return latex ? [{ region, latex }] : [];
+    }
     if (region.kind === "table") {
       const width = Math.max(0, ...(region.rows ?? []).map((row) => row.length));
       if (width === 0) return [];
@@ -210,6 +225,30 @@ export function textOrTableElement(placed: PlacedRegion, id: string, fontFamily:
     return element;
   }
   return null;
+}
+
+/**
+ * Das Element einer Formelzeile: die gesetzte Formel in der Schriftgröße eines Textblocks dieser Höhe,
+ * höchstens so breit wie die Box. Lässt sich die Quelle nicht setzen, bleibt sie als Text stehen, damit
+ * nichts verloren geht (FR-030).
+ */
+export async function formulaElement(placed: PlacedRegion, id: string, fontFamily: string, color = "#1f2937"): Promise<LatexElement | TextElement> {
+  const { rect } = placed;
+  const source = placed.latex ?? "";
+  const set = await renderLatexAsync(source);
+  if ("error" in set) {
+    return textOrTableElement({ ...placed, text: source, latex: undefined }, id, fontFamily) as TextElement;
+  }
+  const em = fontSizeFor(rect.height, 1);
+  const shrink = Math.min(1, rect.width / (set.width * em));
+  const width = set.width * em * shrink;
+  const height = set.height * em * shrink;
+  const element: LatexElement = {
+    id, type: "latex", x: rect.x, y: rect.y + Math.max(0, (rect.height - height) / 2), width, height, rotation: 0,
+    source, svg: set.svg, color, bbox: [0, 0, 0, 0],
+  };
+  element.bbox = computeBbox(element);
+  return element;
 }
 
 /** Das Bildelement einer Bildregion mit ihrem Ausschnitt als Asset. */

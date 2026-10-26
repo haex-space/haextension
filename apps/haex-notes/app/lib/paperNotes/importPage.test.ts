@@ -152,4 +152,23 @@ describe("importPhotoAsync", () => {
     expect(layers.flatMap((layer) => layer.elements)).toHaveLength(1);
     expect(paperImport.processing).toMatchObject({ state: "failed", error: "processing_failed" });
   });
+
+  it("sets a formula line on the text layer and keeps a source that cannot be set as text", async () => {
+    const formulas: PageJobOutcome = {
+      ...read,
+      regions: [
+        { kind: "formula", box: [100, 100, 700, 160], latex: "\\ce{HCl + H2O -> H3O+ + Cl-}" },
+        { kind: "formula", box: [100, 200, 700, 260], latex: "\\frac{1" },
+      ],
+      texts: [],
+    };
+    const { deps } = fakes([formulas]);
+    const { layers, paperImport } = await importPhotoAsync(photo, page, "Caveat", deps);
+
+    const text = layers.find((l) => l.name === LAYER_NAMES.text)!;
+    expect(text.elements.map((e) => e.type)).toEqual(["latex", "text"]);
+    expect(layers.find((l) => l.name === LAYER_NAMES.objects)!.elements).toEqual([]);
+    expect(paperImport.regions.map((r) => r.kind)).toEqual(["formula", "formula"]);
+    expect(paperImport.regions.map((r) => r.elementIds[0])).toEqual(text.elements.map((e) => e.id));
+  });
 });
