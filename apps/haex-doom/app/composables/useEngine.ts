@@ -1,3 +1,4 @@
+import { recordEngineExit, type EngineExit } from "~/lib/engine/exit";
 import { createHaexImports, type HaexImports } from "~/lib/engine/imports";
 import { saveDirectory, savePath } from "~/lib/saveStore";
 
@@ -17,14 +18,7 @@ type EngineFactory = (options: Record<string, unknown>) => Promise<EngineModule>
 
 export type EngineState = "idle" | "loading" | "running" | "failed";
 export type EngineError = "host-outdated" | "load-failed" | "crashed";
-
-/** Why the engine ended, as it reported itself (engine/patches/0006-exit-hooks.patch). */
-export interface EngineExit {
-  /** The engine stopped with I_Error (consistency failure, a failed connect, ...). */
-  isError: boolean;
-  /** The error text, or a notice for the player (the host left); empty for a plain Quit. */
-  message: string;
-}
+export type { EngineExit };
 
 export interface EngineStartOptions {
   canvas: HTMLCanvasElement;
@@ -100,15 +94,10 @@ export function useEngine() {
     error.value = null;
     lastExit.value = null;
 
-    const handlers = { ...createHaexImports(), ...options.imports };
-    const imports: HaexImports = {
-      ...handlers,
-      engineExit: (isError, message) => {
-        // The engine exits right after this call; onExit tears the module down.
-        lastExit.value = { isError, message: message.trim() };
-        handlers.engineExit(isError, message);
-      },
-    };
+    const imports = recordEngineExit({ ...createHaexImports(), ...options.imports }, (exit) => {
+      // The engine exits right after reporting; onExit tears the module down.
+      lastExit.value = exit;
+    });
     try {
       const factory = await loadFactory();
       const module = await factory({

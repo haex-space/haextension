@@ -6,7 +6,7 @@
 //   node engine/e2e/run.mjs [scenario ...] [--seconds 70] [--keep-open]
 //
 // Needs `playwright-core` (resolvable, or its directory in PLAYWRIGHT_CORE) and a Chromium
-// (CHROMIUM, default /usr/bin/chromium). Scenarios: coop, deathmatch, latency, four,
+// (CHROMIUM, default /usr/bin/chromium). Scenarios: coop, coop-doom1, deathmatch, latency, four,
 // guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure. No scenario runs all.
 // Exit code 1 when a scenario fails.
 
@@ -243,6 +243,14 @@ const scenarios = {
     const game = await startGame(context, origin);
     if (!game.reached) return { ok: false, game, why: "not all players reached the level" };
     const played = await playFor(game.players, seconds);
+    return { ok: await verifyLockstep(game.players, played), game };
+  },
+
+  // The episodic games take the episode and the map: `-warp 1 1`.
+  async "coop-doom1"({ context, origin, seconds }) {
+    const game = await startGame(context, origin, { wad: "doom1", hostArgs: ["-privateserver", "-nodes", "2", "-skill", "3", "-warp", "1", "1"] });
+    if (!game.reached) return { ok: false, game, why: "not all players reached the level" };
+    const played = await playFor(game.players, Math.min(seconds, 30));
     return { ok: await verifyLockstep(game.players, played), game };
   },
 
