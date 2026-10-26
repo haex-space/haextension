@@ -4,7 +4,7 @@ import type { Box } from "../elementEdits";
 import { drawingLayerId } from "../migratePage";
 import { LAYER_NAMES, readTurnedAsync, type ImportDeps, type Photo } from "./importPage";
 import { fitInRect } from "./layout";
-import { imageElement, placeRegions, textOrTableElement, type PlacedRegion } from "./mapResult";
+import { formulaElement, imageElement, placeRegions, textOrTableElement, type PlacedRegion } from "./mapResult";
 
 /**
  * Eine schlecht erkannte Stelle über ein Nahfoto neu lesen (research R13 in haex-space/haex-vault@e4b28be9d22e8c0839f8652908b35b78e04c9c6e:specs/046-paper-notes-canvas/research.md):
@@ -78,7 +78,7 @@ export async function readCloseUpAsync(
     for (const [i, region] of placed.entries()) {
       const element = await elementOf(region, crops[i]!, fontFamily, deps);
       if (!element) continue;
-      (element.type === "text" ? texts : objects).push(element);
+      (element.type === "text" || element.type === "latex" ? texts : objects).push(element);
       regions.push({
         id: deps.newId(), kind: region.region.kind, sourceBox: region.region.box as RecognizedRegion["sourceBox"],
         elementIds: [element.id], closeUpId,
@@ -115,6 +115,7 @@ export async function readCloseUpAsync(
 
 async function elementOf(placed: PlacedRegion, crop: Uint8Array | null, fontFamily: string, deps: ImportDeps) {
   const id = deps.newId();
+  if (placed.region.kind === "formula") return formulaElement(placed, id, fontFamily);
   if (!crop) return textOrTableElement(placed, id, fontFamily);
   return imageElement(placed, id, await deps.putAsset(crop, "image/jpeg", `crop-${id}.jpg`));
 }

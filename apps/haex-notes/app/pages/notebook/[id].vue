@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop, Sigma } from "@lucide/vue";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
@@ -268,6 +268,15 @@ const addPage = async () => {
           <Share2 class="size-4" />
         </button>
 
+        <!-- Formel einfügen (Spec 046, FR-032) -->
+        <button
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('addFormula')"
+          @click="pageCanvasRef?.insertFormula()"
+        >
+          <Sigma class="size-4" />
+        </button>
+
         <!-- Table tool -->
         <ShadcnPopover>
           <ShadcnPopoverTrigger as-child>
@@ -404,6 +413,7 @@ de:
   exportPdf: Als PDF exportieren
   closeUp: Stelle neu fotografieren – Rechteck über die Stelle ziehen
   addTable: Tabelle einfügen
+  addFormula: Formel einfügen
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
   resetZoom: Zoom zurücksetzen
@@ -421,6 +431,7 @@ en:
   exportPdf: Export as PDF
   closeUp: Photograph an area again – drag a rectangle over it
   addTable: Insert Table
+  addFormula: Insert formula
   toggleOrientation: Portrait/Landscape
   sharePage: Share page
   resetZoom: Reset Zoom

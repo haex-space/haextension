@@ -146,6 +146,33 @@ describe("migratePageRow with a photo import", () => {
   });
 });
 
+describe("formulas on a page", () => {
+  const formula = {
+    id: "f1", type: "latex", x: 10, y: 20, width: 120, height: 40, rotation: 0,
+    source: "\\ce{H2O}", svg: '<svg viewBox="0 0 1000 1000"><g fill="currentColor"/></svg>', color: "#1f2937", bbox: [10, 20, 120, 40],
+  };
+  const layers = [{ id: "l1", name: "Text", visible: true, locked: false, elements: [formula] }];
+
+  it("keeps a formula element, with its source and its set svg, through saving and loading", () => {
+    const doc = { id: "p1", ...migratePageRow({ layers }) };
+    expect(doc.layers[0]!.elements[0]).toEqual(formula);
+    const saved = serializePageDoc(doc);
+    expect(saved.layers[0]!.elements[0]).toEqual(formula);
+    expect(saved.layers).not.toBe(doc.layers);
+    expect(migratePageRow({ layers: saved.layers, background: saved.background, width: saved.width, height: saved.height }).layers)
+      .toEqual(doc.layers);
+  });
+
+  it("keeps a table cell with a formula as its text", () => {
+    const table = {
+      id: "t1", type: "table", x: 0, y: 0, columns: 1, rows: 1, columnWidths: [80], rowHeights: [30],
+      cells: [["$\\ce{HCl}$"]], bbox: [0, 0, 80, 30],
+    };
+    const saved = serializePageDoc({ id: "p1", ...migratePageRow({ layers: [{ ...layers[0], elements: [table] }] }) });
+    expect(saved.layers[0]!.elements[0]).toMatchObject({ cells: [["$\\ce{HCl}$"]] });
+  });
+});
+
 describe("migratePageRow with attachments", () => {
   const photoLayer = (name: string, locked: boolean) => ({
     id: "l-photo", name, visible: true, locked,

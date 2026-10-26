@@ -2,7 +2,7 @@ import type { ModelJob, ModelJobFormat, ModelJobImage } from "@haex-space/vault-
 
 /**
  * Der Auftrag „Seitenerkennung“ an holzis Modelle (haex-space/haex-vault@
- * 74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/contracts/page-job.md):
+ * 345dc4156fe04a1a22a81134aa37f926a58bd7d2:specs/046-paper-notes-canvas/contracts/page-job.md):
  * erst die Seite in Regionen lesen, dann die gelesenen Texte korrigieren. holzi wählt das
  * freigegebene Modell, fragt vor dem Versand außerhalb des Geräts und verwirft Ausgabe, die nicht
  * zum Format passt.
@@ -11,12 +11,17 @@ import type { ModelJob, ModelJobFormat, ModelJobImage } from "@haex-space/vault-
 /** Anweisung zum Lesen. Ändert sich ihre Bedeutung, steigt die Version von {@link PAGE_FORMAT}. */
 export const READ_INSTRUCTION = `This is a photo of a student's handwritten notes, a blackboard picture or a worksheet, in German.
 Split the page into regions and return ONLY a JSON object:
-{"regions": [{"kind": "text" | "table" | "image", "box": [x1, y1, x2, y2], "text": "...", "rows": [["cell", ...], ...]}], "rotation": 0}
+{"regions": [{"kind": "text" | "table" | "image" | "formula", "box": [x1, y1, x2, y2], "text": "...", "latex": "...", "rows": [["cell", ...], ...]}], "rotation": 0}
 Rules:
 - box uses coordinates 0-1000 relative to the image width and height.
 - "text": transcribe the handwriting exactly as written, keep line breaks, do not correct anything.
 - "table": give "rows" as a list of rows of cell strings, an empty cell as "", no "text".
-- "image": drawings, diagrams, sketches and photos, no "text".
+- "formula": a line that is a formula of mathematics, chemistry or physics and nothing else. Give "latex" as valid
+  LaTeX, no "text". Write chemistry with \\ce{...}, for example \\ce{H2SO3 + H2O -> H3O+ + HSO3-}, and keep charges
+  and indices. Do not use "formula" for a formula inside a sentence.
+- Inside a sentence write a formula in plain text with Unicode indices and charges (H₃O⁺, SO₄²⁻).
+- In a table cell that contains only a formula, write it as $...$ with the same LaTeX rules.
+- "image": drawings, diagrams, sketches and photos, no "text". Structural formulas (Lewis structures) are images.
 - List regions in reading order. Do not invent content that is not on the page.
 - "rotation": the clockwise degrees (0, 90, 180 or 270) the photo must be turned to stand upright.`;
 
@@ -27,7 +32,7 @@ Return ONLY {"texts": [...]} with one corrected text per region that has a "text
 
 export const PAGE_FORMAT: ModelJobFormat = {
   "name": "page-recognition",
-  "version": 1,
+  "version": 2,
   "schema": {
     "type": "object",
     "required": [
@@ -48,7 +53,8 @@ export const PAGE_FORMAT: ModelJobFormat = {
               "enum": [
                 "text",
                 "image",
-                "table"
+                "table",
+                "formula"
               ]
             },
             "box": {
@@ -64,6 +70,10 @@ export const PAGE_FORMAT: ModelJobFormat = {
             "text": {
               "type": "string",
               "maxLength": 20000
+            },
+            "latex": {
+              "type": "string",
+              "maxLength": 4000
             },
             "rows": {
               "type": "array",

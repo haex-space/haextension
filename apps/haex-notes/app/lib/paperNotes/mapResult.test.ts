@@ -1,6 +1,7 @@
 import type { ModelJobCompletion } from "@haex-space/vault-sdk";
-import { describe, expect, it } from "vitest";
-import { imageElement, outcomeOf, placeRegions, textOrTableElement, type PageJobOutcome } from "./mapResult";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadMathAsync } from "../math";
+import { formulaElement, imageElement, outcomeOf, placeRegions, textOrTableElement, type PageJobOutcome } from "./mapResult";
 
 const read = {
   regions: [
@@ -118,5 +119,54 @@ describe("elements", () => {
     expect(imageElement(placed[2]!, "e3", "crop")).toMatchObject({
       type: "image", source: { kind: "asset", assetId: "crop" }, x: 110, y: 490, width: 280, height: 250,
     });
+  });
+});
+
+describe("formula regions", () => {
+  beforeAll(loadMathAsync);
+  const fit = { x: 40, y: 40, width: 700, height: 1000, scale: 1 };
+  const page = (...regions: unknown[]) => ({ regions, rotation: 0 });
+
+  it("reads the latex of a formula line and leaves a text next to it out of the corrections", () => {
+    const outcome = done(completed(page(
+      { kind: "formula", box: [100, 100, 700, 160], latex: "\\ce{H2SO3 + H2O -> H3O+ + HSO3-}", text: "ignored" },
+      { kind: "text", box: [100, 200, 600, 250], text: "Zur Auswahl" },
+    ), { texts: ["Zur Auswahl!"] }));
+    expect(outcome.regions[0]).toEqual({ kind: "formula", box: [100, 100, 700, 160], latex: "\\ce{H2SO3 + H2O -> H3O+ + HSO3-}" });
+    const placed = placeRegions(outcome, fit, 794);
+    expect(placed.map((p) => p.region.kind)).toEqual(["formula", "text"]);
+    expect(placed[0]!.latex).toBe("\\ce{H2SO3 + H2O -> H3O+ + HSO3-}");
+    expect(placed[1]!.text).toBe("Zur Auswahl!");
+  });
+
+  it("skips a formula line without a source", () => {
+    const outcome = done(completed(page({ kind: "formula", box: [0, 0, 500, 100] }, { kind: "formula", box: [0, 200, 500, 300], latex: "  " }), { texts: [] }));
+    expect(placeRegions(outcome, fit, 794)).toEqual([]);
+  });
+
+  it("sets a formula line into a formula element at the font size of a text block of its height", async () => {
+    const [placed] = placeRegions(done(completed(page({ kind: "formula", box: [100, 100, 900, 160], latex: "x^2" }), { texts: [] })), fit, 794);
+    const element = await formulaElement(placed!, "f1", "Caveat");
+    expect(element).toMatchObject({ type: "latex", id: "f1", source: "x^2", color: "#1f2937", rotation: 0, x: placed!.rect.x });
+    if (element.type !== "latex") return;
+    expect(element.svg.startsWith("<svg")).toBe(true);
+    expect(element.height).toBeGreaterThan(0);
+    expect(element.height).toBeLessThanOrEqual(placed!.rect.height);
+    expect(element.width).toBeLessThanOrEqual(placed!.rect.width);
+    expect(element.bbox[2]).toBeGreaterThan(0);
+  });
+
+  it("shrinks a formula that is wider than its box", async () => {
+    const wide = "a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t+u+v+w+x+y+z";
+    const [placed] = placeRegions(done(completed(page({ kind: "formula", box: [100, 100, 200, 160], latex: wide }), { texts: [] })), fit, 794);
+    const element = await formulaElement(placed!, "f2", "Caveat");
+    expect(element.type).toBe("latex");
+    expect(element.width).toBeLessThanOrEqual(placed!.rect.width + 0.001);
+  });
+
+  it("keeps the source as text when it cannot be set, so that nothing is lost", async () => {
+    const [placed] = placeRegions(done(completed(page({ kind: "formula", box: [100, 100, 900, 160], latex: "\\frac{1" }), { texts: [] })), fit, 794);
+    const element = await formulaElement(placed!, "f3", "Caveat");
+    expect(element).toMatchObject({ type: "text", id: "f3", text: "\\frac{1", fontFamily: "Caveat" });
   });
 });

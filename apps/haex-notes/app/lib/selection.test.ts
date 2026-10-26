@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ImageElement, PageLayer, StrokeElement, TableElement, TextElement } from "~/types/document";
+import type { ImageElement, LatexElement, PageLayer, StrokeElement, TableElement, TextElement } from "~/types/document";
 import { cellAt, draggedBox, elementAt, MIN_SIZE, onResizeHandle } from "./selection";
 
 const text: TextElement = {
@@ -64,5 +64,24 @@ describe("cellAt", () => {
   it("finds row, column and box of the cell under the point", () => {
     expect(cellAt(table, { x: 100, y: 240 })).toEqual({ row: 1, column: 1, box: { x: 80, y: 230, width: 120, height: 40 } });
     expect(cellAt(table, { x: 300, y: 240 })).toBeNull();
+  });
+});
+
+describe("selecting a formula", () => {
+  const formula: LatexElement = {
+    id: "formula", type: "latex", x: 300, y: 300, width: 120, height: 40, rotation: 0,
+    source: "x^2", svg: "<svg/>", color: "#000", bbox: [300, 300, 120, 40],
+  };
+
+  it("finds a formula like a text, and skips it on a locked layer", () => {
+    expect(elementAt([layer("f", [formula])], { x: 310, y: 310 })?.id).toBe("formula");
+    expect(elementAt([layer("f", [formula], { locked: true })], { x: 310, y: 310 })).toBeNull();
+  });
+
+  it("has a handle at its bottom right corner and keeps its aspect when scaled by a caller that asks for it", () => {
+    expect(onResizeHandle(formula, { x: 420, y: 340 }, 1)).toBe(true);
+    const start = { x: 300, y: 300, width: 120, height: 40 };
+    const scaled = draggedBox(start, 60, 0, "resize", true);
+    expect(scaled.width / scaled.height).toBeCloseTo(3);
   });
 });

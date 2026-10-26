@@ -3,7 +3,7 @@ import type { ImageElement, PageAttachment, PageElement, PageLayer, PaperNoteImp
 import { computeBbox } from "../bbox";
 import { PHOTO_LAYER_NAME } from "../migratePage";
 import { fitImage, type Fit } from "./layout";
-import { imageElement, placeRegions, textOrTableElement, type PageJobOutcome, type Rotation } from "./mapResult";
+import { formulaElement, imageElement, placeRegions, textOrTableElement, type PageJobOutcome, type Rotation } from "./mapResult";
 import { buildPageJob } from "./pageJob";
 import { toBase64 } from "./workingCopy";
 
@@ -159,9 +159,12 @@ export async function importPhotoAsync(
     try {
       for (const placed of placeRegions(outcome, fit, page.width)) {
         const id = deps.newId();
-        const element = textOrTableElement(placed, id, fontFamily)
-          ?? imageElement(placed, id, await deps.putAsset(await copy.crop(placed.region.box), "image/jpeg", `crop-${id}.jpg`));
-        (element.type === "text" ? texts : objects).push(element);
+        const element = placed.region.kind === "formula"
+          ? await formulaElement(placed, id, fontFamily)
+          : textOrTableElement(placed, id, fontFamily)
+            ?? imageElement(placed, id, await deps.putAsset(await copy.crop(placed.region.box), "image/jpeg", `crop-${id}.jpg`));
+        // Text und gesetzte Formeln stehen auf der Textebene, Tabellen und Bilder auf der Objektebene.
+        (element.type === "text" || element.type === "latex" ? texts : objects).push(element);
         regions.push({ id: deps.newId(), kind: placed.region.kind, sourceBox: placed.region.box as RecognizedRegion["sourceBox"], elementIds: [id] });
       }
     } catch {

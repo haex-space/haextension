@@ -12,7 +12,7 @@ export interface Point {
   y: number;
 }
 
-export type Selectable = Extract<PageElement, { type: "text" | "image" | "table" }>;
+export type Selectable = Extract<PageElement, { type: "text" | "image" | "table" | "latex" }>;
 
 /** Kleinste Seitenlänge beim Skalieren. */
 export const MIN_SIZE = 16;
@@ -22,7 +22,7 @@ export const HANDLE_RADIUS = 8;
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
 export function isSelectable(element: PageElement): element is Selectable {
-  return element.type === "text" || element.type === "image" || element.type === "table";
+  return element.type === "text" || element.type === "image" || element.type === "table" || element.type === "latex";
 }
 
 export function boxOf(element: Selectable): Box {
@@ -56,7 +56,7 @@ export function onResizeHandle(element: Selectable, point: Point, zoom: number):
   return Math.abs(point.x - (box.x + box.width)) <= radius && Math.abs(point.y - (box.y + box.height)) <= radius;
 }
 
-/** Die Box nach einem Ziehen um `dx`/`dy`; ein Bild behält beim Skalieren sein Seitenverhältnis. */
+/** Die Box nach einem Ziehen um `dx`/`dy`; ein Bild oder eine Formel behält beim Skalieren sein Seitenverhältnis. */
 export function draggedBox(start: Box, dx: number, dy: number, mode: "move" | "resize", keepAspect: boolean): Box {
   if (mode === "move") return { ...start, x: start.x + dx, y: start.y + dy };
   let width = Math.max(MIN_SIZE, start.width + dx);
