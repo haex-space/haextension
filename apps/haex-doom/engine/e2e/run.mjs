@@ -5,8 +5,8 @@
 //   pnpm --filter haex-doom engine:build
 //   node engine/e2e/run.mjs [scenario ...] [--seconds 70] [--keep-open]
 //
-// Needs `playwright-core` (resolvable, or its directory in PLAYWRIGHT_CORE) and a Chromium
-// (CHROMIUM, default /usr/bin/chromium). Scenarios: coop, coop-doom1, deathmatch, latency, four,
+// Needs a Chromium (CHROMIUM, default /usr/bin/chromium); `playwright-core` is a dev dependency of this
+// app and only drives that browser (PLAYWRIGHT_CORE points at another copy of it, if wanted). Scenarios: coop, coop-doom1, deathmatch, latency, four,
 // guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure, timedemo. No scenario runs all.
 // Exit code 1 when a scenario fails.
 

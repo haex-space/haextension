@@ -43,6 +43,7 @@
     "eslint": "^9.39.2",
     "tailwindcss": "^4.1.18",
     "vitest": "^3.2.4",
-    "drizzle-kit": "^0.31.8"
+    "drizzle-kit": "^0.31.8",
+    "playwright-core": "^1.57.0"
   }
 }
