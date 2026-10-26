@@ -6,6 +6,10 @@ const { t } = useI18n()
 const engine = useEngine()
 const { mode } = useInputMode()
 
+const lobby = useLobbyStore()
+/** A multiplayer game cannot be paused: the others keep playing (FR-006, FR-033). */
+const netgame = computed(() => lobby.phase === 'running')
+
 const portrait = useMediaQuery('(orientation: portrait)')
 /** Phones are played in landscape (FR-013); the game waits while the device is upright. */
 const askToRotate = computed(() => mode.value === 'touch' && portrait.value)
@@ -26,26 +30,28 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onBlur() {
-  engine.setPaused(true)
+  if (!netgame.value) engine.setPaused(true)
 }
 
 function onFocus() {
-  if (!waitingToContinue.value && !askToRotate.value) engine.setPaused(false)
+  if (!netgame.value && !waitingToContinue.value && !askToRotate.value) engine.setPaused(false)
 }
 
 // Losing the gamepad in the middle of a single-player game pauses it until the player continues (US7).
 useGamepad(() => {
+  if (netgame.value) return
   engine.setPaused(true)
   waitingToContinue.value = true
 })
 
 watch(askToRotate, (rotate) => {
+  if (netgame.value) return
   if (rotate) engine.setPaused(true)
   else if (!waitingToContinue.value) engine.setPaused(false)
 })
 
 function onVisibilityChange() {
-  if (document.visibilityState === 'hidden') {
+  if (!netgame.value && document.visibilityState === 'hidden') {
     engine.setPaused(true)
     waitingToContinue.value = true
   }

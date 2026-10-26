@@ -2,6 +2,8 @@
 import { unlockAudio } from '~/lib/audioUnlock'
 import { setConfigValue, widescreenFor } from '~/lib/engineConfig'
 import { parseSavePath, saveDescription } from '~/lib/saveStore'
+import { takeNetAudio } from '~/lib/netAudio'
+import type { StartRequest } from '~/lib/lobby'
 import { loadBundledWad } from '~/lib/wadLoader'
 import { toast } from 'vue-sonner'
 import type { PlayableGame } from '~/stores/games'
@@ -11,8 +13,20 @@ const engine = useEngine()
 const settings = useSettingsStore()
 const saves = useSavesStore()
 const games = useGamesStore()
+const peers = usePeers()
+const lobby = useLobbyStore()
+
+/** The player is setting up a game to host. */
+const hosting = ref(false)
+const showLobby = computed(() => hosting.value || lobby.active)
+watch(() => lobby.active, (active) => {
+  if (!active) hosting.value = false
+})
 
 onMounted(() => {
+  // Multiplayer needs peer channels in the vault; without them its entry stays hidden (SC-007).
+  void peers.detect()
+  void lobby.loadDisplayName()
   void settings.load()
   games.load().catch((error: unknown) => {
     // The bundled games still work without the vault's list of imported ones.
@@ -92,9 +106,10 @@ async function onFileRemoved(path: string) {
   }
 }
 
-async function startGame(game: PlayableGame) {
-  // Must run inside the tap, before any await (research R-14).
-  const audioContext = unlockAudio()
+/** `netgame` starts a multiplayer game with the engine arguments the lobby chose. */
+async function startGame(game: PlayableGame, netgame?: Pick<StartRequest, 'args'>) {
+  // Must run inside the tap, before any await (research R-14); a netgame's context was made in the last tap of the lobby.
+  const audioContext = netgame ? takeNetAudio() : unlockAudio()
   playing.value = true
   preparing.value = true
   await nextTick()
@@ -120,7 +135,13 @@ async function startGame(game: PlayableGame) {
     preparing.value = false
     await engine.start({
       canvas, wad, fileName: game.fileName, fingerprint: game.fingerprint, configs, saves: gameSaves, audioContext,
-      imports: { haptic: settings.vibrate, fileWritten: (path) => void onFileWritten(path), fileRemoved: (path) => void onFileRemoved(path) },
+      args: netgame?.args,
+      imports: {
+        haptic: settings.vibrate,
+        fileWritten: (path) => void onFileWritten(path),
+        fileRemoved: (path) => void onFileRemoved(path),
+        ...(netgame ? peers.session().imports() : {}),
+      },
     })
     canvas.focus()
   } catch (error) {
@@ -129,7 +150,19 @@ async function startGame(game: PlayableGame) {
     void audioContext.close()
     preparing.value = false
     playing.value = false
+    if (netgame) void lobby.leave()
   }
+}
+
+/** The lobby started the game: the same game file as the host's runs here, with netgame arguments. */
+function onNetgameStart(request: StartRequest) {
+  const game = games.all.find(candidate => candidate.fingerprint === request.fingerprint)
+  if (!game) {
+    toast.error(t('gameMissing'))
+    void lobby.leave()
+    return
+  }
+  void startGame(game, { args: request.args })
 }
 
 // Back to the start screen when the engine quits or fails.
@@ -151,16 +184,22 @@ watch(engine.state, (state) => {
       {{ t('loading') }}
     </div>
 
+    <DoomMultiplayerEvents @start="onNetgameStart" />
+
     <main
       v-if="!playing"
-      class="h-full flex flex-col items-center justify-center gap-6 p-6 max-w-md mx-auto"
+      class="h-full flex flex-col items-center justify-center gap-6 p-6 max-w-md mx-auto overflow-y-auto"
     >
       <h1 class="text-4xl font-black tracking-wide">
         DOOM
       </h1>
 
+      <DoomMultiplayerLobby
+        v-if="hostSupportsEngine && showLobby"
+        @close="hosting = false"
+      />
       <p
-        v-if="!hostSupportsEngine || engine.error.value === 'host-outdated'"
+        v-else-if="!hostSupportsEngine || engine.error.value === 'host-outdated'"
         class="text-center text-destructive"
       >
         {{ t('hostOutdated') }}
@@ -179,6 +218,25 @@ watch(engine.state, (state) => {
           @remove="removeGame"
         />
         <DoomImportButton class="w-full" />
+        <section
+          v-if="peers.available.value"
+          class="w-full flex flex-col gap-2"
+        >
+          <h2 class="text-sm font-semibold text-muted-foreground">
+            {{ t('multiplayer') }}
+          </h2>
+          <div class="flex gap-2">
+            <ShadcnButton
+              class="flex-1"
+              variant="outline"
+              :disabled="engine.state.value === 'loading'"
+              @click="hosting = true"
+            >
+              {{ t('hostGame') }}
+            </ShadcnButton>
+            <DoomJoinByCode />
+          </div>
+        </section>
       </template>
 
       <div class="flex gap-2">
@@ -196,6 +254,9 @@ de:
   saveFailed: Der Spielstand wurde nicht im Vault gespeichert. Bitte versuche es erneut.
   saveRemoveFailed: Der Spielstand wurde nicht aus dem Vault gelöscht und ist beim nächsten Start wieder da.
   loading: Lädt …
+  multiplayer: Mehrspieler
+  hostGame: Spiel hosten
+  gameMissing: Die Spieldatei des Spiels fehlt auf diesem Gerät.
   hostOutdated: Bitte aktualisiere deinen Vault, um DOOM zu spielen. Diese Version erlaubt Erweiterungen noch kein WebAssembly.
   errors:
     load-failed: Das Spiel konnte nicht geladen werden.
@@ -207,6 +268,9 @@ en:
   saveFailed: The save game was not stored in the vault. Please try again.
   saveRemoveFailed: The save game was not removed from the vault and will be back next time.
   loading: Loading …
+  multiplayer: Multiplayer
+  hostGame: Host a game
+  gameMissing: This device does not have the game file of this game.
   hostOutdated: Please update your vault to play DOOM. This version does not let extensions run WebAssembly yet.
   errors:
     load-failed: The game could not be loaded.
