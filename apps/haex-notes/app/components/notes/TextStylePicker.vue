@@ -11,7 +11,7 @@ const families = [...HANDWRITING_STYLES.map((style) => style.family), NEUTRAL_FA
 
 <template>
   <select
-    class="absolute z-40 h-7 rounded-md border border-border bg-popover px-1 text-xs shadow-md"
+    class="absolute z-40 h-7 rounded-md border border-border bg-popover px-1 text-xs text-popover-foreground shadow-md"
     :style="boxStyle"
     :value="fontFamily"
     :aria-label="t('label')"

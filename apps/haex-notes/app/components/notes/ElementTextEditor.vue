@@ -1,12 +1,22 @@
 <script setup lang="ts">
+import { createBlurGuard } from "~/lib/blurGuard";
+
 /** Bearbeitet einen Textblock oder eine Zelle an Ort und Stelle; Strg+Enter oder Wegklicken übernimmt, Esc verwirft. */
 const props = defineProps<{ text: string; boxStyle: Record<string, string> }>();
 const emit = defineEmits<{ commit: [text: string]; cancel: [] }>();
 const { t } = useI18n();
+const guard = createBlurGuard();
 
 const value = ref(props.text);
 const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
-onMounted(() => textarea.value?.focus());
+// Der Doppelklick, der das Feld öffnet, setzt den Fokus danach noch auf die Seite zurück: Erst
+// danach nimmt das Feld ihn wieder, und erst dann beendet ein Blur die Eingabe.
+onMounted(() => {
+  setTimeout(() => {
+    textarea.value?.focus();
+    guard.arm();
+  }, 0);
+});
 
 let done = false;
 function finish(keep: boolean) {
@@ -35,7 +45,7 @@ function onKeydown(event: KeyboardEvent) {
     :style="{ ...boxStyle, lineHeight: '1.25' }"
     :aria-label="t('label')"
     @keydown="onKeydown"
-    @blur="finish(true)"
+    @blur="guard.endsInput() && finish(true)"
   />
 </template>
 
