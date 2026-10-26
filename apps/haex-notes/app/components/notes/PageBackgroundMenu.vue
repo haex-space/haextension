@@ -35,6 +35,7 @@ function choose(change: BackgroundChange) {
         v-for="tmpl in PAGE_TEMPLATES"
         :key="tmpl.id"
         class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm hover:bg-accent"
+        :aria-pressed="background.template === tmpl.id"
         @click="choose({ template: tmpl.id })"
       >
         {{ templateLabel(tmpl.id, locale) }}
@@ -50,6 +51,7 @@ function choose(change: BackgroundChange) {
           :style="{ backgroundColor: paper.color }"
           :title="locale === 'de' ? paper.i18n.de : paper.i18n.en"
           :aria-label="locale === 'de' ? paper.i18n.de : paper.i18n.en"
+          :aria-pressed="background.paperColor === paper.color"
           @click="choose({ paperColor: paper.color })"
         />
       </div>
