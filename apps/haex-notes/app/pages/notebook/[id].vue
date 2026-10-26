@@ -255,6 +255,8 @@ const addPage = async () => {
           <RotateCw class="size-4" :class="isLandscape ? 'rotate-90' : ''" />
         </button>
 
+        <NotesPageBackgroundMenu />
+
         <!-- Share current page -->
         <button
           class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
