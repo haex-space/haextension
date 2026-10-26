@@ -16,7 +16,7 @@ const GAME = { title: "DOOM (shareware)", fingerprint: FINGERPRINT };
 
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
-const deathmatch = { mode: "deathmatch", monsters: false, timeLimit: 10, map: "E1M1", skill: 3 };
+const deathmatch = { mode: "deathmatch", monsters: false, timeLimit: 10, map: "E1M1", skill: 3 } as const;
 
 const invitation = {
   v: 1,
@@ -29,13 +29,13 @@ const invitation = {
 
 describe("encodeMessage and decodeMessage", () => {
   it("round-trips every message type", () => {
-    const messages = [
+    const messages: Parameters<typeof encodeMessage>[0][] = [
       { t: "hello", fingerprint: FINGERPRINT, extensionVersion: "1.0.0", displayName: "Anna" },
       { t: "lobby", game: GAME, ...deathmatch, players: [{ displayName: "Ben", verified: true, state: "joined" }] },
       { t: "reject", reason: "version" },
       { t: "start", nodes: 3, mode: "coop", map: "E2M4", skill: 4 },
       { t: "leave" },
-    ] as const;
+    ];
     for (const message of messages) {
       expect(decodeMessage(encodeMessage(message))).toEqual({ ...message, v: 1 });
     }
