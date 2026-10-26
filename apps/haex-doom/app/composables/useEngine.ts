@@ -18,6 +18,14 @@ type EngineFactory = (options: Record<string, unknown>) => Promise<EngineModule>
 export type EngineState = "idle" | "loading" | "running" | "failed";
 export type EngineError = "host-outdated" | "load-failed" | "crashed";
 
+/** Why the engine ended, as it reported itself (engine/patches/0006-exit-hooks.patch). */
+export interface EngineExit {
+  /** The engine stopped with I_Error (consistency failure, a failed connect, ...). */
+  isError: boolean;
+  /** The error text, or a notice for the player (the host left); empty for a plain Quit. */
+  message: string;
+}
+
 export interface EngineStartOptions {
   canvas: HTMLCanvasElement;
   wad: Uint8Array;
@@ -41,10 +49,12 @@ let instance: EngineModule | null = null;
 let postEventFn: ((...args: number[]) => void) | null = null;
 let setMouseMotionFn: ((...args: number[]) => void) | null = null;
 let setPausedFn: ((...args: number[]) => void) | null = null;
+let netPeerClosedFn: ((...args: number[]) => void) | null = null;
 let mouseMotionEnabled = true;
 
 const state = ref<EngineState>("idle");
 const error = ref<EngineError | null>(null);
+const lastExit = ref<EngineExit | null>(null);
 
 function isHostOutdated(cause: unknown): boolean {
   // Without 'wasm-unsafe-eval' in the frame's CSP, compiling WebAssembly is refused.
@@ -88,8 +98,17 @@ export function useEngine() {
     if (state.value === "loading" || state.value === "running") return;
     state.value = "loading";
     error.value = null;
+    lastExit.value = null;
 
-    const imports = { ...createHaexImports(), ...options.imports };
+    const handlers = { ...createHaexImports(), ...options.imports };
+    const imports: HaexImports = {
+      ...handlers,
+      engineExit: (isError, message) => {
+        // The engine exits right after this call; onExit tears the module down.
+        lastExit.value = { isError, message: message.trim() };
+        handlers.engineExit(isError, message);
+      },
+    };
     try {
       const factory = await loadFactory();
       const module = await factory({
@@ -104,6 +123,7 @@ export function useEngine() {
       setMouseMotionFn = module.cwrap("haex_set_mouse_motion", null, ["number"]);
       setMouseMotionFn(mouseMotionEnabled ? 1 : 0);
       setPausedFn = module.cwrap("haex_set_paused", null, ["number"]);
+      netPeerClosedFn = module.cwrap("haex_net_peer_closed", null, ["number"]);
 
       const saveDir = prepareFileSystem(module, options);
       state.value = "running";
@@ -125,6 +145,7 @@ export function useEngine() {
     postEventFn = null;
     setMouseMotionFn = null;
     setPausedFn = null;
+    netPeerClosedFn = null;
     mouseMotionEnabled = true;
     error.value = reason;
     state.value = reason ? "failed" : "idle";
@@ -147,6 +168,11 @@ export function useEngine() {
     setPausedFn?.(paused ? 1 : 0);
   }
 
+  /** A peer channel closed: the engine treats the peer like a node that timed out (a guest leaves, or the host's end ends the game). */
+  function netPeerClosed(peer: number) {
+    netPeerClosedFn?.(peer);
+  }
+
   /** The engine's audio context, once SDL opened it (to resume it after a gesture). */
   function audioContext(): AudioContext | undefined {
     return instance?.SDL2?.audioContext;
@@ -156,5 +182,5 @@ export function useEngine() {
     return instance?.FS.readFile(path) ?? null;
   }
 
-  return { state: readonly(state), error: readonly(error), start, postEvent, pressKey, setMouseMotionEnabled, setPaused, audioContext, readFile };
+  return { state: readonly(state), error: readonly(error), lastExit: readonly(lastExit), start, postEvent, pressKey, setMouseMotionEnabled, setPaused, netPeerClosed, audioContext, readFile };
 }
