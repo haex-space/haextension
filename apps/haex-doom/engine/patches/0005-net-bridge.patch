@@ -1,0 +1,201 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 4d5ce91a..6abcf1ca 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -267,7 +267,7 @@ if (DEFINED EMSCRIPTEN)
+     set_target_properties("${PROGRAM_PREFIX}setup" PROPERTIES LINK_FLAGS "${SDL_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY=1 -s EXPORTED_FUNCTIONS=_main,ccall,cwrap,FS,ENV,PATH,ERRNO_CODES")
+     set_target_properties("${PROGRAM_PREFIX}strife" PROPERTIES LINK_FLAGS "${SDL_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY=1 -s EXPORTED_FUNCTIONS=_main,ccall,cwrap,FS,ENV,PATH,ERRNO_CODES")
+     # haex-doom: the shell's bridge sources and its own link flags (exports, ES module).
+-    target_sources("${PROGRAM_PREFIX}doom" PRIVATE haex_exports.c haex_imports.c)
++    target_sources("${PROGRAM_PREFIX}doom" PRIVATE haex_exports.c haex_imports.c net_bridge.c)
+     target_include_directories("${PROGRAM_PREFIX}doom" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/doom")
+     set_target_properties("${PROGRAM_PREFIX}doom" PROPERTIES LINK_FLAGS "${SDL_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY=1 ${HAEX_LINK_FLAGS}")
+     set_target_properties("${PROGRAM_PREFIX}heretic" PROPERTIES LINK_FLAGS "${SDL_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY=1 -s EXPORTED_FUNCTIONS=_main,ccall,cwrap,FS,ENV,PATH,ERRNO_CODES")
+diff --git a/src/d_loop.c b/src/d_loop.c
+index 8419a9bb..db3977ed 100644
+--- a/src/d_loop.c
++++ b/src/d_loop.c
+@@ -491,7 +491,11 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
+ 
+         if (i > 0)
+         {
+-            net_sdl_module.InitClient();
++            if (!net_sdl_module.InitClient())
++            {
++                // haex-doom: the shell has no peer session for this netgame.
++                I_Error("Unable to start the network module");
++            }
+             addr = net_sdl_module.ResolveAddress(myargv[i+1]);
+             NET_ReferenceAddress(addr);
+ 
+diff --git a/src/net_client.c b/src/net_client.c
+index 19b720fa..dce769ec 100644
+--- a/src/net_client.c
++++ b/src/net_client.c
+@@ -987,6 +987,20 @@ static void NET_CL_ParsePacket(net_packet_t *packet)
+     }
+ }
+ 
++// A peer channel closed. When it was the server's, the connection ends at once; the next
++// NET_CL_Run reports the disconnect (instead of the connection timing out 30 seconds later).
++
++void NET_CL_PeerClosed(net_addr_t *addr)
++{
++    if (net_client_connected && addr == server_addr
++     && client_connection.state != NET_CONN_STATE_DISCONNECTED)
++    {
++        NET_Log("client: channel of the server closed");
++        client_connection.state = NET_CONN_STATE_DISCONNECTED;
++        client_connection.disconnect_reason = NET_DISCONNECT_REMOTE;
++    }
++}
++
+ // "Run" the client code: check for new packets, send packets as
+ // needed
+ 
+@@ -1106,8 +1120,9 @@ boolean NET_CL_Connect(net_addr_t *addr, net_connect_data_t *data)
+             last_send_time = nowtime;
+         }
+ 
+-        // time out after 5 seconds
+-        if (nowtime - start_time > 5000)
++        // haex-doom: time out after 30 seconds. The host's engine may still be loading when the
++        // guest's starts, and the shell keeps the SYNs queued until the host's engine polls.
++        if (nowtime - start_time > 30000)
+         {
+             SetRejectReason("No response from server");
+             break;
+diff --git a/src/net_client.h b/src/net_client.h
+index 37ba0198..816e8347 100644
+--- a/src/net_client.h
++++ b/src/net_client.h
+@@ -25,6 +25,8 @@
+ boolean NET_CL_Connect(net_addr_t *addr, net_connect_data_t *data);
+ void NET_CL_Disconnect(void);
+ void NET_CL_Run(void);
++// A peer channel closed: treat the server behind the address as gone.
++void NET_CL_PeerClosed(net_addr_t *addr);
+ void NET_CL_Init(void);
+ void NET_CL_LaunchGame(void);
+ void NET_CL_StartGame(net_gamesettings_t *settings);
+diff --git a/src/net_sdl.c b/src/net_sdl.c
+index 2965f423..6b16fc22 100644
+--- a/src/net_sdl.c
++++ b/src/net_sdl.c
+@@ -383,59 +383,6 @@ net_module_t net_sdl_module =
+ 
+ #else // DISABLE_SDL2NET
+ 
+-// no-op implementation
+-
+-
+-static boolean NET_NULL_InitClient(void)
+-{
+-    return false;
+-}
+-
+-
+-static boolean NET_NULL_InitServer(void)
+-{
+-    return false;
+-}
+-
+-
+-static void NET_NULL_SendPacket(net_addr_t *addr, net_packet_t *packet)
+-{
+-}
+-
+-
+-static boolean NET_NULL_RecvPacket(net_addr_t **addr, net_packet_t **packet)
+-{
+-    return false;
+-}
+-
+-
+-static void NET_NULL_AddrToString(net_addr_t *addr, char *buffer, int buffer_len)
+-{
+-
+-}
+-
+-
+-static void NET_NULL_FreeAddress(net_addr_t *addr)
+-{
+-}
+-
+-
+-net_addr_t *NET_NULL_ResolveAddress(const char *address)
+-{
+-    return NULL;
+-}
+-
+-
+-net_module_t net_sdl_module =
+-{
+-    NET_NULL_InitClient,
+-    NET_NULL_InitServer,
+-    NET_NULL_SendPacket,
+-    NET_NULL_RecvPacket,
+-    NET_NULL_AddrToString,
+-    NET_NULL_FreeAddress,
+-    NET_NULL_ResolveAddress,
+-};
+-
++// haex-doom: net_sdl_module comes from net_bridge.c (peer channels instead of sockets).
+ 
+ #endif // DISABLE_SDL2NET
+diff --git a/src/net_server.c b/src/net_server.c
+index 9374b64e..0f64d241 100644
+--- a/src/net_server.c
++++ b/src/net_server.c
+@@ -1886,11 +1886,34 @@ static void NET_SV_RunClient(net_client_t *client)
+     }
+ }
+ 
++// A peer channel closed. The client is treated as if it had left, and NET_SV_RunClient
++// then deactivates it, so the other players continue (their tics no longer wait for it).
++
++void NET_SV_PeerClosed(net_addr_t *addr)
++{
++    int i;
++
++    for (i = 0; i < MAXNETNODES; ++i)
++    {
++        if (clients[i].active && clients[i].addr == addr
++         && clients[i].connection.state != NET_CONN_STATE_DISCONNECTED)
++        {
++            NET_Log("server: channel of %s closed", NET_AddrToString(addr));
++            clients[i].connection.state = NET_CONN_STATE_DISCONNECTED;
++            clients[i].connection.disconnect_reason = NET_DISCONNECT_REMOTE;
++        }
++    }
++}
++
+ // Add a network module to the server context
+ 
+ void NET_SV_AddModule(net_module_t *module)
+ {
+-    module->InitServer();
++    if (!module->InitServer())
++    {
++        // haex-doom: a module is not ready (no peer session), and a server without it would wait forever.
++        I_Error("NET_SV_AddModule: Unable to start the network module");
++    }
+     NET_AddModule(server_context, module);
+ }
+ 
+diff --git a/src/net_server.h b/src/net_server.h
+index b9de7456..d2e62434 100644
+--- a/src/net_server.h
++++ b/src/net_server.h
+@@ -30,6 +30,11 @@ void NET_SV_Run(void);
+ 
+ void NET_SV_Shutdown(void);
+ 
++// A peer channel closed: handle the client behind the address like one that timed out,
++// without waiting for the connection timeout.
++
++void NET_SV_PeerClosed(net_addr_t *addr);
++
+ // Add a network module to the context used by the server
+ 
+ void NET_SV_AddModule(net_module_t *module);

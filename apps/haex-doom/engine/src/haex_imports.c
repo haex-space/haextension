@@ -17,6 +17,10 @@ EM_JS(void, haex_haptic, (int kind), {
     Module.haexImports?.haptic?.(kind);
 });
 
+EM_JS(int, haex_net_active, (), {
+    return Module.haexImports?.netActive?.() ? 1 : 0;
+});
+
 EM_JS(void, haex_net_send, (int peer, const uint8_t *data, int len), {
     Module.haexImports?.netSend?.(peer, HEAPU8.slice(data, data + len));
 });
@@ -27,6 +31,10 @@ EM_JS(int, haex_net_recv, (uint8_t *buf, int cap), {
 
 EM_JS(int, haex_net_resolve, (const char *name), {
     return Module.haexImports?.netResolve?.(UTF8ToString(name)) ?? -1;
+});
+
+EM_JS(void, haex_engine_exit, (int is_error, const char *message), {
+    Module.haexImports?.engineExit?.(is_error !== 0, UTF8ToString(message));
 });
 
 // requestAnimationFrame stops in hidden pages; the timeout keeps netgames ticking there.

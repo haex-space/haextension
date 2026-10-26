@@ -1,0 +1,174 @@
+diff --git a/src/d_loop.c b/src/d_loop.c
+index db3977ed..e055e0a8 100644
+--- a/src/d_loop.c
++++ b/src/d_loop.c
+@@ -261,6 +261,11 @@ static void D_Disconnected(void)
+     // disconnected from server
+ 
+     printf("Disconnected from server.\n");
++
++    // haex-doom: without the server there is no game for a guest to go on with; the shell
++    // shows the notice. (A guest that leaves, or a host that quits, does not pass here: they are
++    // already quitting.)
++    I_QuitWithNotice("Disconnected from the host.");
+ }
+ 
+ //
+diff --git a/src/i_system.c b/src/i_system.c
+index 7b0e0ee9..b2bebedd 100644
+--- a/src/i_system.c
++++ b/src/i_system.c
+@@ -49,6 +49,10 @@
+ #include "w_wad.h"
+ #include "z_zone.h"
+ 
++#ifdef __EMSCRIPTEN__
++#include "haex_imports.h"
++#endif
++
+ #define DEFAULT_RAM 16*2 /* MiB [crispy] */
+ #define MIN_RAM     4*4  /* MiB [crispy] */
+ 
+@@ -258,10 +262,19 @@ void I_BindVariables(void)
+ // I_Quit
+ //
+ 
++// haex-doom: set once I_Quit or I_Error runs; a netgame's shutdown can report a disconnect
++// that must not start a second exit.
++static boolean quit_in_progress = false;
++
++// haex-doom: the notice the shell shows after a plain Quit ("" for none).
++static const char *quit_notice = "";
++
+ void I_Quit (void)
+ {
+     atexit_listentry_t *entry;
+ 
++    quit_in_progress = true;
++
+     // Run through all exit functions
+  
+     entry = exit_funcs; 
+@@ -274,9 +287,27 @@ void I_Quit (void)
+ 
+     SDL_Quit();
+ 
++#ifdef __EMSCRIPTEN__
++    // haex-doom: tell the shell why the engine ends.
++    haex_engine_exit(0, quit_notice);
++#endif
++
+     exit(0);
+ }
+ 
++// haex-doom: ends the game like Quit and has the shell show the notice, for a game that cannot
++// go on without an error of the engine (such as the host of a netgame leaving).
++void I_QuitWithNotice(const char *notice)
++{
++    if (quit_in_progress)
++    {
++        return;
++    }
++
++    quit_notice = notice;
++    I_Quit();
++}
++
+ 
+ 
+ //
+@@ -290,7 +321,9 @@ void I_Error (const char *error, ...)
+     char msgbuf[512];
+     va_list argptr;
+     atexit_listentry_t *entry;
++#ifndef __EMSCRIPTEN__
+     boolean exit_gui_popup;
++#endif
+ 
+     if (already_quitting)
+     {
+@@ -300,6 +333,7 @@ void I_Error (const char *error, ...)
+     else
+     {
+         already_quitting = true;
++        quit_in_progress = true;
+     }
+ 
+     // Message first.
+@@ -330,6 +364,10 @@ void I_Error (const char *error, ...)
+         entry = entry->next;
+     }
+ 
++#ifdef __EMSCRIPTEN__
++    // haex-doom: the shell shows the message (instead of a message box) and returns to its start screen.
++    haex_engine_exit(1, msgbuf);
++#else
+     //!
+     // @category obscure
+     //
+@@ -346,6 +384,7 @@ void I_Error (const char *error, ...)
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                                  PACKAGE_STRING, msgbuf, NULL);
+     }
++#endif
+ 
+     // abort();
+ 
+diff --git a/src/i_system.h b/src/i_system.h
+index 78376f3c..ff938b77 100644
+--- a/src/i_system.h
++++ b/src/i_system.h
+@@ -51,6 +51,8 @@ ticcmd_t* I_BaseTiccmd (void);
+ // Called by M_Responder when quit is selected.
+ // Clean exit, displays sell blurb.
+ void I_Quit (void) NORETURN;
++// Like I_Quit, with a notice for the shell; does nothing while the engine is already quitting.
++void I_QuitWithNotice(const char *notice);
+ 
+ void I_Error (const char *error, ...) NORETURN PRINTF_ATTR(1, 2);
+ 
+diff --git a/src/net_client.c b/src/net_client.c
+index dce769ec..9ab2dcfa 100644
+--- a/src/net_client.c
++++ b/src/net_client.c
+@@ -288,6 +288,9 @@ static void NET_CL_AdvanceWindow(void)
+ 
+ // Shut down the client code, etc.  Invoked after a disconnect.
+ 
++// haex-doom: the connection reached the server (not just a SYN that is still unanswered).
++static boolean net_client_established = false;
++
+ static void NET_CL_Shutdown(void)
+ {
+     if (net_client_connected)
+@@ -1034,7 +1037,13 @@ void NET_CL_Run(void)
+     if (client_connection.state == NET_CONN_STATE_DISCONNECTED
+      || client_connection.state == NET_CONN_STATE_DISCONNECTED_SLEEP)
+     {
+-        NET_CL_Disconnected();
++        // haex-doom: a disconnect of ours, or a rejected SYN that NET_CL_Connect reports itself,
++        // is not a loss of the server.
++        if (net_client_established
++         && client_connection.disconnect_reason != NET_DISCONNECT_LOCAL)
++        {
++            NET_CL_Disconnected();
++        }
+ 
+         NET_CL_Shutdown();
+     }
+@@ -1099,6 +1108,7 @@ boolean NET_CL_Connect(net_addr_t *addr, net_connect_data_t *data)
+     NET_AddModule(client_context, addr->module);
+ 
+     net_client_connected = true;
++    net_client_established = false;
+     net_client_received_wait_data = false;
+     sent_hole_punch = false;
+ 
+@@ -1152,6 +1162,7 @@ boolean NET_CL_Connect(net_addr_t *addr, net_connect_data_t *data)
+         SetRejectReason(NULL);
+         client_state = CLIENT_STATE_WAITING_LAUNCH;
+         drone = data->drone;
++        net_client_established = true;
+ 
+         return true;
+     }
