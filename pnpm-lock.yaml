@@ -288,6 +288,9 @@ importers:
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
+      playwright-core:
+        specifier: ^1.57.0
+        version: 1.57.0
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
