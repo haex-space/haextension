@@ -181,6 +181,7 @@ export function createPeerSession(api: PeersApi, options: PeerSessionOptions = {
     register,
     setHost,
     peerOf: (channelId: string): number | undefined => peerOfChannel.get(channelId),
+    channelOf: (peer: number): string | undefined => channelOfPeer.get(peer),
     /** Packets of the netgame may flow; ones that arrived before are kept for the engine. */
     beginNetgame() {
       active.value = true;
@@ -189,8 +190,12 @@ export function createPeerSession(api: PeersApi, options: PeerSessionOptions = {
       active.value = false;
       incoming.length = 0;
     },
-    /** Forgets all channels and numbers: the session is over. */
+    /**
+     * Forgets all channels and numbers: the session is over. A netgame that still runs learns
+     * that every peer is gone, so it ends at once instead of waiting for its own timeout.
+     */
     reset() {
+      if (active.value) for (const peer of channelOfPeer.keys()) options.peerGone?.(peer);
       active.value = false;
       incoming.length = 0;
       peerOfChannel.clear();
