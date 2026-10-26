@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { engineNet } from '~/lib/engineNet'
 import type { Notice, StartRequest } from '~/lib/lobby'
 
 const emit = defineEmits<{ start: [request: StartRequest] }>()
@@ -44,14 +43,11 @@ watch(engine.state, (state) => {
 })
 
 // A consistency failure or another error stops the game for everyone with a notice (FR-034).
-const exit = engineNet(engine).lastExit
-if (exit) {
-  watch(exit, (reason) => {
-    if (reason?.isError && !toldWhy && (lobby.phase === 'running' || endedNetgame)) {
-      toast.error(t('gameEnded', { message: reason.message }))
-    }
-  })
-}
+watch(engine.lastExit, (reason) => {
+  if (reason?.isError && !toldWhy && (lobby.phase === 'running' || endedNetgame)) {
+    toast.error(t('gameEnded', { message: reason.message }))
+  }
+})
 </script>
 
 <template>

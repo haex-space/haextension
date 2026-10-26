@@ -1,5 +1,4 @@
 import { HAEXTENSION_EVENTS } from "@haex-space/vault-sdk";
-import { engineNet } from "~/lib/engineNet";
 import { createPeerSession, probePeers, type PeerSession, type PeersApi, type PeersAvailability } from "~/lib/peers";
 
 /** Stands in for `client.peers` on a vault without it: nothing works, nothing is announced. */
@@ -62,7 +61,7 @@ export function usePeers() {
    */
   function getSession(): PeerSession {
     session ??= createPeerSession(realApi() ?? UNAVAILABLE_API, {
-      peerGone: (peer) => engineNet(engine).peerClosed?.(peer),
+      peerGone: (peer) => engine.netPeerClosed(peer),
     });
     return session;
   }
