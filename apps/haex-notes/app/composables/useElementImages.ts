@@ -1,10 +1,14 @@
-import type { ImageLookup } from "~/lib/render/elements";
-import type { ImageSource } from "~/types/document";
+import { formulaImageUrlAsync } from "~/lib/math";
+import type { ImageLookup, RenderSource } from "~/lib/render/elements";
 
 type Entry = { state: "loading" } | { state: "ready"; image: HTMLImageElement } | { state: "missing" };
 
-/** Schlüssel einer Bildquelle: gleiche Assets und gleiche Data-URLs laden nur einmal. */
-export const imageSourceKey = (source: ImageSource) => (source.kind === "asset" ? `asset:${source.assetId}` : source.dataUrl);
+/** Schlüssel einer Bildquelle: gleiche Assets, Data-URLs und Formeln laden nur einmal. */
+export function imageSourceKey(source: RenderSource): string {
+  if (source.kind === "asset") return `asset:${source.assetId}`;
+  if (source.kind === "formula") return `formula:${source.color}:${source.source}`;
+  return source.dataUrl;
+}
 
 /** Ein Asset als Object-URL, oder null, wenn es auf diesem Gerät fehlt. Der Aufrufer gibt die URL frei. */
 export async function assetUrlAsync(assetStore: ReturnType<typeof useAssetStore>, assetId: string): Promise<string | null> {
@@ -34,6 +38,17 @@ export function useElementImages(onLoaded: () => void) {
     image.src = src;
   }
 
+  /** Setzt eine Formel (lädt MathJax beim ersten Mal); lässt sie sich nicht setzen, bleibt sie ein Platzhalter. */
+  async function loadFormulaAsync(key: string, source: string, color: string) {
+    const url = await formulaImageUrlAsync(source, color);
+    if (disposed) return;
+    if (!url) {
+      entries.set(key, { state: "missing" });
+      return;
+    }
+    show(key, url);
+  }
+
   async function loadAssetAsync(key: string, assetId: string) {
     const url = await assetUrlAsync(assetStore, assetId);
     if (!url) {
@@ -54,6 +69,7 @@ export function useElementImages(onLoaded: () => void) {
     if (entry) return entry.state === "ready" ? entry.image : null;
     entries.set(key, { state: "loading" });
     if (source.kind === "inline") show(key, source.dataUrl);
+    else if (source.kind === "formula") loadFormulaAsync(key, source.source, source.color).catch(() => entries.set(key, { state: "missing" }));
     else loadAssetAsync(key, source.assetId).catch(() => entries.set(key, { state: "missing" }));
     return null;
   };

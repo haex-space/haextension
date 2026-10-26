@@ -33,8 +33,10 @@ async function onFileAsync(event: Event) {
   }
 }
 
-const remove = (attachment: PageAttachment) =>
+const remove = async (attachment: PageAttachment) => {
   notebook.applyEdit((doc) => removeAttachment(doc, attachment.id, t("remove")));
+  await notebook.saveCurrentPageAsync();
+};
 </script>
 
 <template>

@@ -1,8 +1,26 @@
 import type { TextElement } from "~/types/document";
-import { editableElement, editCell, editText, placeElement, setFontFamily, type Box } from "~/lib/elementEdits";
+import { addElements } from "~/lib/commands";
+import { editableElement, editCell, editLatex, editText, placeElement, setFontFamily, type Box } from "~/lib/elementEdits";
+import { latexElementOf } from "~/lib/latexElement";
+import { formulaOfCell, renderLatexAsync } from "~/lib/math";
+import { drawingLayerId } from "~/lib/migratePage";
 import { CELL_FONT_SIZE, measureTextHeight } from "~/lib/render/elements";
 import { boxOf, cellAt, draggedBox, elementAt, HANDLE_RADIUS, isSelectable, onResizeHandle, type Point, type Selectable } from "~/lib/selection";
 import { cellsOf } from "~/lib/tableActions";
+
+/** Was der Formeleditor gerade bearbeitet: eine Formel oder eine Tabellenzelle `$…$`, mit der Quelle ohne `$`. */
+export interface FormulaEdit {
+  elementId: string;
+  cell?: { row: number; column: number };
+  box: Box;
+  source: string;
+}
+
+/** Die Formel, die „Formel einfügen“ anlegt, damit der Schüler etwas hat, das er ändert. */
+export const NEW_FORMULA = "a^2 + b^2 = c^2";
+/** Schriftgröße und Platz einer neuen Formel auf der Seite. */
+const NEW_FORMULA_EM = 28;
+const NEW_FORMULA_AT = { x: 80, y: 80 };
 
 /** Was der Texteditor gerade bearbeitet: einen Textblock oder eine Zelle. */
 export interface TextEdit {
@@ -29,8 +47,10 @@ const DOUBLE_TAP_DISTANCE = 8;
  */
 export function useElementEditing(redrawOverlay: () => void) {
   const notebook = useNotebookStore();
+  const pencilCase = usePencilCaseStore();
   const selectedId = ref<string | null>(null);
   const editing = ref<TextEdit | null>(null);
+  const formulaEditing = ref<FormulaEdit | null>(null);
   let drag: { mode: "move" | "resize"; start: Box; origin: Point; gestureId: string; zoom: number; moved: boolean } | null = null;
   let lastTap: { point: Point; time: number } | null = null;
 
@@ -45,6 +65,7 @@ export function useElementEditing(redrawOverlay: () => void) {
   const clear = () => {
     selectedId.value = null;
     editing.value = null;
+    formulaEditing.value = null;
     drag = null;
     redrawOverlay();
   };
@@ -85,7 +106,7 @@ export function useElementEditing(redrawOverlay: () => void) {
     const dy = point.y - drag.origin.y;
     if (!drag.moved && Math.hypot(dx, dy) * drag.zoom < DRAG_THRESHOLD) return true;
     drag.moved = true;
-    const box = draggedBox(drag.start, dx, dy, drag.mode, element.type === "image");
+    const box = draggedBox(drag.start, dx, dy, drag.mode, element.type === "image" || element.type === "latex");
     // Ein Text wird breiter oder schmaler; seine Höhe folgt dem Umbruch.
     if (element.type === "text") box.height = heightOf({ ...element, width: box.width });
     const mergeKey = `place:${drag.gestureId}`;
@@ -106,10 +127,19 @@ export function useElementEditing(redrawOverlay: () => void) {
     if (element?.type === "text") {
       selectedId.value = element.id;
       editing.value = { elementId: element.id, box: boxOf(element), text: element.text, fontFamily: element.fontFamily, fontSize: element.fontSize };
+    } else if (element?.type === "latex") {
+      selectedId.value = element.id;
+      formulaEditing.value = { elementId: element.id, box: boxOf(element), source: element.source };
     } else if (element?.type === "table") {
       const cell = cellAt(element, point);
       if (!cell) return;
       selectedId.value = element.id;
+      const formula = formulaOfCell(cellsOf(element)[cell.row]![cell.column]!);
+      if (formula !== null) {
+        formulaEditing.value = { elementId: element.id, cell: { row: cell.row, column: cell.column }, box: cell.box, source: formula };
+        redrawOverlay();
+        return;
+      }
       editing.value = {
         elementId: element.id, cell: { row: cell.row, column: cell.column }, box: cell.box,
         text: cellsOf(element)[cell.row]![cell.column]!, ...CELL_FONT,
@@ -135,6 +165,47 @@ export function useElementEditing(redrawOverlay: () => void) {
   }
 
   const cancel = () => { editing.value = null; };
+
+  /**
+   * Übernimmt die Quelle des Formeleditors. Gibt den Grund zurück, wenn sie sich nicht übernehmen lässt (der
+   * Editor bleibt dann offen und zeigt ihn), sonst `null`. Eine Zelle darf leer werden, eine Formel nicht.
+   */
+  async function commitFormula(source: string): Promise<string | null> {
+    const edit = formulaEditing.value;
+    if (!edit) return null;
+    const text = source.trim();
+    if (text.includes("$")) return "a formula must not contain $";
+    const rendered = text ? await renderLatexAsync(text) : null;
+    if (rendered && "error" in rendered) return rendered.error;
+    if (!edit.cell && !rendered) return "empty";
+    // Der Editor kann inzwischen geschlossen oder die Seite gewechselt sein.
+    if (formulaEditing.value !== edit) return null;
+    const { cell } = edit;
+    if (cell) {
+      if (text !== edit.source) notebook.applyEdit((doc) => editCell(doc, edit.elementId, cell.row, cell.column, text ? `$${text}$` : ""));
+    } else if (rendered && !("error" in rendered) && text !== edit.source) {
+      notebook.applyEdit((doc) => editLatex(doc, edit.elementId, text, rendered));
+    }
+    formulaEditing.value = null;
+    redrawOverlay();
+    return null;
+  }
+
+  const cancelFormula = () => { formulaEditing.value = null; };
+
+  /** Legt eine Formel auf der Seite ab, wählt sie aus und öffnet ihre Quelle (FR-032); im Auswahlmodus, in dem man sie verschiebt. */
+  async function insertFormula() {
+    pencilCase.startSelecting();
+    const rendered = await renderLatexAsync(NEW_FORMULA);
+    const doc = notebook.currentDoc;
+    const layerId = doc ? drawingLayerId(doc.layers) : null;
+    if (!doc || !layerId || "error" in rendered) return;
+    const element = latexElementOf(crypto.randomUUID(), NEW_FORMULA, rendered, NEW_FORMULA_AT, NEW_FORMULA_EM, { maxWidth: doc.width - 2 * NEW_FORMULA_AT.x });
+    notebook.applyEdit((page) => addElements(page, layerId, [element], "Formel einfügen"));
+    selectedId.value = element.id;
+    formulaEditing.value = { elementId: element.id, box: boxOf(element), source: NEW_FORMULA };
+    redrawOverlay();
+  }
 
   function setFont(fontFamily: string) {
     const element = selected.value;
@@ -162,5 +233,8 @@ export function useElementEditing(redrawOverlay: () => void) {
     ctx.restore();
   }
 
-  return { selected, editing, pointerDown, pointerMove, pointerUp, commit, cancel, setFont, drawSelection, clear };
+  return {
+    selected, editing, formulaEditing, pointerDown, pointerMove, pointerUp, commit, cancel, commitFormula, cancelFormula,
+    insertFormula, setFont, drawSelection, clear,
+  };
 }

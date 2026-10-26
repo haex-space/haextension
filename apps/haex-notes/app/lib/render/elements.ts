@@ -1,8 +1,10 @@
 import getStroke from "perfect-freehand";
+import { formulaOfCell, FORMULA_EM_PX, paint, svgDataUrl } from "../math";
 import type {
   BBox,
   ImageElement,
   ImageSource,
+  LatexElement,
   PageElement,
   StrokeElement,
   TableElement,
@@ -17,10 +19,44 @@ import type {
 export type StrokePathCache = WeakMap<StrokeElement, { bbox: BBox; path: Path2D }>;
 
 /**
+ * Eine Formel, die der Aufrufer zu einem Bild setzt (Spec 046, FR-029): Der Renderer kennt MathJax nicht.
+ * Sie wird nicht gespeichert, sondern nur für die Tabellenzellen `$…$` beim Zeichnen angefragt.
+ */
+export interface FormulaSource {
+  kind: "formula";
+  source: string;
+  color: string;
+}
+
+/** Was der Renderer als Bild anfragt: ein Bild der Seite oder eine zu setzende Formel. */
+export type RenderSource = ImageSource | FormulaSource;
+
+/**
  * Das geladene Bild einer Quelle, oder null, solange es lädt oder fehlt. Laden ist
  * Sache des Aufrufers (asynchron); der Renderer zeichnet nur, was schon da ist.
  */
-export type ImageLookup = (source: ImageSource) => CanvasImageSource | null;
+export type ImageLookup = (source: RenderSource) => CanvasImageSource | null;
+
+/** Die Tinte des Zelltexts. */
+export const CELL_INK = "#1f2937";
+const latexSources = new Map<string, { svg: string; color: string; width: number; height: number; source: ImageSource }>();
+
+/**
+ * Die Bildquelle eines Formel-Elements: sein gesetztes SVG in der Tintenfarbe. Ohne MathJax; die Quelle
+ * bleibt für ein unverändertes Element dieselbe, damit das Bild nur einmal geladen wird.
+ */
+export function latexImageSource(element: LatexElement): ImageSource {
+  const cached = latexSources.get(element.id);
+  if (cached && cached.svg === element.svg && cached.color === element.color
+    && cached.width === element.width && cached.height === element.height) return cached.source;
+  if (latexSources.size > 500) latexSources.clear();
+  const source: ImageSource = {
+    kind: "inline",
+    dataUrl: svgDataUrl(paint(element.svg, element.color, element.width, element.height)),
+  };
+  latexSources.set(element.id, { svg: element.svg, color: element.color, width: element.width, height: element.height, source });
+  return source;
+}
 
 /** Zeilenhöhe relativ zur Schriftgröße. */
 const LINE_HEIGHT = 1.25;
@@ -161,11 +197,44 @@ function drawImage(ctx: CanvasRenderingContext2D, image: ImageElement, images?: 
   ctx.restore();
 }
 
+/**
+ * Eine Zelle, die nur eine Formel ist, als gesetzte Formel in der Schriftgröße der Zelle, höchstens so groß wie
+ * die Zelle. false, solange die Formel nicht gesetzt ist oder sich nicht setzen lässt: Dann zeigt die Zelle
+ * ihren Text, die Quelle geht nicht verloren.
+ */
+function drawCellFormula(
+  ctx: CanvasRenderingContext2D, cell: string, box: { x: number; y: number; width: number; height: number }, images?: ImageLookup,
+): boolean {
+  const formula = formulaOfCell(cell);
+  const loaded = formula ? images?.({ kind: "formula", source: formula, color: CELL_INK }) : null;
+  if (!loaded) return false;
+  const natural = loaded as HTMLImageElement;
+  const factor = CELL_FONT_SIZE / FORMULA_EM_PX;
+  let width = natural.width * factor;
+  let height = natural.height * factor;
+  const room = { width: box.width - 2 * CELL_PADDING, height: box.height - 2 * CELL_PADDING };
+  const shrink = Math.min(1, room.width / width, room.height / height);
+  width *= shrink;
+  height *= shrink;
+  ctx.drawImage(loaded, box.x + CELL_PADDING, box.y + (box.height - height) / 2, width, height);
+  return true;
+}
+
+/** Eine gesetzte Formel; solange ihr Bild lädt, bleibt ihr Platz leer. */
+function drawLatex(ctx: CanvasRenderingContext2D, latex: LatexElement, images?: ImageLookup) {
+  const loaded = images?.(latexImageSource(latex)) ?? null;
+  if (!loaded) return;
+  ctx.save();
+  rotateAround(ctx, latex);
+  ctx.drawImage(loaded, latex.x, latex.y, latex.width, latex.height);
+  ctx.restore();
+}
+
 /** Schreibt den Text jeder Zelle in ihre Zelle; ungültige Zellen (von fremden Geräten) bleiben leer. */
-function drawCells(ctx: CanvasRenderingContext2D, table: TableElement) {
+function drawCells(ctx: CanvasRenderingContext2D, table: TableElement, images?: ImageLookup) {
   if (!Array.isArray(table.cells)) return;
   ctx.font = `${CELL_FONT_SIZE}px sans-serif`;
-  ctx.fillStyle = "#1f2937";
+  ctx.fillStyle = CELL_INK;
   ctx.textBaseline = "top";
   let top = table.y;
   for (let r = 0; r < table.rows; r++) {
@@ -179,8 +248,11 @@ function drawCells(ctx: CanvasRenderingContext2D, table: TableElement) {
         ctx.beginPath();
         ctx.rect(left, top, width, table.rowHeights[r]!);
         ctx.clip();
-        const lines = wrapLines(ctx, cell, width - 2 * CELL_PADDING);
-        fillLines(ctx, lines, left + CELL_PADDING, top + CELL_PADDING, CELL_FONT_SIZE);
+        const box = { x: left, y: top, width, height: table.rowHeights[r]! };
+        if (!drawCellFormula(ctx, cell, box, images)) {
+          const lines = wrapLines(ctx, cell, width - 2 * CELL_PADDING);
+          fillLines(ctx, lines, left + CELL_PADDING, top + CELL_PADDING, CELL_FONT_SIZE);
+        }
         ctx.restore();
       }
       left += width;
@@ -189,7 +261,7 @@ function drawCells(ctx: CanvasRenderingContext2D, table: TableElement) {
   }
 }
 
-function drawTable(ctx: CanvasRenderingContext2D, table: TableElement) {
+function drawTable(ctx: CanvasRenderingContext2D, table: TableElement, images?: ImageLookup) {
   ctx.save();
   ctx.strokeStyle = "rgba(100, 120, 150, 0.5)";
   ctx.lineWidth = 1;
@@ -217,12 +289,12 @@ function drawTable(ctx: CanvasRenderingContext2D, table: TableElement) {
     ctx.stroke();
   }
 
-  drawCells(ctx, table);
+  drawCells(ctx, table, images);
   ctx.restore();
 }
 
 /**
- * Zeichnet ein Element. Form und LaTeX kommen in Phase 6 dazu — bis dahin werden
+ * Zeichnet ein Element. Formen kommen in Phase 6 dazu — bis dahin werden
  * sie still übersprungen, damit eine von einem neueren Gerät synchronisierte
  * Seite nicht den ganzen Renderer wirft.
  */
@@ -237,7 +309,10 @@ export function drawElement(
       drawStroke(ctx, element, cache);
       return;
     case "table":
-      drawTable(ctx, element);
+      drawTable(ctx, element, images);
+      return;
+    case "latex":
+      drawLatex(ctx, element, images);
       return;
     case "text":
       drawText(ctx, element);

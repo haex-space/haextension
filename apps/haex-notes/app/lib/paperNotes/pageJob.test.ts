@@ -22,7 +22,7 @@ describe("buildPageJob", () => {
     expect(job.steps[0]!.format).toBe(PAGE_FORMAT);
     expect(job.steps[1]!.format).toBe(TEXT_FIX_FORMAT);
     expect([PAGE_FORMAT.name, PAGE_FORMAT.version, TEXT_FIX_FORMAT.name, TEXT_FIX_FORMAT.version])
-      .toEqual(["page-recognition", 1, "text-fix", 1]);
+      .toEqual(["page-recognition", 2, "text-fix", 1]);
   });
 
   it("asks for regions in reading order, boxes from 0 to 1000 and the rotation", () => {
@@ -31,5 +31,16 @@ describe("buildPageJob", () => {
     expect(READ_INSTRUCTION).toContain('"rotation"');
     const properties = (PAGE_FORMAT.schema as { properties: Record<string, { enum?: number[] }> }).properties;
     expect(properties.rotation!.enum).toEqual([0, 90, 180, 270]);
+  });
+
+  it("asks for formulas as LaTeX, chemistry with mhchem, and keeps them out of sentences and drawings", () => {
+    expect(READ_INSTRUCTION).toContain('"formula"');
+    expect(READ_INSTRUCTION).toContain("\\ce{");
+    expect(READ_INSTRUCTION).toContain("$...$");
+    expect(READ_INSTRUCTION).toContain("Lewis");
+    const region = (PAGE_FORMAT.schema as { properties: { regions: { items: { properties: Record<string, { enum?: string[]; maxLength?: number }> } } } })
+      .properties.regions.items.properties;
+    expect(region.kind!.enum).toEqual(["text", "image", "table", "formula"]);
+    expect(region.latex!.maxLength).toBe(4000);
   });
 });

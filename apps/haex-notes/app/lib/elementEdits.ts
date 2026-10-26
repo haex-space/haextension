@@ -1,6 +1,7 @@
 import type { PageElement } from "~/types/document";
 import { computeBbox } from "./bbox";
 import { mutateElements, type Command, type PageDoc } from "./commands";
+import { sizeOf, type Rendered } from "./math";
 import { cellsOf } from "./tableActions";
 
 /**
@@ -71,10 +72,25 @@ export const setFontFamily = (page: PageDoc, id: string, fontFamily: string, hei
  * werden ein Undo-Schritt. Eine Tabelle wird nur verschoben; ihre Größe folgt ihren Linien.
  */
 export const placeElement = (page: PageDoc, id: string, box: Box, mergeKey: string) =>
-  editAs(page, id, ["text", "image", "table"], "Verschieben", (element) => {
+  editAs(page, id, ["text", "image", "table", "latex"], "Verschieben", (element) => {
     element.x = box.x;
     element.y = box.y;
     if (element.type === "table") return;
     element.width = box.width;
     element.height = box.height;
   }, mergeKey);
+
+/**
+ * Ändert die Quelle einer Formel und setzt ihr neues SVG ein. Die Schriftgröße bleibt, in der die Formel
+ * stand, auch wenn ihre Höhe sich ändert (ein Bruch ist höher als ein Buchstabe); die Breite bleibt, wenn der
+ * Schüler sie von Hand gezogen hat, nicht erhalten.
+ */
+export const editLatex = (page: PageDoc, id: string, source: string, rendered: Rendered) =>
+  editAs(page, id, ["latex"], "Formel ändern", (element) => {
+    const before = sizeOf(element.svg);
+    const em = before ? element.height / before.height : 16;
+    element.source = source;
+    element.svg = rendered.svg;
+    element.width = rendered.width * em;
+    element.height = rendered.height * em;
+  });

@@ -28,8 +28,8 @@ const attachment = computed(() => {
 const full = computed(() => viewer.open?.mode === "full");
 const pdf = computed(() => (attachment.value ? isPdf(attachment.value) : false));
 const isImage = computed(() => (attachment.value?.mimeType.startsWith("image/") ?? false) || pdf.value);
-/** Das Foto der Seite steht so da, wie der Schüler es zum Lesen gedreht hat. */
-const rotation = computed(() => (attachment.value?.kind === "original" ? notebook.currentDoc?.paperImport?.rotation ?? 0 : 0));
+/** Der Original-Anhang wird unverändert angezeigt; die Drehung betrifft nur die Arbeitsfläche. */
+const rotation = computed(() => 0);
 
 const url = ref<string | null>(null);
 const missing = ref(false);

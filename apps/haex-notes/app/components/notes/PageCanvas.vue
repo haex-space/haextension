@@ -135,7 +135,7 @@ const areaPick = useAreaPick(() => scheduleRender("overlay"), (box) => {
 });
 
 const editing = useElementEditing(() => scheduleRender("overlay"));
-const { selected, editing: textEdit } = editing;
+const { selected, editing: textEdit, formulaEditing: formulaEdit } = editing;
 watch(() => pencilCase.selecting, (selecting) => { if (!selecting) editing.clear(); });
 
 /** Der Editor liegt genau über dem Text; Zelltext hat den Innenabstand des Renderers. */
@@ -154,7 +154,6 @@ const pickerStyle = computed(() => {
   if (element?.type !== "text" || textEdit.value) return null;
   return { left: `${element.x * viewport.zoom + viewport.x}px`, top: `${element.y * viewport.zoom + viewport.y - 34}px` };
 });
-
 // Background image cache
 const bgImage = ref<HTMLImageElement | null>(null);
 watch(
@@ -457,7 +456,7 @@ const resetZoom = () => fitPage();
 
 const zoomPercent = computed(() => Math.round((viewport.zoom / viewport.defaultZoom) * 100));
 
-defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
+defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu, insertFormula: editing.insertFormula });
 </script>
 
 <template>
@@ -483,6 +482,11 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu });
       :box-style="editorStyle(textEdit)"
       @commit="editing.commit"
       @cancel="editing.cancel"
+    />
+    <NotesFormulaEditor
+      v-if="formulaEdit" :key="`${formulaEdit.elementId}:${formulaEdit.cell?.row}:${formulaEdit.cell?.column}`"
+      :edit="formulaEdit" :viewport="viewport"
+      @commit="(source, done) => editing.commitFormula(source).then(done)" @cancel="editing.cancelFormula"
     />
     <NotesTextStylePicker
       v-if="pickerStyle && selected?.type === 'text'"
