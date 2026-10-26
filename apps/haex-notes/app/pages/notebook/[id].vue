@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop, Sigma } from "@lucide/vue";
-import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
+import { DEFAULT_MARGINS, PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
+import { marginsOf } from "~/lib/pageBackground";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
 import type { Box } from "~/lib/elementEdits";
@@ -142,8 +143,10 @@ const goBack = async () => {
 };
 
 const onTableSelect = (rows: number, cols: number) => {
-  // Place table in the upper-left area of the page with some margin
-  notebook.addTable(rows, cols, 80, 80);
+  // Neue Tabelle in die obere linke Ecke der beschreibbaren Fläche, mit etwas Abstand zum Seitenrand.
+  const background = notebook.currentDoc?.background;
+  const margins = background ? marginsOf(background) : DEFAULT_MARGINS;
+  notebook.addTable(rows, cols, margins.left + 30, margins.top + 20);
 };
 
 const addPage = async () => {

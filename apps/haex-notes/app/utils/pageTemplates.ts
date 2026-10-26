@@ -1,4 +1,4 @@
-import type { PageTemplate } from "~/types/document";
+import type { PageMargins, PageTemplate } from "~/types/document";
 
 export interface PageDimensions {
   width: number;
@@ -20,7 +20,8 @@ export function getPageSize(orientation: string): PageDimensions {
   return orientation === "landscape" ? PAGE_SIZE_LANDSCAPE : PAGE_SIZE;
 }
 
-const MARGIN = { top: 60, bottom: 40, left: 50, right: 40 };
+/** Rand einer Seite, solange sie keinen eigenen hat (Seitenpixel). */
+export const DEFAULT_MARGINS: PageMargins = { top: 60, bottom: 40, left: 50, right: 40 };
 
 export const PAGE_TEMPLATES: { id: PageTemplate; i18n: { de: string; en: string } }[] = [
   { id: "blank", i18n: { de: "Blanko", en: "Blank" } },
@@ -59,23 +60,23 @@ const lineColorStrong = "rgba(150, 170, 200, 0.6)";
 const dotColor = "rgba(150, 170, 200, 0.5)";
 const redLine = "rgba(220, 80, 80, 0.3)";
 
-function horizontalLine(ctx: CanvasRenderingContext2D, y: number, width: number) {
+function horizontalLine(ctx: CanvasRenderingContext2D, y: number, width: number, m: PageMargins) {
   ctx.beginPath();
-  ctx.moveTo(MARGIN.left, y);
-  ctx.lineTo(width - MARGIN.right, y);
+  ctx.moveTo(m.left, y);
+  ctx.lineTo(width - m.right, y);
   ctx.stroke();
 }
 
 /** Senkrechte und waagerechte Linien im Abstand `spacing` innerhalb der Ränder. */
-function drawGrid(ctx: CanvasRenderingContext2D, spacing: number, width: number, height: number) {
-  for (let x = MARGIN.left; x <= width - MARGIN.right; x += spacing) {
+function drawGrid(ctx: CanvasRenderingContext2D, spacing: number, width: number, height: number, m: PageMargins) {
+  for (let x = m.left; x <= width - m.right; x += spacing) {
     ctx.beginPath();
-    ctx.moveTo(x, MARGIN.top);
-    ctx.lineTo(x, height - MARGIN.bottom);
+    ctx.moveTo(x, m.top);
+    ctx.lineTo(x, height - m.bottom);
     ctx.stroke();
   }
-  for (let y = MARGIN.top; y <= height - MARGIN.bottom; y += spacing) {
-    horizontalLine(ctx, y, width);
+  for (let y = m.top; y <= height - m.bottom; y += spacing) {
+    horizontalLine(ctx, y, width, m);
   }
 }
 
@@ -89,30 +90,31 @@ function drawLineaturBands(
   gap: number,
   width: number,
   height: number,
+  m: PageMargins,
 ) {
   const step = bandHeight * 0.25;
   ctx.lineWidth = 0.5;
 
-  for (let y = MARGIN.top; y + bandHeight <= height - MARGIN.bottom; y += bandHeight + gap) {
+  for (let y = m.top; y + bandHeight <= height - m.bottom; y += bandHeight + gap) {
     // Oberlinie (dünn, grau)
     ctx.strokeStyle = lineColorLight;
-    horizontalLine(ctx, y, width);
+    horizontalLine(ctx, y, width, m);
 
     // Mittellinie (gestrichelt, markiert Mittelhöhe für Kleinbuchstaben)
     ctx.strokeStyle = lineColor;
     ctx.setLineDash([4, 3]);
-    horizontalLine(ctx, y + step, width);
+    horizontalLine(ctx, y + step, width, m);
     ctx.setLineDash([]);
 
     // Grundlinie (kräftig — hier stehen die Buchstaben)
     ctx.strokeStyle = lineColorStrong;
     ctx.lineWidth = 1;
-    horizontalLine(ctx, y + step * 2, width);
+    horizontalLine(ctx, y + step * 2, width, m);
     ctx.lineWidth = 0.5;
 
     // Unterlinie (dünn, für Unterlängen: g, p, y)
     ctx.strokeStyle = lineColorLight;
-    horizontalLine(ctx, y + step * 3, width);
+    horizontalLine(ctx, y + step * 3, width, m);
   }
 }
 
@@ -125,6 +127,7 @@ export function renderPageTemplate(
   template: PageTemplate,
   width: number,
   height: number,
+  m: PageMargins = DEFAULT_MARGINS,
 ) {
   ctx.save();
 
@@ -135,17 +138,17 @@ export function renderPageTemplate(
       ctx.strokeStyle = redLine;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(MARGIN.left, MARGIN.top);
-      ctx.lineTo(MARGIN.left, height - MARGIN.bottom);
+      ctx.moveTo(m.left, m.top);
+      ctx.lineTo(m.left, height - m.bottom);
       ctx.stroke();
 
       // Horizontal lines
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 0.5;
-      for (let y = MARGIN.top; y <= height - MARGIN.bottom; y += spacing) {
+      for (let y = m.top; y <= height - m.bottom; y += spacing) {
         ctx.beginPath();
-        ctx.moveTo(MARGIN.left - 10, y);
-        ctx.lineTo(width - MARGIN.right, y);
+        ctx.moveTo(m.left - 10, y);
+        ctx.lineTo(width - m.right, y);
         ctx.stroke();
       }
       break;
@@ -154,22 +157,22 @@ export function renderPageTemplate(
     case "grid": {
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 0.5;
-      drawGrid(ctx, 19, width, height); // ~5mm at 96dpi
+      drawGrid(ctx, 19, width, height, m); // ~5mm at 96dpi
       break;
     }
 
     case "grid-large": {
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 0.5;
-      drawGrid(ctx, 38, width, height); // ~10mm at 96dpi
+      drawGrid(ctx, 38, width, height, m); // ~10mm at 96dpi
       break;
     }
 
     case "dotgrid": {
       const spacing = 19; // ~5mm
       ctx.fillStyle = dotColor;
-      for (let x = MARGIN.left; x <= width - MARGIN.right; x += spacing) {
-        for (let y = MARGIN.top; y <= height - MARGIN.bottom; y += spacing) {
+      for (let x = m.left; x <= width - m.right; x += spacing) {
+        for (let y = m.top; y <= height - m.bottom; y += spacing) {
           ctx.beginPath();
           ctx.arc(x, y, 1, 0, Math.PI * 2);
           ctx.fill();
@@ -180,13 +183,13 @@ export function renderPageTemplate(
 
     case "lineatur1": {
       // Klasse 1: große Abstände für Erstklässler
-      drawLineaturBands(ctx, 80, 15, width, height);
+      drawLineaturBands(ctx, 80, 15, width, height, m);
       break;
     }
 
     case "lineatur2": {
       // Klasse 2: gleiche Struktur, etwas kleiner
-      drawLineaturBands(ctx, 60, 10, width, height);
+      drawLineaturBands(ctx, 60, 10, width, height, m);
       break;
     }
 
@@ -196,13 +199,13 @@ export function renderPageTemplate(
 
       ctx.lineWidth = 0.5;
 
-      for (let y = MARGIN.top; y <= height - MARGIN.bottom; y += spacing * 2) {
+      for (let y = m.top; y <= height - m.bottom; y += spacing * 2) {
         // Mittellinie (gestrichelt)
         ctx.strokeStyle = lineColor;
         ctx.setLineDash([4, 3]);
         ctx.beginPath();
-        ctx.moveTo(MARGIN.left, y);
-        ctx.lineTo(width - MARGIN.right, y);
+        ctx.moveTo(m.left, y);
+        ctx.lineTo(width - m.right, y);
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -210,8 +213,8 @@ export function renderPageTemplate(
         ctx.strokeStyle = lineColorStrong;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(MARGIN.left, y + spacing);
-        ctx.lineTo(width - MARGIN.right, y + spacing);
+        ctx.moveTo(m.left, y + spacing);
+        ctx.lineTo(width - m.right, y + spacing);
         ctx.stroke();
         ctx.lineWidth = 0.5;
       }
@@ -226,11 +229,11 @@ export function renderPageTemplate(
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 0.5;
 
-      for (let y = MARGIN.top + 20; y + staffHeight <= height - MARGIN.bottom; y += staffHeight + staffGap) {
+      for (let y = m.top + 20; y + staffHeight <= height - m.bottom; y += staffHeight + staffGap) {
         for (let line = 0; line < 5; line++) {
           ctx.beginPath();
-          ctx.moveTo(MARGIN.left, y + line * staffSpacing);
-          ctx.lineTo(width - MARGIN.right, y + line * staffSpacing);
+          ctx.moveTo(m.left, y + line * staffSpacing);
+          ctx.lineTo(width - m.right, y + line * staffSpacing);
           ctx.stroke();
         }
       }
@@ -243,17 +246,17 @@ export function renderPageTemplate(
       // 1mm lines (very light)
       ctx.strokeStyle = "rgba(150, 170, 200, 0.12)";
       ctx.lineWidth = 0.3;
-      drawGrid(ctx, mm1, width, height);
+      drawGrid(ctx, mm1, width, height, m);
 
       // 5mm lines (medium)
       ctx.strokeStyle = lineColorLight;
       ctx.lineWidth = 0.5;
-      drawGrid(ctx, mm1 * 5, width, height);
+      drawGrid(ctx, mm1 * 5, width, height, m);
 
       // 10mm lines (stronger)
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 0.8;
-      drawGrid(ctx, mm1 * 10, width, height);
+      drawGrid(ctx, mm1 * 10, width, height, m);
       break;
     }
 
