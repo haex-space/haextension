@@ -6,7 +6,9 @@
     "database": [],
     "filesystem": [],
     "shell": [],
-    "http": []
+    "http": [],
+    "peers": [{ "target": "*", "action": "connect" }],
+    "contacts": [{ "target": "*", "action": "read" }]
   },
   "icon": "haextension/haex-doom-logo.png",
   "singleInstance": true,
