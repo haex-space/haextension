@@ -150,9 +150,19 @@ export interface PdfOverlay {
  * übereinander gezeichnet — sie schließen sich nicht aus (so verhält sich der
  * heutige Renderer auch schon).
  */
+/** Rand einer Notizseite in Seitenpixeln: bis dahin zeichnet die Vorlage und stehen neue Inhalte. */
+export interface PageMargins {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export interface PageBackground {
   paperColor: string;
   template: PageTemplate;
+  /** Fehlt es, gelten `DEFAULT_MARGINS`. */
+  margins?: PageMargins;
   overlay?: ImageOverlay | PdfOverlay;
 }
 

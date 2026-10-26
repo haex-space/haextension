@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Check, Grid3x3 } from "@lucide/vue";
-import { changedBackground, PAPER_COLORS, type BackgroundChange } from "~/lib/pageBackground";
+import {
+  changedBackground, changedMargin, MARGIN_EDGES, MARGIN_MAX, marginsOf, mmToPx, PAPER_COLORS, pxToMm, resetMargins,
+  type BackgroundChange, type MarginEdge,
+} from "~/lib/pageBackground";
 import { setPageBackground } from "~/lib/commands";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 
@@ -16,6 +19,26 @@ function choose(change: BackgroundChange) {
     return next ? setPageBackground(doc, next, t("undoLabel")) : null;
   });
 }
+
+const margins = computed(() => (background.value ? marginsOf(background.value) : null));
+const maxMm = pxToMm(MARGIN_MAX);
+
+function chooseMargin(edge: MarginEdge, event: Event) {
+  const input = event.target as HTMLInputElement;
+  notebook.applyEdit((doc) => {
+    const next = changedMargin(doc.background, edge, mmToPx(input.valueAsNumber));
+    return next ? setPageBackground(doc, next, t("undoMargins")) : null;
+  });
+  // Eine ungültige oder begrenzte Eingabe zeigt wieder den Rand der Seite.
+  if (margins.value) input.value = String(pxToMm(margins.value[edge]));
+}
+
+function resetPageMargins() {
+  notebook.applyEdit((doc) => {
+    const next = resetMargins(doc.background);
+    return next ? setPageBackground(doc, next, t("undoMargins")) : null;
+  });
+}
 </script>
 
 <template>
@@ -29,7 +52,7 @@ function choose(change: BackgroundChange) {
         <Grid3x3 class="size-4" />
       </button>
     </ShadcnPopoverTrigger>
-    <ShadcnPopoverContent v-if="background" align="end" class="w-60 p-2">
+    <ShadcnPopoverContent v-if="background" align="end" class="w-64 p-2">
       <div class="mb-1 px-1 text-xs font-medium text-muted-foreground">{{ t('template') }}</div>
       <button
         v-for="tmpl in PAGE_TEMPLATES"
@@ -55,6 +78,27 @@ function choose(change: BackgroundChange) {
           @click="choose({ paperColor: paper.color })"
         />
       </div>
+      <div class="mb-1 mt-2 flex items-center justify-between px-1 text-xs font-medium text-muted-foreground">
+        {{ t('margins') }}
+        <button
+          class="font-normal underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40"
+          :disabled="!background.margins"
+          @click="resetPageMargins"
+        >
+          {{ t('resetMargins') }}
+        </button>
+      </div>
+      <div v-if="margins" class="grid grid-cols-2 gap-2 px-1 pb-1">
+        <label v-for="edge in MARGIN_EDGES" :key="edge" class="grid gap-0.5 text-xs text-muted-foreground">
+          {{ t(`edges.${edge}`) }}
+          <input
+            type="number" min="0" :max="maxMm" step="1"
+            :value="pxToMm(margins[edge])"
+            class="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            @change="chooseMargin(edge, $event)"
+          >
+        </label>
+      </div>
     </ShadcnPopoverContent>
   </ShadcnPopover>
 </template>
@@ -65,9 +109,25 @@ de:
   template: Vorlage
   paper: Papierfarbe
   undoLabel: Hintergrund ändern
+  margins: Seitenrand (mm)
+  resetMargins: Zurücksetzen
+  undoMargins: Seitenrand ändern
+  edges:
+    top: Oben
+    bottom: Unten
+    left: Links
+    right: Rechts
 en:
   title: Page background
   template: Template
   paper: Paper colour
   undoLabel: Change background
+  margins: Page margin (mm)
+  resetMargins: Reset
+  undoMargins: Change page margin
+  edges:
+    top: Top
+    bottom: Bottom
+    left: Left
+    right: Right
 </i18n>
