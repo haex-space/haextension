@@ -273,6 +273,7 @@ const scenarios = {
   async "guest-leaves"({ context, origin }) {
     const game = await startGame(context, origin, { guests: 2, hostArgs: [...HOST_ARGS, "-altdeath", "-nomonsters"] });
     if (!game.reached) return { ok: false, game, why: "not all players reached the level" };
+    // g1 leaves; the host and g2 go on.
     const [host, leaving, staying] = game.players;
     await sleep(15_000);
     const before = await host.state();
@@ -280,7 +281,7 @@ const scenarios = {
     const left = Date.now();
     await leaving.leave();
     await leaving.page.close();
-    const noticed = await until(async () => ((await host.state())?.players & 0b100) === 0, 20_000, 100);
+    const noticed = await until(async () => ((await host.state())?.players & 0b010) === 0, 20_000, 100);
     note(`  host dropped the player ${noticed ? `after ${Date.now() - left} ms` : "NOT"}`);
     await sleep(15_000);
     const after = await Promise.all([host.state(), staying.state()]);
@@ -288,7 +289,7 @@ const scenarios = {
     note(`  after 15 s more: host tic ${after[0].tic} players ${after[0].players.toString(2)}, g2 tic ${after[1].tic} players ${after[1].players.toString(2)}`);
     note(`  exits: host ${JSON.stringify(exits[0].exit)} exited=${exits[0].exited}, g2 ${JSON.stringify(exits[1].exit)} exited=${exits[1].exited}`);
     const ok = noticed && after[0].tic > before.tic + 300 && after[1].tic > before.tic + 300 && !exits[0].exited && !exits[1].exited
-      && (after[0].players & 0b011) === 0b011 && (after[1].players & 0b100) === 0;
+      && (after[0].players & 0b101) === 0b101 && (after[0].players & 0b010) === 0 && after[1].players === after[0].players;
     return { ok, game };
   },
 
@@ -338,7 +339,7 @@ const scenarios = {
     await host.page.evaluate(() => window.__harness.quitFromMenu());
     const hostEnded = await until(() => host.hasExited(), 20_000, 100);
     note(`  host ${hostEnded ? `ended after ${Date.now() - quit} ms` : "did NOT end"}: exit ${JSON.stringify((await host.result()).exit)}`);
-    await host.leave();
+    // No close event from the shell here: the engine's own goodbye (disconnect packets) must be enough.
     const guestEnded = await until(() => guest.hasExited(), 40_000, 100);
     const exit = (await guest.result()).exit;
     note(`  guest ${guestEnded ? `ended after ${Date.now() - quit} ms` : "did NOT end"}: exit ${JSON.stringify(exit)}`);
