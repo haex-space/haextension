@@ -3,9 +3,10 @@ import { buildPdfAsync, exportLayers, PDF_JPEG_QUALITY, RASTER_SCALE, type PdfSe
 import { loadHandwritingFontsAsync } from "~/lib/paperNotes/fonts";
 import { originalLayerId } from "~/lib/paperNotes/views";
 import { canvas, jpegBytesAsync } from "~/lib/paperNotes/workingCopy";
-import { drawElements, type ImageLookup } from "~/lib/render/elements";
+import { formulaOfCell, formulaImageUrlAsync } from "~/lib/math";
+import { CELL_INK, drawElements, latexImageSource, type FormulaSource, type ImageLookup, type RenderSource } from "~/lib/render/elements";
 import { drawPaper } from "~/lib/render/paper";
-import type { ImageSource, PageElement } from "~/types/document";
+import type { PageElement } from "~/types/document";
 import { assetUrlAsync, imageSourceKey } from "./useElementImages";
 
 const scaledCanvas = (width: number, height: number, scale: number) => {
@@ -14,8 +15,18 @@ const scaledCanvas = (width: number, height: number, scale: number) => {
   return { element, context };
 };
 
-const sourcesOf = (elements: PageElement[]) =>
-  elements.flatMap((element) => (element.type === "image" ? [element.source] : []));
+/** Alles, was der Renderer als Bild anfragt: Bilder, gesetzte Formeln und die Formeln der Tabellenzellen. */
+const sourcesOf = (elements: PageElement[]): RenderSource[] =>
+  elements.flatMap((element): RenderSource[] => {
+    if (element.type === "image") return [element.source];
+    if (element.type === "latex") return [latexImageSource(element)];
+    if (element.type !== "table" || !Array.isArray(element.cells)) return [];
+    return element.cells.flatMap((row) => (Array.isArray(row) ? row : []))
+      .flatMap((cell): FormulaSource[] => {
+        const formula = typeof cell === "string" ? formulaOfCell(cell) : null;
+        return formula ? [{ kind: "formula", source: formula, color: CELL_INK }] : [];
+      });
+  });
 
 /**
  * Exportiert die geöffnete Seite als PDF (US4 in haex-space/haex-vault@d91e91721e4aca4e926fb6c32152c79f317b2d52:specs/046-paper-notes-canvas/spec.md):
@@ -30,7 +41,7 @@ export function usePdfExport() {
    * Anders als auf dem Bildschirm wird erst gezeichnet, wenn alle Bilder da sind. Ein Bild, das
    * fehlt oder nicht lädt, bleibt wie dort ein Platzhalter und bricht den Export nicht ab.
    */
-  async function loadImagesAsync(sources: ImageSource[]): Promise<{ lookup: ImageLookup; release: () => void }> {
+  async function loadImagesAsync(sources: RenderSource[]): Promise<{ lookup: ImageLookup; release: () => void }> {
     const images = new Map<string, HTMLImageElement>();
     const urls: string[] = [];
     const release = () => { for (const url of urls) URL.revokeObjectURL(url); };
@@ -38,7 +49,11 @@ export function usePdfExport() {
     const unique = new Map(sources.map((source) => [imageSourceKey(source), source]));
     await Promise.all([...unique].map(async ([key, source]) => {
       try {
-        const src = source.kind === "inline" ? source.dataUrl : await assetUrlAsync(assetStore, source.assetId);
+        const src = source.kind === "inline"
+          ? source.dataUrl
+          : source.kind === "formula"
+            ? await formulaImageUrlAsync(source.source, source.color)
+            : await assetUrlAsync(assetStore, source.assetId);
         if (!src) return;
         if (source.kind === "asset") urls.push(src);
         const image = new Image();
