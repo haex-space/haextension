@@ -195,7 +195,14 @@ describe("migratePageRow with attachments", () => {
   });
 
   it("turns the locked original layer of a read page into the attachment and drops the layer", () => {
-    const migrated = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport });
+    const draft = {
+      ...textLayer,
+      elements: [{
+        id: "t1", type: "text", x: 0, y: 0, width: 10, height: 10, rotation: 0,
+        text: "a", fontFamily: "Caveat", fontSize: 16, color: "#000", bbox: [0, 0, 10, 10],
+      }],
+    };
+    const migrated = migratePageRow({ layers: [photoLayer("Original", true), draft], paperImport });
     expect(migrated.layers.map((l) => l.id)).toEqual(["l-text"]);
     expect(migrated.attachments).toEqual([{
       id: "original-original", kind: "original", assetId: "original", name: "Original.jpg",
