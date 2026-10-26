@@ -5,6 +5,8 @@
 #include "d_event.h"
 #include "doomstat.h"
 
+#include "net_bridge.h"
+
 extern void I_SetMouseMotionEnabled(boolean enabled);
 
 // Set by G_Responder when the pause key is pressed; the next tic sends the pause.
@@ -60,8 +62,9 @@ void haex_set_paused(int pause)
     }
 }
 
+// The server and the client treat the peer like a node that timed out (net_bridge.c).
 EMSCRIPTEN_KEEPALIVE
 void haex_net_peer_closed(int peer)
 {
-    (void) peer;
+    NET_Bridge_PeerClosed(peer);
 }
