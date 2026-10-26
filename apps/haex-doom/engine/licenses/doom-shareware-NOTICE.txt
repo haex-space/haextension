@@ -1,9 +1,16 @@
 DOOM shareware episode (DOOM1.WAD, version 1.9)
 
-Copyright (c) id Software. haex-doom ships this file unmodified and free of charge, as id
-Software's shareware terms ask, so that DOOM can be tried without buying it. The file is
-taken from the DOOM 1.9 shareware release; id Software's README.TXT from that release is
-included next to this notice.
+Copyright (c) id Software. haex-doom ships this file free of charge and byte for byte as it
+comes in the DOOM 1.9 shareware release (it is stored compressed and unpacked unchanged when
+the game starts), so that DOOM can be tried without buying it. The README.TXT of that release
+is included next to this notice.
+
+The licence text of that release (LICENSE.DOC) grants the right to use the shareware version
+and forbids modifying it; it does not say who may pass the file on. The permission to
+redistribute it comes from id Software: on 23 October 1999 John Carmack answered a request for
+a definite licence with "The DOOM shareware wad is freely distributable." (message to Joe
+Drew, subject "Re: Doom shareware WAD license"; quoted in the copyright file of Debian's
+doom-wad-shareware package). The same message says that no Quake data is freely distributable.
 
 The full game (The Ultimate DOOM, DOOM II, Final DOOM) is not included. If you own it, you
 can import your own game file in haex-doom.

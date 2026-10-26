@@ -126,3 +126,11 @@ Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen,
 ## R-16 graphify consultation
 
 - `graphify query "persist extension data blobs and settings in the vault" --budget 1200` in this repository: 262 matches, none reusable for a game engine bridge, WAD validation or peer channels (hits: haex-pass-browser vault client, calendar settings schema, release scripts, haex-draw `dataUrl.ts`). New artifacts in this feature are independent; each implementation task re-consults the graph of the repository it changes (haextension, haex-vault, vault-sdk) before authoring.
+
+## R-17 Licence of the bundled shareware file
+
+- **Question**: May `doom1.wad` ship inside the extension?
+- **Finding**: The licence text of the DOOM 1.9 shareware release (LICENSE.DOC, a "Limited Use Software License Agreement") grants the right to use the shareware version and forbids modifying, translating, decompiling or making derivative works; it does not grant a right to distribute. The permission rests on John Carmack's message of 23 October 1999 ("The DOOM shareware wad is freely distributable", no Quake data is), which Debian quotes in the copyright file of its non-free package `doom-wad-shareware`; RPM Fusion also packages the file as distributable. LICENSE.DOC is not in the archive.org `doom.ZIP` that `fetch-data.sh` downloads, so the bundle carries the release's README.TXT and our own notice (`engine/licenses/doom-shareware-NOTICE.txt`) that states this basis.
+- **Decision**: Keep the file bundled, unmodified: it is gzip-compressed and unpacked byte for byte at run time, which does not modify its content. The notice names the actual basis instead of claiming that the licence asks for distribution.
+- **Residual risk**: The permission is an email, not a licence grant, and covers "the DOOM shareware wad", not Freedoom-style redistribution of the engine files. If a stricter reading is wanted, the fallback is to drop `doom1.wad` from the bundle: the import already accepts the file, so players can bring it themselves, at the cost of a start screen with only Freedoom. This is a decision for the operator, and nothing here is legal advice.
+- **Sources**: Debian `doom-wad-shareware` copyright file (tracker.debian.org, `copyright-1.9.fixed-4`); RPM Fusion `doom-shareware` package page.
