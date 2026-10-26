@@ -1,6 +1,6 @@
 import type { ModelJob } from "@haex-space/vault-sdk";
 import { describe, expect, it } from "vitest";
-import type { ImageElement, PageLayer, PaperNoteImport, StrokeElement, TextElement } from "~/types/document";
+import type { PageLayer, PaperNoteImport, StrokeElement, TextElement } from "~/types/document";
 import { computeBbox } from "../bbox";
 import { clonePlain } from "../clone";
 import type { PageDoc } from "../commands";
@@ -27,19 +27,14 @@ const stroke: StrokeElement = {
   id: "own", type: "stroke", points: [[150, 350, 0.5], [160, 360, 0.5]], color: "#000", size: 2, tool: "brush",
   bbox: [149, 349, 12, 12],
 };
-const original: ImageElement = {
-  id: "original", type: "image", x: 40, y: 40, width: 714, height: 1000, rotation: 0,
-  source: { kind: "asset", assetId: "photo" }, opacity: 1, bbox: [40, 40, 714, 1000],
-};
 const layer = (id: string, name: string, elements: PageLayer["elements"], locked = false): PageLayer => ({
   id, name, visible: true, locked, elements,
 });
 
-/** A photo page: "inside" lies in the rectangle, "across" sticks out of it, "outside" is elsewhere. */
+/** A photo page, whose original hangs on it as an attachment and not as a layer: "inside" lies in the rectangle, "across" sticks out of it, "outside" is elsewhere. */
 const page = (): PageDoc => ({
   id: "p1",
   layers: [
-    layer("l-original", "Original", [original], true),
     layer("l-text", "Text", [text("inside", 150, 320), text("across", 450, 320), text("outside", 100, 700)]),
     layer("l-objects", "Objekte", []),
     layer("l-own", "Eigene Ergänzungen", [stroke]),
@@ -133,7 +128,8 @@ describe("readCloseUpAsync", () => {
 
     expect(ids(doc, "l-text")).toEqual(expect.arrayContaining(["across", "outside"]));
     expect(ids(doc, "l-text")).not.toContain("inside");
-    expect(doc.layers[0]).toEqual(before.layers[0]);
+    // A page whose original hangs on it as an attachment reads a close-up like any other.
+    expect(doc.layers.map((l) => l.name)).toEqual(before.layers.map((l) => l.name));
     expect(ids(doc, "l-own")).toEqual(["own"]);
   });
 

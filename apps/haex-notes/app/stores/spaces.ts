@@ -35,8 +35,8 @@ export const useSpacesStore = defineStore("spaces", () => {
   ): SpaceAssignment[] {
     const ids = new Set<string>();
     for (const page of sourcePages) {
-      const { layers, background, paperImport } = migratePageRow(page);
-      for (const id of collectAssetIds(layers, background, paperImport)) ids.add(id);
+      const { layers, background, paperImport, attachments } = migratePageRow(page);
+      for (const id of collectAssetIds(layers, background, paperImport, attachments)) ids.add(id);
     }
     return [...ids].map((id) => ({
       tableName: FULL_ASSETS_TABLE,

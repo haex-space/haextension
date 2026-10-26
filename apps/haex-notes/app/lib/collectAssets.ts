@@ -1,4 +1,4 @@
-import type { PageBackground, PageLayer, PaperNoteImport } from "~/types/document";
+import type { PageAttachment, PageBackground, PageLayer, PaperNoteImport } from "~/types/document";
 
 /**
  * Asset-Ids, auf die eine Seite verweist.
@@ -6,12 +6,13 @@ import type { PageBackground, PageLayer, PaperNoteImport } from "~/types/documen
  * Wird beim Teilen gebraucht: die Asset-Zeilen gehen in denselben Space wie die
  * Seite, damit der Empfänger Name, Typ und Größe kennt und einen sprechenden
  * Platzhalter sieht, wenn die Datei bei ihm nicht liegt. Eine Seite aus einem
- * Foto nimmt dessen Original, die gelesene Arbeitskopie und ihre Nahfotos mit.
+ * Foto nimmt dessen Original, die gelesene Arbeitskopie und ihre Nahfotos mit, und jede Seite ihre Anhänge.
  */
 export function collectAssetIds(
   layers: PageLayer[],
   background: PageBackground,
   paperImport?: PaperNoteImport,
+  attachments?: readonly PageAttachment[],
 ): string[] {
   const ids = new Set<string>();
 
@@ -32,6 +33,8 @@ export function collectAssetIds(
     if (paperImport.workingAssetId) ids.add(paperImport.workingAssetId);
     for (const closeUp of paperImport.closeUps ?? []) ids.add(closeUp.assetId);
   }
+
+  for (const attachment of attachments ?? []) ids.add(attachment.assetId);
 
   return [...ids];
 }

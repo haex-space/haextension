@@ -173,6 +173,73 @@ describe("formulas on a page", () => {
   });
 });
 
+describe("migratePageRow with attachments", () => {
+  const photoLayer = (name: string, locked: boolean) => ({
+    id: "l-photo", name, visible: true, locked,
+    elements: [{
+      id: "photo-el", type: "image", x: 0, y: 0, width: 10, height: 10, rotation: 0,
+      source: { kind: "asset", assetId: "original" }, opacity: 1, bbox: [0, 0, 10, 10],
+    }],
+  });
+  const textLayer = { id: "l-text", name: "Text", visible: true, locked: false, elements: [] };
+  const attachment = { id: "a1", kind: "file", assetId: "w", name: "blatt.pdf", mimeType: "application/pdf", size: 5, addedAt: "t" };
+
+  it("keeps stored attachments and has none on an ordinary page", () => {
+    expect(migratePageRow(legacyRow).attachments).toBeUndefined();
+    expect(migratePageRow({ ...legacyRow, attachments: [attachment] }).attachments).toEqual([attachment]);
+  });
+
+  it("ignores malformed attachments", () => {
+    expect(migratePageRow({ ...legacyRow, attachments: [{ id: "a1" }] }).attachments).toBeUndefined();
+    expect(migratePageRow({ ...legacyRow, attachments: "x" }).attachments).toBeUndefined();
+  });
+
+  it("turns the locked original layer of a read page into the attachment and drops the layer", () => {
+    const migrated = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport });
+    expect(migrated.layers.map((l) => l.id)).toEqual(["l-text"]);
+    expect(migrated.attachments).toEqual([{
+      id: "original-original", kind: "original", assetId: "original", name: "Original.jpg",
+      mimeType: "image/jpeg", addedAt: paperImport.createdAt,
+    }]);
+  });
+
+  it("makes the original layer of a page without a draft the unlocked layer Foto", () => {
+    const failed = { ...paperImport, processing: { state: "failed", error: "unusable" } };
+    const migrated = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport: failed });
+    expect(migrated.layers.map((l) => [l.name, l.locked])).toEqual([["Foto", false], ["Text", false]]);
+    expect(migrated.attachments?.map((a) => a.kind)).toEqual(["original"]);
+  });
+
+  it("keeps the photo layer when recognition was ready but produced no draft", () => {
+    const emptyReady = { ...paperImport, processing: { state: "ready" as const } };
+    const migrated = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport: emptyReady });
+    expect(migrated.layers.map((l) => [l.name, l.locked])).toEqual([["Foto", false], ["Text", false]]);
+  });
+
+  it("is idempotent: a migrated page comes back as it is", () => {
+    const once = migratePageRow({ layers: [photoLayer("Original", true), textLayer], paperImport });
+    const again = migratePageRow({ layers: once.layers, paperImport, attachments: once.attachments });
+    expect(again).toEqual(once);
+    const failed = { ...paperImport, processing: { state: "failed", error: "unusable" } };
+    const first = migratePageRow({ layers: [photoLayer("Original", true)], paperImport: failed });
+    expect(migratePageRow({ layers: first.layers, paperImport: failed, attachments: first.attachments })).toEqual(first);
+  });
+
+  it("keeps the files of the student next to the derived original", () => {
+    const migrated = migratePageRow({ layers: [textLayer], paperImport, attachments: [attachment] });
+    expect(migrated.attachments?.map((a) => a.kind)).toEqual(["original", "file"]);
+  });
+
+  it("serialises the attachments, and null for none, and round-trips them", () => {
+    const doc = { id: "p1", ...migratePageRow({ ...legacyRow, attachments: [attachment] }) };
+    const serialized = serializePageDoc(doc);
+    expect(serialized.attachments).toEqual([attachment]);
+    expect(serialized.attachments).not.toBe(doc.attachments);
+    expect(serializePageDoc({ id: "p2", ...migratePageRow(legacyRow) }).attachments).toBeNull();
+    expect(migratePageRow({ ...legacyRow, attachments: serialized.attachments }).attachments).toEqual([attachment]);
+  });
+});
+
 describe("serializePageDoc", () => {
   const row: LegacyPageRow = { ...legacyRow, backgroundImage: "data:image/png;base64,AAA", orientation: "landscape" };
   const doc = { id: "p1", ...migratePageRow(row) };

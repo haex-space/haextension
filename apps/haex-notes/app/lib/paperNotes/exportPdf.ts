@@ -17,12 +17,11 @@ export interface PdfSettings {
   orientation: Orientation;
   marginMm: number;
   quality: Quality;
-  showOriginal: boolean;
 }
 
-/** Voreinstellungen aus plan.md; das Original so, wie es gerade zu sehen ist. */
-export const defaultPdfSettings = (showOriginal: boolean): PdfSettings => ({
-  paper: "auto", orientation: "auto", marginMm: 0, quality: "high", showOriginal,
+/** Voreinstellungen aus plan.md. */
+export const defaultPdfSettings = (): PdfSettings => ({
+  paper: "auto", orientation: "auto", marginMm: 0, quality: "high",
 });
 
 /** Pixel je Seiteneinheit (CSS-Pixel bei 96 dpi): 288, 192 und 96 dpi. */
@@ -63,9 +62,9 @@ export function placePage(page: { width: number; height: number }, settings: Pdf
   return { width, height, x: (width - drawWidth) / 2, y: (height - drawHeight) / 2, drawWidth, drawHeight };
 }
 
-/** Die Ebenen im PDF: die sichtbaren, und das Original nur, wenn es gewünscht ist. */
-export function exportLayers(layers: readonly PageLayer[], originalId: string | null, showOriginal: boolean): PageLayer[] {
-  return layers.filter((layer) => (layer.id === originalId ? showOriginal : layer.visible));
+/** Die Ebenen im PDF: die sichtbaren. Anhänge gehören nicht hinein (FR-026). */
+export function exportLayers(layers: readonly PageLayer[]): PageLayer[] {
+  return layers.filter((layer) => layer.visible);
 }
 
 /** Eine PDF-Seite je Notizseite, jede mit ihrem gerasterten Bild. */
