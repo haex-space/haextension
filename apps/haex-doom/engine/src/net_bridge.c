@@ -128,6 +128,12 @@ static void NET_Bridge_SendPacket(net_addr_t *addr, net_packet_t *packet)
         return;
     }
 
+    // ponytail: every datagram is one call into JavaScript (and one copy out of the heap), and
+    // RecvPacket one call per datagram in. DOOM sends one small packet per player per tic (35 a
+    // second), which this carries. Upgrade path if the round trip measured with four players
+    // (T054, SC-009/SC-010) is too slow: queue the datagrams here and flush them once per
+    // animation frame (a batched haex_net_send), and have the shell hand the whole receive queue
+    // over per frame.
     haex_net_send(((peer_addr_t *) addr)->peer, packet->data, (int) packet->len);
 }
 

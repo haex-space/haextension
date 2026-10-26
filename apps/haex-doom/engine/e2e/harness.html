@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>haex-doom engine harness</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 12px monospace; }
+  canvas { width: 640px; height: 400px; display: block; }
+</style>
+<!-- One engine instance, wired to the other instances of the test run through a JS loopback.
+     Driven by engine/e2e/run.mjs; not part of the app. -->
+<canvas id="canvas" tabindex="-1"></canvas>
+<script type="module" src="harness.js"></script>
