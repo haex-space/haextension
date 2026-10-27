@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ImageElement, ImageSource, LatexElement, StrokeElement, TableElement, TextElement } from "~/types/document";
-import { drawElement, drawElements, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
+import { drawElement, drawElements, measureTextHeight, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
 
 describe("strokeOutlineToPath", () => {
   it("returns an empty string for fewer than two points", () => {
@@ -120,6 +120,21 @@ describe("drawElement for text", () => {
     expect(texts()).toEqual([["Reaktion", 10, 20], ["von", 10, 40], ["Metallen", 10, 60], ["Salzsäure", 10, 80]]);
     expect(named("fillText")[0]!.font).toBe("16px Caveat, sans-serif");
     expect(named("fillText")[0]!.fillStyle).toBe("#123456");
+  });
+
+  it("puts the baseline of a block on the paper rows at 80 % of its line height", () => {
+    const { context, texts } = recorder();
+
+    drawElement(context, text({ text: "Reaktion\nSalzsäure", lineHeight: 38 }));
+
+    expect(context.textBaseline).toBe("alphabetic");
+    expect(texts()).toEqual([["Reaktion", 10, 20 + 0.8 * 38], ["Salzsäure", 10, 20 + 0.8 * 38 + 38]]);
+  });
+
+  it("measures a block on the paper rows by its line height", () => {
+    const { context } = recorder();
+    expect(measureTextHeight(context, text({ text: "Reaktion\nSalzsäure", lineHeight: 38 }))).toBe(76);
+    expect(measureTextHeight(context, text({ text: "Reaktion\nSalzsäure" }))).toBe(2 * 16 * 1.25);
   });
 
   it("turns around the centre when rotated", () => {

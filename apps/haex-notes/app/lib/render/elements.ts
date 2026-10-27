@@ -1,5 +1,6 @@
 import getStroke from "perfect-freehand";
 import { formulaOfCell, FORMULA_EM_PX, paint, svgDataUrl } from "../math";
+import { BASELINE_SHARE, lineStepOf } from "../paperRows";
 import type {
   BBox,
   ImageElement,
@@ -58,8 +59,6 @@ export function latexImageSource(element: LatexElement): ImageSource {
   return source;
 }
 
-/** Zeilenhöhe relativ zur Schriftgröße. */
-const LINE_HEIGHT = 1.25;
 /** Schrift und Innenabstand des Zelltexts. */
 export const CELL_FONT_SIZE = 14;
 export const CELL_PADDING = 4;
@@ -140,9 +139,9 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, width: number): 
   return lines;
 }
 
-function fillLines(ctx: CanvasRenderingContext2D, lines: string[], x: number, y: number, fontSize: number) {
+function fillLines(ctx: CanvasRenderingContext2D, lines: string[], x: number, y: number, step: number) {
   lines.forEach((line, i) => {
-    if (line) ctx.fillText(line, x, y + i * fontSize * LINE_HEIGHT);
+    if (line) ctx.fillText(line, x, y + i * step);
   });
 }
 
@@ -156,7 +155,7 @@ function rotateAround(ctx: CanvasRenderingContext2D, box: { x: number; y: number
   ctx.translate(-cx, -cy);
 }
 
-type TextLayout = Pick<TextElement, "text" | "width" | "fontFamily" | "fontSize">;
+type TextLayout = Pick<TextElement, "text" | "width" | "fontFamily" | "fontSize" | "lineHeight">;
 
 const fontOf = (text: TextLayout) => `${text.fontSize}px ${text.fontFamily}, sans-serif`;
 
@@ -166,7 +165,7 @@ export function measureTextHeight(ctx: CanvasRenderingContext2D, text: TextLayou
   ctx.font = fontOf(text);
   const lines = wrapLines(ctx, text.text, text.width).length;
   ctx.restore();
-  return lines * text.fontSize * LINE_HEIGHT;
+  return lines * lineStepOf(text);
 }
 
 function drawText(ctx: CanvasRenderingContext2D, text: TextElement) {
@@ -174,8 +173,10 @@ function drawText(ctx: CanvasRenderingContext2D, text: TextElement) {
   rotateAround(ctx, text);
   ctx.font = fontOf(text);
   ctx.fillStyle = text.color;
-  ctx.textBaseline = "top";
-  fillLines(ctx, wrapLines(ctx, text.text, text.width), text.x, text.y, text.fontSize);
+  // Auf den Zeilen des Papiers sitzt die Grundlinie, sonst hängt der Text an seiner Oberkante.
+  ctx.textBaseline = text.lineHeight ? "alphabetic" : "top";
+  const y = text.lineHeight ? text.y + BASELINE_SHARE * text.lineHeight : text.y;
+  fillLines(ctx, wrapLines(ctx, text.text, text.width), text.x, y, lineStepOf(text));
   ctx.restore();
 }
 
