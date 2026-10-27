@@ -9,6 +9,7 @@ const LICENSE_FILES = [
   { id: 'freedoom', file: 'freedoom-COPYING.txt' },
   { id: 'shareware', file: 'doom-shareware-NOTICE.txt' },
   { id: 'sharewareReadme', file: 'doom-shareware-README.txt' },
+  { id: 'anton', file: 'anton-OFL.txt' },
 ] as const
 
 const open = ref(false)
@@ -79,6 +80,7 @@ de:
     freedoom: Freedoom
     shareware: DOOM-Shareware
     sharewareReadme: DOOM-Shareware – README von id Software
+    anton: Schriftart Anton – SIL Open Font License 1.1
 en:
   about: About
   summary: DOOM engine, game data and licences
@@ -91,4 +93,5 @@ en:
     freedoom: Freedoom
     shareware: DOOM shareware
     sharewareReadme: DOOM shareware – README by id Software
+    anton: Anton typeface – SIL Open Font License 1.1
 </i18n>

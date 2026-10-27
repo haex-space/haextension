@@ -63,6 +63,7 @@ done
 cp "$CACHE_DIR/freedoom-COPYING.txt" "$LICENSES_DIR/freedoom-COPYING.txt"
 cp "$CACHE_DIR/doom1-README.TXT" "$LICENSES_DIR/doom-shareware-README.txt"
 cp "$APP_DIR/engine/licenses/doom-shareware-NOTICE.txt" "$LICENSES_DIR/doom-shareware-NOTICE.txt"
+cp "$APP_DIR/engine/licenses/anton-OFL.txt" "$LICENSES_DIR/anton-OFL.txt"
 cp "$APP_DIR/LICENSE" "$LICENSES_DIR/haex-doom-LICENSE.txt"
 
 # The fingerprints in app/lib/bundledGames.ts must match these.
