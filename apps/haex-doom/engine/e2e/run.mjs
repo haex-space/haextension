@@ -7,7 +7,8 @@
 //
 // Needs a Chromium (CHROMIUM, default /usr/bin/chromium); `playwright-core` is a dev dependency of this
 // app and only drives that browser (PLAYWRIGHT_CORE points at another copy of it, if wanted). Scenarios: coop, coop-doom1, deathmatch, latency, four,
-// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure, timedemo. No scenario runs all.
+// guest-leaves, guest-leaves-silently, host-leaves, host-quits, no-session, consistency-failure, timedemo, and for one
+// player: jump, quit-us, quit-layout, save-layout, move-layout (keyboard layouts, see `typeKey`). No scenario runs all.
 // Exit code 1 when a scenario fails.
 
 import { createServer } from "node:http";
@@ -78,8 +79,8 @@ class Player {
     await this.page.goto(`${this.origin}/harness.html?${query}`);
   }
 
-  read(expression) {
-    return this.page.evaluate(expression).catch(() => null);
+  read(expression, argument) {
+    return this.page.evaluate(expression, argument).catch(() => null);
   }
 
   state() {
@@ -158,6 +159,94 @@ async function startGame(context, origin, { tamperGuest = 0, guests = 1, hostArg
   for (const player of players) await player.open();
   const reached = await until(async () => (await Promise.all(players.map((p) => p.inLevel()))).every(Boolean), startTimeoutMs, 500);
   return { players, reached, host: players[0], guests: players.slice(1) };
+}
+
+
+// One single-player engine on its first map, without monsters and without the bot, driven through the page's keyboard.
+async function soloGame(context, origin, { cfg = {}, args = [], wad = "freedoom2", startTimeoutMs = 60_000 } = {}) {
+  const player = new Player(context, origin, "solo", { wad, args: ["-skill", "3", "-warp", "1", "-nomonsters", ...args] });
+  const page = await context.newPage();
+  player.page = page;
+  player.consoleErrors = [];
+  page.on("pageerror", (error) => player.consoleErrors.push(String(error)));
+  const query = new URLSearchParams({ id: "host", wad, args: JSON.stringify(player.options.args), bot: "0", session: "0", cfg: JSON.stringify(cfg) });
+  await page.goto(`${origin}/harness.html?${query}`);
+  const reached = await until(async () => ((await player.state())?.leveltime ?? 0) > 35, startTimeoutMs, 250);
+  const cdp = await context.newCDPSession(page);
+  await page.bringToFront();
+  return { player, page, cdp, reached, game: { players: [player] } };
+}
+
+// Keyboard layouts the way Chromium reports them: `code` is the physical key (the US position), `key` the character the layout
+// puts there, `vk` the layout's virtual key code (the keyCode of the DOM event, which SDL turns into its keysym).
+// Playwright's own press() always reports the US layout, so the other layouts go through the DevTools protocol.
+const LAYOUTS = {
+  // The key labelled Y sits where the US layout has Z, and the other way round.
+  qwertz: { KeyY: ["z", 90], KeyZ: ["y", 89] },
+  // The key labelled A sits where the US layout has Q, Z where it has W, and so on.
+  azerty: { KeyQ: ["a", 65], KeyA: ["q", 81], KeyW: ["z", 90], KeyZ: ["w", 87], Semicolon: ["m", 77], KeyM: [",", 188] },
+};
+
+function keyFor(layout, code) {
+  const entry = LAYOUTS[layout]?.[code];
+  if (entry) return entry;
+  // Letters not listed are the same as on the US layout.
+  const letter = /^Key([A-Z])$/.exec(code)?.[1];
+  if (letter) return [letter.toLowerCase(), letter.charCodeAt(0)];
+  throw new Error(`no key for ${code}`);
+}
+
+/** The key at physical position `code` goes down (and up, unless `hold`) on the given layout. */
+async function typeKey(cdp, layout, code, { hold = 0 } = {}) {
+  const [key, vk] = keyFor(layout, code);
+  const base = { code, key, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...base, text: key });
+  if (hold) await sleep(hold);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+}
+
+/** The character `text` on `layout`, found by its position: pressing the key that produces it. */
+function positionOf(layout, character) {
+  const table = LAYOUTS[layout] ?? {};
+  const found = Object.entries(table).find(([, [key]]) => key === character);
+  if (found) return found[0];
+  return `Key${character.toUpperCase()}`;
+}
+
+async function typeText(cdp, layout, text) {
+  for (const character of text) {
+    if (character === " ") {
+      await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "Space", key: " ", text: " ", windowsVirtualKeyCode: 32 });
+      await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "Space", key: " ", windowsVirtualKeyCode: 32 });
+    } else {
+      await typeKey(cdp, layout, positionOf(layout, character));
+    }
+    await sleep(120);
+  }
+}
+
+// Player position in map units (haex_debug_player: 0 x, 1 y, 2 angle, 3 health, 4 z, 5 momz).
+const FIXED = 65536;
+const at = async (player) => ({
+  x: (await player.read(() => window.__harness.playerField(0))) / FIXED,
+  y: (await player.read(() => window.__harness.playerField(1))) / FIXED,
+  z: (await player.read(() => window.__harness.playerField(4))) / FIXED,
+});
+
+// Presses `press` and samples the height of the player for `ms`; returns the lowest and highest z seen and the last one.
+async function heightsDuring(player, press, ms) {
+  const heights = [];
+  const sampler = (async () => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      heights.push((await player.read(() => window.__harness.playerField(4))) / FIXED);
+      await sleep(8);
+    }
+  })();
+  await sleep(100);
+  await press();
+  await sampler;
+  return { min: Math.min(...heights), max: Math.max(...heights), last: heights.at(-1), samples: heights.length };
 }
 
 const report = [];
@@ -380,6 +469,123 @@ const scenarios = {
     const report = /^timed (\d+) gametics in (\d+) realtics \(([\d.]+) fps\)$/.exec(result.exit?.message ?? "");
     if (report) note(`  ${report[3]} game tics per second (${report[1]} tics in ${report[2]} ticks)`);
     return { ok: ended && Boolean(report) && Number(report[3]) >= 35, game: { players: [] } };
+  },
+
+  // Jumping (Crispy's crispy_jump and key_jump, bound to Space): the height of the player must rise and come back. The
+  // other cases are the controls: the settings before this change, and the engine's own key for jumping.
+  async jump({ context, origin }) {
+    const cases = [
+      { name: "shipped config, Space", cfg: {}, key: "Space", jumps: true },
+      { name: "before the change (crispy_jump 0, key_jump '/'), Space", cfg: { crispy_jump: 0, key_jump: 53 }, key: "Space", jumps: false },
+      { name: "jumping on, key_jump still '/', Space", cfg: { key_jump: 53 }, key: "Space", jumps: false },
+      { name: "jumping on, key_jump still '/', the '/' key", cfg: { key_jump: 53 }, key: "Slash", jumps: true },
+      // What the shell sends for the pad's Y button: ev_joystick (3) with bit 6 (VIRTUAL_BUTTONS.jump) in data1.
+      { name: "shipped config, joystick button 6 (the pad's Y)", cfg: {}, pad: 1 << 6, jumps: true },
+      { name: "before the change (crispy_jump 0, joyb_jump -1), joystick button 6", cfg: { crispy_jump: 0, joyb_jump: -1 }, pad: 1 << 6, jumps: false },
+    ];
+    let ok = true;
+    for (const { name, cfg, key, pad, jumps } of cases) {
+      const game = await soloGame(context, origin, { cfg });
+      if (!game.reached) return { ok: false, game, why: `${name}: the level did not start` };
+      await sleep(500);
+      const before = (await at(game.player)).z;
+      const heights = await heightsDuring(game.player, async () => {
+        if (pad) {
+          await game.page.evaluate((buttons) => window.__harness.post(3, buttons), pad);
+          await sleep(120);
+          await game.page.evaluate(() => window.__harness.post(3, 0));
+          return;
+        }
+        await game.page.keyboard.down(key);
+        await sleep(120);
+        await game.page.keyboard.up(key);
+      }, 1800);
+      const rise = heights.max - before;
+      const back = Math.abs(heights.last - before) < 0.5;
+      const pass = jumps ? rise > 20 && back : rise < 0.01 && back;
+      note(`  ${name}: z ${before} -> peak ${heights.max} (+${rise.toFixed(1)}), at the end ${heights.last}, ${heights.samples} samples: ${pass ? "as expected" : "UNEXPECTED"} (${jumps ? "must jump" : "must not jump"})`);
+      ok &&= pass;
+      await game.page.close();
+    }
+    return { ok };
+  },
+
+  // A German keyboard: the confirmation of the quit prompt is the character y, which is the key labelled Y (at the position of
+  // the US Z), not the key at the position of the US Y.
+  async "quit-layout"({ context, origin }) {
+    const game = await soloGame(context, origin);
+    if (!game.reached) return { ok: false, game, why: "the level did not start" };
+    await game.page.keyboard.press("F10");
+    await sleep(700);
+    await typeKey(game.cdp, "qwertz", "KeyY"); // the key labelled Z
+    const early = await until(() => game.player.hasExited(), 3000, 100);
+    note(`  key labelled Z (position of the US Y): engine ${early ? "EXITED" : "still running, prompt still open"}`);
+    await typeKey(game.cdp, "qwertz", "KeyZ"); // the key labelled Y
+    const ended = await until(() => game.player.hasExited(), 15_000, 100);
+    const result = await game.player.result();
+    note(`  key labelled Y (position of the US Z): engine ${ended ? "exited" : "did NOT exit"}, exit ${JSON.stringify(result?.exit)}`);
+    return { ok: !early && ended && result?.exit?.isError === false, game };
+  },
+
+  // The US layout keeps working: y confirms the quit prompt.
+  async "quit-us"({ context, origin }) {
+    const game = await soloGame(context, origin);
+    if (!game.reached) return { ok: false, game, why: "the level did not start" };
+    await game.page.keyboard.press("F10");
+    await sleep(700);
+    await game.page.keyboard.press("n");
+    await sleep(1000);
+    const early = await game.player.hasExited();
+    await game.page.keyboard.press("F10");
+    await sleep(700);
+    await game.page.keyboard.press("y");
+    const ended = await until(() => game.player.hasExited(), 15_000, 100);
+    note(`  US layout: n keeps the game running (exited: ${early}), y quits (exited: ${ended})`);
+    return { ok: !early && ended, game };
+  },
+
+  // Typed text follows the layout: a save name with y and z (and a space) typed on a German keyboard.
+  async "save-layout"({ context, origin }) {
+    const game = await soloGame(context, origin);
+    if (!game.reached) return { ok: false, game, why: "the level did not start" };
+    await game.page.keyboard.press("F2");
+    await sleep(500);
+    await game.page.keyboard.press("Enter"); // the first slot
+    await sleep(300);
+    await typeText(game.cdp, "qwertz", "yz zy");
+    await game.page.keyboard.press("Enter");
+    const saved = await until(async () => (await game.player.read(() => window.__harness.written)).some((path) => /\.dsg$/.test(path)), 10_000, 100);
+    const path = (await game.player.read(() => window.__harness.written))?.find((p) => /\.dsg$/.test(p));
+    let description = null;
+    if (path) {
+      const bytes = await game.player.read((p) => window.__harness.readFile(p), path);
+      description = String.fromCharCode(...bytes.slice(0, 24)).split("\0")[0];
+    }
+    note(`  typed "yz zy" after the default name MAP01 on QWERTZ; save file ${path}, description ${JSON.stringify(description)}`);
+    return { ok: saved && description === "MAP01YZ ZY", game };
+  },
+
+  // Gameplay keys stay where they are: on an AZERTY keyboard the key labelled Z is at the position of the US W (forward) and the
+  // key labelled Q at the position of the US A (strafe left).
+  async "move-layout"({ context, origin }) {
+    const game = await soloGame(context, origin);
+    if (!game.reached) return { ok: false, game, why: "the level did not start" };
+    await sleep(500);
+    const angle = ((await game.player.read(() => window.__harness.playerField(2))) >>> 0) / 2 ** 32 * 2 * Math.PI;
+    const forward = [Math.cos(angle), Math.sin(angle)];
+    const left = [-Math.sin(angle), Math.cos(angle)];
+    const along = (from, to, direction) => (to.x - from.x) * direction[0] + (to.y - from.y) * direction[1];
+    let ok = true;
+    for (const [label, code, direction, name] of [["z", "KeyW", forward, "forward"], ["q", "KeyA", left, "to the left"]]) {
+      const from = await at(game.player);
+      await typeKey(game.cdp, "azerty", code, { hold: 600 });
+      await sleep(300);
+      const to = await at(game.player);
+      const moved = along(from, to, direction);
+      note(`  AZERTY key labelled ${label.toUpperCase()} (position ${code}): moved ${moved.toFixed(1)} map units ${name}, (${from.x.toFixed(0)},${from.y.toFixed(0)}) -> (${to.x.toFixed(0)},${to.y.toFixed(0)})`);
+      ok &&= moved > 20;
+    }
+    return { ok, game };
   },
 
   // A guest cannot start a netgame when the shell has no peer session (haex_net_active false).
