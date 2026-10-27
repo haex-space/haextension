@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { IDLE_PAD, padToState, type PadButton } from "./gamepadMapping";
-import { AXIS_MAX } from "./touchMapping";
+import { AXIS_MAX, VIRTUAL_BUTTONS } from "./touchMapping";
 
 function pad(pressed: number[] = [], values: Record<number, number> = {}): PadButton[] {
   return Array.from({ length: 17 }, (_, i) => ({ pressed: pressed.includes(i), value: values[i] ?? (pressed.includes(i) ? 1 : 0) }));
@@ -16,6 +16,11 @@ describe("padToState", () => {
     expect(padToState(pad([], { 7: 0.8 }), []).buttons).toBe(1 << 0);
     expect(padToState(pad([], { 7: 0.2 }), []).buttons).toBe(0);
     expect(padToState(pad([2]), []).buttons).toBe(1 << 1);
+  });
+
+  it("jumps with Y, on the button the engine config binds to jump", () => {
+    expect(padToState(pad([3]), []).buttons).toBe(1 << VIRTUAL_BUTTONS.jump);
+    expect(padToState(pad([3, 0]), []).buttons).toBe((1 << VIRTUAL_BUTTONS.jump) | (1 << VIRTUAL_BUTTONS.fire));
   });
 
   it("maps shoulders, back and start to weapons, automap and menu", () => {
