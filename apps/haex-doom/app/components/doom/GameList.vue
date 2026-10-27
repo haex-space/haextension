@@ -16,7 +16,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <ul class="flex flex-col gap-3 w-full">
+  <ul class="doom-games flex flex-col gap-3 w-full">
     <li
       v-for="game in games"
       :key="game.id"

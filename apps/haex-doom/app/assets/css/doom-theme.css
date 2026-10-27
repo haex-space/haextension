@@ -72,7 +72,7 @@
 }
 
 [data-slot="dialog-title"],
-[data-slot="alert-dialog-title"] {
+[role="alertdialog"] h2 {
   font-family: var(--doom-display);
   font-size: 1.6rem;
   font-weight: 400;
@@ -103,4 +103,13 @@
   --success-bg: #14200c;
   --success-text: #c4efa6;
   --success-border: #4b7a2d;
+}
+
+[data-slot="slider-track"] {
+  background: #5a3224;
+}
+
+[data-slot="slider-thumb"] {
+  background: var(--doom-bone);
+  border-color: var(--doom-blood);
 }

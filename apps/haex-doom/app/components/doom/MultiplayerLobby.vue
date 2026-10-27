@@ -68,7 +68,7 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 w-full">
+  <div class="doom-panel flex flex-col gap-4 w-full">
     <h2 class="text-xl font-bold">
       {{ t('title') }}
     </h2>
