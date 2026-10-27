@@ -85,6 +85,7 @@ describe("engine config", () => {
     expect(bound("joyb_toggle_automap")).toBe(VIRTUAL_BUTTONS.automap);
     expect(bound("joyb_prevweapon")).toBe(VIRTUAL_BUTTONS.prevWeapon);
     expect(bound("joyb_nextweapon")).toBe(VIRTUAL_BUTTONS.nextWeapon);
+    expect(bound("joyb_jump")).toBe(VIRTUAL_BUTTONS.jump);
     // The engine's defaults put strafe and speed on buttons 1 and 2; they must stay off the overlay's buttons.
     expect(bound("joyb_strafe")).toBe(-1);
     expect(bound("joyb_speed")).toBeGreaterThan(Math.max(...Object.values(VIRTUAL_BUTTONS)));

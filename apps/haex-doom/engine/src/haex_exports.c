@@ -98,7 +98,8 @@ int haex_debug_game(int what)
     }
 }
 
-// field: 0 x, 1 y, 2 angle (map units and binary angle of the player's mobj), 3 health; 0 when the player has no mobj.
+// field: 0 x, 1 y, 2 angle (fixed-point map units and binary angle of the player's mobj), 3 health,
+// 4 z (height of the feet, fixed-point), 5 vertical momentum (fixed-point); 0 when the player has no mobj.
 EMSCRIPTEN_KEEPALIVE
 int haex_debug_player(int player, int field)
 {
@@ -122,6 +123,8 @@ int haex_debug_player(int player, int field)
         case 0: return p->mo->x;
         case 1: return p->mo->y;
         case 2: return (int) p->mo->angle;
+        case 4: return p->mo->z;
+        case 5: return p->mo->momz;
         default: return 0;
     }
 }

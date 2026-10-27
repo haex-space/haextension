@@ -5,6 +5,8 @@
 //
 // Query: id (host | g1 | g2 | ...), wad (file name without .wad), args (JSON array),
 // latency (one-way delay in ms), loss (percent of datagrams dropped on send), bot (0 | 1),
+// cfg (JSON object name -> value: config lines appended to both config files, where the engine
+// reads the last one; to try other settings than the shipped ones),
 // session (0: no peer session), tamper (N: flips a bit in the commands of every Nth datagram
 // sent, which makes this instance's game diverge from the others: a control for the checks).
 //
@@ -21,6 +23,12 @@ const bot = query.get("bot") !== "0";
 // 0: the shell has no peer session (haex_net_active is false).
 const tamper = Number(query.get("tamper") ?? 0);
 const session = query.get("session") !== "0";
+const cfg = JSON.parse(query.get("cfg") ?? "{}");
+
+// Like the shell's GameView: Space would scroll the frame, so its default action is prevented (which also drops its keypress).
+window.addEventListener("keydown", (event) => {
+  if (event.code === "Space") event.preventDefault();
+});
 
 const HOST_PEER = 1;
 const peerOf = (name) => (name === "host" ? HOST_PEER : 10 + Number(name.slice(1)));
@@ -36,7 +44,10 @@ const result = { exit: null, exited: false, started: false, status: null, error:
 let module = null;
 let peerClosed = () => {};
 let game = null;
+let player = null;
 let postEvent = null;
+/** Paths the engine reported through fileWritten (saves, config files). */
+const written = [];
 
 channel.onmessage = ({ data: message }) => {
   if (message.to !== id) return;
@@ -80,7 +91,7 @@ const imports = {
     result.exit = { isError, message };
   },
   haptic: () => {},
-  fileWritten: () => {},
+  fileWritten: (path) => written.push(path),
   fileRemoved: () => {},
 };
 
@@ -166,10 +177,12 @@ async function main() {
   module.FS.mkdirTree("/config");
   module.FS.mkdirTree("/saves/test");
   module.FS.writeFile(`/wads/${wadName}.wad`, wad);
-  module.FS.writeFile("/config/default.cfg", defaultCfg);
-  module.FS.writeFile("/config/crispy-doom.cfg", crispyCfg);
+  const overrides = Object.entries(cfg).map(([name, value]) => `${name} ${value}\n`).join("");
+  module.FS.writeFile("/config/default.cfg", new Uint8Array([...defaultCfg, ...new TextEncoder().encode(`\n${overrides}`)]));
+  module.FS.writeFile("/config/crispy-doom.cfg", new Uint8Array([...crispyCfg, ...new TextEncoder().encode(`\n${overrides}`)]));
 
-  startSampler(wrap("haex_debug_player", 2));
+  player = wrap("haex_debug_player", 2);
+  startSampler(player);
   result.started = true;
   try {
     module.callMain([
@@ -193,6 +206,13 @@ window.__harness = {
   stats,
   log,
   history,
+  written,
+  // Read-only probes (haex_debug_game, haex_debug_player) and the engine's file system.
+  probe: (what) => game(what),
+  playerField: (field, who = 0) => player(who, field),
+  // An event as the shell posts it (haex_post_event).
+  post: (type, data1 = 0, data2 = 0, data3 = 0, data4 = 0, data5 = 0, data6 = 0) => postEvent(type, data1, data2, data3, data4, data5, data6),
+  readFile: (path) => Array.from(module.FS.readFile(path)),
   state: () => ({
     tic: game?.(0) ?? -1,
     leveltime: game?.(1) ?? -1,

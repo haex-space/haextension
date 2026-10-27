@@ -13,7 +13,7 @@ export const DEAD_ZONE = 0.15;
 /** Mouse units per CSS pixel of swipe at sensitivity 1: about a quarter turn per 200 px. */
 export const TURN_UNITS_PER_PX = 10;
 
-/** Joystick button bits of the virtual gamepad (touch overlay and real pads); they must match the `joyb_*` values in engine/config/*.cfg. */
+/** Joystick button bits of the virtual gamepad (touch overlay and real pads; `jump` has a pad button only); they must match the `joyb_*` values in engine/config/*.cfg. */
 export const VIRTUAL_BUTTONS = {
   fire: 0,
   use: 1,
@@ -21,6 +21,7 @@ export const VIRTUAL_BUTTONS = {
   automap: 3,
   prevWeapon: 4,
   nextWeapon: 5,
+  jump: 6,
 } as const;
 
 export type VirtualButton = keyof typeof VIRTUAL_BUTTONS;

@@ -26,3 +26,48 @@ export function setConfigValue(text: string, name: string, value: string | numbe
   const body = text.endsWith("\n") || text === "" ? text : `${text}\n`;
   return `${body}${line}\n`;
 }
+
+/** Version of the defaults in engine/config/*.cfg that a stored config has been brought up to. */
+export const ENGINE_CONFIG_VERSION = 1;
+
+interface ConfigChange {
+  /** The value the setting had in the default config before this version (the engine's own default); only a stored config still at it is changed. */
+  from: string;
+  to: string;
+}
+
+/**
+ * Settings whose shipped default changed, per config file and version. A stored config would
+ * otherwise keep the old value for good, because the engine writes every setting back when it
+ * quits. A setting the player moved off the old default is left alone. Keep the values in line
+ * with engine/config/*.cfg.
+ */
+const CONFIG_CHANGES: Record<number, Record<string, Record<string, ConfigChange>>> = {
+  // Jumping on Space (crispy_jump 1 = low jump; key_jump 57 is Space as a DOS scan code; joyb_jump 6 is the pad's Y), and typed
+  // letters that follow the keyboard layout (vanilla_keyboard_mapping 0, with patch 0009).
+  1: {
+    "crispy-doom.cfg": { crispy_jump: { from: "0", to: "1" }, vanilla_keyboard_mapping: { from: "1", to: "0" } },
+    "default.cfg": { key_jump: { from: "53", to: "57" }, joyb_jump: { from: "-1", to: "6" } },
+  },
+};
+
+function configValue(text: string, name: string): string | undefined {
+  const line = text.split("\n").find((l) => l.split(/\s+/, 1)[0] === name);
+  return line?.slice(name.length).trim();
+}
+
+/**
+ * Brings a stored config file up to the current defaults: applies the changes of every version
+ * after `storedVersion` to the settings that still have their old default. A setting missing
+ * from the file counts as having it (the engine then uses its own default, which is the old one).
+ */
+export function migrateEngineConfig(fileName: string, text: string, storedVersion: number): string {
+  let result = text;
+  for (let version = storedVersion + 1; version <= ENGINE_CONFIG_VERSION; version++) {
+    for (const [name, change] of Object.entries(CONFIG_CHANGES[version]?.[fileName] ?? {})) {
+      const current = configValue(result, name);
+      if (current === undefined || current === change.from) result = setConfigValue(result, name, change.to);
+    }
+  }
+  return result;
+}

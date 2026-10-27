@@ -2,11 +2,13 @@ import { AXIS_MAX, DEAD_ZONE, stickToAxes, VIRTUAL_BUTTONS, type VirtualButton }
 
 /**
  * Buttons of the W3C "standard" gamepad layout for each virtual button. A and RT fire, and fire
- * also confirms in the engine's menus; B and X use, and use also goes back there.
+ * also confirms in the engine's menus; B and X use, and use also goes back there. Y jumps
+ * (single-player only; the engine ignores it in a netgame).
  */
 const PAD_BUTTONS: Record<VirtualButton, readonly number[]> = {
   fire: [0, 7],
   use: [1, 2],
+  jump: [3],
   prevWeapon: [4],
   nextWeapon: [5],
   automap: [8],

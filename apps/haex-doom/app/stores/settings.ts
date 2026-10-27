@@ -1,8 +1,11 @@
+import { ENGINE_CONFIG_VERSION, migrateEngineConfig } from "~/lib/engineConfig";
 import { DEFAULT_SETTINGS, parseSettings } from "~/lib/settings";
 
 const SETTINGS_KEY = "settings";
 /** The engine's config files, stored per device under `engine:<file name>`. */
 const ENGINE_CONFIG_KEY = (fileName: string) => `engine:${fileName}`;
+/** The version of the shipped defaults the stored engine configs have been brought up to (lib/engineConfig.ts). */
+const ENGINE_CONFIG_VERSION_KEY = "engine-config-version";
 
 /**
  * Shell settings and the engine's config files, kept on this device through the SDK's storage
@@ -47,14 +50,33 @@ export const useSettingsStore = defineStore("settings", () => {
       .catch((error: unknown) => console.error("[haex-doom] Could not save settings:", error));
   }
 
-  /** The stored engine config files, or the given defaults for those not stored yet. */
+  /**
+   * The stored engine config files, or the given defaults for those not stored yet. A stored
+   * file wins over the defaults, so settings whose default changed since it was stored are
+   * brought up to date first, once per version.
+   */
   async function engineConfigs(defaults: Record<string, string>): Promise<Record<string, string>> {
+    const storedVersion = Number(await storage().getItem(ENGINE_CONFIG_VERSION_KEY).catch(() => null)) || 0;
+    let migrationSucceeded = true;
     const entries = await Promise.all(
       Object.entries(defaults).map(async ([name, text]) => {
         const stored = await storage().getItem(ENGINE_CONFIG_KEY(name)).catch(() => null);
-        return [name, stored ?? text] as const;
+        if (stored === null) return [name, text] as const;
+        const migrated = migrateEngineConfig(name, stored, storedVersion);
+        if (migrated !== stored) {
+          try {
+            await storeEngineConfig(name, migrated);
+          } catch (cause: unknown) {
+            migrationSucceeded = false;
+            console.error("[haex-doom] Could not store the migrated", name, cause);
+          }
+        }
+        return [name, migrated] as const;
       }),
     );
+    if (storedVersion < ENGINE_CONFIG_VERSION && migrationSucceeded) {
+      await storage().setItem(ENGINE_CONFIG_VERSION_KEY, String(ENGINE_CONFIG_VERSION)).catch((cause: unknown) => console.error("[haex-doom] Could not store the config version:", cause));
+    }
     return Object.fromEntries(entries);
   }
 

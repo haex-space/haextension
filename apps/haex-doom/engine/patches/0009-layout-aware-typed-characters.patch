@@ -1,0 +1,42 @@
+diff --git a/src/doom/m_menu.c b/src/doom/m_menu.c
+index 01edf27c..1d988a00 100644
+--- a/src/doom/m_menu.c
++++ b/src/doom/m_menu.c
+@@ -2528,6 +2528,18 @@ boolean M_Responder (event_t* ev)
+ 	    {
+ 		key = ev->data1;
+ 		ch = ev->data2;
++
++		// haex-doom: key is where the key sits (a US layout), which is right
++		// for key bindings, but a yes/no prompt asks for a letter. With
++		// vanilla_keyboard_mapping off, ch is the letter of the player's
++		// layout, so it replaces key for the prompt (the "y" of a German
++		// keyboard sits where a US keyboard has "z"). Keys without a letter
++		// (Escape, Enter, arrows) keep their code.
++		if (!vanilla_keyboard_mapping && messageToPrint && messageNeedsInput
++		 && ch > ' ' && ch < 127)
++		{
++		    key = ch;
++		}
+ 	    }
+ 	}
+     }
+diff --git a/src/i_input.c b/src/i_input.c
+index 5f9f1301..2d3d486d 100644
+--- a/src/i_input.c
++++ b/src/i_input.c
+@@ -249,6 +249,14 @@ static int GetTypedChar(SDL_Keysym *sym)
+             }
+         }
+ 
++        // haex-doom: the shell keeps the browser from scrolling on Space, which
++        // also suppresses the keypress that would become a text input event, and
++        // a save name needs its spaces.
++        if (sym->sym == SDLK_SPACE)
++        {
++            return ' ';
++        }
++
+         // Failed to find anything :/
+         return 0;
+     }

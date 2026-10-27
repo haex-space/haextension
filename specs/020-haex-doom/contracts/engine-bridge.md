@@ -44,7 +44,7 @@ Arguments (`callMain`):
 | `haex_set_paused` | `void (int paused)` | Pauses or resumes a single-player game (FR-006); ignored in netgames. |
 | `haex_net_peer_closed` | `void (int peer)` | A peer channel closed; the engine treats it like a timed-out node, at once instead of after 30 s of silence (below). Takes effect at the engine's next poll of the network module. |
 | `haex_debug_game` | `int (int what)` | Read-only probe: 0 `gametic`, 1 `leveltime`, 2 players in the game (bit n = player n), 3 console player, 4 netgame, 5 position in the random table. For the measurements of T054 and `engine/e2e`; the shell does not need it. |
-| `haex_debug_player` | `int (int player, int field)` | Read-only probe: 0 x, 1 y, 2 angle, 3 health of a player. |
+| `haex_debug_player` | `int (int player, int field)` | Read-only probe: 0 x, 1 y, 2 angle, 3 health, 4 z (height of the feet), 5 vertical momentum of a player (x, y, z and momentum are fixed point, 65536 = one map unit). |
 
 ## Engine → shell (`EM_JS` imports, implemented in `app/lib/engine/imports.ts`)
 
