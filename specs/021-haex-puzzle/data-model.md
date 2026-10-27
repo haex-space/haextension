@@ -23,7 +23,7 @@ One Drizzle table in `app/database/schemas/index.ts`, named with the repository'
 - A row is complete or absent: it is inserted with one `INSERT … ON CONFLICT (id) DO NOTHING` and removed with one `DELETE … WHERE id IN (…)` (all or nothing), so there is never a thumbnail without a picture or the reverse (FR-027).
 - The list query selects **every column except `data`**, so opening the start screen never moves the pictures themselves (FR-024). `data` is read for one picture when its puzzle starts.
 - `data` is never modified after the insert; there is no update path (the library has no renaming, spec Assumptions).
-- Validation at the door (before the insert): file ≤ 64 MiB; decoded size ≤ 100 MP; Easy available at the stored size (≥ ~83 × 83 px); the encoded copy ≤ 1 MiB; otherwise a typed rejection (below), nothing stored.
+- Validation at the door (before the insert): file ≤ 64 MiB; decoded size ≤ 100 MP; Easy available at the stored size (≥ ~84 × 84 px); the encoded copy ≤ 1 MiB; otherwise a typed rejection (below), nothing stored.
 
 **State**: none beyond present/absent. A row whose `data` can no longer be decoded is shown as unusable (spec edge case) by the failed decode at puzzle start, not by a stored flag; the thumbnail column keeps the entry visible and removable.
 

@@ -18,7 +18,7 @@ Everything the game does that is not drawing or input is a pure function in `app
 
 ## Properties asserted by tests
 
-- **Grid**: for aspect ratios 1:10 … 10:1 and every difficulty available at that size, `|columns × rows − target| ≤ 10 % × target` and the piece's aspect ratio is within 1:1.6.
+- **Grid**: for aspect ratios 1:10 … 10:1 and every difficulty available at that size, `|columns × rows − target| ≤ 10 % × target` and the piece's aspect ratio is within 1:1.5 for pictures between 1:4 and 4:1 and within 1:2 over the whole range 1:10 … 10:1 (the count bound and squareness pull against each other on extreme shapes; measured, not assumed).
 - **Edges (interlock)**: for every interior edge, the outline segment one piece traces equals the other piece's segment reversed, point for point. Outer sides are straight lines. Over 1000 seeds, edges of one puzzle are not all equal.
 - **Coverage (SC-005)**: the pieces' cell boxes tile the picture exactly (sum of areas = picture area, no overlaps) for 200 random sizes and grids.
 - **Scatter**: for 1000 seeds and every difficulty, no piece's box overlaps the frame, every box is inside the table, no piece is covered more than 35 % by another, and no piece starts at home.
