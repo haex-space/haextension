@@ -89,7 +89,7 @@ function leave() {
 
 <template>
   <div v-if="puzzleState" class="h-screen flex flex-col">
-    <PuzzleHud :confirm="phase !== 'complete'" @leave="leave" />
+    <PuzzleHud :confirm="phase !== 'complete'" @leave="leave" @fit="puzzle.fit" />
     <div class="flex-1 min-h-0">
       <PuzzleTable :puzzle="puzzle" />
     </div>
