@@ -9,3 +9,4 @@
 | 0.1.5 | 2026-03-21 | [haex-notes-0.1.5.xt](./haex-notes-0.1.5.xt) |
 | 0.1.6 | 2026-04-16 | [haex-notes-0.1.6.xt](./haex-notes-0.1.6.xt) |
 | 0.1.7 | 2026-05-09 | [haex-notes-0.1.7.xt](./haex-notes-0.1.7.xt) |
+| 0.1.8 | 2026-10-27 | [haex-notes-0.1.8.xt](./haex-notes-0.1.8.xt) |
