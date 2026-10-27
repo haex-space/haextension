@@ -268,19 +268,43 @@ export function fromLatex(latex: string): string | null {
   return text.replace(/ +([\^_])/g, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
-/** Die Knöpfe unter dem Eingabefeld: was sie einfügen, und was auf dem Knopf steht. */
+/**
+ * Die Knöpfe unter dem Eingabefeld. Ein Knopf setzt `before` und `after` um die Auswahl: ist etwas markiert, rahmt er es
+ * ein (`wrap`), sonst steht der Cursor dazwischen und der Schüler tippt das Hochgestellte, Tiefgestellte oder den Radikanden.
+ * So gehen Hoch, Tief und Wurzel mit jeder Zahl und jedem Ausdruck, nicht nur mit ², ₂ und √.
+ */
 export interface FormulaSymbol {
   label: string;
-  insert: string;
+  /** Der Name für die Beschriftung des Knopfes; fehlt er, ist es ein einzelnes Zeichen. */
+  id?: "sup" | "sub" | "root";
+  before: string;
+  after?: string;
+  wrap?: boolean;
 }
 
+const plain = (symbol: string): FormulaSymbol => ({ label: symbol, before: symbol });
+
 export const CHEMISTRY_SYMBOLS: FormulaSymbol[] = [
-  { label: "→", insert: "->" }, { label: "⇌", insert: "<=>" },
-  { label: "(aq)", insert: "(aq)" }, { label: "(s)", insert: "(s)" }, { label: "(l)", insert: "(l)" }, { label: "(g)", insert: "(g)" },
+  { label: "→", before: "->" }, { label: "⇌", before: "<=>" }, { label: "xⁿ", before: "^" },
+  plain("(aq)"), plain("(s)"), plain("(l)"), plain("(g)"),
 ];
 
-export const MATH_SYMBOLS: FormulaSymbol[] = ["²", "³", "₂", "√", "÷", "·", "×", "±", "°", "π", "→", "≤", "≥", "≠"]
-  .map((symbol) => ({ label: symbol, insert: symbol }));
+export const MATH_SYMBOLS: FormulaSymbol[] = [
+  { label: "xⁿ", id: "sup", before: "^(", after: ")", wrap: true },
+  { label: "xₙ", id: "sub", before: "_(", after: ")", wrap: true },
+  { label: "√", id: "root", before: "sqrt(", after: ")", wrap: true },
+  ...["÷", "·", "×", "±", "°", "π", "→", "≤", "≥", "≠"].map(plain),
+];
+
+/** Der Text nach einem Knopf und wo der Cursor danach steht; `from` und `to` sind die Auswahl im Text. */
+export function applySymbol(text: string, from: number, to: number, symbol: FormulaSymbol): { text: string; caret: number } {
+  const after = symbol.after ?? "";
+  const selected = symbol.wrap ? text.slice(from, to) : "";
+  const inserted = symbol.before + selected + after;
+  // Ohne Auswahl steht der Cursor zwischen den Klammern, mit Auswahl dahinter.
+  const caret = from + (selected ? inserted.length : symbol.before.length);
+  return { text: text.slice(0, from) + inserted + text.slice(symbol.wrap ? to : to), caret };
+}
 
 /** Die Quelle, die der Editor in dieser Weise aus dem Text macht. */
 export function latexOf(mode: FormulaMode, text: string): string {

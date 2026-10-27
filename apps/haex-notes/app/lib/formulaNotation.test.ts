@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { chemistryToLatex, fromChemistry, fromLatex, latexOf, toChemistry, toLatex } from "./formulaNotation";
+import {
+  applySymbol, chemistryToLatex, CHEMISTRY_SYMBOLS, fromChemistry, fromLatex, latexOf, MATH_SYMBOLS, toChemistry, toLatex,
+} from "./formulaNotation";
 import { renderLatexAsync } from "./math";
 
 /** Der Abstand zwischen Teilen ist für LaTeX gleich; verglichen wird ohne Mehrfachleerzeichen. */
@@ -123,5 +125,34 @@ describe("latexOf", () => {
     expect(latexOf("chemistry", "H2O")).toBe("\\ce{H2O}");
     expect(latexOf("math", "a^2")).toBe("a^{2}");
     expect(latexOf("latex", "  \\alpha  ")).toBe("\\alpha");
+  });
+});
+
+describe("symbol buttons", () => {
+  const button = (label: string) => [...MATH_SYMBOLS, ...CHEMISTRY_SYMBOLS].find((symbol) => symbol.label === label)!;
+
+  it("put the cursor between the brackets when nothing is marked", () => {
+    expect(applySymbol("x", 1, 1, button("xⁿ"))).toEqual({ text: "x^()", caret: 3 });
+    expect(applySymbol("m", 1, 1, button("xₙ"))).toEqual({ text: "m_()", caret: 3 });
+    expect(applySymbol("", 0, 0, button("√"))).toEqual({ text: "sqrt()", caret: 5 });
+  });
+
+  it("wrap what is marked, whatever number or term it is", () => {
+    expect(applySymbol("x12", 1, 3, button("xⁿ"))).toEqual({ text: "x^(12)", caret: 6 });
+    expect(applySymbol("m 144", 2, 5, button("√"))).toEqual({ text: "m sqrt(144)", caret: 11 });
+    expect(applySymbol("a+b", 0, 3, button("√"))).toEqual({ text: "sqrt(a+b)", caret: 9 });
+  });
+
+  it("type a plain character over the marked text", () => {
+    expect(applySymbol("a b", 1, 2, button("÷"))).toEqual({ text: "a÷b", caret: 2 });
+    expect(applySymbol("A", 1, 1, CHEMISTRY_SYMBOLS[0]!)).toEqual({ text: "A->", caret: 3 });
+  });
+
+  it("give LaTeX for any number, not only 2 and 3", () => {
+    expect(tex("x^(12)")).toBe("x^{12}");
+    expect(tex("x^(-7)")).toBe("x^{-7}");
+    expect(tex("m_(100)")).toBe("m_{100}");
+    expect(tex("sqrt(144)")).toBe("\\sqrt{144}");
+    expect(tex("sqrt(a + b^(2))")).toBe("\\sqrt{a + b^{2}}");
   });
 });

@@ -2,7 +2,7 @@
 import { useDebounceFn } from "@vueuse/core";
 import type { FormulaEdit } from "~/composables/useElementEditing";
 import {
-  CHEMISTRY_SYMBOLS, fromChemistry, fromLatex, latexOf, MATH_SYMBOLS, type FormulaMode, type FormulaSymbol,
+  applySymbol, CHEMISTRY_SYMBOLS, fromChemistry, fromLatex, latexOf, MATH_SYMBOLS, type FormulaMode, type FormulaSymbol,
 } from "~/lib/formulaNotation";
 import { paint, renderLatexAsync, svgDataUrl, FORMULA_EM_PX } from "~/lib/math";
 
@@ -67,10 +67,11 @@ function insert(symbol: FormulaSymbol) {
   const field = textarea.value;
   const from = field?.selectionStart ?? text.value.length;
   const to = field?.selectionEnd ?? from;
-  text.value = text.value.slice(0, from) + symbol.insert + text.value.slice(to);
+  const result = applySymbol(text.value, from, to, symbol);
+  text.value = result.text;
   nextTick(() => {
     field?.focus();
-    field?.setSelectionRange(from + symbol.insert.length, from + symbol.insert.length);
+    field?.setSelectionRange(result.caret, result.caret);
   });
 }
 
@@ -164,7 +165,7 @@ const symbols = computed(() => (mode.value === "chemistry" ? CHEMISTRY_SYMBOLS :
         v-for="symbol in symbols"
         :key="symbol.label"
         class="min-w-8 rounded border border-border px-1.5 py-0.5 text-sm hover:bg-accent"
-        :title="symbol.insert"
+        :title="symbol.id ? t(`symbol.${symbol.id}`) : symbol.before"
         @click="insert(symbol)"
       >
         {{ symbol.label }}
@@ -206,6 +207,10 @@ de:
     chemistry: Schreib sie, wie sie dasteht. Pfeil mit -> oder dem Knopf.
     math: Hoch mit ^, tief mit _, Bruch mit /, Wurzel mit sqrt( ).
     latex: Für Fortgeschrittene.
+  symbol:
+    sup: Hochstellen – erst markieren oder danach in die Klammer tippen
+    sub: Tiefstellen – erst markieren oder danach in die Klammer tippen
+    root: Wurzel – erst markieren oder danach in die Klammer tippen
   preview: Vorschau der Formel
   previewEmpty: Die Vorschau erscheint beim Tippen.
   empty: Eine Formel braucht eine Quelle.
@@ -226,6 +231,10 @@ en:
     chemistry: Write it as it stands. Arrow with -> or the button.
     math: Power with ^, index with _, fraction with /, root with sqrt( ).
     latex: For advanced users.
+  symbol:
+    sup: Superscript – select first or type inside the brackets afterwards
+    sub: Subscript – select first or type inside the brackets afterwards
+    root: Root – select first or type inside the brackets afterwards
   preview: Preview of the formula
   previewEmpty: The preview appears as you type.
   empty: A formula needs a source.
