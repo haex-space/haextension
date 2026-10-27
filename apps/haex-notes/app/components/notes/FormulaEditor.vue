@@ -28,6 +28,7 @@ const value = ref(props.edit.source);
 const reason = ref<string | null>(null);
 const preview = ref<string | null>(null);
 const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
+const previewBox = useTemplateRef<HTMLDivElement>("previewBox");
 onMounted(() => textarea.value?.focus());
 
 let latest = 0;
@@ -47,7 +48,9 @@ async function renderPreviewAsync() {
     return;
   }
   reason.value = null;
-  preview.value = svgDataUrl(paint(result.svg, "currentColor", result.width * FORMULA_EM_PX * 1.5, result.height * FORMULA_EM_PX * 1.5));
+  // Ein SVG in einem <img> erbt die Textfarbe nicht (`currentColor` wäre schwarz auf dem dunklen Feld): die Farbe des Felds einsetzen.
+  const ink = previewBox.value ? getComputedStyle(previewBox.value).color : "currentColor";
+  preview.value = svgDataUrl(paint(result.svg, ink, result.width * FORMULA_EM_PX * 1.5, result.height * FORMULA_EM_PX * 1.5));
 }
 const renderPreviewSoon = useDebounceFn(renderPreviewAsync, 150);
 watch(value, renderPreviewSoon);
@@ -96,7 +99,7 @@ function onKeydown(event: KeyboardEvent) {
       :aria-label="t('label')"
       @keydown="onKeydown"
     />
-    <div class="flex min-h-14 items-center justify-center overflow-auto rounded-md bg-background p-2 text-foreground">
+    <div ref="previewBox" class="flex min-h-14 items-center justify-center overflow-auto rounded-md bg-background p-2 text-foreground">
       <img v-if="preview" :src="preview" :alt="t('preview')" draggable="false">
       <span v-else class="text-xs text-muted-foreground">{{ t('previewEmpty') }}</span>
     </div>
