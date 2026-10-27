@@ -30,15 +30,20 @@ export interface Grid {
   height: number
 }
 
-/** One edge between two neighbouring cells. */
+/**
+ * One edge between two neighbouring cells, as shape parameters of a jigsaw edge (fractions of the
+ * edge length, `a`–`e` are small jitters). The edge is drawn once, from the cell boundary's start to
+ * its end (left to right, or top to bottom), and both pieces use that same curve.
+ */
 export interface Edge {
-  /** 1: the tab belongs to the piece before the edge (left or above); -1: to the piece after it. */
+  /** 1: the tab bulges toward +y / +x (into the piece after the edge); -1: toward -y / -x. */
   direction: 1 | -1
-  /** Fractions of the edge length. */
   tab: number
-  neck: number
-  shoulder: number
-  lean: number
+  a: number
+  b: number
+  c: number
+  d: number
+  e: number
 }
 
 export interface Edges {
@@ -46,6 +51,14 @@ export interface Edges {
   horizontal: Edge[][]
   /** `vertical[row][column]`: the edge right of cell (column, row); columns − 1 per row. */
   vertical: Edge[][]
+}
+
+/** One piece of an outline: a straight line, or a cubic Bézier when the controls are given. */
+export interface Segment {
+  from: Point
+  c1?: Point
+  c2?: Point
+  to: Point
 }
 
 export type PathCommand =

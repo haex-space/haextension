@@ -47,9 +47,13 @@ export const useLibraryStore = defineStore('library', () => {
     try {
       return await (await getLibrary()).open(id)
     } catch (error) {
-      unusable.value = new Set(unusable.value).add(id)
+      markUnusable(id)
       throw error
     }
+  }
+
+  function markUnusable(id: string) {
+    unusable.value = new Set(unusable.value).add(id)
   }
 
   /** All or nothing: when the vault refuses, this rejects and `items` is unchanged. */
@@ -60,5 +64,5 @@ export const useLibraryStore = defineStore('library', () => {
     unusable.value = new Set([...unusable.value].filter(id => !gone.has(id)))
   }
 
-  return { items, loading, unusable, load, add, open, remove }
+  return { items, loading, unusable, load, add, open, remove, markUnusable }
 })
