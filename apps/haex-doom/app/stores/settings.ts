@@ -57,16 +57,24 @@ export const useSettingsStore = defineStore("settings", () => {
    */
   async function engineConfigs(defaults: Record<string, string>): Promise<Record<string, string>> {
     const storedVersion = Number(await storage().getItem(ENGINE_CONFIG_VERSION_KEY).catch(() => null)) || 0;
+    let migrationSucceeded = true;
     const entries = await Promise.all(
       Object.entries(defaults).map(async ([name, text]) => {
         const stored = await storage().getItem(ENGINE_CONFIG_KEY(name)).catch(() => null);
         if (stored === null) return [name, text] as const;
         const migrated = migrateEngineConfig(name, stored, storedVersion);
-        if (migrated !== stored) await storeEngineConfig(name, migrated).catch((cause: unknown) => console.error("[haex-doom] Could not store the migrated", name, cause));
+        if (migrated !== stored) {
+          try {
+            await storeEngineConfig(name, migrated);
+          } catch (cause: unknown) {
+            migrationSucceeded = false;
+            console.error("[haex-doom] Could not store the migrated", name, cause);
+          }
+        }
         return [name, migrated] as const;
       }),
     );
-    if (storedVersion < ENGINE_CONFIG_VERSION) {
+    if (storedVersion < ENGINE_CONFIG_VERSION && migrationSucceeded) {
       await storage().setItem(ENGINE_CONFIG_VERSION_KEY, String(ENGINE_CONFIG_VERSION)).catch((cause: unknown) => console.error("[haex-doom] Could not store the config version:", cause));
     }
     return Object.fromEntries(entries);
