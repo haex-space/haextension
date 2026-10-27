@@ -91,20 +91,20 @@ async function removeSelected() {
       </h1>
 
       <template v-if="selecting">
-        <ShadcnButton variant="outline" size="sm" @click="selectAll">
+        <ShadcnButton variant="outline" size="sm" class="h-11 sm:h-8" @click="selectAll">
           <ListChecks class="w-4 h-4 mr-2" />
           {{ t('selectAll') }}
         </ShadcnButton>
         <ShadcnButton
           variant="destructive"
-          size="sm"
+          size="sm" class="h-11 sm:h-8"
           :disabled="selected.size === 0"
           @click="confirming = true"
         >
           <Trash2 class="w-4 h-4 mr-2" />
           {{ t('remove', { count: selected.size }) }}
         </ShadcnButton>
-        <ShadcnButton variant="ghost" size="sm" @click="toggleSelecting">
+        <ShadcnButton variant="ghost" size="sm" class="h-11 sm:h-8" @click="toggleSelecting">
           <X class="w-4 h-4 mr-2" />
           {{ t('cancel') }}
         </ShadcnButton>
@@ -113,13 +113,13 @@ async function removeSelected() {
         <ShadcnButton
           v-if="library.items.length > 0"
           variant="outline"
-          size="sm"
+          size="sm" class="h-11 sm:h-8"
           @click="toggleSelecting"
         >
           <ListChecks class="w-4 h-4 mr-2" />
           {{ t('select') }}
         </ShadcnButton>
-        <ShadcnButton size="sm" :disabled="adding" @click="emit('add')">
+        <ShadcnButton size="sm" class="h-11 sm:h-8" :disabled="adding" @click="emit('add')">
           <Plus class="w-4 h-4 mr-2" />
           {{ t('add') }}
         </ShadcnButton>

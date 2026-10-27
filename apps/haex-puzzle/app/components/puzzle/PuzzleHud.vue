@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeft } from '@lucide/vue'
+import { ArrowLeft, Maximize } from '@lucide/vue'
 
 const props = defineProps<{
   /** Whether leaving throws away progress (false once the puzzle is complete). */
   confirm: boolean
 }>()
-const emit = defineEmits<{ leave: [] }>()
+const emit = defineEmits<{ leave: []; fit: [] }>()
 
 const { t } = useI18n()
 const asking = ref(false)
@@ -18,9 +18,20 @@ function onLeave() {
 
 <template>
   <div class="flex items-center gap-2 px-3 py-2 border-b bg-background">
-    <ShadcnButton variant="ghost" size="sm" @click="onLeave">
+    <ShadcnButton variant="ghost" class="h-11 sm:h-9" @click="onLeave">
       <ArrowLeft class="w-4 h-4 mr-2" />
       {{ t('newPuzzle') }}
+    </ShadcnButton>
+
+    <ShadcnButton
+      variant="ghost"
+      class="h-11 sm:h-9 ml-auto"
+      :aria-label="t('fit')"
+      :title="t('fit')"
+      @click="emit('fit')"
+    >
+      <Maximize class="w-4 h-4 sm:mr-2" />
+      <span class="hidden sm:inline">{{ t('fit') }}</span>
     </ShadcnButton>
 
     <ShadcnAlertDialog v-model:open="asking">
@@ -43,12 +54,14 @@ function onLeave() {
 <i18n lang="yaml">
 de:
   newPuzzle: Neues Puzzle
+  fit: Ganzer Tisch
   leaveTitle: Puzzle verlassen?
   leaveHint: Der Fortschritt dieses Puzzles geht verloren.
   stay: Weiterspielen
   leave: Verlassen
 en:
   newPuzzle: New puzzle
+  fit: Whole table
   leaveTitle: Leave the puzzle?
   leaveHint: The progress of this puzzle will be lost.
   stay: Keep playing

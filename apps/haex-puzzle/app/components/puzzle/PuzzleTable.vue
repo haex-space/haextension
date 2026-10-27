@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { drawTable, type TableColors } from '~/lib/drawTable'
-import { fitView } from '~/lib/zoomPan'
+import { clampView, fitView } from '~/lib/zoomPan'
 import type { PuzzleApi } from '~/composables/usePuzzle'
 import type { View } from '~/types/puzzle'
 
@@ -14,20 +14,50 @@ const view = ref<View>({ scale: 1, x: 0, y: 0 })
 const themeVersion = ref(0)
 
 const PADDING = 8
+/** The scale at which the whole table fits; the user's zoom is measured against it. */
+const fitScale = ref(1)
 
 const table = computed(() => {
   void props.puzzle.version.value
   return props.puzzle.state.value?.table ?? null
 })
 
-function refit() {
+function fitted(): View | null {
   const area = table.value
-  if (!area || size.value.width === 0) return
-  const fitted = fitView(
+  if (!area || size.value.width === 0) return null
+  const fit = fitView(
     { width: size.value.width - 2 * PADDING, height: size.value.height - 2 * PADDING },
     { width: area.width, height: area.height },
   )
-  view.value = { scale: fitted.scale, x: fitted.x + PADDING, y: fitted.y + PADDING }
+  return { scale: fit.scale, x: fit.x + PADDING, y: fit.y + PADDING }
+}
+
+/** Shows the whole table. */
+function refit() {
+  const fit = fitted()
+  if (!fit) return
+  fitScale.value = fit.scale
+  view.value = fit
+}
+
+/**
+ * The window or device changed size: keeps the zoom relative to the fit and the point the user was
+ * looking at in the middle. Pieces live in table coordinates, so none moves relative to the picture.
+ */
+function adapt(before: { width: number; height: number }) {
+  const fit = fitted()
+  const area = table.value
+  if (!fit || !area) return
+  const zoom = view.value.scale / fitScale.value
+  if (before.width === 0 || Math.abs(zoom - 1) < 0.01) return refit()
+  const centre = { x: (before.width / 2 - view.value.x) / view.value.scale, y: (before.height / 2 - view.value.y) / view.value.scale }
+  fitScale.value = fit.scale
+  const scale = fit.scale * zoom
+  view.value = clampView(
+    { scale, x: size.value.width / 2 - centre.x * scale, y: size.value.height / 2 - centre.y * scale },
+    size.value,
+    { width: area.width, height: area.height },
+  )
 }
 
 /** A colour of the host's theme for the canvas, or a fallback when the variable is no usable colour. */
@@ -70,10 +100,14 @@ function render() {
   })
 }
 
-usePuzzleInput({ canvas, puzzle: props.puzzle, view, table })
+// The view, for trying the app by script when it runs standalone; never in a release build.
+if (useStandalone()) (window as unknown as { __view: unknown }).__view = view
+
+usePuzzleInput({ canvas, puzzle: props.puzzle, view, table, box: size, fitScale: () => fitScale.value })
 
 watch([() => props.puzzle.version.value, view, size, themeVersion], request)
-watch(size, refit)
+watch(size, (_, before) => adapt(before))
+watch(() => props.puzzle.fitRequest.value, refit)
 
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null

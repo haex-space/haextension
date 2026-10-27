@@ -21,6 +21,8 @@
   }
   html, body {
     @apply overflow-hidden;
+    /* No pull-to-refresh or scroll chaining while a piece or the table is touched. */
+    overscroll-behavior: none;
   }
   body {
     @apply bg-background text-foreground;

@@ -16,6 +16,8 @@ export function usePuzzle() {
   const image = shallowRef<ImageBitmap | null>(null)
   const version = ref(0)
   const loading = ref(false)
+  /** Bumped when the user asks to see the whole table again. */
+  const fitRequest = ref(0)
   const finishedMs = ref(0)
   let stopwatch: Stopwatch = createStopwatch()
 
@@ -98,6 +100,10 @@ export function usePuzzle() {
     touch()
   }
 
+  function fit() {
+    fitRequest.value++
+  }
+
   function leave() {
     discard()
     touch()
@@ -106,8 +112,8 @@ export function usePuzzle() {
   onBeforeUnmount(discard)
 
   return {
-    state, sprites, image, version, phase, loading, finishedMs,
-    begin, pieceAtPoint, grab, move, drop, restart, leave,
+    state, sprites, image, version, phase, loading, finishedMs, fitRequest,
+    begin, fit, pieceAtPoint, grab, move, drop, restart, leave,
     elapsed: () => stopwatch.elapsed(),
     stopwatch: () => stopwatch,
   }
