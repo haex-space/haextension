@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isDeleteKey, notebookShortcut } from "./shortcuts";
 
-const key = (k: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}, target: unknown = null) => ({
+const key = (k: string, mods: { alt?: boolean; ctrl?: boolean; meta?: boolean; shift?: boolean } = {}, target: unknown = null) => ({
   key: k,
+  altKey: mods.alt ?? false,
   ctrlKey: mods.ctrl ?? false,
   metaKey: mods.meta ?? false,
   shiftKey: mods.shift ?? false,
@@ -51,5 +52,6 @@ describe("isDeleteKey", () => {
     expect(isDeleteKey(key("a"))).toBe(false);
     expect(isDeleteKey(key("Delete", { ctrl: true }))).toBe(false);
     expect(isDeleteKey(key("Backspace", { shift: true }))).toBe(false);
+    expect(isDeleteKey(key("Backspace", { alt: true }))).toBe(false);
   });
 });

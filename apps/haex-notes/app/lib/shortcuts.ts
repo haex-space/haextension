@@ -1,6 +1,6 @@
 export type NotebookShortcut = "save" | "undo" | "redo";
 
-type ShortcutEvent = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "shiftKey" | "target">;
+type ShortcutEvent = Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target">;
 
 const TEXT_INPUT_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
@@ -25,6 +25,6 @@ export function notebookShortcut(e: ShortcutEvent): NotebookShortcut | null {
 
 /** Entfernen oder Rückschritt außerhalb eines Eingabefelds löscht das ausgewählte Element. */
 export function isDeleteKey(e: ShortcutEvent): boolean {
-  if (e.ctrlKey || e.metaKey || e.shiftKey || isTextInput(e.target)) return false;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || isTextInput(e.target)) return false;
   return e.key === "Delete" || e.key === "Backspace";
 }
