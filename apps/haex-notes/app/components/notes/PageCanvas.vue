@@ -456,7 +456,7 @@ const resetZoom = () => fitPage();
 
 const zoomPercent = computed(() => Math.round((viewport.zoom / viewport.defaultZoom) * 100));
 
-defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu, insertFormula: editing.insertFormula });
+defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu, insertFormula: editing.insertFormula, removeSelected: editing.removeSelected, hasSelection: editing.hasSelection });
 </script>
 
 <template>

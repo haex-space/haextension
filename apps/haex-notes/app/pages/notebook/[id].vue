@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop, Sigma } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, ArrowLeft, Undo2, Redo2, X, Table2, RotateCw, Share2, Camera, FileDown, Crop, Sigma, Trash2 } from "@lucide/vue";
 import { DEFAULT_MARGINS, PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 import { marginsOf } from "~/lib/pageBackground";
 import type { PageTemplate, SelectPage } from "~/database/schemas";
 import type PageCanvas from "~/components/notes/PageCanvas.vue";
 import type { Box } from "~/lib/elementEdits";
 import { getErrorMessage, reportError } from "~/lib/errors";
-import { notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
+import { isDeleteKey, notebookShortcut, type NotebookShortcut } from "~/lib/shortcuts";
 
 const route = useRoute();
 const router = useRouter();
@@ -131,6 +131,11 @@ const shortcutActions: Record<NotebookShortcut, () => Promise<void>> = {
 };
 
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
+  if (isDeleteKey(e) && pageCanvasRef.value?.hasSelection) {
+    e.preventDefault();
+    pageCanvasRef.value.removeSelected();
+    return;
+  }
   const shortcut = notebookShortcut(e);
   if (!shortcut) return;
   e.preventDefault();
@@ -280,6 +285,16 @@ const addPage = async () => {
           <Sigma class="size-4" />
         </button>
 
+        <!-- Ausgewähltes Element löschen -->
+        <button
+          v-if="pageCanvasRef?.hasSelection"
+          class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          :title="t('deleteSelected')"
+          @click="pageCanvasRef.removeSelected()"
+        >
+          <Trash2 class="size-4" />
+        </button>
+
         <!-- Table tool -->
         <ShadcnPopover>
           <ShadcnPopoverTrigger as-child>
@@ -417,6 +432,7 @@ de:
   closeUp: Stelle neu fotografieren – Rechteck über die Stelle ziehen
   addTable: Tabelle einfügen
   addFormula: Formel einfügen
+  deleteSelected: Auswahl löschen
   toggleOrientation: Hoch-/Querformat
   sharePage: Seite teilen
   resetZoom: Zoom zurücksetzen
@@ -435,6 +451,7 @@ en:
   closeUp: Photograph an area again – drag a rectangle over it
   addTable: Insert Table
   addFormula: Insert formula
+  deleteSelected: Delete selection
   toggleOrientation: Portrait/Landscape
   sharePage: Share page
   resetZoom: Reset Zoom

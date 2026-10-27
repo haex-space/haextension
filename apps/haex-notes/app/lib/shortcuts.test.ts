@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { notebookShortcut } from "./shortcuts";
+import { isDeleteKey, notebookShortcut } from "./shortcuts";
 
 const key = (k: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}, target: unknown = null) => ({
   key: k,
@@ -33,5 +33,23 @@ describe("notebookShortcut", () => {
     expect(notebookShortcut(key("z", { ctrl: true }, { tagName: "INPUT" }))).toBeNull();
     expect(notebookShortcut(key("z", { ctrl: true }, { tagName: "DIV", isContentEditable: true }))).toBeNull();
     expect(notebookShortcut(key("z", { ctrl: true }, { tagName: "CANVAS" }))).toBe("undo");
+  });
+});
+
+describe("isDeleteKey", () => {
+  it("accepts Delete and Backspace on the page", () => {
+    expect(isDeleteKey(key("Delete"))).toBe(true);
+    expect(isDeleteKey(key("Backspace"))).toBe(true);
+  });
+
+  it("leaves the keys to an input field", () => {
+    expect(isDeleteKey(key("Backspace", {}, { tagName: "TEXTAREA" }))).toBe(false);
+    expect(isDeleteKey(key("Delete", {}, { isContentEditable: true }))).toBe(false);
+  });
+
+  it("ignores other keys and combinations", () => {
+    expect(isDeleteKey(key("a"))).toBe(false);
+    expect(isDeleteKey(key("Delete", { ctrl: true }))).toBe(false);
+    expect(isDeleteKey(key("Backspace", { shift: true }))).toBe(false);
   });
 });

@@ -22,3 +22,9 @@ export function notebookShortcut(e: ShortcutEvent): NotebookShortcut | null {
   if (key === "z") return "undo";
   return null;
 }
+
+/** Entfernen oder Rückschritt außerhalb eines Eingabefelds löscht das ausgewählte Element. */
+export function isDeleteKey(e: ShortcutEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.shiftKey || isTextInput(e.target)) return false;
+  return e.key === "Delete" || e.key === "Backspace";
+}
