@@ -1,5 +1,9 @@
 import tailwindcss from "@tailwindcss/vite";
 
+// Development without the host: the vault SDK refuses to start outside the extension frame, so
+// `HAEX_STANDALONE=1 pnpm dev` leaves it out and the app uses an in-memory library instead.
+const standalone = process.env.HAEX_STANDALONE === "1";
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devServer: { port: 4012 },
@@ -18,7 +22,7 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "@nuxtjs/color-mode",
     "@nuxt/icon",
-    "@haex-space/vault-sdk/nuxt",
+    ...(standalone ? [] : ["@haex-space/vault-sdk/nuxt"]),
   ],
 
   colorMode: {
@@ -30,6 +34,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       debug: false,
+      standalone,
     },
   },
 
@@ -67,6 +72,10 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
     optimizeDeps: {
       include: ["@vueuse/core"],
+    },
+    // haex-ui's Toaster and this app's toast() must share one vue-sonner, or toasts never show.
+    resolve: {
+      dedupe: ["vue-sonner"],
     },
   },
 });
