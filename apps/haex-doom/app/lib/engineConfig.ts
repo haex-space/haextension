@@ -43,9 +43,10 @@ interface ConfigChange {
  * with engine/config/*.cfg.
  */
 const CONFIG_CHANGES: Record<number, Record<string, Record<string, ConfigChange>>> = {
-  // Jumping on Space (crispy_jump 1 = low jump; key_jump 57 is Space as a DOS scan code; joyb_jump 6 is the pad's Y).
+  // Jumping on Space (crispy_jump 1 = low jump; key_jump 57 is Space as a DOS scan code; joyb_jump 6 is the pad's Y), and typed
+  // letters that follow the keyboard layout (vanilla_keyboard_mapping 0, with patch 0009).
   1: {
-    "crispy-doom.cfg": { crispy_jump: { from: "0", to: "1" } },
+    "crispy-doom.cfg": { crispy_jump: { from: "0", to: "1" }, vanilla_keyboard_mapping: { from: "1", to: "0" } },
     "default.cfg": { key_jump: { from: "53", to: "57" }, joyb_jump: { from: "-1", to: "6" } },
   },
 };

@@ -62,11 +62,19 @@ describe("shipped jump defaults", () => {
   });
 });
 
+describe("shipped keyboard default", () => {
+  it("lets typed letters follow the keyboard layout (the engine's own default is the US layout)", () => {
+    expect(shipped("crispy-doom.cfg")).toMatch(/^vanilla_keyboard_mapping\s+0$/m);
+    expect(migrateEngineConfig("crispy-doom.cfg", "vanilla_keyboard_mapping      1\n", 0)).toMatch(/^vanilla_keyboard_mapping\s+0$/m);
+    expect(migrateEngineConfig("crispy-doom.cfg", "crispy_hires                  1\n", 0)).toMatch(/^vanilla_keyboard_mapping\s+0$/m);
+  });
+});
+
 describe("migrateEngineConfig", () => {
-  const stored = "crispy_hires                  1\ncrispy_jump                   0\n";
+  const stored = "crispy_hires                  1\ncrispy_jump                   0\nvanilla_keyboard_mapping      0\n";
 
   it("turns on jumping in a config stored before it was a default", () => {
-    expect(migrateEngineConfig("crispy-doom.cfg", stored, 0)).toBe("crispy_hires                  1\ncrispy_jump                   1\n");
+    expect(migrateEngineConfig("crispy-doom.cfg", stored, 0)).toBe("crispy_hires                  1\ncrispy_jump                   1\nvanilla_keyboard_mapping      0\n");
   });
 
   it("adds a setting the stored file does not have", () => {
@@ -74,7 +82,7 @@ describe("migrateEngineConfig", () => {
   });
 
   it("keeps a value the player chose, such as high jumps or another key", () => {
-    expect(migrateEngineConfig("crispy-doom.cfg", "crispy_jump                   2\n", 0)).toBe("crispy_jump                   2\n");
+    expect(migrateEngineConfig("crispy-doom.cfg", "crispy_jump                   2\n", 0)).toMatch(/^crispy_jump\s+2$/m);
     expect(migrateEngineConfig("default.cfg", "key_jump                      30\n", 0)).toContain("key_jump                      30");
   });
 

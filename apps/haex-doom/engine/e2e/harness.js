@@ -25,6 +25,11 @@ const tamper = Number(query.get("tamper") ?? 0);
 const session = query.get("session") !== "0";
 const cfg = JSON.parse(query.get("cfg") ?? "{}");
 
+// Like the shell's GameView: Space would scroll the frame, so its default action is prevented (which also drops its keypress).
+window.addEventListener("keydown", (event) => {
+  if (event.code === "Space") event.preventDefault();
+});
+
 const HOST_PEER = 1;
 const peerOf = (name) => (name === "host" ? HOST_PEER : 10 + Number(name.slice(1)));
 const nameOf = (peer) => (peer === HOST_PEER ? "host" : `g${peer - 10}`);
