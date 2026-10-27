@@ -16,33 +16,33 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <ul class="flex flex-col gap-2 w-full">
+  <ul class="flex flex-col gap-3 w-full">
     <li
       v-for="game in games"
       :key="game.id"
-      class="flex gap-2"
+      class="flex gap-2 items-stretch"
     >
-      <ShadcnButton
-        class="flex-1 justify-between h-auto py-3"
-        variant="outline"
+      <button
+        type="button"
+        class="doom-item flex-1"
         :disabled="disabled"
         @click="emit('start', game)"
       >
-        <span class="text-base font-semibold">{{ game.title }}</span>
-        <span class="text-muted-foreground text-sm">{{ t('play') }}</span>
-      </ShadcnButton>
+        <DoomSkull />
+        <span class="doom-item__title">{{ game.title }}</span>
+        <span class="doom-item__action">{{ t('play') }}</span>
+      </button>
 
       <ShadcnAlertDialog v-if="!game.asset">
         <ShadcnAlertDialogTrigger as-child>
-          <ShadcnButton
-            variant="ghost"
-            size="icon"
-            class="h-auto"
+          <button
+            type="button"
+            class="doom-btn doom-btn--icon h-auto"
             :aria-label="t('remove', { title: game.title })"
             :disabled="disabled"
           >
-            <Trash2 class="size-4" />
-          </ShadcnButton>
+            <Trash2 class="size-5" />
+          </button>
         </ShadcnAlertDialogTrigger>
         <ShadcnAlertDialogContent>
           <ShadcnAlertDialogHeader>

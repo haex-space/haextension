@@ -43,9 +43,12 @@ async function join() {
 <template>
   <ShadcnDialog v-model:open="open">
     <ShadcnDialogTrigger as-child>
-      <ShadcnButton variant="outline">
+      <button
+        type="button"
+        class="doom-btn"
+      >
         {{ t('join') }}
-      </ShadcnButton>
+      </button>
     </ShadcnDialogTrigger>
     <ShadcnDialogContent class="max-w-md">
       <ShadcnDialogHeader>

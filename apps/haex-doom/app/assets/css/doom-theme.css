@@ -1,0 +1,106 @@
+/*
+ * The look of haex-doom: the game is dark, so the shared haex-ui tokens are replaced by a palette of
+ * ember reds, bone text and brown metal on :root, whatever theme the vault has. Dialogs and menus
+ * of haex-ui render into <body>, outside the page, and pick the palette up from here.
+ * Pairs used for text keep a contrast of at least 4.5:1 (see doomTheme.test.ts).
+ */
+
+@font-face {
+  font-family: "Anton";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/anton-latin-400.woff2") format("woff2");
+}
+
+:root,
+:root.dark,
+.dark {
+  color-scheme: dark;
+
+  --doom-display: "Anton", "Impact", "Haettenschweiler", "Arial Narrow Bold", "Arial Narrow", sans-serif;
+  --doom-abyss: #090302;
+  --doom-plate-top: #371810;
+  --doom-plate-bottom: #1c0b07;
+  --doom-bevel-light: #7d513c;
+  --doom-bevel-dark: #1a0805;
+  --doom-bone: #f0e4c6;
+  --doom-tan: #c9b393;
+  --doom-amber: #ffbd47;
+  --doom-gold: #ffd45f;
+  --doom-blood: #c2291b;
+  --doom-blood-dark: #6c130a;
+  --doom-ember: #ff7a1f;
+
+  --radius: 0.25rem;
+  --background: var(--doom-abyss);
+  --foreground: var(--doom-bone);
+  --card: #170a07;
+  --card-foreground: var(--doom-bone);
+  --popover: #1b0b07;
+  --popover-foreground: var(--doom-bone);
+  --primary: var(--doom-blood);
+  --primary-foreground: #fff6e0;
+  --secondary: #2c150e;
+  --secondary-foreground: var(--doom-bone);
+  --muted: #26120c;
+  --muted-foreground: var(--doom-tan);
+  --accent: #4a1d11;
+  --accent-foreground: #fff0c8;
+  --destructive: #ff7358;
+  --destructive-foreground: #1a0603;
+  --error: #ff7358;
+  --error-foreground: #1a0603;
+  --success: #8fd46b;
+  --success-foreground: #0e1a07;
+  --warning: var(--doom-amber);
+  --warning-foreground: #1a0e03;
+  --border: #603021;
+  --input: #3d1d12;
+  --ring: var(--doom-amber);
+}
+
+/* Dialogs, menus and popovers of haex-ui */
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
+[data-slot="popover-content"],
+[data-slot="dropdown-menu-content"] {
+  background: linear-gradient(180deg, #230f0a, #130604);
+  border: 2px solid #6e3a27;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #000, 0 0 36px rgba(255, 90, 20, 0.16), 0 18px 48px rgba(0, 0, 0, 0.85);
+}
+
+[data-slot="dialog-title"],
+[data-slot="alert-dialog-title"] {
+  font-family: var(--doom-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--doom-gold);
+}
+
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"] {
+  background: rgba(5, 1, 1, 0.84);
+}
+
+[data-slot="input"] {
+  background: #0f0504;
+  border-color: #6e3a27;
+}
+
+/* Toasts (vue-sonner) */
+[data-sonner-toaster] {
+  --normal-bg: #1b0b07;
+  --normal-text: var(--doom-bone);
+  --normal-border: #6e3a27;
+  --error-bg: #2b0d08;
+  --error-text: #ffb4a3;
+  --error-border: #a8341f;
+  --success-bg: #14200c;
+  --success-text: #c4efa6;
+  --success-border: #4b7a2d;
+}

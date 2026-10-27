@@ -33,9 +33,12 @@ watch(open, (isOpen) => {
 <template>
   <ShadcnDialog v-model:open="open">
     <ShadcnDialogTrigger as-child>
-      <ShadcnButton variant="ghost">
+      <button
+        type="button"
+        class="doom-btn doom-btn--link"
+      >
         {{ t('about') }}
-      </ShadcnButton>
+      </button>
     </ShadcnDialogTrigger>
     <ShadcnDialogContent class="max-w-2xl">
       <ShadcnDialogHeader>

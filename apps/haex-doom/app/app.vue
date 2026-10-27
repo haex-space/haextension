@@ -3,7 +3,7 @@ useHostLocale()
 </script>
 
 <template>
-  <ShadcnSonnerToaster />
+  <ShadcnSonnerToaster theme="dark" />
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

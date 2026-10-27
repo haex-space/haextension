@@ -196,7 +196,8 @@ watch(engine.state, (state) => {
 </script>
 
 <template>
-  <div class="h-screen w-full overflow-hidden select-none">
+  <div class="relative h-screen w-full overflow-hidden select-none">
+    <DoomScene v-if="!playing" />
     <DoomGameView
       v-if="playing"
       ref="gameView"
@@ -212,82 +213,86 @@ watch(engine.state, (state) => {
 
     <main
       v-if="!playing"
-      class="h-full flex flex-col items-center justify-center gap-6 p-6 max-w-md mx-auto overflow-y-auto"
+      class="doom-main"
     >
       <h1
-        class="text-4xl font-black tracking-wide"
+        class="doom-title"
+        data-text="DOOM"
         @click="titleTaps++"
       >
         DOOM
       </h1>
 
-      <DoomMultiplayerLobby
-        v-if="hostSupportsEngine && showLobby"
-        @close="hosting = false"
-      />
-      <p
-        v-else-if="!hostSupportsEngine || engine.error.value === 'host-outdated'"
-        class="text-center text-destructive"
-      >
-        {{ t('hostOutdated') }}
-      </p>
-      <template v-else>
-        <p
-          v-if="engine.error.value"
-          class="text-center text-destructive"
-        >
-          {{ t(`errors.${engine.error.value}`) }}
-        </p>
-        <DoomGameList
-          :games="games.all"
-          :disabled="engine.state.value === 'loading'"
-          @start="startGame"
-          @remove="removeGame"
+      <div class="doom-menu">
+        <DoomMultiplayerLobby
+          v-if="hostSupportsEngine && showLobby"
+          @close="hosting = false"
         />
-        <DoomImportButton class="w-full" />
+        <p
+          v-else-if="!hostSupportsEngine || engine.error.value === 'host-outdated'"
+          class="doom-error"
+        >
+          {{ t('hostOutdated') }}
+        </p>
+        <template v-else>
+          <p
+            v-if="engine.error.value"
+            class="doom-error"
+          >
+            {{ t(`errors.${engine.error.value}`) }}
+          </p>
+          <DoomGameList
+            :games="games.all"
+            :disabled="engine.state.value === 'loading'"
+            @start="startGame"
+            @remove="removeGame"
+          />
+          <DoomImportButton class="w-full" />
+          <section
+            v-if="peers.available.value"
+            class="w-full flex flex-col gap-2"
+          >
+            <h2 class="doom-heading">
+              {{ t('multiplayer') }}
+            </h2>
+            <div class="doom-row">
+              <button
+                type="button"
+                class="doom-btn"
+                :disabled="engine.state.value === 'loading'"
+                @click="hosting = true"
+              >
+                {{ t('hostGame') }}
+              </button>
+              <DoomJoinByCode />
+            </div>
+          </section>
+        </template>
+
         <section
-          v-if="peers.available.value"
+          v-if="showSpeedCheck && hostSupportsEngine"
           class="w-full flex flex-col gap-2"
         >
-          <h2 class="text-sm font-semibold text-muted-foreground">
-            {{ t('multiplayer') }}
-          </h2>
-          <div class="flex gap-2">
-            <ShadcnButton
-              class="flex-1"
-              variant="outline"
-              :disabled="engine.state.value === 'loading'"
-              @click="hosting = true"
-            >
-              {{ t('hostGame') }}
-            </ShadcnButton>
-            <DoomJoinByCode />
-          </div>
+          <button
+            type="button"
+            class="doom-btn"
+            :disabled="engine.state.value === 'loading'"
+            @click="startSpeedCheck"
+          >
+            {{ t('speedCheck') }}
+          </button>
+          <p
+            v-if="speedResult"
+            class="text-center text-sm"
+          >
+            {{ t('speedResult', { tics: speedResult.ticsPerSecond.toFixed(1), realtics: speedResult.realtics, gametics: speedResult.gametics }) }}
+          </p>
         </section>
-      </template>
 
-      <section
-        v-if="showSpeedCheck && hostSupportsEngine"
-        class="w-full flex flex-col gap-2"
-      >
-        <ShadcnButton
-          variant="outline"
-          :disabled="engine.state.value === 'loading'"
-          @click="startSpeedCheck"
-        >
-          {{ t('speedCheck') }}
-        </ShadcnButton>
-        <p
-          v-if="speedResult"
-          class="text-center text-sm"
-        >
-          {{ t('speedResult', { tics: speedResult.ticsPerSecond.toFixed(1), realtics: speedResult.realtics, gametics: speedResult.gametics }) }}
-        </p>
-      </section>
-
-      <div class="flex gap-2">
-        <DoomSettingsDialog />
-        <DoomAboutDialog />
+        <div class="flex gap-2">
+          <DoomSettingsDialog />
+          <DoomAboutDialog />
+        </div>
       </div>
     </main>
   </div>
