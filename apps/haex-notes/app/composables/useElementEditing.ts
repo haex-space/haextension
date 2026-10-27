@@ -1,5 +1,5 @@
 import type { TextElement } from "~/types/document";
-import { addElements } from "~/lib/commands";
+import { addElements, removeElements } from "~/lib/commands";
 import { editableElement, editCell, editLatex, editText, placeElement, setFontFamily, type Box } from "~/lib/elementEdits";
 import { latexElementOf } from "~/lib/latexElement";
 import { formulaOfCell, renderLatexAsync } from "~/lib/math";
@@ -207,6 +207,14 @@ export function useElementEditing(redrawOverlay: () => void) {
     redrawOverlay();
   }
 
+  /** Löscht das ausgewählte Element (Text, Bild, Formel, Tabelle); Rückgängig bringt es zurück. */
+  function removeSelected() {
+    const element = selected.value;
+    if (!element) return;
+    notebook.applyEdit((doc) => removeElements(doc, [element.id], "Löschen"));
+    clear();
+  }
+
   function setFont(fontFamily: string) {
     const element = selected.value;
     if (element?.type !== "text" || element.fontFamily === fontFamily) return;
@@ -233,8 +241,11 @@ export function useElementEditing(redrawOverlay: () => void) {
     ctx.restore();
   }
 
+  const hasSelection = computed(() => !!selected.value);
+
   return {
+    hasSelection,
     selected, editing, formulaEditing, pointerDown, pointerMove, pointerUp, commit, cancel, commitFormula, cancelFormula,
-    insertFormula, setFont, drawSelection, clear,
+    insertFormula, removeSelected, setFont, drawSelection, clear,
   };
 }
