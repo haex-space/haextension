@@ -87,7 +87,7 @@ apps/haex-puzzle/
 ├── nuxt.config.ts                       # port 4012, i18n de/en, hash router, extends ../../packages/haex-ui
 ├── drizzle.config.ts                    # as haex-doom
 ├── haextension.config.json              # dev port 4012
-├── tsconfig.json  eslint.config.mjs  vitest.config.ts  components.json
+├── tsconfig.json  eslint.config.mjs  vitest.config.ts
 ├── haextension/
 │   ├── manifest.json                    # file read only; migrationsDir; de/en names; icon
 │   ├── public.key                       # the repository's shared public key
