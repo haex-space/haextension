@@ -49,7 +49,7 @@ describe('clampView', () => {
   })
 
   it('never lets the content leave the box entirely, in any direction', () => {
-    for (const [x, y] of [[-5000, 0], [5000, 0], [0, -5000], [0, 5000], [-5000, 5000]]) {
+    for (const [x, y] of [[-5000, 0], [5000, 0], [0, -5000], [0, 5000], [-5000, 5000]] as const) {
       const view = clampView({ scale: 2, x, y }, box, content)
       const left = view.x
       const right = view.x + content.width * view.scale
