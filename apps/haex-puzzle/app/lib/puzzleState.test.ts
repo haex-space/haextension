@@ -125,6 +125,128 @@ describe('pieceAt', () => {
   })
 })
 
+describe('release: joining neighbours', () => {
+  const tolerance = (state: PuzzleState) => SNAP_FRACTION * side(state)
+  /** Moves the piece's group so that the piece sits `offset` away from where it should lie next to `anchor`. */
+  function putNextTo(state: PuzzleState, piece: Piece, anchor: Piece, errorX: number, errorY = 0) {
+    const homePiece = homeOf(state, piece)
+    const homeAnchor = homeOf(state, anchor)
+    const wantX = anchor.x + (homePiece.x - homeAnchor.x) + errorX
+    const wantY = anchor.y + (homePiece.y - homeAnchor.y) + errorY
+    moveGroup(state, piece.group, wantX - piece.x, wantY - piece.y)
+  }
+  function offsetsConsistent(state: PuzzleState) {
+    for (const group of state.groups) {
+      const first = state.pieces[group.pieceIds[0]!]!
+      const h0 = homeOf(state, first)
+      for (const id of group.pieceIds) {
+        const p = state.pieces[id]!
+        const h = homeOf(state, p)
+        if (Math.abs(p.x - first.x - (h.x - h0.x)) > 1e-6 || Math.abs(p.y - first.y - (h.y - h0.y)) > 1e-6) return false
+      }
+    }
+    return true
+  }
+
+  it('joins two neighbours released within the tolerance, exactly, and moves them together afterwards', () => {
+    const state = make()
+    const a = pieceAtPosition(state, 1, 1)
+    const b = pieceAtPosition(state, 2, 1)
+    moveGroup(state, a.group, 300 - a.x, 700 - a.y)
+    putNextTo(state, b, a, tolerance(state) - 0.5, 0)
+    release(state, b.group)
+    expect(a.group).toBe(b.group)
+    expect(state.groups.filter(g => g.pieceIds.length === 2)).toHaveLength(1)
+    expect(offsetsConsistent(state)).toBe(true)
+    expect(b.x - a.x).toBeCloseTo(state.grid.pieceWidth, 6)
+
+    moveGroup(state, a.group, 40, 25)
+    expect(b.x - a.x).toBeCloseTo(state.grid.pieceWidth, 6)
+    expect(b.y - a.y).toBeCloseTo(0, 6)
+  })
+
+  it('does not join neighbours released beyond the tolerance', () => {
+    const state = make()
+    const a = pieceAtPosition(state, 1, 1)
+    const b = pieceAtPosition(state, 2, 1)
+    moveGroup(state, a.group, 300 - a.x, 700 - a.y)
+    putNextTo(state, b, a, tolerance(state) + 1, 0)
+    release(state, b.group)
+    expect(a.group).not.toBe(b.group)
+  })
+
+  it('never joins pieces that are not neighbours, even where they would fit', () => {
+    const state = make()
+    const a = pieceAtPosition(state, 0, 0)
+    const c = pieceAtPosition(state, 2, 0)
+    moveGroup(state, a.group, 300 - a.x, 700 - a.y)
+    putNextTo(state, c, a, 0, 0)
+    release(state, c.group)
+    expect(a.group).not.toBe(c.group)
+  })
+
+  it('snaps a joined group to the frame as a whole and places it', () => {
+    const state = make()
+    const a = pieceAtPosition(state, 1, 1)
+    const b = pieceAtPosition(state, 2, 1)
+    moveGroup(state, a.group, 300 - a.x, 700 - a.y)
+    putNextTo(state, b, a, 1, 0)
+    release(state, b.group)
+    putNear(state, a, tolerance(state) / 2, 0)
+    release(state, a.group)
+    const group = state.groups.find(g => g.id === a.group)!
+    expect(group.placed).toBe(true)
+    expect(a.x).toBe(homeOf(state, a).x)
+    expect(b.x).toBe(homeOf(state, b).x)
+    expect(b.y).toBe(homeOf(state, b).y)
+  })
+
+  it('merges every group a released piece fits between, and keeps the join exact', () => {
+    const state = make()
+    const left = pieceAtPosition(state, 0, 1)
+    const middle = pieceAtPosition(state, 1, 1)
+    const right = pieceAtPosition(state, 2, 1)
+    moveGroup(state, left.group, 400 - left.x, 700 - left.y)
+    putNextTo(state, right, left, 3, 2)
+    // `right` is two pieces from `left`; the piece between them joins both.
+    const farOff = right.x
+    expect(farOff).toBeGreaterThan(0)
+    release(state, left.group)
+    putNextTo(state, middle, left, 4, -3)
+    release(state, middle.group)
+    expect(new Set([left.group, middle.group, right.group]).size).toBe(1)
+    expect(offsetsConsistent(state)).toBe(true)
+  })
+
+  it('places a piece that joins a placed neighbour', () => {
+    const state = make()
+    const a = pieceAtPosition(state, 1, 1)
+    const b = pieceAtPosition(state, 2, 1)
+    putNear(state, a, 0)
+    release(state, a.group)
+    putNextTo(state, b, a, tolerance(state) - 0.5, 0)
+    release(state, b.group)
+    expect(state.groups.every(g => g.pieceIds.includes(b.id) ? g.placed : true)).toBe(true)
+    expect(b.x).toBe(homeOf(state, b).x)
+  })
+
+  it('completes once when joins place the last groups', () => {
+    const state = make()
+    const row = state.pieces.filter(p => p.row === 0)
+    for (const p of row) {
+      putNear(state, p, 0.2)
+      release(state, p.group)
+    }
+    for (const p of state.pieces.filter(q => q.row > 0)) {
+      expect(state.phase).toBe('playing')
+      putNear(state, p, 0.2)
+      release(state, p.group)
+    }
+    expect(state.phase).toBe('complete')
+    expect(isComplete(state)).toBe(true)
+  })
+})
+
 describe('completion', () => {
   it('completes exactly when the last piece is placed, once, and then accepts no change', () => {
     const state = make()
@@ -164,8 +286,29 @@ describe('restartSame', () => {
 })
 
 describe('invariants under random play', () => {
-  it('keeps the placed groups at home and every loose group on the table (200 moves × 100 seeds)', () => {
+  function connected(state: PuzzleState, ids: number[]) {
+    const inGroup = new Set(ids)
+    const seen = new Set([ids[0]!])
+    const queue = [ids[0]!]
+    while (queue.length) {
+      const id = queue.pop()!
+      const p = state.pieces[id]!
+      for (const n of [id - 1, id + 1, id - state.grid.columns, id + state.grid.columns]) {
+        const q = state.pieces[n]
+        const adjacent = q && Math.abs(q.column - p.column) + Math.abs(q.row - p.row) === 1
+        if (adjacent && inGroup.has(n) && !seen.has(n)) {
+          seen.add(n)
+          queue.push(n)
+        }
+      }
+    }
+    return seen.size === ids.length
+  }
+
+  it('keeps groups rigid and connected, placed groups at home and loose groups on the table (200 moves × 100 seeds)', () => {
     const violations: string[] = []
+    let largestGroup = 0
+    let placedGroups = 0
     for (let seed = 0; seed < 100; seed++) {
       const random = seededRandom(seed)
       const state = make(seed, 'medium')
@@ -175,18 +318,44 @@ describe('invariants under random play', () => {
         if (!grab(state, group.id)) continue
         const piece = state.pieces[group.pieceIds[0]!]!
         const home = homeOf(state, piece)
-        // Half of the moves end near home, to exercise the snap; the others anywhere, also far off the table.
-        const target = random() < 0.5
-          ? { x: home.x + (random() - 0.5) * side(state), y: home.y + (random() - 0.5) * side(state) }
-          : { x: (random() - 0.5) * 20_000, y: (random() - 0.5) * 20_000 }
+        const roll = random()
+        let target: { x: number; y: number }
+        if (roll < 0.3) {
+          target = { x: home.x + (random() - 0.5) * side(state), y: home.y + (random() - 0.5) * side(state) }
+        } else if (roll < 0.7) {
+          // Next to a neighbour of some piece in the group, with a small error.
+          const neighbours = [piece.id - 1, piece.id + 1, piece.id - state.grid.columns, piece.id + state.grid.columns]
+            .map(i => state.pieces[i]).filter((q): q is Piece => !!q && q.group !== group.id
+              && Math.abs(q.column - piece.column) + Math.abs(q.row - piece.row) === 1)
+          const q = neighbours[Math.floor(random() * neighbours.length)]
+          const hq = q ? homeOf(state, q) : home
+          target = q
+            ? { x: q.x - (hq.x - home.x) + (random() - 0.5) * side(state) * 0.4, y: q.y - (hq.y - home.y) + (random() - 0.5) * side(state) * 0.4 }
+            : { x: random() * 4000 - 2000, y: random() * 4000 - 2000 }
+        } else {
+          target = { x: (random() - 0.5) * 20_000, y: (random() - 0.5) * 20_000 }
+        }
         moveGroup(state, group.id, target.x - piece.x, target.y - piece.y)
         release(state, group.id)
 
+        const owners = new Map<number, number>()
         for (const g of state.groups) {
+          largestGroup = Math.max(largestGroup, g.pieceIds.length)
+          if (g.placed) placedGroups++
           for (const id of g.pieceIds) {
+            owners.set(id, (owners.get(id) ?? 0) + 1)
+            if (state.pieces[id]!.group !== g.id) violations.push(`seed ${seed} move ${move}: piece ${id} names group ${state.pieces[id]!.group}, lies in ${g.id}`)
             const p = state.pieces[id]!
             const h = homeOf(state, p)
             if (g.placed && (p.x !== h.x || p.y !== h.y)) violations.push(`seed ${seed} move ${move}: placed piece ${id} off home`)
+          }
+          if (!connected(state, g.pieceIds)) violations.push(`seed ${seed} move ${move}: group ${g.id} not connected`)
+          const first = state.pieces[g.pieceIds[0]!]!
+          const h0 = homeOf(state, first)
+          for (const id of g.pieceIds) {
+            const p = state.pieces[id]!
+            const h = homeOf(state, p)
+            if (Math.abs(p.x - first.x - (h.x - h0.x)) > 1e-6 || Math.abs(p.y - first.y - (h.y - h0.y)) > 1e-6) violations.push(`seed ${seed} move ${move}: group ${g.id} not rigid`)
           }
           if (!g.placed) {
             const onTable = g.pieceIds.some((id) => {
@@ -197,8 +366,13 @@ describe('invariants under random play', () => {
             if (!onTable) violations.push(`seed ${seed} move ${move}: group ${g.id} off the table`)
           }
         }
+        if (owners.size !== state.pieces.length || [...owners.values()].some(n => n !== 1)) violations.push(`seed ${seed} move ${move}: a piece is not in exactly one group`)
+        if ((state.phase === 'complete') !== state.groups.every(g => g.placed)) violations.push(`seed ${seed} move ${move}: phase disagrees with placed groups`)
       }
     }
+    // The moves must actually reach joins and snaps, or the invariants above prove nothing.
+    expect(largestGroup).toBeGreaterThan(3)
+    expect(placedGroups).toBeGreaterThan(100)
     expect(violations.slice(0, 5)).toEqual([])
   })
 })

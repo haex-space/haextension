@@ -129,16 +129,81 @@ function snapOffset(state: PuzzleState, group: Group): Point | null {
   return best
 }
 
+/** The grid neighbours of a piece: left, right, above, below. */
+function neighboursOf(state: PuzzleState, piece: Piece): Piece[] {
+  const { columns, rows } = state.grid
+  const found: Piece[] = []
+  if (piece.column > 0) found.push(state.pieces[piece.id - 1]!)
+  if (piece.column < columns - 1) found.push(state.pieces[piece.id + 1]!)
+  if (piece.row > 0) found.push(state.pieces[piece.id - columns]!)
+  if (piece.row < rows - 1) found.push(state.pieces[piece.id + columns]!)
+  return found
+}
+
 /**
- * Puts a dragged group down: applies a last move, keeps it on the table, and fixes it to the frame when
- * it lies within the snapping distance of its place. Completes the puzzle when every group is placed.
+ * Joins the group to the first other group that has a grid neighbour of one of its pieces lying where it
+ * belongs next to that piece (within the snapping distance). The joined group is rigid: the released group
+ * is shifted by the small error, so the join is exact. Once it has joined one group (`aligned`), the group
+ * it joins next is shifted instead, so the first join stays exact. Returns the group after the join, or null.
+ */
+function joinNeighbour(state: PuzzleState, group: Group, aligned: boolean): Group | null {
+  const limit = SNAP_FRACTION * Math.min(state.grid.pieceWidth, state.grid.pieceHeight)
+  for (const id of group.pieceIds) {
+    const piece = state.pieces[id]!
+    for (const neighbour of neighboursOf(state, piece)) {
+      if (neighbour.group === group.id) continue
+      const other = groupOf(state, neighbour.group)!
+      const homePiece = homeOf(state, piece)
+      const homeNeighbour = homeOf(state, neighbour)
+      // Where the neighbour is, compared to where it should be relative to this piece.
+      const errorX = neighbour.x - piece.x - (homeNeighbour.x - homePiece.x)
+      const errorY = neighbour.y - piece.y - (homeNeighbour.y - homePiece.y)
+      if (Math.hypot(errorX, errorY) > limit) continue
+
+      // A placed group never moves, and neither does a group that is already aligned to another.
+      if (aligned && !other.placed) shift(state, other, -errorX, -errorY)
+      else shift(state, group, errorX, errorY)
+      return mergeGroups(state, group, other)
+    }
+  }
+  return null
+}
+
+/** Moves every piece of `other` into `group`; the merged group lies on top and is placed if either was. */
+function mergeGroups(state: PuzzleState, group: Group, other: Group): Group {
+  for (const id of other.pieceIds) {
+    state.pieces[id]!.group = group.id
+    group.pieceIds.push(id)
+  }
+  group.placed = group.placed || other.placed
+  group.z = Math.max(group.z, other.z)
+  state.groups.splice(state.groups.indexOf(other), 1)
+  return group
+}
+
+/**
+ * Puts a dragged group down: applies a last move, keeps it on the table, fixes it to the frame when it
+ * lies within the snapping distance of its place, and otherwise joins it to the neighbours it fits next
+ * to. Completes the puzzle when every group is placed.
  */
 export function release(state: PuzzleState, groupId: number, dx = 0, dy = 0): void {
   const group = groupOf(state, groupId)
   if (!group || group.placed || state.phase === 'complete') return
   shift(state, group, dx, dy)
   keepOnTable(state, group)
-  if (snapOffset(state, group)) place(state, group)
+
+  let aligned = false
+  while (!group.placed) {
+    if (snapOffset(state, group)) {
+      place(state, group)
+    } else if (joinNeighbour(state, group, aligned)) {
+      aligned = true
+    } else {
+      break
+    }
+  }
+  // Pieces joined to a placed group lie at home too; make sure of it exactly.
+  if (group.placed) place(state, group)
   if (isComplete(state)) state.phase = 'complete'
 }
 

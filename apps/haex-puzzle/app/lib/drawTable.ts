@@ -1,4 +1,4 @@
-import type { PuzzleState, View } from '~/types/puzzle'
+import type { Piece, PuzzleState, View } from '~/types/puzzle'
 import type { Sprites } from './pieceSprites'
 
 export interface TableColors {
@@ -52,11 +52,48 @@ export function drawTable(context: CanvasRenderingContext2D, scene: TableScene):
   context.strokeRect(0, 0, grid.width, grid.height)
   context.setLineDash([])
 
+  const placedGroups = new Set(state.groups.filter(g => g.placed).map(g => g.id))
   const ordered = [...state.groups].sort((a, b) => Number(b.placed) - Number(a.placed) || a.z - b.z)
   for (const group of ordered) {
     for (const id of group.pieceIds) {
       const piece = state.pieces[id]!
       context.drawImage(sprites.pieces[id]!.canvas, piece.x - sprites.margin, piece.y - sprites.margin)
+    }
+    drawOutline(context, state, sprites, group.pieceIds, placedGroups)
+  }
+}
+
+/** The piece's neighbour on a side (top, right, bottom, left), or null at the picture's border. */
+function neighbourOn(state: PuzzleState, piece: Piece, side: number): Piece | null {
+  const { columns, rows } = state.grid
+  if (side === 0) return piece.row > 0 ? state.pieces[piece.id - columns]! : null
+  if (side === 1) return piece.column < columns - 1 ? state.pieces[piece.id + 1]! : null
+  if (side === 2) return piece.row < rows - 1 ? state.pieces[piece.id + columns]! : null
+  return piece.column > 0 ? state.pieces[piece.id - 1]! : null
+}
+
+/**
+ * Lines around a group's pieces, but not between two pieces of one group or between two placed ones, so a
+ * joined or placed area reads as a part of the picture. The sides are drawn where the sprites sit: at the
+ * pieces' current position, shifted from their home in the table coordinates the paths are in.
+ */
+function drawOutline(context: CanvasRenderingContext2D, state: PuzzleState, sprites: Sprites, pieceIds: number[], placedGroups: Set<number>): void {
+  const { grid, pieces } = state
+  for (const pass of [0, 1]) {
+    context.lineJoin = 'round'
+    context.lineWidth = pass === 0 ? sprites.lineWidth : sprites.lineWidth * 0.7
+    context.strokeStyle = pass === 0 ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.4)'
+    const nudge = pass === 0 ? 0 : -sprites.lineWidth * 0.6
+    for (const id of pieceIds) {
+      const piece = pieces[id]!
+      context.save()
+      context.translate(piece.x - piece.column * grid.pieceWidth + nudge, piece.y - piece.row * grid.pieceHeight + nudge)
+      for (let side = 0; side < 4; side++) {
+        const neighbour = neighbourOn(state, piece, side)
+        const hidden = neighbour && (neighbour.group === piece.group || (placedGroups.has(piece.group) && placedGroups.has(neighbour.group)))
+        if (!hidden) context.stroke(sprites.sides[id]![side]!)
+      }
+      context.restore()
     }
   }
 }
