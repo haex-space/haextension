@@ -1,5 +1,5 @@
-import type { Edges, Grid, PathCommand, Piece, Point } from '~/types/puzzle'
-import { OVERHANG, pieceOutline } from './jigsaw'
+import type { Edges, Grid, PathCommand, Piece, Point, Segment } from '~/types/puzzle'
+import { OVERHANG, pieceOutline, pieceSides } from './jigsaw'
 
 export interface PieceSprite {
   canvas: HTMLCanvasElement
@@ -9,6 +9,13 @@ export interface PieceSprite {
 
 export interface Sprites {
   pieces: PieceSprite[]
+  /**
+   * Per piece, its four sides (top, right, bottom, left) as paths in table coordinates, drawn as lines
+   * only where the piece has no joined neighbour.
+   */
+  sides: Path2D[][]
+  /** Width of those lines, in picture pixels. */
+  lineWidth: number
   /** Space around the cell box in each sprite, for the tabs. */
   margin: number
   /** Whether a point, relative to the piece's cell box, lies inside the piece's outline. */
@@ -26,9 +33,19 @@ function toPath(commands: PathCommand[]): Path2D {
   return path
 }
 
+function sidePath(segments: Segment[]): Path2D {
+  const path = new Path2D()
+  path.moveTo(segments[0]!.from.x, segments[0]!.from.y)
+  for (const { c1, c2, to } of segments) {
+    if (c1 && c2) path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y)
+    else path.lineTo(to.x, to.y)
+  }
+  return path
+}
+
 /**
- * Renders every piece once, at the picture's own resolution: the piece's part of the picture, clipped
- * to its outline, with a dark line and a light edge for relief.
+ * Renders every piece once, at the picture's own resolution: the piece's part of the picture, clipped to
+ * its outline. The outline lines are drawn per frame (see `drawTable`), so joined pieces can leave them out.
  */
 export function makeSprites(image: CanvasImageSource & { width: number; height: number }, grid: Grid, edges: Edges): Sprites {
   const side = Math.min(grid.pieceWidth, grid.pieceHeight)
@@ -37,6 +54,7 @@ export function makeSprites(image: CanvasImageSource & { width: number; height: 
   const scaleY = image.height / grid.height
   const lineWidth = Math.max(1.5, side / 90)
   const pieces: PieceSprite[] = []
+  const sides: Path2D[][] = []
 
   for (let row = 0; row < grid.rows; row++) {
     for (let column = 0; column < grid.columns; column++) {
@@ -65,25 +83,17 @@ export function makeSprites(image: CanvasImageSource & { width: number; height: 
       )
       context.restore()
 
-      context.lineJoin = 'round'
-      context.lineWidth = lineWidth
-      context.strokeStyle = 'rgba(0, 0, 0, 0.55)'
-      context.stroke(inSprite)
-      context.save()
-      context.clip(inSprite)
-      context.translate(-lineWidth * 0.6, -lineWidth * 0.6)
-      context.lineWidth = lineWidth * 0.8
-      context.strokeStyle = 'rgba(255, 255, 255, 0.4)'
-      context.stroke(inSprite)
-      context.restore()
-
       pieces.push({ canvas, path })
+      const own = pieceSides(grid, edges, column, row)
+      sides.push([own.top, own.right, own.bottom, own.left].map(sidePath))
     }
   }
 
   const scratch = document.createElement('canvas').getContext('2d')!
   return {
     pieces,
+    sides,
+    lineWidth,
     margin,
     contains: (piece, local) => scratch.isPointInPath(pieces[piece.id]!.path, local.x, local.y),
   }
