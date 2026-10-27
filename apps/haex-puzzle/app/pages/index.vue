@@ -7,6 +7,13 @@ import type { AddResult, DifficultyId, LibraryItem, Rejection } from '~/types/pu
 const { t } = useI18n()
 const library = useLibraryStore()
 const { addPictures, adding } = usePictureImport()
+const puzzle = usePuzzle()
+// A hook for trying the app by script when it runs standalone (`HAEX_STANDALONE=1 pnpm dev`); never in a release build.
+if (useStandalone()) (window as unknown as { __puzzle: unknown }).__puzzle = puzzle
+const { state: puzzleState, phase, loading: starting, finishedMs } = puzzle
+
+/** Whether the finished-puzzle dialog was closed; the next puzzle shows it again. */
+const dismissed = ref(false)
 
 onMounted(async () => {
   try {
@@ -57,13 +64,45 @@ const grid = computed(() => picked.value
   ? chooseGrid(picked.value.width, picked.value.height, difficultyById(difficulty.value).target)
   : null)
 
-function start() {
-  // The puzzle view follows with the next story.
+async function start() {
+  const item = picked.value
+  if (!item) return
+  try {
+    await puzzle.begin(item, difficulty.value)
+    dismissed.value = false
+    picked.value = null
+  } catch (error) {
+    console.error('[haex-puzzle] Could not start the puzzle:', error)
+    toast.error(t('openFailed'))
+  }
+}
+
+function playAgain() {
+  puzzle.restart()
+  dismissed.value = false
+}
+
+function leave() {
+  puzzle.leave()
 }
 </script>
 
 <template>
-  <div class="h-screen overflow-y-auto p-4 md:p-6">
+  <div v-if="puzzleState" class="h-screen flex flex-col">
+    <PuzzleHud :confirm="phase !== 'complete'" @leave="leave" />
+    <div class="flex-1 min-h-0">
+      <PuzzleTable :puzzle="puzzle" />
+    </div>
+    <PuzzleCompleteDialog
+      :open="phase === 'complete' && !dismissed"
+      :elapsed-ms="finishedMs"
+      @update:open="dismissed = !$event"
+      @again="playAgain"
+      @leave="leave"
+    />
+  </div>
+
+  <div v-else class="h-screen overflow-y-auto p-4 md:p-6">
     <PuzzleLibraryGrid :adding="adding" @add="onAdd" @pick="onPick" />
 
     <ShadcnDialog v-model:open="choosing">
@@ -81,8 +120,8 @@ function start() {
         </p>
 
         <ShadcnDialogFooter>
-          <ShadcnButton @click="start">
-            {{ t('start') }}
+          <ShadcnButton :disabled="starting" @click="start">
+            {{ starting ? t('starting') : t('start') }}
           </ShadcnButton>
         </ShadcnDialogFooter>
       </ShadcnDialogContent>
@@ -95,6 +134,8 @@ de:
   chooseHint: Wie schwer soll das Puzzle werden?
   grid: "{columns} × {rows} = {count} Teil | {columns} × {rows} = {count} Teile"
   start: Puzzle starten
+  starting: Wird vorbereitet …
+  openFailed: Das Bild konnte nicht geöffnet werden. Entferne es aus der Bibliothek und füge es erneut hinzu.
   selectTitle: Bilder auswählen
   images: Bilder
   loadFailed: Die Bibliothek konnte nicht geladen werden.
@@ -111,6 +152,8 @@ en:
   chooseHint: How hard should the puzzle be?
   grid: "{columns} × {rows} = {count} piece | {columns} × {rows} = {count} pieces"
   start: Start puzzle
+  starting: Preparing …
+  openFailed: The picture could not be opened. Remove it from the library and add it again.
   selectTitle: Select pictures
   images: Pictures
   loadFailed: The library could not be loaded.
