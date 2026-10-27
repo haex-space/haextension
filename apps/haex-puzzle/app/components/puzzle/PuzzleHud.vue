@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ArrowLeft, Maximize } from '@lucide/vue'
+import { ArrowLeft, Eye, EyeOff, Maximize } from '@lucide/vue'
+import { formatElapsed } from '~/lib/formatTime'
 
 const props = defineProps<{
   /** Whether leaving throws away progress (false once the puzzle is complete). */
   confirm: boolean
+  elapsedMs: number
 }>()
+const preview = defineModel<boolean>('preview', { default: false })
 const emit = defineEmits<{ leave: []; fit: [] }>()
 
 const { t } = useI18n()
@@ -23,9 +26,25 @@ function onLeave() {
       {{ t('newPuzzle') }}
     </ShadcnButton>
 
+    <span class="ml-auto tabular-nums text-sm font-medium" :aria-label="t('time')" role="timer">
+      {{ formatElapsed(elapsedMs) }}
+    </span>
+
     <ShadcnButton
       variant="ghost"
-      class="h-11 sm:h-9 ml-auto"
+      class="h-11 sm:h-9"
+      :aria-pressed="preview"
+      :aria-label="t('preview')"
+      :title="t('preview')"
+      @click="preview = !preview"
+    >
+      <component :is="preview ? EyeOff : Eye" class="w-4 h-4 sm:mr-2" />
+      <span class="hidden sm:inline">{{ t('preview') }}</span>
+    </ShadcnButton>
+
+    <ShadcnButton
+      variant="ghost"
+      class="h-11 sm:h-9"
       :aria-label="t('fit')"
       :title="t('fit')"
       @click="emit('fit')"
@@ -55,6 +74,8 @@ function onLeave() {
 de:
   newPuzzle: Neues Puzzle
   fit: Ganzer Tisch
+  preview: Vorschau
+  time: Zeit
   leaveTitle: Puzzle verlassen?
   leaveHint: Der Fortschritt dieses Puzzles geht verloren.
   stay: Weiterspielen
@@ -62,6 +83,8 @@ de:
 en:
   newPuzzle: New puzzle
   fit: Whole table
+  preview: Preview
+  time: Time
   leaveTitle: Leave the puzzle?
   leaveHint: The progress of this puzzle will be lost.
   stay: Keep playing

@@ -10,7 +10,8 @@ const { addPictures, adding } = usePictureImport()
 const puzzle = usePuzzle()
 // A hook for trying the app by script when it runs standalone (`HAEX_STANDALONE=1 pnpm dev`); never in a release build.
 if (useStandalone()) (window as unknown as { __puzzle: unknown }).__puzzle = puzzle
-const { state: puzzleState, phase, loading: starting, finishedMs } = puzzle
+const { state: puzzleState, phase, loading: starting, finishedMs, elapsedMs, previewUrl } = puzzle
+const showPreview = ref(false)
 
 /** Whether the finished-puzzle dialog was closed; the next puzzle shows it again. */
 const dismissed = ref(false)
@@ -83,15 +84,22 @@ function playAgain() {
 }
 
 function leave() {
+  showPreview.value = false
   puzzle.leave()
 }
 </script>
 
 <template>
   <div v-if="puzzleState" class="h-screen flex flex-col">
-    <PuzzleHud :confirm="phase !== 'complete'" @leave="leave" @fit="puzzle.fit" />
-    <div class="flex-1 min-h-0">
+    <PuzzleHud v-model:preview="showPreview" :confirm="phase !== 'complete'" :elapsed-ms="phase === 'complete' ? finishedMs : elapsedMs" @leave="leave" @fit="puzzle.fit" />
+    <div class="relative flex-1 min-h-0">
       <PuzzleTable :puzzle="puzzle" />
+      <img
+        v-if="showPreview && previewUrl"
+        :src="previewUrl"
+        :alt="t('previewAlt')"
+        class="pointer-events-none absolute right-3 top-3 w-36 sm:w-56 rounded-md border-2 border-background shadow-lg"
+      >
     </div>
     <PuzzleCompleteDialog
       :open="phase === 'complete' && !dismissed"
@@ -134,6 +142,7 @@ de:
   chooseHint: Wie schwer soll das Puzzle werden?
   grid: "{columns} × {rows} = {count} Teil | {columns} × {rows} = {count} Teile"
   start: Puzzle starten
+  previewAlt: Vorschau des fertigen Bildes
   starting: Wird vorbereitet …
   openFailed: Das Bild konnte nicht geöffnet werden. Entferne es aus der Bibliothek und füge es erneut hinzu.
   selectTitle: Bilder auswählen
@@ -152,6 +161,7 @@ en:
   chooseHint: How hard should the puzzle be?
   grid: "{columns} × {rows} = {count} piece | {columns} × {rows} = {count} pieces"
   start: Start puzzle
+  previewAlt: Preview of the finished picture
   starting: Preparing …
   openFailed: The picture could not be opened. Remove it from the library and add it again.
   selectTitle: Select pictures

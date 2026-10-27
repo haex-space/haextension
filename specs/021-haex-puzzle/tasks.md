@@ -176,9 +176,9 @@ description: "Task list for haex-puzzle"
 
 **Independent test**: start a puzzle, toggle the preview on and off, leave the window for ten seconds and return; the timer shows only the time spent in the extension ([spec.md](spec.md) US6; quickstart scenario Q).
 
-- [ ] T058 [US6] Add the visible timer to `APP/app/components/puzzle/PuzzleHud.vue` (`m:ss`, updated once a second from `stopwatch.elapsed()` while playing; frozen at completion).
-- [ ] T059 [US6] Pause the stopwatch while the extension is not visible or has no focus, in `APP/app/composables/usePuzzle.ts`: `window` `blur` and `document.visibilitychange` call `pause()`, `focus` and becoming visible call `resume()` (the pattern of `pauseWhilePlaying` in `apps/haex-tetris/app/pages/index.vue`); remove the listeners on unmount.
-- [ ] T060 [P] [US6] Add the preview: a toggle in `APP/app/components/puzzle/PuzzleHud.vue` showing a small non-interactive image of the complete picture (from the same decoded image, in a corner overlay that does not capture pointer events and does not hide the table's centre); toggled off it disappears. German and English texts.
+- [X] T058 [US6] Add the visible timer to `APP/app/components/puzzle/PuzzleHud.vue` (`m:ss`, updated once a second from `stopwatch.elapsed()` while playing; frozen at completion).
+- [X] T059 [US6] Pause the stopwatch while the extension is not visible or has no focus, in `APP/app/composables/usePuzzle.ts`: `window` `blur` and `document.visibilitychange` call `pause()`, `focus` and becoming visible call `resume()` (the pattern of `pauseWhilePlaying` in `apps/haex-tetris/app/pages/index.vue`); remove the listeners on unmount.
+- [X] T060 [P] [US6] Add the preview: a toggle in `APP/app/components/puzzle/PuzzleHud.vue` showing a small non-interactive image of the complete picture (from the same decoded image, in a corner overlay that does not capture pointer events and does not hide the table's centre); toggled off it disappears. German and English texts.
 
 **Checkpoint**: all six user stories work.
 
