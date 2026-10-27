@@ -1,6 +1,6 @@
 import getStroke from "perfect-freehand";
 import { formulaOfCell, FORMULA_EM_PX, paint, svgDataUrl } from "../math";
-import { BASELINE_SHARE, lineStepOf } from "../paperRows";
+import { BASELINE_SHARE, LINE_HEIGHT, lineStepOf } from "../paperRows";
 import type {
   BBox,
   ImageElement,
@@ -252,7 +252,7 @@ function drawCells(ctx: CanvasRenderingContext2D, table: TableElement, images?: 
         const box = { x: left, y: top, width, height: table.rowHeights[r]! };
         if (!drawCellFormula(ctx, cell, box, images)) {
           const lines = wrapLines(ctx, cell, width - 2 * CELL_PADDING);
-          fillLines(ctx, lines, left + CELL_PADDING, top + CELL_PADDING, CELL_FONT_SIZE);
+          fillLines(ctx, lines, left + CELL_PADDING, top + CELL_PADDING, CELL_FONT_SIZE * LINE_HEIGHT);
         }
         ctx.restore();
       }

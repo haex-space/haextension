@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ImageElement, ImageSource, LatexElement, StrokeElement, TableElement, TextElement } from "~/types/document";
-import { drawElement, drawElements, measureTextHeight, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
+import { LINE_HEIGHT } from "../paperRows";
+import { CELL_FONT_SIZE, drawElement, drawElements, measureTextHeight, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
 
 describe("strokeOutlineToPath", () => {
   it("returns an empty string for fewer than two points", () => {
@@ -184,6 +185,12 @@ describe("drawElement for table cells", () => {
     const { context, texts } = recorder();
     drawElement(context, table([["Tag", "Fach"], ["Di", ""]]));
     expect(texts()).toEqual([["Tag", 4, 4], ["Fach", 84, 4], ["Di", 4, 34]]);
+  });
+
+  it("keeps the line spacing of multiline cell text", () => {
+    const { context, texts } = recorder();
+    drawElement(context, table([["long text", ""]]));
+    expect(texts()).toEqual([["long", 4, 4], ["text", 4, 4 + CELL_FONT_SIZE * LINE_HEIGHT]]);
   });
 
   it("draws a table without cells, or with broken ones, as its grid only", () => {
