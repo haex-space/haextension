@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { File as FileIcon, FilePlus, Maximize2, PanelRightOpen, Paperclip, Trash2 } from "@lucide/vue";
-import { addAttachment, isRemovable, removeAttachment } from "~/lib/attachments";
+import { addAttachment, removeAttachment } from "~/lib/attachments";
 import { reportError } from "~/lib/errors";
 import { formatBytes } from "~/lib/fileSize";
 import type { PageAttachment } from "~/types/document";
@@ -10,6 +10,7 @@ const { t, locale } = useI18n();
 const notebook = useNotebookStore();
 const viewer = useAttachmentViewerStore();
 const assetStore = useAssetStore();
+const haexVault = useHaexVaultStore();
 
 const attachments = computed(() => notebook.currentDoc?.attachments ?? []);
 
@@ -34,6 +35,13 @@ async function onFileAsync(event: Event) {
 }
 
 const remove = async (attachment: PageAttachment) => {
+  // Das Original zu entfernen löst die Seite vom Foto; vorher fragen. Ohne `allow-modals` gibt `window.confirm()` sofort false zurück.
+  if (attachment.kind === "original") {
+    const sure = await haexVault.client.dialog.confirm({
+      message: t("confirmRemoveOriginal"), confirmLabel: t("remove"), destructive: true,
+    });
+    if (!sure) return;
+  }
   notebook.applyEdit((doc) => removeAttachment(doc, attachment.id, t("remove")));
   await notebook.saveCurrentPageAsync();
 };
@@ -74,7 +82,6 @@ const remove = async (attachment: PageAttachment) => {
             <Maximize2 class="size-4" />
           </button>
           <button
-            v-if="isRemovable(attachment)"
             class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
             :title="t('remove')"
             @click="remove(attachment)"
@@ -99,6 +106,7 @@ de:
   beside: Neben der Seite öffnen
   fullscreen: Im Vollbild öffnen – nur der Anhang ist zu sehen
   remove: Anhang entfernen
+  confirmRemoveOriginal: Das Original dieser Seite wirklich entfernen? Die Seite bleibt, ist danach aber nicht mehr mit dem Foto verbunden (Nahfoto lesen geht dann nicht mehr).
   attach: Datei anhängen
 en:
   title: Attachments of the page
@@ -107,5 +115,6 @@ en:
   beside: Open beside the page
   fullscreen: Open in full screen – only the attachment is shown
   remove: Remove attachment
+  confirmRemoveOriginal: Really remove the original of this page? The page stays but is no longer linked to the photo (reading a close-up no longer works).
   attach: Attach a file
 </i18n>
