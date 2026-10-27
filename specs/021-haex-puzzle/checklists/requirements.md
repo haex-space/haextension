@@ -35,3 +35,4 @@
 - The difficulty piece counts (12 / 48 / 108 / 192) are assumptions to tune during planning, not fixed requirements.
 - Added in review: a permanent picture library (US3, FR-023..027, SC-009, SC-010; removal of single or several pictures, final); its storage mechanism and size limits are planning decisions.
 - Save/resume, best times, piece rotation, sample pictures and multiplayer are explicitly out of scope (see Assumptions).
+- Analysis fixes (2026-10-27): picture id is the SHA-256 of the original file (sync-safe duplicates); library behaviour split into a tested `createLibrary` over a backend; grid choice moved to the foundation; a picture that cannot be stored is not played from; FR-014 and the timer start clarified; sync of additions and removals, the 1 MiB per-picture limit and the absence of a library count limit stated as assumptions; SC-011 added for adding a photo.

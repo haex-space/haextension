@@ -21,7 +21,8 @@ Phase 0 of [plan.md](plan.md). Every open point of the spec's Assumptions (stora
 
 ## R-3 Duplicates
 
-- **Decision**: Every row carries the SHA-256 of the **original file's bytes** (`content_hash`, unique index). Adding a file whose hash is already stored returns the existing entry without writing (FR-026).
+- **Decision**: A row's **primary key is the lowercase hex SHA-256 of the original file's bytes**; there is no separate hash column and no other unique index. Adding a file whose hash is already stored returns the existing entry without writing (`INSERT … ON CONFLICT (id) DO NOTHING`, FR-026).
+- **Why the key, not a unique column**: the table is synced (R-4). With random ids and a unique index on the hash, two devices adding the same file offline would produce two different rows that violate the index when they meet. With the hash as key they are one row, as the save games of `haex-doom` are one row per `<fingerprint>:<slot>` on every device.
 - **Rationale**: Hashing the original needs no decode and catches the realistic case: the same file added twice. Hashing the re-encoded copy would not, because encoders are not guaranteed to be deterministic.
 - **Ceiling** (marked with a `ponytail:` comment in code): the same photo saved at two different sizes counts as two pictures. A perceptual hash would catch it; not worth the code.
 
@@ -29,7 +30,8 @@ Phase 0 of [plan.md](plan.md). Every open point of the spec's Assumptions (stora
 
 - **Decision**: The library table is **synced** (no `_no_sync` suffix in its name), so a picture added on one device shows up on the user's other devices. The thumbnail and the picture live in the **same row**, and listing selects only the metadata and thumbnail columns, never the picture blob.
 - **Rationale**: The user asked for pictures that stay available; being available on every device of the vault is the natural reading, and each row is at most ~1 MiB so a sync never needs to move anything large. Putting both blobs in one row means a sync conflict or a failed write never leaves a thumbnail without a picture. `haex-doom` sets the precedent in the other direction (`_no_sync` for its 30 MB copyrighted game files, synced for small saves); the reasons for `_no_sync` there (size, copyright) do not apply to pictures the user owns.
-- **Consequence for the spec**: A picture removed on one device is removed on the others once they sync; the spec's "closed and opened again" scenarios hold per device. Recorded as an assumption in the plan's summary rather than a spec change.
+- **Consequence for the spec**: A picture removed on one device is removed on the others once they sync; the spec's "closed and opened again" scenarios hold per device. The spec's Assumptions state this (Library storage).
+- **No size cap on the library**: each row is at most 1 MiB (R-2), a typical photo copy 300–600 KB, so 200 pictures are usually 60–120 MB and at worst 200 MiB. The extension sets no count limit of its own beyond the vault's room, because a limit would be arbitrary and the per-picture bound already keeps every row small. This is a deliberate choice, measured with a 200-picture library in the final walk-through (tasks.md T061, quickstart scenario R) and revisited if the sync proves slow.
 - **Alternatives considered**: Device-local only (`_no_sync`): simpler, but "permanently available" would stop at the device's edge, and a lost phone would lose the library. Rejected.
 
 ## R-5 Difficulty levels and piece counts
@@ -66,7 +68,7 @@ Phase 0 of [plan.md](plan.md). Every open point of the spec's Assumptions (stora
   2. Otherwise, for every piece of the group and every grid neighbour of it that is not in the same group, if the neighbour's actual offset from this piece is within **0.25 × piece side** of its home offset, the two groups join and the dragged group moves by that error so the join is exact.
   3. A group that joins a placed group is placed as well.
   Placed groups are not hit-tested, so they cannot be dragged by accident (FR-011).
-- **Release position**: clamped so that at least one piece of the group stays inside the table (FR-014).
+- **Release position**: clamped so that at least one piece of the group stays inside the table (FR-014). The table, not the current viewport, is the limit: when zoomed in, the user pans to a piece that lies off-screen. The topmost piece at a point is the one hit-tested first, and a piece under others becomes reachable by moving what lies on top, which is itself always reachable.
 - **Completion**: all pieces belong to one placed group (equivalently, every piece is placed). The state machine is `idle → playing → complete`.
 - **Rationale**: Snapping to the frame and joining by neighbour share one distance rule and one tolerance, so SC-006 is two inequalities that a table of tests can pin down on both sides of the threshold.
 - **Alternatives considered**: Snapping only to the frame (fails US5); snapping per piece rather than per group (a group would stop being rigid).
@@ -94,7 +96,7 @@ Phase 0 of [plan.md](plan.md). Every open point of the spec's Assumptions (stora
 
 ## R-14 Testing
 
-- **Decision**: Vitest in `node` environment, test files beside the modules (`*.test.ts`), exactly as `haex-tetris` and `haex-doom` configure it. All logic is in `app/lib` and runs without a browser: geometry, grid choice, scatter, snapping and joining, stopwatch, zoom/pan, size-budget decisions, the SQL row mapping. The canvas rendering and the two image-pipeline steps that need a browser (decode, encode) are covered by the manual validation in [quickstart.md](quickstart.md), not by mocks that would only test the mock.
+- **Decision**: Vitest in `node` environment, test files beside the modules (`*.test.ts`), exactly as `haex-tetris` and `haex-doom` configure it. All logic is in `app/lib` and runs without a browser: geometry, grid choice, scatter, snapping and joining, stopwatch, zoom/pan, size-budget decisions, the SQL row mapping, and the library behaviour (`createLibrary` over an in-memory backend, and the SQL layer over a fake `database` client — a fake at the vault boundary, not a mock of the library's own logic). The canvas rendering and the two image-pipeline steps that need a browser (decode, encode) are covered by the manual validation in [quickstart.md](quickstart.md), not by mocks that would only test the mock.
 - **Constitution fit**: tests in separate files; one runnable check at least for every non-trivial logic module.
 
 ## R-15 Reuse check (graphify, per the repository constitution)

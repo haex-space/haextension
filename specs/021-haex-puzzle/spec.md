@@ -15,6 +15,7 @@
 - Q: What shape do the pieces have? → A: The classic jigsaw shape, with tabs and blanks that interlock with their neighbours. Plain rectangles are not enough.
 - Q: Which workflow? → A: The full Spec Kit cycle (specify → plan → tasks → implement with review gates), as for haex-doom.
 - Q: Must a picture be opened again for every puzzle? → A: No. A picture that has been added stays available permanently in a library inside the extension; the user picks it from there for any later puzzle and only needs the device's file selection to add a new one.
+- Analysis 2026-10-27: a picture that cannot be stored is not played from (the edge case no longer promises a session-only puzzle); a removal is all or nothing; the timer counts from the first piece picked up; removal on one device reaches the others; the same picture added on two devices is one entry; a stored picture is limited to 1 MiB and the library has no count limit of its own.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -112,7 +113,7 @@ When the user fits two pieces that belong next to each other, they join and from
 
 ### User Story 6 - Look at the picture and track my time (Priority: P3)
 
-While solving, the user can show a small preview of the complete picture, hide it again, and see how much time has passed since the puzzle began. The timer pauses when the extension is not visible.
+While solving, the user can show a small preview of the complete picture, hide it again, and see how much time has passed since they started solving, counted from the first piece they pick up. The timer pauses when the extension is not visible.
 
 **Why this priority**: Helpful, but the puzzle is solvable without either. The preview is the most useful of the two since the user may not remember the picture well.
 
@@ -131,7 +132,7 @@ While solving, the user can show a small preview of the complete picture, hide i
 - The user cancels the file selection: nothing changes, and no error is shown.
 - The chosen file is not a picture, is damaged, or is in a format that cannot be decoded: the user sees a clear message that the file cannot be used and can choose another; the library is unchanged.
 - The library is large (for example 200 pictures): the start screen still opens quickly and scrolls smoothly, because it shows small thumbnails and not the full pictures.
-- Storing a picture fails (for example the vault has no room left): the user is told that the picture could not be kept; nothing half-saved remains in the library, and a puzzle can still be played from the picture for this session.
+- Storing a picture fails (for example the vault has no room left): the user is told that the picture could not be kept; nothing half-saved remains in the library. The picture is not played from in that case; the user adds it again once there is room.
 - The original file is moved or deleted on the device after the picture was added: the library entry still works, because the library holds its own copy.
 - A stored picture is damaged or cannot be read any more: its entry is marked as unusable and can be removed, and the other entries are not affected.
 - A very large picture (for example a 48-megapixel photo): the puzzle still starts within a few seconds and plays smoothly; the picture is reduced to a size that fits the table without visible loss at the size it is shown.
@@ -139,12 +140,12 @@ While solving, the user can show a small preview of the complete picture, hide i
 - A picture with transparency: transparent areas are shown on a neutral background instead of leaving holes in the pieces.
 - A picture with an extreme aspect ratio (for example a 10:1 panorama): the grid still yields pieces of a usable shape, and the number of pieces stays within the difficulty's range.
 - A photo whose orientation is stored in its metadata (a phone portrait photo): it is shown the right way up.
-- Two pieces are dropped on exactly the same spot: both remain reachable (the one on top can be moved away).
-- The user resizes the window mid-puzzle: pieces keep their relative positions on the table, and none ends up outside the visible area.
-- A piece is dragged outside the table: it is kept inside the table's visible area when released.
+- Two pieces are dropped on exactly the same spot: both remain reachable (the one on top is picked up first and can be moved away, which frees the one below).
+- The user resizes the window mid-puzzle: pieces keep their relative positions on the picture, and none is lost: the view refits the table to the new window.
+- A piece is dragged outside the table: when released it is moved back so that it lies at least partly inside the table, and a group likewise keeps at least one piece inside.
 - The user switches the host theme or language while a puzzle is running: texts and surroundings update, and the puzzle is not reset.
 - The user removes every picture in the library: the start screen shows the empty state with the "Add picture" action, as on first use.
-- Removing several pictures fails part-way (for example the vault becomes unavailable): the user is told which pictures could not be removed, and those stay in the library, fully usable.
+- Removing pictures fails (for example the vault becomes unavailable): a removal is all or nothing, so the user is told that the pictures could not be removed, and every one of them stays in the library, fully usable.
 - The user closes the extension mid-puzzle: the puzzle is not kept (see Assumptions), while the library is.
 
 ## Requirements *(mandatory)*
@@ -164,9 +165,9 @@ While solving, the user can show a small preview of the complete picture, hide i
 - **FR-011**: The system MUST snap a piece, or a group, to its correct position when it is released within a snapping distance of that position, and MUST NOT let a placed piece be moved by accident afterwards.
 - **FR-012**: The system MUST join two pieces that are neighbours in the picture into a group when they are released with their edges meeting, MUST move the group as one when any of its pieces is dragged, and MUST NOT join pieces that are not neighbours.
 - **FR-013**: The system MUST detect when every piece is in its place, and MUST then show the finished picture without outlines, a completion message and the elapsed time.
-- **FR-014**: The system MUST keep every piece reachable: a piece cannot be released outside the visible table, and no piece can be covered so that it cannot be picked up.
+- **FR-014**: The system MUST keep every piece reachable: a piece or group cannot be released with all of its pieces outside the table, and a piece that lies under others can always be freed, because the piece or group on top is itself always reachable and can be moved away. The topmost piece at a point is the one that is picked up.
 - **FR-015**: The system MUST offer a preview of the complete picture that the user can turn on and off during the puzzle.
-- **FR-016**: The system MUST show the elapsed time of the running puzzle and MUST pause it while the extension is not visible or has no focus.
+- **FR-016**: The system MUST show the elapsed time of the running puzzle, counted from the first piece the user picks up, and MUST pause it while the extension is not visible or has no focus.
 - **FR-017**: The system MUST offer "New puzzle" and "Play again", and MUST ask for confirmation before discarding a puzzle in progress.
 - **FR-018**: The system MUST work on desktop and on touch devices, MUST prevent the page from scrolling or zooming while a piece is dragged on a touch device, and MUST let the user zoom and pan the table by touch.
 - **FR-019**: The system MUST keep the pieces' positions relative to the picture when the window size or the device orientation changes.
@@ -202,11 +203,12 @@ While solving, the user can show a small preview of the complete picture, hide i
 - **SC-008**: Switching theme or language while a puzzle is running leaves the puzzle's state unchanged in 100 % of the cases.
 - **SC-009**: 100 % of the pictures added are still in the library, unchanged, after the extension is closed and opened again, and after the device is restarted.
 - **SC-010**: In 100 % of the removals, the removed pictures are gone from the library after the extension is closed and opened again, and no picture that was not marked is removed.
+- **SC-011**: A photo of up to 24 megapixels is added to the library, and shown there as a thumbnail, within 5 seconds on a mid-range phone released within the last five years.
 
 ## Assumptions
 
 - **Picture source**: Pictures come from the device through the host's file selection, as in haex-image, and are added to the library once. Bundled sample pictures, camera capture and fetching a picture from the internet are out of scope for this feature.
-- **Library storage**: The library lives in the user's vault, like the data of other extensions, so it is as persistent as the vault itself; whether it is also available on the user's other devices follows however the vault shares its data and is settled during planning. The library holds its own copy of each picture, so the original file is not needed afterwards. A size limit per picture and for the whole library may apply and is settled during planning.
+- **Library storage**: The library lives in the user's vault, like the data of other extensions, so it is as persistent as the vault itself. It is shared between the user's devices the way the vault shares its data: a picture added on one device appears on the others, and a picture removed on one device is removed on the others (SC-009 and SC-010 hold on each device after it has synced). The same picture added on two devices is one library entry, not two. The library holds its own copy of each picture, so the original file is not needed afterwards. Each stored picture is limited to 1 MiB (the extension reduces larger pictures when adding them); the number of pictures in the library has no limit of its own beyond the vault's room.
 - **Library scope**: The library holds pictures only; it has no folders, tags, renaming or search in this feature.
 - **Difficulty levels**: Easy is about 12 pieces, Medium about 48, Hard about 108 and Expert about 192. These counts are a starting point for planning and can be tuned after trying the game on real pictures and devices.
 - **No saved games**: Only the pictures are kept permanently. A puzzle in progress is not kept when the extension is closed; the user starts a new one from the library. Saving and resuming a puzzle, high scores and best times are out of scope for this feature and can follow later.

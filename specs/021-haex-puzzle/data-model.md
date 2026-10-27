@@ -8,8 +8,7 @@ One Drizzle table in `app/database/schemas/index.ts`, named with the repository'
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | text, primary key | `crypto.randomUUID()`. |
-| `content_hash` | text, not null, **unique** | SHA-256 (hex) of the original file's bytes; the duplicate check (FR-026, R-3). |
+| `id` | text, primary key | Lowercase hex SHA-256 of the **original file's bytes**. The same file added on two devices is the same row, so a sync never sees two rows for one picture; it is also the duplicate check (FR-026, R-3). |
 | `name` | text, not null | The original file's name without its folder; shown under the thumbnail. |
 | `width`, `height` | integer, not null | Pixel size of the stored copy (after downscaling and orientation). |
 | `mime_type` | text, not null | `image/webp` or `image/jpeg`, whichever encoder produced `data`. |
@@ -17,11 +16,11 @@ One Drizzle table in `app/database/schemas/index.ts`, named with the repository'
 | `thumbnail` | blob, not null | WebP/JPEG, long side 256 px, typically 8–25 KB. |
 | `added_at` | text, not null | ISO 8601 UTC; the library lists newest first. |
 
-**Index**: unique on `content_hash`. The id is the primary key.
+**Index**: the primary key on `id`; no other index.
 
 **Rules**
 
-- A row is complete or absent: it is inserted with one `INSERT … ON CONFLICT (content_hash) DO NOTHING` and removed with one `DELETE … WHERE id IN (…)`, so there is never a thumbnail without a picture or the reverse (FR-027).
+- A row is complete or absent: it is inserted with one `INSERT … ON CONFLICT (id) DO NOTHING` and removed with one `DELETE … WHERE id IN (…)` (all or nothing), so there is never a thumbnail without a picture or the reverse (FR-027).
 - The list query selects **every column except `data`**, so opening the start screen never moves the pictures themselves (FR-024). `data` is read for one picture when its puzzle starts.
 - `data` is never modified after the insert; there is no update path (the library has no renaming, spec Assumptions).
 - Validation at the door (before the insert): file ≤ 64 MiB; decoded size ≤ 100 MP; Easy available at the stored size (≥ ~83 × 83 px); the encoded copy ≤ 1 MiB; otherwise a typed rejection (below), nothing stored.

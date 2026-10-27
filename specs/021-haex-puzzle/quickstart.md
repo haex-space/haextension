@@ -33,7 +33,7 @@ Numbers refer to the spec's user stories and success criteria.
 | # | Do | Expect |
 |---|-----|--------|
 | A | Open the extension for the first time. | Start screen with an empty library, "Add picture" and four difficulties with piece counts (US1-1, US2-1). |
-| B | Add a photo (phone portrait photo with EXIF rotation, 12+ MP). | It appears as a thumbnail at once, right way up (FR-022); adding takes < 3 s (SC-003). |
+| B | Add a photo (phone portrait photo with EXIF rotation, 12+ MP). | It appears as a thumbnail at once, right way up (FR-022); adding takes < 5 s (SC-011). |
 | C | Choose Easy, start. | About 12 jigsaw pieces with tabs and blanks, scattered around the faint frame, none at home (US1-2, FR-008). |
 | D | Drag a piece over others, release it far from home. | It follows the pointer, is drawn above the others while held, stays where released (US1-3, -6, -5). |
 | E | Release a piece within a quarter of its size of its place. | It snaps exactly and can no longer be dragged (US1-4, FR-011). |
@@ -49,8 +49,10 @@ Numbers refer to the spec's user stories and success criteria.
 | O | Expert (192 pieces) on a mid-range phone, drag around. | No visible lag (SC-004). |
 | P | Switch host language and theme mid-puzzle. | Texts and colours change; the puzzle is untouched (FR-020, SC-008). |
 | Q | Turn on the preview; leave the window for 10 s and return. | Preview shows and hides; the timer excludes the ten seconds (US6). |
-| R | Add 200 pictures (script or repeat), open the start screen. | It opens quickly and scrolls smoothly (FR-024). |
+| R | Add 200 pictures (script or repeat), open the start screen. | It opens quickly and scrolls smoothly (FR-024); note how long the other device needs to sync them (research R-4, no cap by choice). |
+| S | Two devices on one vault: add a picture on one, then remove it; add the same file on both while offline and let them sync. | It appears on the other device, and its removal follows; the same file added on both ends as one entry, with no sync error (data-model `id` = SHA-256). |
+| T | Start a puzzle, drop a large joined group on a single loose piece, then drag the group away. | The covered piece is freed and can be picked up (FR-014). |
 
 ## Without a host
 
-`pnpm --filter haex-puzzle dev` in a browser runs the table and the puzzle logic against an in-memory library stub so scenarios C–H, N–Q can be tried without a vault. Scenarios A, B (file selection), J–M and R need the host. The stub lives in `app/lib/memoryLibrary.testing.ts` (named like `lobbyHarness.testing.ts` in `apps/haex-doom`) and is only wired in during development (`import.meta.dev`) when the vault plugin is absent, so it never ships in a release build.
+`pnpm --filter haex-puzzle dev` in a browser runs the table and the puzzle logic against the in-memory backend so scenarios C–H, N–Q and T can be tried without a vault (in development, adding a picture falls back to a plain file input). Scenarios A, B (host file selection), J–M, R and S need the host. The backend is `app/lib/memoryBackend.testing.ts` (named like `lobbyHarness.testing.ts` in `apps/haex-doom`; it is also the test fake). It is chosen in one place, `app/stores/library.ts`, only during development (`import.meta.dev`) when the vault plugin is absent, so it never ships in a release build.

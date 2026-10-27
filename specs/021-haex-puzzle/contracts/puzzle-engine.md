@@ -12,7 +12,8 @@ Everything the game does that is not drawing or input is a pure function in `app
 | `stopwatch.ts` | `createStopwatch(now)`: `start()`, `pause()`, `resume()`, `elapsed()`, `freeze()` | FR-016 |
 | `zoomPan.ts` | `fitView`, `zoomAt`, `panBy`, `clampView`, `ZOOM_RANGE` | FR-018 |
 | `pictureBudget.ts` | `fitLongSide(width, height, max)`, `qualityLadder`, `nextAttempt(size, attempt)` | R-2 |
-| `pictureRows.ts` | row ⇄ `LibraryItem` mapping, `contentHash(bytes)` | library-store contract |
+| `pictureRows.ts` | SQL text, row ⇄ `LibraryItem` mapping, `contentHash(bytes)` (the row id) | library-store contract |
+| `library.ts`, `vaultBackend.ts` | `createLibrary(backend, encode)`; `createVaultBackend(database)` | library-store contract |
 | `random.ts` | `seededRandom(seed): () => number`, `shuffle(array, random)` | R-10 |
 
 ## Properties asserted by tests
