@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PageAttachment } from "~/types/document";
-import { addAttachment, isRemovable, originalAttachment, removeAttachment } from "./attachments";
+import { addAttachment, originalAttachment, removeAttachment } from "./attachments";
 import type { PageDoc } from "./commands";
 import { createUndoStack } from "./undoStack";
 
@@ -18,6 +18,11 @@ const page = (attachments?: PageAttachment[]): PageDoc => ({
   width: 794,
   height: 1123,
   ...(attachments && { attachments }),
+});
+
+const paperImport = (): NonNullable<PageDoc["paperImport"]> => ({
+  version: 1, originalAssetId: "photo", rotation: 0, sourceMimeType: "image/jpeg", sourceWidth: 10, sourceHeight: 10,
+  processing: { state: "failed", error: "unusable" }, regions: [], createdAt: "t0", updatedAt: "t0",
 });
 
 describe("addAttachment", () => {
@@ -66,10 +71,21 @@ describe("removeAttachment", () => {
     expect(doc.attachments).toBeUndefined();
   });
 
-  it("refuses the original: it goes only with the page", () => {
-    const doc = page([original, worksheet]);
-    expect(removeAttachment(doc, "a-original", "Entfernen")).toBeNull();
-    expect(doc.attachments).toHaveLength(2);
+  it("takes the original off with the photo origin of the page, and undo brings both back", () => {
+    const doc = { ...page([original, worksheet]), paperImport: paperImport() };
+    const command = removeAttachment(doc, "a-original", "Entfernen");
+    command?.apply();
+    expect(doc.attachments).toEqual([worksheet]);
+    expect(doc.paperImport).toBeUndefined();
+    command?.revert();
+    expect(doc.attachments).toEqual([original, worksheet]);
+    expect(doc.paperImport).toEqual(paperImport());
+  });
+
+  it("keeps the photo origin when a file is removed", () => {
+    const doc = { ...page([original, worksheet]), paperImport: paperImport() };
+    removeAttachment(doc, "a-sheet", "Entfernen")?.apply();
+    expect(doc.paperImport).toEqual(paperImport());
   });
 
   it("refuses an attachment the page does not have", () => {
@@ -78,15 +94,10 @@ describe("removeAttachment", () => {
   });
 });
 
-describe("originalAttachment and isRemovable", () => {
+describe("originalAttachment", () => {
   it("finds the original among the attachments", () => {
     expect(originalAttachment([worksheet, original])).toBe(original);
     expect(originalAttachment([worksheet])).toBeNull();
     expect(originalAttachment(undefined)).toBeNull();
-  });
-
-  it("allows removing only files the student attached", () => {
-    expect(isRemovable(worksheet)).toBe(true);
-    expect(isRemovable(original)).toBe(false);
   });
 });
