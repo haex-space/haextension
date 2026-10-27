@@ -5,6 +5,9 @@ import {
   type BackgroundChange, type MarginEdge,
 } from "~/lib/pageBackground";
 import { setPageBackground } from "~/lib/commands";
+import { alignAllText } from "~/lib/elementEdits";
+import { rowsOf } from "~/lib/paperRows";
+import { textHeightOf } from "~/lib/render/measureText";
 import { PAGE_TEMPLATES, templateLabel } from "~/utils/pageTemplates";
 
 /** Vorlage (kariert, liniert, ...) und Papierfarbe der offenen Seite; die Wahl lässt sich rückgängig machen. */
@@ -18,6 +21,13 @@ function choose(change: BackgroundChange) {
     const next = changedBackground(doc.background, change);
     return next ? setPageBackground(doc, next, t("undoLabel")) : null;
   });
+}
+
+const rows = computed(() => (background.value ? rowsOf(background.value) : null));
+
+function alignText() {
+  const target = rows.value;
+  if (target) notebook.applyEdit((doc) => alignAllText(doc, target, textHeightOf));
 }
 
 const margins = computed(() => (background.value ? marginsOf(background.value) : null));
@@ -64,6 +74,13 @@ function resetPageMargins() {
         {{ templateLabel(tmpl.id, locale) }}
         <Check v-if="background.template === tmpl.id" class="size-4" />
       </button>
+      <button
+        v-if="rows"
+        class="mt-1 w-full rounded border border-border px-2 py-1 text-left text-sm hover:bg-accent"
+        @click="alignText"
+      >
+        {{ t('alignText') }}
+      </button>
       <div class="mb-1 mt-2 px-1 text-xs font-medium text-muted-foreground">{{ t('paper') }}</div>
       <div class="flex gap-2 px-1 pb-1">
         <button
@@ -109,6 +126,7 @@ de:
   template: Vorlage
   paper: Papierfarbe
   undoLabel: Hintergrund ändern
+  alignText: Schrift an Papier anpassen
   margins: Seitenrand (mm)
   resetMargins: Zurücksetzen
   undoMargins: Seitenrand ändern
@@ -122,6 +140,7 @@ en:
   template: Template
   paper: Paper colour
   undoLabel: Change background
+  alignText: Fit text to the paper
   margins: Page margin (mm)
   resetMargins: Reset
   undoMargins: Change page margin

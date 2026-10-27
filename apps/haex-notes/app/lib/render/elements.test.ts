@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ImageElement, ImageSource, LatexElement, StrokeElement, TableElement, TextElement } from "~/types/document";
-import { drawElement, drawElements, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
+import { LINE_HEIGHT } from "../paperRows";
+import { CELL_FONT_SIZE, drawElement, drawElements, measureTextHeight, strokeOutlineToPath, type ImageLookup, type StrokePathCache } from "./elements";
 
 describe("strokeOutlineToPath", () => {
   it("returns an empty string for fewer than two points", () => {
@@ -122,6 +123,21 @@ describe("drawElement for text", () => {
     expect(named("fillText")[0]!.fillStyle).toBe("#123456");
   });
 
+  it("puts the baseline of a block on the paper rows at 80 % of its line height", () => {
+    const { context, texts } = recorder();
+
+    drawElement(context, text({ text: "Reaktion\nSalzsäure", lineHeight: 38 }));
+
+    expect(context.textBaseline).toBe("alphabetic");
+    expect(texts()).toEqual([["Reaktion", 10, 20 + 0.8 * 38], ["Salzsäure", 10, 20 + 0.8 * 38 + 38]]);
+  });
+
+  it("measures a block on the paper rows by its line height", () => {
+    const { context } = recorder();
+    expect(measureTextHeight(context, text({ text: "Reaktion\nSalzsäure", lineHeight: 38 }))).toBe(76);
+    expect(measureTextHeight(context, text({ text: "Reaktion\nSalzsäure" }))).toBe(2 * 16 * 1.25);
+  });
+
   it("turns around the centre when rotated", () => {
     const { context, named } = recorder();
     drawElement(context, text({ rotation: Math.PI / 2 }));
@@ -169,6 +185,12 @@ describe("drawElement for table cells", () => {
     const { context, texts } = recorder();
     drawElement(context, table([["Tag", "Fach"], ["Di", ""]]));
     expect(texts()).toEqual([["Tag", 4, 4], ["Fach", 84, 4], ["Di", 4, 34]]);
+  });
+
+  it("keeps the line spacing of multiline cell text", () => {
+    const { context, texts } = recorder();
+    drawElement(context, table([["long text", ""]]));
+    expect(texts()).toEqual([["long", 4, 4], ["text", 4, 4 + CELL_FONT_SIZE * LINE_HEIGHT]]);
   });
 
   it("draws a table without cells, or with broken ones, as its grid only", () => {

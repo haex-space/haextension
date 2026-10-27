@@ -139,13 +139,14 @@ const { selected, editing: textEdit, formulaEditing: formulaEdit } = editing;
 watch(() => pencilCase.selecting, (selecting) => { if (!selecting) editing.clear(); });
 
 /** Der Editor liegt genau über dem Text; Zelltext hat den Innenabstand des Renderers. */
-const editorStyle = ({ box, cell, fontFamily, fontSize }: TextEdit) => ({
+const editorStyle = ({ box, cell, fontFamily, fontSize, lineHeight }: TextEdit) => ({
   left: `${box.x * viewport.zoom + viewport.x}px`,
   top: `${box.y * viewport.zoom + viewport.y}px`,
   width: `${box.width * viewport.zoom}px`,
   minHeight: `${box.height * viewport.zoom}px`,
   padding: cell ? `${CELL_PADDING * viewport.zoom}px` : "0",
   font: `${fontSize * viewport.zoom}px ${fontFamily}, sans-serif`,
+  ...(lineHeight ? { lineHeight: `${lineHeight * viewport.zoom}px` } : {}),
 });
 
 /** Die Stilwahl steht über einem ausgewählten Text, solange er nicht bearbeitet wird. */
@@ -489,10 +490,9 @@ defineExpose({ viewport, resetZoom, zoomPercent, tableContextMenu, insertFormula
       @commit="(source, done) => editing.commitFormula(source).then(done)" @cancel="editing.cancelFormula"
     />
     <NotesTextStylePicker
-      v-if="pickerStyle && selected?.type === 'text'"
-      :font-family="selected.fontFamily"
-      :box-style="pickerStyle"
-      @pick="editing.setFont"
+      v-if="pickerStyle && selected?.type === 'text'" :box-style="pickerStyle" :font-family="selected.fontFamily" :color="selected.color"
+      :multiple="editing.lineMultiple.value" :has-rows="!!editing.paperRows.value"
+      @pick="editing.setFont" @rows="editing.setRows" @color="editing.setColor"
     />
   </div>
 </template>

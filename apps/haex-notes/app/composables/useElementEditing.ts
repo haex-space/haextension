@@ -1,10 +1,11 @@
-import type { TextElement } from "~/types/document";
 import { addElements, removeElements } from "~/lib/commands";
-import { editableElement, editCell, editLatex, editText, placeElement, setFontFamily, type Box } from "~/lib/elementEdits";
+import { editableElement, editCell, editLatex, editText, placeElement, setFontFamily, setTextColor, setTextLayout, type Box, type TextLayoutChange } from "~/lib/elementEdits";
 import { latexElementOf } from "~/lib/latexElement";
 import { formulaOfCell, renderLatexAsync } from "~/lib/math";
 import { drawingLayerId } from "~/lib/migratePage";
-import { CELL_FONT_SIZE, measureTextHeight } from "~/lib/render/elements";
+import { alignText, freeTop, multipleOf, rowsOf } from "~/lib/paperRows";
+import { CELL_FONT_SIZE } from "~/lib/render/elements";
+import { textHeightOf } from "~/lib/render/measureText";
 import { boxOf, cellAt, draggedBox, elementAt, HANDLE_RADIUS, isSelectable, onResizeHandle, type Point, type Selectable } from "~/lib/selection";
 import { cellsOf } from "~/lib/tableActions";
 
@@ -30,6 +31,8 @@ export interface TextEdit {
   text: string;
   fontFamily: string;
   fontSize: number;
+  /** Zeilenhöhe in Seitenpixeln, wenn der Block auf den Zeilen des Papiers steht. */
+  lineHeight?: number;
 }
 
 /** Schrift des Zelltexts, wie der Renderer ihn zeichnet. */
@@ -71,11 +74,20 @@ export function useElementEditing(redrawOverlay: () => void) {
   };
   watch(() => notebook.currentPage?.id, clear);
 
-  let measureContext: CanvasRenderingContext2D | null = null;
-  const heightOf = (text: TextElement) => {
-    measureContext ??= document.createElement("canvas").getContext("2d");
-    return measureContext ? measureTextHeight(measureContext, text) : text.height;
-  };
+  const heightOf = textHeightOf;
+
+  /** Die Zeilen des Papiers der geöffneten Seite; `null` auf Blanko und Notenlinien. */
+  const paperRows = computed(() => {
+    const doc = notebook.currentDoc;
+    return doc ? rowsOf(doc.background) : null;
+  });
+
+  /** Wie viele Papierzeilen der gewählte Text je Zeile belegt; `null`, wenn er frei hängt. */
+  const lineMultiple = computed(() => {
+    const element = selected.value;
+    const rows = paperRows.value;
+    return element?.type === "text" && element.lineHeight && rows ? multipleOf(rows, element.lineHeight) : null;
+  });
 
   function pointerDown(point: Point, zoom: number) {
     const now = Date.now();
@@ -126,7 +138,7 @@ export function useElementEditing(redrawOverlay: () => void) {
     const element = doc ? elementAt(doc.layers, point) : null;
     if (element?.type === "text") {
       selectedId.value = element.id;
-      editing.value = { elementId: element.id, box: boxOf(element), text: element.text, fontFamily: element.fontFamily, fontSize: element.fontSize };
+      editing.value = { elementId: element.id, box: boxOf(element), text: element.text, fontFamily: element.fontFamily, fontSize: element.fontSize, lineHeight: element.lineHeight };
     } else if (element?.type === "latex") {
       selectedId.value = element.id;
       formulaEditing.value = { elementId: element.id, box: boxOf(element), source: element.source };
@@ -243,8 +255,29 @@ export function useElementEditing(redrawOverlay: () => void) {
 
   const hasSelection = computed(() => !!selected.value);
 
+  /** Setzt den gewählten Text auf `multiple` Papierzeilen je Zeile; `null` löst ihn davon, Größe und Grundlinie bleiben. */
+  function setRows(multiple: number | null) {
+    const element = selected.value;
+    const rows = paperRows.value;
+    if (element?.type !== "text" || !rows) return;
+    let layout: TextLayoutChange;
+    if (multiple === null) {
+      if (element.lineHeight === undefined) return;
+      layout = { fontSize: element.fontSize, y: freeTop(element) };
+    } else {
+      layout = alignText(rows, element, multiple);
+    }
+    notebook.applyEdit((doc) => setTextLayout(doc, element.id, layout, heightOf));
+  }
+
+  function setColor(color: string) {
+    const element = selected.value;
+    if (element?.type !== "text" || element.color === color) return;
+    notebook.applyEdit((doc) => setTextColor(doc, element.id, color));
+  }
+
   return {
-    hasSelection,
+    hasSelection, paperRows, lineMultiple, setRows, setColor,
     selected, editing, formulaEditing, pointerDown, pointerMove, pointerUp, commit, cancel, commitFormula, cancelFormula,
     insertFormula, removeSelected, setFont, drawSelection, clear,
   };

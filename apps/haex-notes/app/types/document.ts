@@ -63,6 +63,12 @@ export interface TextElement extends ElementBase {
   fontFamily: string;
   fontSize: number;
   color: string;
+  /**
+   * Zeilenhöhe in Seitenpixeln. Fehlt sie, ist es 1,25 Schriftgrößen und der Block hängt frei auf der
+   * Seite; ist sie gesetzt, steht die Schrift auf den Zeilen des Papiers (`lib/paperRows`), die Grundlinie
+   * der ersten Zeile bei 80 % der Zeilenhöhe.
+   */
+  lineHeight?: number;
 }
 
 export interface ImageElement extends ElementBase {

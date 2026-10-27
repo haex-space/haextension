@@ -42,7 +42,7 @@ function onKeydown(event: KeyboardEvent) {
     ref="textarea"
     v-model="value"
     class="absolute z-40 resize-none overflow-hidden rounded-sm border border-primary bg-background/95 p-0 text-foreground outline-none"
-    :style="{ ...boxStyle, lineHeight: '1.25' }"
+    :style="{ ...boxStyle, lineHeight: boxStyle.lineHeight ?? '1.25' }"
     :aria-label="t('label')"
     @keydown="onKeydown"
     @blur="guard.endsInput() && finish(true)"

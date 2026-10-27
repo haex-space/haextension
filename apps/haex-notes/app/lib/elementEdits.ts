@@ -1,7 +1,8 @@
-import type { PageElement } from "~/types/document";
+import type { PageElement, TextElement } from "~/types/document";
 import { computeBbox } from "./bbox";
 import { mutateElements, type Command, type PageDoc } from "./commands";
 import { sizeOf, type Rendered } from "./math";
+import { alignText, type PaperRows } from "./paperRows";
 import { cellsOf } from "./tableActions";
 
 /**
@@ -66,6 +67,50 @@ export const setFontFamily = (page: PageDoc, id: string, fontFamily: string, hei
     element.fontFamily = fontFamily;
     element.height = height;
   });
+
+export const setTextColor = (page: PageDoc, id: string, color: string) =>
+  editAs(page, id, ["text"], "Farbe ändern", (element) => {
+    element.color = color;
+  });
+
+/** Schriftgröße, Zeilenhöhe und Oberkante eines Textblocks; ohne `lineHeight` hängt er wieder frei. */
+export interface TextLayoutChange {
+  fontSize: number;
+  lineHeight?: number;
+  y: number;
+}
+
+/** Misst die Höhe eines Textblocks, so umbrochen, wie er gezeichnet wird (braucht einen Canvas). */
+export type MeasureText = (text: TextElement) => number;
+
+function layOut(element: TextElement, change: TextLayoutChange, measure: MeasureText) {
+  element.fontSize = change.fontSize;
+  if (change.lineHeight === undefined) delete element.lineHeight;
+  else element.lineHeight = change.lineHeight;
+  element.y = change.y;
+  element.height = measure(element);
+}
+
+export const setTextLayout = (page: PageDoc, id: string, change: TextLayoutChange, measure: MeasureText) =>
+  editAs(page, id, ["text"], "Zeilenhöhe ändern", (element) => layOut(element, change, measure));
+
+/**
+ * Setzt jeden Textblock der Seite auf die Zeilen ihres Papiers, im Vielfachen, das seiner Größe am nächsten
+ * kommt (Überschriften bleiben groß). `null`, wenn die Seite keinen bearbeitbaren Text hat.
+ */
+export function alignAllText(page: PageDoc, rows: PaperRows, measure: MeasureText): Command | null {
+  const ids = page.layers
+    .filter((layer) => !layer.locked)
+    .flatMap((layer) => layer.elements)
+    .filter((element) => element.type === "text")
+    .map((element) => element.id);
+  if (ids.length === 0) return null;
+  return mutateElements(page, ids, (element) => {
+    if (element.type !== "text") return;
+    layOut(element, alignText(rows, element), measure);
+    element.bbox = computeBbox(element);
+  }, "Schrift an Papier anpassen");
+}
 
 /**
  * Verschiebt oder skaliert ein Element. Alle Aufrufe einer Geste teilen sich den mergeKey und

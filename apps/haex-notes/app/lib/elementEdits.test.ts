@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ImageElement, LatexElement, PageLayer, TableElement, TextElement } from "~/types/document";
 import { clonePlain } from "./clone";
 import type { PageDoc } from "./commands";
-import { editCell, editLatex, editText, placeElement, setFontFamily } from "./elementEdits";
+import { alignAllText, editCell, editLatex, editText, placeElement, setFontFamily, setTextColor, setTextLayout } from "./elementEdits";
+import { rowsOf } from "./paperRows";
 import { createUndoStack } from "./undoStack";
 
 const text = (id: string): TextElement => ({
@@ -133,5 +134,63 @@ describe("formula edits", () => {
   it("does not touch a formula on a locked layer or an element of another kind", () => {
     expect(editLatex(page(true), "formula", "y", { svg: svg(1, 1), width: 1, height: 1 })).toBeNull();
     expect(editLatex(photoPage(), "text", "y", { svg: svg(1, 1), width: 1, height: 1 })).toBeNull();
+  });
+});
+
+describe("text on the paper rows", () => {
+  const grid = rowsOf({ paperColor: "#ffffff", template: "grid" })!;
+  const measure = (element: TextElement) => (element.lineHeight ?? element.fontSize * 1.25) * 2;
+
+  it("sets the layout of one text, frees it again and undoes both", () => {
+    const page = photoPage();
+    const before = clonePlain(page);
+    const stack = createUndoStack();
+
+    stack.push(setTextLayout(page, "text", { fontSize: 13, lineHeight: 19, y: 41 }, measure)!);
+    expect(find<TextElement>(page, "text")).toMatchObject({ fontSize: 13, lineHeight: 19, y: 41, height: 38, bbox: [40, 41, 200, 38] });
+
+    stack.push(setTextLayout(page, "text", { fontSize: 13, y: 41 }, measure)!);
+    expect(find<TextElement>(page, "text")).not.toHaveProperty("lineHeight");
+
+    while (stack.undo());
+    expect(page).toEqual(before);
+  });
+
+  it("changes the colour of a text and undoes it", () => {
+    const page = photoPage();
+    const stack = createUndoStack();
+    stack.push(setTextColor(page, "text", "#dc2626")!);
+    expect(find<TextElement>(page, "text").color).toBe("#dc2626");
+    stack.undo();
+    expect(find<TextElement>(page, "text").color).toBe("#1f2937");
+  });
+
+  it("fits every text of the page in one undo step and leaves the locked original alone", () => {
+    const page = photoPage();
+    page.layers[1]!.elements.push({ ...text("headline"), y: 200, fontSize: 40 });
+    const before = clonePlain(page);
+    const stack = createUndoStack();
+
+    stack.push(alignAllText(page, grid, measure)!);
+    expect(find<TextElement>(page, "text")).toMatchObject({ lineHeight: 38, fontSize: 26 });
+    expect(find<TextElement>(page, "headline")).toMatchObject({ lineHeight: 57, fontSize: 39 });
+    expect(find<ImageElement>(page, "original")).toEqual(before.layers[0]!.elements[0]);
+
+    stack.undo();
+    expect(stack.undo()).toBeFalsy();
+    expect(page).toEqual(before);
+  });
+
+  it("gives no command for a page without text", () => {
+    const page = photoPage();
+    page.layers[1]!.elements = [];
+    expect(alignAllText(page, grid, measure)).toBeNull();
+  });
+
+  it("does not touch a text on a locked layer", () => {
+    const page = photoPage();
+    page.layers[1]!.locked = true;
+    expect(setTextColor(page, "text", "#dc2626")).toBeNull();
+    expect(alignAllText(page, grid, measure)).toBeNull();
   });
 });
