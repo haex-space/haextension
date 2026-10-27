@@ -58,7 +58,13 @@ function setMode(next: FormulaMode) {
   if (next === mode.value) return;
   const current = latex.value;
   if (next === "latex") text.value = current;
-  else if (mode.value === "latex") text.value = (next === "chemistry" ? fromChemistry(current) : fromLatex(current)) ?? text.value;
+  else {
+    const converted = next === "chemistry" ? fromChemistry(current) : fromLatex(current);
+    // Eine nicht ausdrückbare Formel darf beim Tabwechsel nicht stillschweigend
+    // durch eine andere Formel ersetzt werden.
+    if (converted === null) return;
+    text.value = converted;
+  }
   mode.value = next;
   textarea.value?.focus();
 }
