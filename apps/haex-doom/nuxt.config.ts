@@ -21,8 +21,11 @@ export default defineNuxtConfig({
     "@haex-space/vault-sdk/nuxt",
   ],
 
+  // The game is dark whatever theme the vault has; the palette lives in assets/css/doom-theme.css.
   colorMode: {
     classSuffix: "",
+    preference: "dark",
+    fallback: "dark",
   },
 
   css: ["~/assets/css/tailwind.css"],

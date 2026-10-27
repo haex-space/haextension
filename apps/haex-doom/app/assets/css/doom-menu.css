@@ -1,0 +1,396 @@
+/* The start screen: scene, title and menu items. Colours come from doom-theme.css. */
+
+/* Scene */
+.doom-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, #2a0e08 0%, transparent 70%),
+    linear-gradient(180deg, #0d0403 0%, #090302 55%, #170603 100%);
+}
+
+.doom-scene__glow {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 48%;
+  background:
+    radial-gradient(ellipse 75% 85% at 50% 100%, rgba(255, 122, 31, 0.62) 0%, rgba(194, 41, 27, 0.4) 38%, transparent 72%);
+  animation: doom-glow 6s ease-in-out infinite alternate;
+}
+
+.doom-scene__horizon {
+  position: absolute;
+  inset: auto 0 0 0;
+  width: 100%;
+  height: clamp(5rem, 15vh, 9rem);
+  display: block;
+}
+
+.doom-scene__ember {
+  position: absolute;
+  bottom: 4%;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--doom-ember);
+  box-shadow: 0 0 6px 1px rgba(255, 122, 31, 0.7);
+  opacity: 0;
+  animation: doom-ember var(--duration) linear var(--delay) infinite;
+}
+
+.doom-scene__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .7 0 0 0 0 .5 0 0 0 1.4 -.78'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 120% 95% at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.78) 100%);
+  opacity: 0.4;
+}
+
+@keyframes doom-glow {
+  from { opacity: 0.78; }
+  to { opacity: 1; }
+}
+
+@keyframes doom-ember {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: 0.9; }
+  100% { transform: translate3d(var(--drift), -78vh, 0) scale(0.4); opacity: 0; }
+}
+
+/* Layout */
+.doom-main {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.doom-menu {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .doom-main {
+    max-width: 52rem;
+    flex-direction: row;
+    gap: 2rem;
+    padding-block: 1rem;
+  }
+  .doom-main > .doom-title {
+    flex: 0 1 45%;
+    font-size: clamp(4.5rem, 30vh, 7rem);
+  }
+  .doom-main > .doom-menu {
+    flex: 1 1 55%;
+    max-height: 100%;
+    overflow-y: auto;
+    gap: 0.6rem;
+    padding: 0.25rem 0.5rem 0.5rem 0.25rem;
+    scrollbar-width: thin;
+    scrollbar-color: #7a4430 transparent;
+  }
+  .doom-menu .doom-item {
+    min-height: 2.9rem;
+    font-size: 1.25rem;
+  }
+  .doom-menu ul {
+    gap: 0.5rem;
+  }
+}
+
+.doom-error {
+  text-align: center;
+  color: #ffb4a3;
+  background: rgba(20, 5, 3, 0.8);
+  border: 1px solid #a8341f;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Title: dark extruded lettering below, a red-orange metal gradient on top */
+.doom-title {
+  position: relative;
+  margin: 0;
+  padding: 0 0.1em;
+  font-family: var(--doom-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(5rem, 27vw, 9rem);
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1a0402;
+  -webkit-text-stroke: 0.11em #1a0402;
+  paint-order: stroke fill;
+  text-shadow:
+    0 0.03em 0 #4a1008,
+    0 0.06em 0 #2e0a05,
+    0 0.09em 0 #1c0603,
+    0 0.12em 0.02em #000,
+    0 0.22em 0.4em rgba(0, 0, 0, 0.9);
+  filter: drop-shadow(0 0 0.22em rgba(255, 90, 20, 0.5));
+  cursor: default;
+}
+
+.doom-title::after {
+  content: attr(data-text) / "";
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  color: transparent;
+  background: linear-gradient(180deg, #fff1b0 0%, #ffc03f 20%, #ff8420 40%, #e23518 50%, #8f1409 51%, #c4280f 70%, #6a0c06 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Menu items: plates of brown metal; the skull marks the one in reach */
+.doom-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.5rem 1rem 0.5rem 0.75rem;
+  text-align: left;
+  font-family: var(--doom-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--doom-bone);
+  background: linear-gradient(180deg, var(--doom-plate-top), var(--doom-plate-bottom));
+  border: 2px solid;
+  border-color: var(--doom-bevel-light) #2c0f08 var(--doom-bevel-dark) #6a4332;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 8px 16px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s, transform 0.06s;
+}
+
+.doom-item__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.1;
+}
+
+.doom-item__action {
+  flex: none;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  color: var(--doom-amber);
+}
+
+.doom-item__action::after {
+  content: " \25B8" / "";
+}
+
+.doom-skull {
+  flex: none;
+  width: 1.7rem;
+  height: 1.55rem;
+  color: var(--doom-tan);
+  opacity: 0.28;
+}
+
+.doom-skull__eyes {
+  fill: var(--doom-blood);
+}
+
+.doom-item:hover:not(:disabled),
+.doom-item:focus-visible {
+  color: #fff6d8;
+  background: linear-gradient(180deg, #c42f1a, var(--doom-blood-dark));
+  border-color: #ff9d57 #5a0d06 #3a0803 #e8773f;
+  text-shadow: 0 2px 0 #3a0803;
+}
+
+.doom-item:hover:not(:disabled) .doom-item__action,
+.doom-item:focus-visible .doom-item__action {
+  color: #fff6d8;
+}
+
+.doom-item:hover:not(:disabled) .doom-skull,
+.doom-item:focus-visible .doom-skull {
+  opacity: 1;
+  animation: doom-skull 0.7s steps(1) infinite;
+}
+
+.doom-item:hover:not(:disabled) .doom-skull__eyes,
+.doom-item:focus-visible .doom-skull__eyes {
+  fill: var(--doom-gold);
+}
+
+.doom-item:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+
+@keyframes doom-skull {
+  50% { transform: translateY(-2px) scaleX(-1); }
+}
+
+/* Quieter buttons: import, multiplayer, settings, about, remove */
+.doom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.4rem 1rem;
+  font-family: var(--doom-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--doom-amber);
+  background: rgba(14, 5, 3, 0.82);
+  border: 1px solid #7a4430;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.doom-btn:hover:not(:disabled) {
+  color: #fff0c4;
+  background: #4a1a0e;
+  border-color: var(--doom-gold);
+}
+
+.doom-btn:active:not(:disabled) {
+  background: #5c2010;
+}
+
+.doom-btn--link {
+  border-color: transparent;
+  background: rgba(14, 5, 3, 0.6);
+  color: var(--doom-tan);
+}
+
+.doom-btn--link:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(14, 5, 3, 0.85);
+  color: #fff0c4;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.doom-btn--icon {
+  padding: 0;
+  width: 3rem;
+  color: var(--doom-tan);
+}
+
+.doom-btn:disabled,
+.doom-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doom-item:focus-visible,
+.doom-btn:focus-visible {
+  outline: 3px solid var(--doom-gold);
+  outline-offset: 3px;
+}
+
+/* The lobby sits on the scene in a dark panel so its text keeps its contrast */
+.doom-panel {
+  padding: 1rem;
+  background: rgba(14, 5, 3, 0.86);
+  border: 2px solid #5b2e20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.doom-panel h2,
+.doom-panel h3 {
+  font-family: var(--doom-display);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doom-gold);
+}
+
+.doom-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  font-family: var(--doom-display);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--doom-tan);
+}
+
+.doom-heading::before,
+.doom-heading::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #8a3a22);
+}
+
+.doom-heading::after {
+  transform: scaleX(-1);
+}
+
+.doom-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.doom-row > * {
+  flex: 1 1 0;
+}
+
+@media (max-width: 440px) {
+  .doom-item {
+    gap: 0.5rem;
+    padding-inline: 0.6rem 0.75rem;
+    font-size: 1.3rem;
+    letter-spacing: 0.04em;
+  }
+  .doom-item__action {
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+  }
+  .doom-skull {
+    width: 1.4rem;
+    height: 1.28rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doom-scene__glow {
+    animation: none;
+  }
+  .doom-scene__ember {
+    display: none;
+  }
+  .doom-item:hover:not(:disabled) .doom-skull,
+  .doom-item:focus-visible .doom-skull {
+    animation: none;
+  }
+  .doom-item,
+  .doom-btn {
+    transition: none;
+  }
+}

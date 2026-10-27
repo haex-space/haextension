@@ -16,9 +16,12 @@ const sensitivity = computed({
 <template>
   <ShadcnDialog>
     <ShadcnDialogTrigger as-child>
-      <ShadcnButton variant="ghost">
+      <button
+        type="button"
+        class="doom-btn doom-btn--link"
+      >
         {{ t('settings') }}
-      </ShadcnButton>
+      </button>
     </ShadcnDialogTrigger>
     <ShadcnDialogContent class="max-w-md">
       <ShadcnDialogHeader>

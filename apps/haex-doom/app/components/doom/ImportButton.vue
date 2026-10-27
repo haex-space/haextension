@@ -36,14 +36,14 @@ async function onPicked() {
       class="hidden"
       @change="onPicked"
     >
-    <ShadcnButton
-      variant="secondary"
-      class="w-full"
+    <button
+      type="button"
+      class="doom-btn w-full"
       :disabled="importing"
       @click="input?.click()"
     >
       {{ importing ? t('importing') : t('import') }}
-    </ShadcnButton>
+    </button>
   </div>
 </template>
 
