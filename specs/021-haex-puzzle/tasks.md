@@ -101,8 +101,8 @@ description: "Task list for haex-puzzle"
 
 **Independent test**: open one picture at each level and count the cells (with the chosen grid shown until the puzzle view exists); counts are within 10 % of 12 / 48 / 108 / 192 and near-square ([spec.md](spec.md) US2; quickstart scenarios H, I).
 
-- [ ] T032 [P] [US2] Implement `APP/app/components/puzzle/DifficultyPicker.vue`: four options (Easy, Medium, Hard, Expert) each with its approximate piece count, built on `ShadcnRadioGroup` (or `ShadcnToggleGroup`); levels not in `availableDifficulties(width, height)` are disabled with the stated reason ("too small for this picture"); emits the chosen id. German and English texts.
-- [ ] T033 [US2] Extend `APP/app/pages/index.vue`: picking a picture in the library opens the difficulty step (the picker plus a "Start" action) for that picture, defaulting to the easiest available level; "Start" hands picture id and level to the puzzle view of US1 (until US1 exists, show the grid size that `chooseGrid` returns).
+- [X] T032 [P] [US2] Implement `APP/app/components/puzzle/DifficultyPicker.vue`: four options (Easy, Medium, Hard, Expert) each with its approximate piece count, built on `ShadcnRadioGroup` (or `ShadcnToggleGroup`); levels not in `availableDifficulties(width, height)` are disabled with the stated reason ("too small for this picture"); emits the chosen id. German and English texts.
+- [X] T033 [US2] Extend `APP/app/pages/index.vue`: picking a picture in the library opens the difficulty step (the picker plus a "Start" action) for that picture, defaulting to the easiest available level; "Start" hands picture id and level to the puzzle view of US1 (until US1 exists, show the grid size that `chooseGrid` returns).
 
 **Checkpoint**: US2 works with US3. Run quickstart scenarios H and I.
 
