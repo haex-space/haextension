@@ -104,6 +104,7 @@ apps/haex-puzzle/
     │   └── CompleteDialog.vue
     ├── composables/
     │   ├── useHostLocale.ts
+    │   ├── useStandalone.ts             # development without the host (HAEX_STANDALONE=1)
     │   ├── usePuzzle.ts                 # reactive puzzle state around lib/puzzleState
     │   ├── usePuzzleInput.ts            # Pointer Events: drag, pan, pinch, wheel
     │   └── usePictureImport.ts          # file selection → decode → budget → library.add
@@ -120,6 +121,8 @@ apps/haex-puzzle/
     │   ├── vaultBackend.ts              # the SQL over the SDK's database client
     │   ├── memoryBackend.testing.ts     # test fake and development fallback
     │   ├── pieceSprites.ts              # canvas: path → sprite (browser only, hand-checked)
+    │   ├── drawTable.ts                 # canvas: one frame of the table (browser only, hand-checked)
+    │   ├── formatTime.ts
     │   └── pictureEncode.ts             # canvas: decode, fit, encode (browser only, hand-checked)
     └── types/puzzle.ts
 

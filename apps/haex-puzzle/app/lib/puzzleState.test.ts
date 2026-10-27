@@ -367,7 +367,7 @@ describe('invariants under random play', () => {
           }
         }
         if (owners.size !== state.pieces.length || [...owners.values()].some(n => n !== 1)) violations.push(`seed ${seed} move ${move}: a piece is not in exactly one group`)
-        if ((state.phase === 'complete') !== state.groups.every(g => g.placed)) violations.push(`seed ${seed} move ${move}: phase disagrees with placed groups`)
+        if (((state.phase as string) === 'complete') !== state.groups.every(g => g.placed)) violations.push(`seed ${seed} move ${move}: phase disagrees with placed groups`)
       }
     }
     // The moves must actually reach joins and snaps, or the invariants above prove nothing.

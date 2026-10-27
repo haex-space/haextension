@@ -53,7 +53,7 @@ All coordinates are pixels of the stored picture. None of these types is persist
 | Field | Type | Notes |
 |-------|------|-------|
 | `direction` | `1 \| -1` | Which of the two neighbours carries the tab. |
-| `shape` | `{ tab, neck, shoulder, lean }` | Fractions of the edge length, each varied within a small range from the seed. |
+| `tab`, `a`–`e` | numbers | The tab size (about 0.2, varied by ±0.03) and five small jitters (±0.04), as fractions of the edge length, from the seed. |
 
 Held in a `columns × (rows − 1)` array of horizontal edges and a `(columns − 1) × rows` array of vertical ones; the outer sides of the picture have no edge entry and are straight.
 
