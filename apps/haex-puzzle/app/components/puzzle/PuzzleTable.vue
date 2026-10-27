@@ -6,6 +6,8 @@ import type { View } from '~/types/puzzle'
 
 const props = defineProps<{ puzzle: PuzzleApi }>()
 
+const { t } = useI18n()
+
 const container = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const size = ref({ width: 0, height: 0 })
@@ -136,8 +138,17 @@ onBeforeUnmount(() => {
   <div ref="container" class="relative w-full h-full overflow-hidden">
     <canvas
       ref="canvas"
+      role="img"
+      :aria-label="t('table')"
       class="absolute inset-0 w-full h-full select-none cursor-grab"
       style="touch-action: none"
     />
   </div>
 </template>
+
+<i18n lang="yaml">
+de:
+  table: Puzzletisch mit den losen Teilen und dem Rahmen des Bildes
+en:
+  table: Puzzle table with the loose pieces and the frame of the picture
+</i18n>

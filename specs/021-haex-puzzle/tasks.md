@@ -186,12 +186,12 @@ description: "Task list for haex-puzzle"
 
 ## Phase 9: Polish & cross-cutting concerns
 
-- [ ] T061 [P] Review every user-visible text in German and English (start screen, library, dialogs, toasts, HUD, completion) for consistent wording; make sure a theme or language switch while a puzzle is running only redraws (the puzzle state is untouched, FR-020, SC-008): in `APP/app/components/puzzle/PuzzleTable.vue` redraw on theme change without recreating the puzzle.
-- [ ] T062 [P] Accessibility pass: every button has a text or `aria-label`, dialogs trap focus (they are `ShadcnAlertDialog`), thumbnails are buttons with the file name as label, colour contrast of the frame outline and piece relief in light and dark.
-- [ ] T063 Check file sizes (`wc -l APP/app/**/*.{ts,vue}`): none over 500 lines; split by concern only where one clearly is. Check every `ponytail:` comment names its ceiling and upgrade path (R-3, R-7, zoomPan copy).
-- [ ] T064 Run `pnpm --filter haex-puzzle test`, `pnpm --filter haex-puzzle exec eslint .` and `pnpm --filter haex-puzzle build`; fix everything they report.
+- [X] T061 [P] Review every user-visible text in German and English (start screen, library, dialogs, toasts, HUD, completion) for consistent wording; make sure a theme or language switch while a puzzle is running only redraws (the puzzle state is untouched, FR-020, SC-008): in `APP/app/components/puzzle/PuzzleTable.vue` redraw on theme change without recreating the puzzle.
+- [X] T062 [P] Accessibility pass: every button has a text or `aria-label`, dialogs trap focus (they are `ShadcnAlertDialog`), thumbnails are buttons with the file name as label, colour contrast of the frame outline and piece relief in light and dark.
+- [X] T063 Check file sizes (`wc -l APP/app/**/*.{ts,vue}`): none over 500 lines; split by concern only where one clearly is. Check every `ponytail:` comment names its ceiling and upgrade path (R-3, R-7, zoomPan copy).
+- [X] T064 Run `pnpm --filter haex-puzzle test`, `pnpm --filter haex-puzzle exec eslint .` and `pnpm --filter haex-puzzle build`; fix everything they report.
 - [ ] T065 Walk through all scenarios A–T of [quickstart.md](quickstart.md) in a running host (`pnpm --filter haex-puzzle ext:dev`), including a real phone for N and O, a 200-picture library for R (note the sync time), two devices on one vault for S, a 24 MP photo for SC-003 (puzzle ready ≤ 3 s after confirming the level) and SC-011 (added within 5 s), and the covered-piece case T. SC-002 and SC-007 are judged by watching one or two first-time users, as acceptance targets, not automated checks. Record any deviation as a fix, or as a spec assumption to revisit (piece counts, snap tolerance).
-- [ ] T066 [P] If `README.md` lists the apps, add one line for haex-puzzle in the same style; do not add one otherwise.
+- [X] T066 [P] If `README.md` lists the apps, add one line for haex-puzzle in the same style; do not add one otherwise.
 - [ ] T067 Run `/speckit-analyze` again for a cross-artifact consistency check against the constitution before opening the pull request; open the PR from `feat/haex-puzzle` to `main` with a Conventional Commit title (`feat(haex-puzzle): add a jigsaw puzzle extension with a picture library`). The constitution forbids squash-merging: merge with rebase or a merge commit whose subject is a Conventional Commit header (replace GitHub's "Merge pull request …" subject).
 
 ---
@@ -250,3 +250,9 @@ The MVP is the three P1 stories, built in this order: **Setup → Foundational �
 - Every task names a file; a task is done when its tests (where listed) pass and, for browser modules and components, its quickstart scenario behaves as stated.
 - Commit after each task or logical group with a Conventional Commit message (`feat(haex-puzzle): …`, `test(haex-puzzle): …`, `chore(haex-puzzle): …`).
 - Binary values go over the host bridge as `{ $bytes: <base64> }`; rows come back as arrays of column values in `SELECT` order — the row mapper (T024) is the only place that knows the order.
+
+## Status after implementation
+
+Verified with the automated checks (`vue-tsc`, ESLint, 97 Vitest tests, release build; the release bundle contains none of the development-only code) and by scripted runs in a headless Chromium against `HAEX_STANDALONE=1 pnpm dev` (library, difficulty, solving by mouse and by touch, pan/pinch/fit/rotation, joins, timer pause, preview; measured on a desktop CPU: a 24 MP photo is added in 0.8 s, 200 pictures in 4.7 s, an Expert puzzle is ready in 0.18 s and a drag runs at 16.7 ms per frame).
+
+Not yet verified, because they need the host or hardware: T065's scenarios A/B/J–M and R/S in the real host (file dialog, vault persistence across a restart, sync between two devices), N/O on a real phone, SC-002 and SC-007 with first-time users. T067's pull request has not been opened.

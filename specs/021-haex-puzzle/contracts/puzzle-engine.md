@@ -7,14 +7,15 @@ Everything the game does that is not drawing or input is a pure function in `app
 | `difficulty.ts` | `DIFFICULTIES`; `availableDifficulties(width, height): DifficultyId[]`; `isTooSmall(width, height): boolean` | FR-003, R-5 |
 | `grid.ts` | `chooseGrid(width, height, target): Grid` | FR-003, FR-006 |
 | `jigsaw.ts` | `makeEdges(grid, seed): Edges`; `pieceOutline(grid, edges, column, row): PathCommand[]` (plain `move`/`line`/`curve` commands, no canvas types; the renderer turns them into a `Path2D`); `OVERHANG` | FR-004, FR-005 |
-| `scatter.ts` | `scatter(grid, random): { x: number; y: number }[]`; `tableRect(width, height): Rect` | FR-008, FR-014 |
-| `puzzleState.ts` | `start`, `grab(groupId)`, `release(groupId, dx, dy)`, `restartSame`; `isComplete`; `SNAP_FRACTION` | FR-009–FR-013, R-9 |
-| `stopwatch.ts` | `createStopwatch(now)`: `start()`, `pause()`, `resume()`, `elapsed()`, `freeze()` | FR-016 |
+| `scatter.ts` | `scatter(grid, random): Point[]` (by piece id); `tableRect(grid): Rect`; `SCATTER_JITTER` | FR-008, FR-014 |
+| `puzzleState.ts` | `start`, `grab`, `moveGroup`, `release` (clamp, snap to home, join neighbours), `pieceAt(state, point, contains)`, `restartSame`, `isComplete`, `homeOf`; `SNAP_FRACTION`. The functions change the state in place. | FR-009–FR-013, R-9 |
+| `stopwatch.ts` | `createStopwatch(now)`: `start()`, `pause()`, `resume()`, `elapsed()`, `freeze()`, `started` | FR-016 |
 | `zoomPan.ts` | `fitView`, `zoomAt`, `panBy`, `clampView`, `ZOOM_RANGE` | FR-018 |
 | `pictureBudget.ts` | `fitLongSide(width, height, max)`, `qualityLadder`, `nextAttempt(size, attempt)` | R-2 |
 | `pictureRows.ts` | SQL text, row ⇄ `LibraryItem` mapping, `contentHash(bytes)` (the row id) | library-store contract |
 | `library.ts`, `vaultBackend.ts` | `createLibrary(backend, encode)`; `createVaultBackend(database)` | library-store contract |
-| `random.ts` | `seededRandom(seed): () => number`, `shuffle(array, random)` | R-10 |
+| `random.ts` | `seededRandom(seed): () => number`, `platformRandom()`, `shuffle(array, random)` | R-10 |
+| `formatTime.ts` | `formatElapsed(ms)` (`m:ss`, `h:mm:ss`) | FR-016 |
 
 ## Properties asserted by tests
 
@@ -32,4 +33,4 @@ Everything the game does that is not drawing or input is a pure function in `app
 
 ## Not covered by unit tests (manual, see quickstart)
 
-Drawing the sprites, hit-testing with `isPointInPath`, pointer capture and pinch on a real touch screen, `createImageBitmap` orientation, canvas WebP/JPEG encoding, the vault round trip. The first two need a canvas; the rest need the host.
+Drawing the sprites and the table (`pieceSprites.ts`, `drawTable.ts`, `pictureEncode.ts`), hit-testing with `isPointInPath`, pointer capture and pinch on a real touch screen, `createImageBitmap` orientation, canvas WebP/JPEG encoding, the vault round trip. The first two need a canvas; the rest need the host.
