@@ -9,11 +9,9 @@ export interface ImportLabels {
   images: string
 }
 
-interface Picked {
-  name: string
-  bytes?: Uint8Array
-  rejected?: Rejection
-}
+type Picked =
+  | { name: string; read: () => Promise<Uint8Array> }
+  | { name: string; rejected: Rejection }
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).pop() || path
@@ -58,7 +56,8 @@ export function usePictureImport() {
           picked.push({ name, rejected: 'too-large' })
           continue
         }
-        picked.push({ name, bytes: await fs.readFile(path) })
+        // Keep the path, not all selected image bytes, until this file is processed.
+        picked.push({ name, read: () => fs.readFile(path) })
       } catch (error) {
         console.error('[haex-puzzle] Could not read', name, error)
         picked.push({ name, rejected: 'read-failed' })
@@ -69,11 +68,11 @@ export function usePictureImport() {
 
   async function pickFromBrowser(): Promise<Picked[]> {
     const files = await pickWithInput()
-    return Promise.all(files.map(async file => (
+    return files.map((file): Picked => (
       file.size > MAX_FILE_BYTES
-        ? { name: file.name, rejected: 'too-large' as const }
-        : { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }
-    )))
+        ? { name: file.name, rejected: 'too-large' }
+        : { name: file.name, read: async () => new Uint8Array(await file.arrayBuffer()) }
+    ))
   }
 
   /** The result of every picked file, in order; an empty list when the selection was cancelled. */
@@ -82,11 +81,22 @@ export function usePictureImport() {
     try {
       const picked = useStandalone() ? await pickFromBrowser() : await pickFromHost(labels)
       const results: AddResult[] = []
-      const readable = picked.filter(file => file.bytes)
-      const added = await library.add(readable.map(file => ({ name: file.name, bytes: file.bytes! })))
-      let next = 0
       for (const file of picked) {
-        results.push(file.bytes ? added[next++]! : { ok: false, name: file.name, reason: file.rejected! })
+        if ('rejected' in file) {
+          results.push({ ok: false, name: file.name, reason: file.rejected })
+          continue
+        }
+
+        let bytes: Uint8Array
+        try {
+          bytes = await file.read()
+        } catch (error) {
+          console.error('[haex-puzzle] Could not read', file.name, error)
+          results.push({ ok: false, name: file.name, reason: 'read-failed' })
+          continue
+        }
+
+        results.push(...await library.add([{ name: file.name, bytes }]))
       }
       return results
     } finally {
@@ -96,4 +106,3 @@ export function usePictureImport() {
 
   return { addPictures, adding }
 }
-
