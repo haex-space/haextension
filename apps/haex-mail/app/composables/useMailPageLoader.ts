@@ -38,6 +38,8 @@ export const useMailPageLoader = () => {
       return;
     }
     await reportFailuresAsync(() => restoreSelectionAsync());
+    // Moves from an earlier session that never reached the server (accounts are loaded by now).
+    void mailStore.flushPendingMovesAsync(true);
   });
 
   const restoreSelectionAsync = async () => {
@@ -151,6 +153,7 @@ export const useMailPageLoader = () => {
   );
 
   const onRefresh = () => reportFailuresAsync(async () => {
+    void mailStore.flushPendingMovesAsync(true);
     if (mailStore.isUnifiedView) {
       if (mailStore.selectedRole) {
         await mailStore.refreshUnifiedAsync(mailStore.selectedRole, unifiedAccounts.value);

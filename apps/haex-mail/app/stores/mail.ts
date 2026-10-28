@@ -9,6 +9,7 @@ import {
 import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
 import { useMessageChanges } from "./mail/changes";
+import { useMoveOutbox } from "./mail/outbox";
 import { useMailRules, type AfterEnvelopesPersisted } from "./mail/rules";
 import { useMessageBody } from "./mail/message";
 import { useReplyBuilder } from "./mail/reply";
@@ -133,6 +134,7 @@ export const useMailStore = defineStore("mail", () => {
     sync,
     updateLocalFlagsAsync,
   );
+  const { enqueueMovesAsync, flushPendingMovesAsync } = useMoveOutbox(sync, { moveUidsAsync });
   const { applyRulesToNewInboxAsync, applyRuleToExistingAsync } = useMailRules({
     setFlagForUidsAsync,
     moveUidsAsync,
@@ -181,7 +183,13 @@ export const useMailStore = defineStore("mail", () => {
   };
 
   const { bulkSetFlagAsync, bulkMoveToRoleAsync, bulkMoveToMailboxAsync } =
-    useBulkMessageOps(state, sync, { setFlagForUidsAsync, moveUidsAsync }, selectMessage);
+    useBulkMessageOps(
+      state,
+      sync,
+      { setFlagForUidsAsync },
+      { enqueueMovesAsync, flushPendingMovesAsync },
+      selectMessage,
+    );
 
   // Default to the unified view when no account is selected yet.
   watch(
@@ -225,6 +233,7 @@ export const useMailStore = defineStore("mail", () => {
     bulkSetFlagAsync,
     bulkMoveToRoleAsync,
     bulkMoveToMailboxAsync,
+    flushPendingMovesAsync,
     setFlagForUidsAsync,
     moveUidsAsync,
     deleteUidsAsync,

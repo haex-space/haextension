@@ -1,41 +1,39 @@
 import { and, eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { mailboxDisplayName } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
-import type { ComputedRef, Ref } from "vue";
+import type { Ref } from "vue";
 import type { MessageChanges } from "./changes";
+import type { MoveOutbox } from "./outbox";
 import type { MailSync } from "./sync";
 
 interface BulkMessageState {
-  selectedAccountId: Ref<string | null>;
-  selectedMailboxName: Ref<string | null>;
-  selectedRole: Ref<schema.MailboxRole | null>;
   selectedMessageId: Ref<string | null>;
-  isUnifiedView: ComputedRef<boolean>;
   messageList: Ref<schema.SelectMessage[]>;
 }
 
 /**
  * All bulk actions group the selected rows by (accountId, mailboxName),
  * so they work identically in per-account and unified view.
+ *
+ * Moves are optimistic: the rows leave the list at once and the move itself is left to the
+ * outbox, which repeats it until the server has done it (see outbox.ts).
  */
 export const useBulkMessageOps = (
   state: BulkMessageState,
-  sync: Pick<MailSync, "loadMessagesAsync" | "loadUnifiedMessagesAsync">,
-  changes: Pick<MessageChanges, "setFlagForUidsAsync" | "moveUidsAsync">,
+  sync: Pick<MailSync, "reloadCurrentListAsync">,
+  changes: Pick<MessageChanges, "setFlagForUidsAsync">,
+  outbox: Pick<MoveOutbox, "enqueueMovesAsync" | "flushPendingMovesAsync">,
   selectMessage: (id: string | null) => void,
 ) => {
   const haexVault = useHaexVaultStore();
   const { $i18n } = useNuxtApp();
   const {
-    selectedAccountId,
-    selectedMailboxName,
-    selectedRole,
     selectedMessageId,
-    isUnifiedView,
     messageList,
   } = state;
-  const { loadMessagesAsync, loadUnifiedMessagesAsync } = sync;
+  const { reloadCurrentListAsync } = sync;
 
   interface MessageGroup {
     accountId: string;
@@ -57,14 +55,6 @@ export const useBulkMessageOps = (
       group.rows.push(row);
     }
     return [...groups.values()];
-  };
-
-  const reloadCurrentListAsync = async () => {
-    if (isUnifiedView.value && selectedRole.value) {
-      await loadUnifiedMessagesAsync(selectedRole.value);
-    } else if (selectedAccountId.value && selectedMailboxName.value) {
-      await loadMessagesAsync(selectedAccountId.value, selectedMailboxName.value);
-    }
   };
 
   const reportBulkFailures = (results: PromiseSettledResult<unknown>[]) => {
@@ -95,14 +85,44 @@ export const useBulkMessageOps = (
     await reloadCurrentListAsync();
   };
 
-  /** Move messages of one group to a destination mailbox and drop the cache rows. */
-  const moveGroupAsync = (g: MessageGroup, destinationName: string) =>
-    changes.moveUidsAsync(
-      g.accountId,
-      g.mailboxName,
-      g.rows.map((r) => r.uid),
-      destinationName,
+  /**
+   * Take the messages out of the list and queue their moves for the server. Returns how many were
+   * queued; none when the queue could not be written (the list is read again, so they show).
+   */
+  const queueMovesAsync = async (
+    moves: { g: MessageGroup; dest: string }[],
+    destinationLabel: string,
+  ): Promise<number> => {
+    if (moves.length === 0) return 0;
+    const gone = new Set(moves.flatMap((m) => m.g.rows.map((r) => r.id)));
+    const removeFromList = () => {
+      messageList.value = messageList.value.filter((m) => !gone.has(m.id));
+    };
+    // Before anything is awaited, so the list reacts to the click and not to the database.
+    removeFromList();
+    try {
+      await outbox.enqueueMovesAsync(
+        moves.map((m) => ({
+          accountId: m.g.accountId,
+          mailboxName: m.g.mailboxName,
+          destinationName: m.dest,
+          uids: m.g.rows.map((r) => r.uid),
+        })),
+      );
+    } catch (err) {
+      console.warn("[haex-mail] could not queue move", err);
+      toast.error(getErrorMessage(err));
+      await reloadCurrentListAsync();
+      return 0;
+    }
+    // A list load that ran meanwhile read the rows before they were marked.
+    removeFromList();
+    toast.success(
+      $i18n.t("mail.pendingMoves.moved", { count: gone.size, folder: destinationLabel }),
     );
+    void outbox.flushPendingMovesAsync(true);
+    return gone.size;
+  };
 
   /**
    * Delete (role "trash") or archive (role "archive") messages. Returns how
@@ -151,18 +171,13 @@ export const useBulkMessageOps = (
     if (selectedMessageId.value && movingIds.has(selectedMessageId.value)) {
       selectMessage(null);
     }
-    const results = await Promise.allSettled(moves.map((m) => moveGroupAsync(m.g, m.dest)));
-    reportBulkFailures([...planned, ...results]);
+    reportBulkFailures(planned);
     if (alreadyThere) {
       toast.info(
         $i18n.t(role === "trash" ? "mail.errors.alreadyInTrash" : "mail.errors.alreadyArchived"),
       );
     }
-    await reloadCurrentListAsync();
-    return results.reduce(
-      (sum, r, i) => (r.status === "fulfilled" ? sum + moves[i]!.g.rows.length : sum),
-      0,
-    );
+    return queueMovesAsync(moves, $i18n.t(`mail.roles.${role}`));
   };
 
   /** Move messages to a specific mailbox — caller ensures a single account. */
@@ -170,12 +185,12 @@ export const useBulkMessageOps = (
     if (selectedMessageId.value && ids.includes(selectedMessageId.value)) {
       selectMessage(null);
     }
-    const groups = groupSelectedRows(ids);
-    const results = await Promise.allSettled(
-      groups.map((g) => moveGroupAsync(g, mailboxName)),
+    await queueMovesAsync(
+      groupSelectedRows(ids)
+        .filter((g) => g.mailboxName !== mailboxName)
+        .map((g) => ({ g, dest: mailboxName })),
+      mailboxDisplayName(mailboxName, $i18n.t("mail.roles.inbox")),
     );
-    reportBulkFailures(results);
-    await reloadCurrentListAsync();
   };
 
   return {
