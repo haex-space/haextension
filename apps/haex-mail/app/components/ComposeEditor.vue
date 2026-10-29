@@ -30,7 +30,7 @@ import type { Component } from "vue";
 import { toast } from "vue-sonner";
 import { bodyToHtml, markdownForEditor, safeHref, textToBody } from "~/lib/composeBody";
 import { EMOJI_GROUPS } from "~/lib/emojis";
-import { lintMarkdown } from "~/lib/markdownLint";
+import { type LintIssue, lintMarkdown } from "~/lib/markdownLint";
 import { isWebUrl } from "~/lib/mailHtml";
 import { getErrorMessage } from "~/lib/utils";
 
@@ -110,7 +110,13 @@ const active = (name: string) => !!editor.value?.isActive(name);
 
 const markdownMode = ref(false);
 const markdown = ref("");
-const markdownArea = ref<HTMLTextAreaElement>();
+const sourceEditor = ref<{
+  focus: () => void;
+  undo: () => void;
+  redo: () => void;
+  insertText: (text: string) => void;
+  goToLine: (line: number) => void;
+} | null>(null);
 
 /** The editor stays the single source of the model: Markdown is parsed into it on every edit. */
 const setMarkdown = (source: string) => {
@@ -142,20 +148,8 @@ const onPreviewClick = (e: MouseEvent) => {
 
 const lintIssues = computed(() => (markdownMode.value ? lintMarkdown(markdown.value) : []));
 const lintOpen = ref(true);
+const describeIssue = (issue: LintIssue) => t(`lint.${issue.code}`, issue.params);
 
-/** Selects the line a hint is about and scrolls it into view. */
-const goToLine = (line: number) => {
-  const area = markdownArea.value;
-  if (!area) return;
-  const lines = area.value.split("\n");
-  const start = lines.slice(0, line - 1).reduce((sum, l) => sum + l.length + 1, 0);
-  area.focus();
-  area.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0));
-  const lineHeight = parseFloat(getComputedStyle(area).lineHeight) || 20;
-  area.scrollTop = Math.max(0, (line - 3) * lineHeight);
-};
-
-const onMarkdownInput = (e: Event) => setMarkdown((e.target as HTMLTextAreaElement).value);
 
 // --- Emojis ------------------------------------------------------------------
 
@@ -167,11 +161,8 @@ const emojiGroupEmojis = computed(
 
 const insertEmoji = (emoji: string) => {
   emojiOpen.value = false;
-  const area = markdownArea.value;
-  if (markdownMode.value && area) {
-    area.focus();
-    area.setRangeText(emoji, area.selectionStart, area.selectionEnd, "end");
-    setMarkdown(area.value);
+  if (markdownMode.value && sourceEditor.value) {
+    sourceEditor.value.insertText(emoji);
   } else {
     editor.value?.chain().focus().insertContent(emoji).run();
   }
@@ -236,7 +227,7 @@ const toggleMarkdown = () => {
   } else {
     markdown.value = ed.getMarkdown();
     markdownMode.value = true;
-    nextTick(() => markdownArea.value?.focus());
+    nextTick(() => sourceEditor.value?.focus());
   }
 };
 
@@ -299,11 +290,8 @@ const onKeydown = (e: KeyboardEvent) => {
 
 const isEmpty = computed(() => !editor.value || editor.value.isEmpty);
 
-/** The Markdown textarea keeps its own history, separate from the editor's. */
-const textareaHistory = (command: "undo" | "redo") => {
-  markdownArea.value?.focus();
-  document.execCommand(command);
-};
+/** The Markdown source keeps its own history, separate from the editor's. */
+const sourceHistory = (command: "undo" | "redo") => sourceEditor.value?.[command]();
 
 interface Tool {
   key: string;
@@ -323,14 +311,14 @@ const tools = computed<Tool[][]>(() => {
         icon: Undo2,
         on: false,
         disabled: md ? false : !e?.can().undo(),
-        run: () => (md ? textareaHistory("undo") : void e?.chain().focus().undo().run()),
+        run: () => (md ? sourceHistory("undo") : void e?.chain().focus().undo().run()),
       },
       {
         key: "redo",
         icon: Redo2,
         on: false,
         disabled: md ? false : !e?.can().redo(),
-        run: () => (md ? textareaHistory("redo") : void e?.chain().focus().redo().run()),
+        run: () => (md ? sourceHistory("redo") : void e?.chain().focus().redo().run()),
       },
     ],
     [
@@ -583,14 +571,15 @@ const tools = computed<Tool[][]>(() => {
     <!-- Markdown mode: source and preview side by side (stacked when narrow), hints below -->
     <div v-show="markdownMode" class="flex-1 min-h-0 flex flex-col">
       <div class="flex-1 min-h-0 flex flex-col md:flex-row">
-        <textarea
-          ref="markdownArea"
-          :value="markdown"
-          class="flex-1 min-h-0 min-w-0 w-full px-4 py-4 text-sm font-mono bg-transparent resize-none focus:outline-none"
+        <MarkdownSource
+          ref="sourceEditor"
+          :model-value="markdown"
+          class="flex-1"
           :placeholder="placeholder"
           :aria-label="t('markdownSource')"
-          spellcheck="false"
-          @input="onMarkdownInput"
+          :issues="lintIssues"
+          :describe="describeIssue"
+          @update:model-value="setMarkdown"
         />
         <div
           v-if="previewOn"
@@ -630,7 +619,7 @@ const tools = computed<Tool[][]>(() => {
               type="button"
               class="text-left hover:underline"
               :class="issue.severity === 'info' ? 'text-muted-foreground' : ''"
-              @click="goToLine(issue.line)"
+              @click="sourceEditor?.goToLine(issue.line)"
             >
               <span class="tabular-nums">{{ t("lintLine", { line: issue.line }) }}</span>
               {{ t(`lint.${issue.code}`, issue.params) }}
@@ -723,6 +712,11 @@ const tools = computed<Tool[][]>(() => {
 }
 :deep(.compose-editor .selectedCell) {
   background: color-mix(in srgb, var(--color-primary, #2563eb) 15%, transparent);
+}
+:deep([data-testid="md-preview"] blockquote) {
+  /* The preview is a light page whatever the app theme is. */
+  border-left-color: #d4d4d8;
+  color: #52525b;
 }
 :deep(.compose-editor hr) {
   border: 0;
