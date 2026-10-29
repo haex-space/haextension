@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Paperclip, X } from "@lucide/vue";
 import { toast } from "vue-sonner";
-import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
+import type { OutgoingAttachment } from "@haex-space/vault-sdk";
 import { parseAddressList } from "~/lib/address";
 import { bodyNeedsHtml, bodyToHtml, bodyToText, textToBody } from "~/lib/composeBody";
+import { buildOutgoingMessage } from "~/lib/outgoing";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import type { ReplyContext } from "~/stores/mail/reply";
@@ -153,9 +154,6 @@ watch(
   },
 );
 
-/** Valid recipients of a field; a draft keeps what it can, a send refuses invalid ones. */
-const recipientsOf = (input: string) => parseAddressList(input).addresses;
-
 const resolveAccount = async (): Promise<AccountWithCredentials | null> => {
   return (
     props.account ??
@@ -183,18 +181,20 @@ const sendAsync = async () => {
       error.value = t("errors.invalidAddress", { addresses: invalid.join(", ") });
       return;
     }
-    const message: OutgoingMessage = {
-      from: { email: account.account.email, name: account.account.displayName },
-      to: recipientsOf(to.value),
-      cc: recipientsOf(cc.value),
-      bcc: recipientsOf(bcc.value),
-      subject: subject.value,
-      ...bodyContent(body.value),
-      attachments: attachments.value.length ? attachments.value : undefined,
-      // Threading headers so replies land in the original conversation.
-      inReplyTo: props.replyTo?.inReplyTo,
-      references: props.replyTo?.references,
-    };
+    const message = buildOutgoingMessage(
+      { email: account.account.email, name: account.account.displayName },
+      {
+        to: to.value,
+        cc: cc.value,
+        bcc: bcc.value,
+        subject: subject.value,
+        ...bodyContent(body.value),
+        attachments: attachments.value,
+        // Threading headers so replies land in the original conversation.
+        inReplyTo: props.replyTo?.inReplyTo,
+        references: props.replyTo?.references,
+      },
+    );
     await haexVault.client.mail.sendMessageAsync(account.smtp, message);
     open.value = false;
   } catch (err) {
@@ -238,15 +238,18 @@ const saveDraftAsync = async (): Promise<boolean> => {
       return false;
     }
 
-    const message: OutgoingMessage = {
-      from: { email: account.account.email, name: account.account.displayName },
-      to: recipientsOf(snap.to),
-      cc: recipientsOf(snap.cc),
-      bcc: recipientsOf(snap.bcc),
-      subject: snap.subject || t("noSubject"),
-      ...bodyContent(snap.body),
-      attachments: snap.attachments.length ? snap.attachments : undefined,
-    };
+    // A draft keeps the recipients it can read; a send refuses invalid ones.
+    const message = buildOutgoingMessage(
+      { email: account.account.email, name: account.account.displayName },
+      {
+        to: snap.to,
+        cc: snap.cc,
+        bcc: snap.bcc,
+        subject: snap.subject || t("noSubject"),
+        ...bodyContent(snap.body),
+        attachments: snap.attachments,
+      },
+    );
     const rfc822 = await haexVault.client.mail.buildRfc822Async(
       account.imap.host,
       message,
