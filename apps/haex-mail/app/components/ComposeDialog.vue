@@ -3,6 +3,7 @@ import { Paperclip, X } from "@lucide/vue";
 import { toast } from "vue-sonner";
 import type { OutgoingAttachment, OutgoingMessage } from "@haex-space/vault-sdk";
 import { parseAddressList } from "~/lib/address";
+import { bodyNeedsHtml, bodyToHtml, bodyToText, textToBody } from "~/lib/composeBody";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import type { ReplyContext } from "~/stores/mail/reply";
@@ -27,6 +28,7 @@ const to = ref("");
 const cc = ref("");
 const bcc = ref("");
 const subject = ref("");
+/** Raw editor HTML — `bodyContent()` turns it into what gets sent. */
 const body = ref("");
 const attachments = ref<OutgoingAttachment[]>([]);
 const fromAccountId = ref<string | null>(null);
@@ -43,10 +45,19 @@ const isDirty = computed(
       cc.value.trim() ||
       bcc.value.trim() ||
       subject.value.trim() ||
-      body.value.trim() ||
+      bodyToText(body.value).trim() ||
       attachments.value.length
     ),
 );
+
+/** Plain text always; HTML only when formatting or a link needs it, so other mails stay plain text. */
+const bodyContent = (html: string) => {
+  const text = bodyToText(html);
+  return {
+    bodyText: text || undefined,
+    bodyHtml: bodyNeedsHtml(html) ? bodyToHtml(html) : undefined,
+  };
+};
 
 /** Approximate decoded byte size of a base64 payload (for display). */
 const attachmentBytes = (data: string) => Math.floor((data.length * 3) / 4);
@@ -72,9 +83,8 @@ const fileToBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const onFilesPicked = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const files = Array.from(target.files ?? []);
+/** Adds files as attachments: from the picker, or dropped / pasted into the editor. */
+const addFilesAsync = async (files: File[]) => {
   try {
     for (const file of files) {
       attachments.value.push({
@@ -85,6 +95,13 @@ const onFilesPicked = async (event: Event) => {
     }
   } catch (err) {
     error.value = getErrorMessage(err);
+  }
+};
+
+const onFilesPicked = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  try {
+    await addFilesAsync(Array.from(target.files ?? []));
   } finally {
     target.value = "";
   }
@@ -114,7 +131,7 @@ const applyReplyTo = () => {
     : [];
   subject.value = props.replyTo.subject;
   // Quoted original (cursor stays at the top, before the quote).
-  if (props.replyTo.body) body.value = props.replyTo.body;
+  if (props.replyTo.body) body.value = textToBody(props.replyTo.body);
   // Unified view: reply from the account the message was received on.
   if (!props.account) fromAccountId.value = props.replyTo.accountId;
 };
@@ -172,7 +189,7 @@ const sendAsync = async () => {
       cc: recipientsOf(cc.value),
       bcc: recipientsOf(bcc.value),
       subject: subject.value,
-      bodyText: body.value || undefined,
+      ...bodyContent(body.value),
       attachments: attachments.value.length ? attachments.value : undefined,
       // Threading headers so replies land in the original conversation.
       inReplyTo: props.replyTo?.inReplyTo,
@@ -227,7 +244,7 @@ const saveDraftAsync = async (): Promise<boolean> => {
       cc: recipientsOf(snap.cc),
       bcc: recipientsOf(snap.bcc),
       subject: snap.subject || t("noSubject"),
-      bodyText: snap.body || undefined,
+      ...bodyContent(snap.body),
       attachments: snap.attachments.length ? snap.attachments : undefined,
     };
     const rfc822 = await haexVault.client.mail.buildRfc822Async(
@@ -366,10 +383,11 @@ const discardAsync = () => {
           </ul>
         </div>
 
-        <textarea
+        <ComposeEditor
           v-model="body"
-          class="flex-1 w-full px-4 py-4 text-sm bg-transparent resize-none focus:outline-none"
           :placeholder="t('bodyPlaceholder')"
+          @attach="fileInput?.click()"
+          @files="addFilesAsync"
         />
 
         <p v-if="error" class="px-4 pb-1 text-sm text-destructive">{{ error }}</p>
