@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defaultKeymap, history, historyKeymap, redo, undo } from "@codemirror/commands";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { markdown, markdownKeymap, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Annotation, EditorState } from "@codemirror/state";
@@ -94,7 +94,7 @@ onMounted(() => {
       extensions: [
         history(),
         drawSelection(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...markdownKeymap]),
         markdown({ base: markdownLanguage }),
         syntaxHighlighting(highlight),
         EditorView.lineWrapping,
