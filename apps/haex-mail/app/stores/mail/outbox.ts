@@ -1,4 +1,4 @@
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
 import {
@@ -10,6 +10,7 @@ import {
 import { chunk, getErrorMessage } from "~/lib/utils";
 import type { MessageChanges } from "./changes";
 import type { MailSync } from "./sync";
+import { useAccountsStore } from "../accounts";
 
 export interface QueuedMove {
   accountId: string;
@@ -26,10 +27,11 @@ export interface QueuedMove {
  * through or `MAX_MOVE_ATTEMPTS` real failures gave them up.
  */
 export const useMoveOutbox = (
-  sync: Pick<MailSync, "reloadCurrentListAsync">,
+  sync: Pick<MailSync, "reloadCurrentListAsync" | "refreshMailboxesAsync">,
   changes: Pick<MessageChanges, "moveUidsAsync">,
 ) => {
   const haexVault = useHaexVaultStore();
+  const accountsStore = useAccountsStore();
   const { $i18n } = useNuxtApp();
 
   /** Write the moves down; the caller removes the rows from the visible list. */
@@ -85,10 +87,56 @@ export const useMoveOutbox = (
     await Promise.all(
       groups.map(async (g) => {
         try {
-          await changes.moveUidsAsync(g.accountId, g.mailboxName, g.uids, g.destinationName);
+          // UIDs only identify a message within one UIDVALIDITY generation. Refresh the
+          // source mailbox before retrying a persisted operation, so a server reset while
+          // the app was closed cannot make an old UID move a different message.
+          const account = await accountsStore.getCredentialsCachedAsync(g.accountId);
+          if (!account) throw new Error($i18n.t("mail.errors.credentials"));
+          const cachedSource = (
+            await orm
+              .select({ uidValidity: schema.mailboxes.uidValidity })
+              .from(schema.mailboxes)
+              .where(eq(schema.mailboxes.id, `${g.accountId}::${g.mailboxName}`))
+              .limit(1)
+          )[0];
+          if (cachedSource?.uidValidity == null) {
+            throw new Error("Could not verify the cached source mailbox UIDVALIDITY");
+          }
+          const mailboxes = await sync.refreshMailboxesAsync(account);
+          const source = mailboxes.find((mailbox) => mailbox.name === g.mailboxName);
+          if (!source) {
+            await orm
+              .delete(schema.pendingMoves)
+              .where(inArray(schema.pendingMoves.messageId, g.messageIds));
+            return;
+          }
+          if (source.uidValidity == null) {
+            throw new Error("Could not verify the source mailbox UIDVALIDITY");
+          }
+          if (source.uidValidity !== cachedSource.uidValidity) {
+            // The cache refresh already invalidated this mailbox and its old queued UIDs.
+            // Remove any operation rows left by a partial invalidation and never retry them.
+            await orm
+              .delete(schema.pendingMoves)
+              .where(inArray(schema.pendingMoves.messageId, g.messageIds));
+            return;
+          }
+
+          // Refreshing can invalidate the queue when UIDVALIDITY changed or the mailbox
+          // disappeared. Only the rows that survived that check are safe to send.
+          const stillQueued = await orm
+            .select({ messageId: schema.pendingMoves.messageId })
+            .from(schema.pendingMoves)
+            .where(inArray(schema.pendingMoves.messageId, g.messageIds));
+          if (stillQueued.length === 0) return;
+          const queuedIds = new Set(stillQueued.map((row) => row.messageId));
+          const safeUids = g.uids.filter((_, index) => queuedIds.has(g.messageIds[index]!));
+          const safeIds = g.messageIds.filter((id) => queuedIds.has(id));
+
+          await changes.moveUidsAsync(g.accountId, g.mailboxName, safeUids, g.destinationName);
           await orm
             .delete(schema.pendingMoves)
-            .where(inArray(schema.pendingMoves.messageId, g.messageIds));
+            .where(inArray(schema.pendingMoves.messageId, safeIds));
         } catch (err) {
           console.warn("[haex-mail] queued move failed", err);
           // The connection dropped meanwhile: not the move's fault.

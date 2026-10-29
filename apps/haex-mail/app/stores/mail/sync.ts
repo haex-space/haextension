@@ -53,8 +53,8 @@ export const useMailSync = (
   let mailboxRefreshSeq = 0;
   let listRefreshSeq = 0;
 
-  const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
-    if (!haexVault.orm) return;
+  const refreshMailboxesAsync = async (account: AccountWithCredentials): Promise<MailboxInfo[]> => {
+    if (!haexVault.orm) return [];
     const seq = ++mailboxRefreshSeq;
     isLoadingMailboxes.value = true;
     try {
@@ -64,6 +64,7 @@ export const useMailSync = (
       });
       await syncMailboxesAsync(account.account.id, remote, seq, { complete: true });
       await loadMailboxesAsync(account.account.id);
+      return remote;
     } finally {
       if (seq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
     }
