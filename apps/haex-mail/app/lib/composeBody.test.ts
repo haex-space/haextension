@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { bodyNeedsHtml, bodyToHtml, bodyToText, safeHref, textToBody } from "./composeBody";
+import {
+  bodyNeedsHtml,
+  bodyToHtml,
+  bodyToText,
+  markdownForEditor,
+  safeHref,
+  textToBody,
+} from "./composeBody";
 
 describe("safeHref", () => {
   it("accepts absolute http(s) and mailto URLs only", () => {
@@ -73,8 +80,8 @@ describe("bodyToHtml", () => {
   });
 
   it("escapes text and turns an empty paragraph into a visible blank line", () => {
-    expect(bodyToHtml("<p>1 &lt; 2 &amp; 3</p><p></p>")).toBe(
-      "<p>1 &lt; 2 &amp; 3</p><p><br></p>",
+    expect(bodyToHtml("<p>1 &lt; 2 &amp; 3</p><p></p><p>b</p>")).toBe(
+      "<p>1 &lt; 2 &amp; 3</p><p><br></p><p>b</p>",
     );
   });
 
@@ -116,5 +123,59 @@ describe("textToBody", () => {
   it("round-trips plain text, markup characters and blank lines included", () => {
     const text = "> quoted <b>\n\nA & B";
     expect(bodyToText(textToBody(text))).toBe(text);
+  });
+});
+
+describe("headings, code and rules", () => {
+  it("keeps them in outgoing HTML and reads them as lines of text", () => {
+    const html = "<h1>Title</h1><p>a <code>x</code></p><pre><code>l1\nl2</code></pre><hr><p>b</p>";
+    expect(bodyToHtml(html)).toBe(html);
+    expect(bodyToText(html)).toBe("Title\na x\nl1\nl2\n---\nb");
+    expect(bodyNeedsHtml(html)).toBe(true);
+  });
+});
+
+describe("markdownForEditor", () => {
+  it("leaves ordinary Markdown alone", () => {
+    const md = "# T\n\n- a\n- b\n\n`x | y` and a | b";
+    expect(markdownForEditor(md)).toBe(md);
+  });
+
+  it("does not touch task markers inside a code fence", () => {
+    const md = "```\n- [ ] x\n```";
+    expect(markdownForEditor(md)).toBe(md);
+  });
+
+  it("turns task items into a text marker", () => {
+    expect(markdownForEditor("- [ ] todo\n  * [x] done\n1. [X] also")).toBe(
+      "- ☐ todo\n  * ☑ done\n1. ☑ also",
+    );
+  });
+});
+
+describe("tables", () => {
+  const table =
+    "<table><tbody><tr><th><p>a</p></th><th><p>b</p></th></tr><tr><td><p>1</p></td><td><p>x <strong>y</strong></p></td></tr></tbody></table>";
+
+  it("goes out as an inline-styled table with lines in the cells", () => {
+    const html = bodyToHtml(table);
+    expect(html).toContain('<table style="border-collapse:collapse">');
+    expect(html).toContain("<th style=");
+    expect(html).toContain("<td style=");
+    expect(html).toContain("x <strong>y</strong></td>");
+    expect(html).not.toContain("<p>");
+    expect(bodyNeedsHtml(table)).toBe(true);
+  });
+
+  it("is read as one line per row", () => {
+    expect(bodyToText(`<p>t</p>${table}<p>u</p>`)).toBe("t\na | b\n1 | x y\nu");
+  });
+});
+
+describe("trailing empty paragraphs", () => {
+  it("are not sent as blank lines", () => {
+    expect(bodyToHtml("<p>a</p><ul><li><p>b</p></li></ul><p></p><p></p>")).toBe(
+      "<p>a</p><ul><li><p>b</p></li></ul>",
+    );
   });
 });

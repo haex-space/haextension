@@ -83,9 +83,8 @@ const fileToBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const onFilesPicked = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const files = Array.from(target.files ?? []);
+/** Adds files as attachments: from the picker, or dropped / pasted into the editor. */
+const addFilesAsync = async (files: File[]) => {
   try {
     for (const file of files) {
       attachments.value.push({
@@ -96,6 +95,13 @@ const onFilesPicked = async (event: Event) => {
     }
   } catch (err) {
     error.value = getErrorMessage(err);
+  }
+};
+
+const onFilesPicked = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  try {
+    await addFilesAsync(Array.from(target.files ?? []));
   } finally {
     target.value = "";
   }
@@ -377,7 +383,12 @@ const discardAsync = () => {
           </ul>
         </div>
 
-        <ComposeEditor v-model="body" :placeholder="t('bodyPlaceholder')" />
+        <ComposeEditor
+          v-model="body"
+          :placeholder="t('bodyPlaceholder')"
+          @attach="fileInput?.click()"
+          @files="addFilesAsync"
+        />
 
         <p v-if="error" class="px-4 pb-1 text-sm text-destructive">{{ error }}</p>
 

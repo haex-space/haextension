@@ -32,10 +32,27 @@ const FORMAT_TAGS: Record<string, string> = {
   OL: "ol",
   LI: "li",
   BLOCKQUOTE: "blockquote",
+  H1: "h1",
+  H2: "h2",
+  H3: "h3",
+  CODE: "code",
+  PRE: "pre",
 };
 
 /** Block-level tags a line break is implied around. */
-const BLOCK_TAGS = new Set(["P", "DIV", "UL", "OL", "LI", "BLOCKQUOTE", "PRE"]);
+const BLOCK_TAGS = new Set([
+  "P",
+  "DIV",
+  "UL",
+  "OL",
+  "LI",
+  "BLOCKQUOTE",
+  "PRE",
+  "H1",
+  "H2",
+  "H3",
+  "TABLE",
+]);
 
 const parse = (html: string) =>
   new DOMParser().parseFromString(html, "text/html").body;
@@ -50,13 +67,22 @@ const escapeHtml = (text: string) =>
 /** True when the body holds anything a plain-text mail cannot express. */
 export const bodyNeedsHtml = (html: string): boolean => {
   const root = parse(html);
-  if (root.querySelector("strong, b, em, i, u, s, strike, del, ul, ol, blockquote")) {
+  if (
+    root.querySelector(
+      "strong, b, em, i, u, s, strike, del, ul, ol, blockquote, h1, h2, h3, code, pre, hr, table",
+    )
+  ) {
     return true;
   }
   return Array.from(root.querySelectorAll("a")).some((a) =>
     safeHref(a.getAttribute("href")),
   );
 };
+
+// Mail clients ignore style sheets, so a table carries its look inline.
+const TABLE_STYLE = "border-collapse:collapse";
+const CELL_STYLE = "border:1px solid #bbb;padding:4px 8px;text-align:left;vertical-align:top";
+const HEADER_CELL_STYLE = `${CELL_STYLE};background:#f2f2f2;font-weight:bold`;
 
 /** Outgoing HTML: escaped text, paragraphs, line breaks, formatting and safe links only. */
 export const bodyToHtml = (html: string): string => {
@@ -67,9 +93,27 @@ export const bodyToHtml = (html: string): string => {
     if (SKIPPED_TAGS.has(el.tagName)) return "";
     const inner = () => Array.from(el.childNodes).map(serialize).join("");
     if (el.tagName === "BR") return "<br>";
+    if (el.tagName === "HR") return "<hr>";
     if (el.tagName === "A") {
       const href = safeHref(el.getAttribute("href"));
       return href ? `<a href="${escapeHtml(href)}">${inner()}</a>` : inner();
+    }
+    if (el.tagName === "TABLE") {
+      const rows = Array.from(el.querySelectorAll("tr")).map(serialize).join("");
+      return `<table style="${TABLE_STYLE}">${rows}</table>`;
+    }
+    if (el.tagName === "TR") return `<tr>${inner()}</tr>`;
+    if (el.tagName === "TH" || el.tagName === "TD") {
+      const tag = el.tagName.toLowerCase();
+      // A cell holds paragraphs in the editor; mail clients want them as lines.
+      const content = Array.from(el.childNodes)
+        .map((child) =>
+          child.nodeType === Node.ELEMENT_NODE && (child as Element).tagName === "P"
+            ? Array.from(child.childNodes).map(serialize).join("")
+            : serialize(child),
+        )
+        .join("<br>");
+      return `<${tag} style="${tag === "th" ? HEADER_CELL_STYLE : CELL_STYLE}">${content}</${tag}>`;
     }
     if (el.tagName === "P" || el.tagName === "DIV") {
       // An empty paragraph is a blank line, which mail clients would collapse.
@@ -78,7 +122,11 @@ export const bodyToHtml = (html: string): string => {
     const tag = FORMAT_TAGS[el.tagName];
     return tag ? `<${tag}>${inner()}</${tag}>` : inner();
   };
-  return Array.from(parse(html).childNodes).map(serialize).join("");
+  return Array.from(parse(html).childNodes)
+    .map(serialize)
+    .join("")
+    // The editor keeps an empty paragraph after a list or table; that is no blank line.
+    .replace(/(<p><br><\/p>)+$/, "");
 };
 
 /** Plain-text alternative: lists and quotes keep their markers, links their target. */
@@ -125,6 +173,11 @@ export const bodyToText = (html: string): string => {
         open = false;
         return;
       }
+      if (el.tagName === "HR") {
+        flush();
+        lines.push("---");
+        return;
+      }
       if (el.tagName === "A") {
         current += linkText(el);
         open = true;
@@ -155,6 +208,12 @@ export const bodyToText = (html: string): string => {
             i === 0 ? marker + line : " ".repeat(marker.length) + line,
           );
         });
+      case "TABLE":
+        return Array.from(el.querySelectorAll("tr")).map((row) =>
+          Array.from(row.children)
+            .map((cell) => linesOf(cell).join(" "))
+            .join(" | "),
+        );
       case "BLOCKQUOTE":
         return inner.map((line) => (line ? `> ${line}` : ">"));
       default:
@@ -175,3 +234,24 @@ export const textToBody = (text: string): string =>
     .split(/\r?\n/)
     .map((line) => (line ? `<p>${escapeHtml(line)}</p>` : "<p></p>"))
     .join("");
+
+/**
+ * Markdown the editor cannot represent would drop its content when parsed, so
+ * a task item becomes a ☐/☑ text marker.
+ */
+export const markdownForEditor = (markdown: string): string => {
+  let inFence = false;
+  return markdown
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
+      return inFence
+        ? line
+        : line.replace(
+            /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s/,
+            (_, lead, mark) => `${lead}${mark === " " ? "☐" : "☑"} `,
+          );
+    })
+    .join("\n");
+};
