@@ -12,3 +12,4 @@
 | 0.2.5 | 2026-04-02 | [haex-draw-0.2.5.xt](./haex-draw-0.2.5.xt) |
 | 0.2.6 | 2026-04-16 | [haex-draw-0.2.6.xt](./haex-draw-0.2.6.xt) |
 | 0.2.7 | 2026-05-09 | [haex-draw-0.2.7.xt](./haex-draw-0.2.7.xt) |
+| 0.2.8 | 2026-10-29 | [haex-draw-0.2.8.xt](./haex-draw-0.2.8.xt) |
