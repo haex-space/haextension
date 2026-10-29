@@ -9,12 +9,11 @@ import { createTools } from "~/tools";
 export default defineNuxtPlugin((nuxtApp) => {
   /** Returns whether the tools were registered; the vault client may not exist yet. */
   const register = async (): Promise<boolean> => {
-    let client;
-    try {
-      client = await nuxtApp.runWithContext(() => useHaexVaultStore().client);
-    } catch {
-      return false;
-    }
+    // Read the plugin directly: creating the vault store before the client exists makes its
+    // `client` getter throw during setup, and Pinia then keeps the half-built store, so every
+    // later `useHaexVaultStore().client` is undefined.
+    const client = (nuxtApp as ReturnType<typeof useNuxtApp>).$haexVault?.client;
+    if (!client) return false;
     for (const [name, handler] of Object.entries(createTools(() => buildToolDeps(nuxtApp)))) {
       try {
         client.tools.register(name, handler);
