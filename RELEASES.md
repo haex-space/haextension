@@ -16,3 +16,4 @@
 | 1.0.7 | 2026-04-02 | [haex-calendar-1.0.7.xt](./haex-calendar-1.0.7.xt) |
 | 1.0.8 | 2026-04-16 | [haex-calendar-1.0.8.xt](./haex-calendar-1.0.8.xt) |
 | 1.0.9 | 2026-05-09 | [haex-calendar-1.0.9.xt](./haex-calendar-1.0.9.xt) |
+| 1.0.10 | 2026-10-29 | [haex-calendar-1.0.10.xt](./haex-calendar-1.0.10.xt) |
