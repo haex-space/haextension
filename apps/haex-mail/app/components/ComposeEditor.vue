@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {
   Bold,
+  CircleCheck,
   ExternalLink,
+  Eye,
   FileCode,
   Italic,
   Link2,
@@ -9,11 +11,13 @@ import {
   ListOrdered,
   Paperclip,
   Pencil,
+  PenLine,
   Quote,
   Redo2,
   Smile,
   Strikethrough,
   Table as TableIcon,
+  TriangleAlert,
   Underline,
   Undo2,
   Unlink,
@@ -24,8 +28,9 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import type { Component } from "vue";
 import { toast } from "vue-sonner";
-import { markdownForEditor, safeHref, textToBody } from "~/lib/composeBody";
+import { bodyToHtml, markdownForEditor, safeHref, textToBody } from "~/lib/composeBody";
 import { EMOJI_GROUPS } from "~/lib/emojis";
+import { lintMarkdown } from "~/lib/markdownLint";
 import { isWebUrl } from "~/lib/mailHtml";
 import { getErrorMessage } from "~/lib/utils";
 
@@ -120,6 +125,34 @@ const setMarkdown = (source: string) => {
   if (ed.isEmpty && source.trim()) {
     ed.commands.setContent(textToBody(source), { emitUpdate: true });
   }
+};
+
+// What the mail will look like: the very HTML that gets sent, so the preview cannot
+// drift from the result. It is rebuilt from an allowlist, so showing it is safe.
+const previewOn = ref(true);
+const previewHtml = computed(() => bodyToHtml(model.value));
+
+const onPreviewClick = (e: MouseEvent) => {
+  const anchor = (e.target as HTMLElement).closest("a");
+  if (!anchor) return;
+  // The webview must not navigate away from the app.
+  e.preventDefault();
+  void openHrefAsync(anchor.getAttribute("href"));
+};
+
+const lintIssues = computed(() => (markdownMode.value ? lintMarkdown(markdown.value) : []));
+const lintOpen = ref(true);
+
+/** Selects the line a hint is about and scrolls it into view. */
+const goToLine = (line: number) => {
+  const area = markdownArea.value;
+  if (!area) return;
+  const lines = area.value.split("\n");
+  const start = lines.slice(0, line - 1).reduce((sum, l) => sum + l.length + 1, 0);
+  area.focus();
+  area.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0));
+  const lineHeight = parseFloat(getComputedStyle(area).lineHeight) || 20;
+  area.scrollTop = Math.max(0, (line - 3) * lineHeight);
 };
 
 const onMarkdownInput = (e: Event) => setMarkdown((e.target as HTMLTextAreaElement).value);
@@ -403,19 +436,48 @@ const tools = computed<Tool[][]>(() => {
           @click="emit('attach')"
         />
       </div>
-      <UiButton
-        type="button"
-        :variant="markdownMode ? 'secondary' : 'ghost'"
-        size="sm"
-        class="ml-auto"
-        :aria-pressed="markdownMode"
-        :title="t('markdownHint')"
-        @mousedown.prevent
-        @click="toggleMarkdown"
-      >
-        <FileCode class="size-4" />
-        {{ t("markdown") }}
-      </UiButton>
+      <div class="ml-auto flex items-center gap-2">
+        <UiButton
+          v-if="markdownMode"
+          type="button"
+          :variant="previewOn ? 'secondary' : 'ghost'"
+          size="sm"
+          :aria-pressed="previewOn"
+          :title="t('previewHint')"
+          @mousedown.prevent
+          @click="previewOn = !previewOn"
+        >
+          <Eye class="size-4" />
+          {{ t("preview") }}
+        </UiButton>
+        <!-- Two views of the same message: the formatted editor and its Markdown source -->
+        <div class="flex items-center gap-0.5 rounded-md border border-border p-0.5" role="group" :aria-label="t('viewMode')">
+          <UiButton
+            type="button"
+            :variant="markdownMode ? 'ghost' : 'secondary'"
+            size="sm"
+            :aria-pressed="!markdownMode"
+            :title="t('editorHint')"
+            @mousedown.prevent
+            @click="markdownMode && toggleMarkdown()"
+          >
+            <PenLine class="size-4" />
+            {{ t("editor") }}
+          </UiButton>
+          <UiButton
+            type="button"
+            :variant="markdownMode ? 'secondary' : 'ghost'"
+            size="sm"
+            :aria-pressed="markdownMode"
+            :title="t('markdownHint')"
+            @mousedown.prevent
+            @click="!markdownMode && toggleMarkdown()"
+          >
+            <FileCode class="size-4" />
+            {{ t("markdown") }}
+          </UiButton>
+        </div>
+      </div>
     </div>
 
     <form
@@ -518,16 +580,65 @@ const tools = computed<Tool[][]>(() => {
       <EditorContent :editor="editor" />
     </div>
 
-    <textarea
-      v-show="markdownMode"
-      ref="markdownArea"
-      :value="markdown"
-      class="flex-1 w-full min-h-0 px-4 py-4 text-sm font-mono bg-transparent resize-none focus:outline-none"
-      :placeholder="placeholder"
-      :aria-label="t('markdownSource')"
-      spellcheck="false"
-      @input="onMarkdownInput"
-    />
+    <!-- Markdown mode: source and preview side by side (stacked when narrow), hints below -->
+    <div v-show="markdownMode" class="flex-1 min-h-0 flex flex-col">
+      <div class="flex-1 min-h-0 flex flex-col md:flex-row">
+        <textarea
+          ref="markdownArea"
+          :value="markdown"
+          class="flex-1 min-h-0 min-w-0 w-full px-4 py-4 text-sm font-mono bg-transparent resize-none focus:outline-none"
+          :placeholder="placeholder"
+          :aria-label="t('markdownSource')"
+          spellcheck="false"
+          @input="onMarkdownInput"
+        />
+        <div
+          v-if="previewOn"
+          class="flex-1 min-h-0 min-w-0 overflow-y-auto border-t md:border-t-0 md:border-l border-border bg-white text-neutral-900 [color-scheme:light]"
+          data-testid="md-preview"
+          :aria-label="t('preview')"
+        >
+          <p
+            v-if="!previewHtml"
+            class="px-4 py-4 text-sm text-neutral-500"
+          >
+            {{ t("previewEmpty") }}
+          </p>
+          <!-- eslint-disable-next-line vue/no-v-html -- built by bodyToHtml from an allowlist -->
+          <div v-else class="compose-editor px-4 py-4 text-sm" @click="onPreviewClick" v-html="previewHtml" />
+        </div>
+      </div>
+
+      <div class="shrink-0 border-t border-border text-xs" data-testid="md-lint">
+        <button
+          type="button"
+          class="w-full flex items-center gap-1.5 px-3 py-1 text-left hover:bg-accent/50"
+          :aria-expanded="lintIssues.length > 0 && lintOpen"
+          :disabled="lintIssues.length === 0"
+          @click="lintOpen = !lintOpen"
+        >
+          <CircleCheck v-if="lintIssues.length === 0" class="size-3.5 text-green-600" />
+          <TriangleAlert v-else class="size-3.5 text-amber-600" />
+          {{ lintIssues.length === 0 ? t("lintNone") : t("lintCount", { n: lintIssues.length }) }}
+        </button>
+        <ul
+          v-if="lintIssues.length > 0 && lintOpen"
+          class="max-h-28 overflow-y-auto px-3 pb-1 space-y-0.5"
+        >
+          <li v-for="(issue, i) in lintIssues" :key="i">
+            <button
+              type="button"
+              class="text-left hover:underline"
+              :class="issue.severity === 'info' ? 'text-muted-foreground' : ''"
+              @click="goToLine(issue.line)"
+            >
+              <span class="tabular-nums">{{ t("lintLine", { line: issue.line }) }}</span>
+              {{ t(`lint.${issue.code}`, issue.params) }}
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -638,8 +749,30 @@ de:
   linkOpen: Link öffnen (Strg+Klick)
   linkEdit: Link ändern
   markdown: Markdown
-  markdownHint: Zwischen Editor und Markdown-Quelltext wechseln
+  viewMode: Ansicht
+  editor: Editor
+  editorHint: Formatierte Ansicht, so wie die Mail aussieht
+  markdownHint: Markdown-Quelltext bearbeiten
   markdownSource: Nachricht als Markdown
+  preview: Vorschau
+  previewHint: So sieht die Mail beim Empfänger aus (heller Hintergrund)
+  previewEmpty: Hier erscheint die Vorschau.
+  lintNone: Keine Hinweise
+  lintCount: "{n} Hinweis | {n} Hinweise"
+  lintLine: "Zeile {line}:"
+  lint:
+    image: Bilder werden nicht eingebettet, nur der Alternativtext bleibt.
+    linkEmpty: Der Link hat keine Adresse.
+    linkScheme: "Wird nicht als Link gesendet, erlaubt sind http(s) und mailto: {url}"
+    linkSpace: Zwischen ] und ( darf kein Leerzeichen stehen, sonst ist es kein Link.
+    headingDeep: Überschriften gibt es nur bis Ebene 3, diese wird zu normalem Text.
+    headingSpace: Nach dem # fehlt ein Leerzeichen, daher keine Überschrift.
+    html: "HTML wird nicht übernommen: {tag}"
+    task: Aufgaben werden als Zeichen ☐ oder ☑ gesendet, nicht als Kästchen.
+    emphasisOpen: Fett (**) wird nicht geschlossen.
+    strikeOpen: Durchgestrichen (~~) wird nicht geschlossen.
+    tableColumns: Die Zeile hat {found} statt {expected} Spalten.
+    fenceOpen: Der Codeblock wird nicht geschlossen.
   table: Tabelle einfügen
   rowAdd: "+ Zeile"
   columnAdd: "+ Spalte"
@@ -670,8 +803,30 @@ en:
   linkOpen: Open link (Ctrl+click)
   linkEdit: Edit link
   markdown: Markdown
-  markdownHint: Switch between the editor and Markdown source
+  viewMode: View
+  editor: Editor
+  editorHint: Formatted view, as the mail looks
+  markdownHint: Edit the Markdown source
   markdownSource: Message as Markdown
+  preview: Preview
+  previewHint: How the mail will look for the recipient
+  previewEmpty: The preview appears here.
+  lintNone: No hints
+  lintCount: "{n} hint | {n} hints"
+  lintLine: "Line {line}:"
+  lint:
+    image: Images are not embedded, only the alt text is kept.
+    linkEmpty: The link has no address.
+    linkScheme: "Not sent as a link, only http(s) and mailto are allowed: {url}"
+    linkSpace: No space is allowed between ] and (, otherwise it is not a link.
+    headingDeep: Headings go up to level 3, this one becomes plain text.
+    headingSpace: A space is missing after the #, so it is not a heading.
+    html: "HTML is not kept: {tag}"
+    task: Tasks are sent as the character ☐ or ☑, not as checkboxes.
+    emphasisOpen: Bold (**) is never closed.
+    strikeOpen: Strikethrough (~~) is never closed.
+    tableColumns: The row has {found} instead of {expected} columns.
+    fenceOpen: The code block is never closed.
   table: Insert table
   rowAdd: "+ Row"
   columnAdd: "+ Column"
