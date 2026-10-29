@@ -351,6 +351,9 @@ export const useAccountsStore = defineStore("accounts", () => {
       .delete(schema.messages)
       .where(eq(schema.messages.accountId, accountId));
     await haexVault.orm
+      .delete(schema.pendingMoves)
+      .where(eq(schema.pendingMoves.accountId, accountId));
+    await haexVault.orm
       .delete(schema.mailboxes)
       .where(eq(schema.mailboxes.accountId, accountId));
 

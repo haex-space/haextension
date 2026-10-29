@@ -13,7 +13,8 @@
       "noFolderForRole": "No {folder} folder found for this account",
       "alreadyInTrash": "These messages are already in the trash. Deleting them permanently is not supported.",
       "alreadyArchived": "These messages are already archived.",
-      "openAttachmentFailed": "No app was found to open the attachment – it can be saved with the download button."
+      "openAttachmentFailed": "No app was found to open the attachment – it can be saved with the download button.",
+      "moveFailed": "{count} message(s) could not be moved and are back in the list: {reason}"
     },
     "quoteHeader": "On {date}, {sender} wrote:",
     "forwardAttachmentsFailed": "{count} attachment(s) could not be loaded and are missing from the forward.",
@@ -21,7 +22,11 @@
     "forwardFrom": "From",
     "forwardDate": "Date",
     "forwardSubject": "Subject",
-    "forwardTo": "To"
+    "forwardTo": "To",
+    "pendingMoves": {
+      "moved": "{count} message(s) moved to “{folder}”",
+      "waiting": "{count} message(s) will be moved as soon as the mail server is reachable."
+    }
   },
   "accounts": {
     "errors": {

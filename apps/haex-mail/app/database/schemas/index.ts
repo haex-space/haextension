@@ -133,6 +133,29 @@ export type InsertMessageBody = typeof messageBodies.$inferInsert;
 export type SelectMessageBody = typeof messageBodies.$inferSelect;
 
 /**
+ * Moves the user has made in the list (delete, archive, move to folder) that the server has not
+ * confirmed yet. The message vanishes from the list at once; the move is carried out against the
+ * server in the background and repeated until it works — also after a restart, hence a table.
+ * Rows stay in `messages` until the move is done; the list loaders skip the ones named here.
+ */
+export const pendingMoves = sqliteTable(tableName("pending_moves"), {
+  /** Cache id of the message (`${accountId}::${mailboxName}::${uid}`). */
+  messageId: text("message_id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  /** Mailbox the message is in on the server. */
+  mailboxName: text("mailbox_name").notNull(),
+  uid: integer().notNull(),
+  destinationName: text("destination_name").notNull(),
+  /** Failed tries so far; see lib/pendingMoves.ts for when the move is given up. */
+  attempts: integer().notNull().default(0),
+  /** Unix ms; the move is not tried again before. */
+  nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+  ...timestamps,
+});
+export type InsertPendingMove = typeof pendingMoves.$inferInsert;
+export type SelectPendingMove = typeof pendingMoves.$inferSelect;
+
+/**
  * Mail rules (spec 019): when a new INBOX message meets all conditions, the actions run. Rules
  * belong to the vault, not to a device (ADR-0001 of holzi): they sync like accounts.
  */

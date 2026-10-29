@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import * as schema from "~/database/schemas";
 import { createStatusOrdering, MAX_UIDS_PER_FETCH, quoteImapString } from "~/lib/imap";
 import { assignRoles } from "~/lib/mailboxRoles";
@@ -41,13 +41,20 @@ export const useMailSync = (
   } = state;
 
   const statusOrdering = createStatusOrdering();
+
+  /** Messages the user already moved away whose server move is still to be done stay out of every list. */
+  const notPendingMove = () =>
+    notInArray(
+      schema.messages.id,
+      haexVault.orm!.select({ id: schema.pendingMoves.messageId }).from(schema.pendingMoves),
+    );
   // Only the latest refresh may clear its loading flag — an older one can
   // still be running after the user switched folder or account.
   let mailboxRefreshSeq = 0;
   let listRefreshSeq = 0;
 
-  const refreshMailboxesAsync = async (account: AccountWithCredentials) => {
-    if (!haexVault.orm) return;
+  const refreshMailboxesAsync = async (account: AccountWithCredentials): Promise<MailboxInfo[]> => {
+    if (!haexVault.orm) return [];
     const seq = ++mailboxRefreshSeq;
     isLoadingMailboxes.value = true;
     try {
@@ -57,6 +64,7 @@ export const useMailSync = (
       });
       await syncMailboxesAsync(account.account.id, remote, seq, { complete: true });
       await loadMailboxesAsync(account.account.id);
+      return remote;
     } finally {
       if (seq === mailboxRefreshSeq) isLoadingMailboxes.value = false;
     }
@@ -221,6 +229,15 @@ export const useMailSync = (
       ),
     );
     await haexVault.orm.delete(schema.messages).where(scope);
+    // Queued moves name UIDs of the old generation — they would hit other messages now.
+    await haexVault.orm
+      .delete(schema.pendingMoves)
+      .where(
+        and(
+          eq(schema.pendingMoves.accountId, accountId),
+          eq(schema.pendingMoves.mailboxName, mailboxName),
+        ),
+      );
     // The rules' mark counts UIDs of the old generation; the next fetch sets it anew.
     await haexVault.orm
       .update(schema.mailboxes)
@@ -367,6 +384,7 @@ export const useMailSync = (
         and(
           eq(schema.messages.accountId, accountId),
           eq(schema.messages.mailboxName, mailboxName),
+          notPendingMove(),
         ),
       )
       .orderBy(desc(schema.messages.internalDate));
@@ -395,10 +413,19 @@ export const useMailSync = (
           eq(schema.mailboxes.name, schema.messages.mailboxName),
         ),
       )
-      .where(eq(schema.mailboxes.role, role))
+      .where(and(eq(schema.mailboxes.role, role), notPendingMove()))
       .orderBy(desc(schema.messages.internalDate));
     if (isUnifiedView.value && selectedRole.value === role) {
       messageList.value = rows.map((r) => r.message);
+    }
+  };
+
+  /** Re-read whatever list is on screen from the cache. */
+  const reloadCurrentListAsync = async () => {
+    if (isUnifiedView.value && selectedRole.value) {
+      await loadUnifiedMessagesAsync(selectedRole.value);
+    } else if (selectedAccountId.value && selectedMailboxName.value) {
+      await loadMessagesAsync(selectedAccountId.value, selectedMailboxName.value);
     }
   };
 
@@ -468,6 +495,7 @@ export const useMailSync = (
     persistEnvelopesAsync,
     loadMessagesAsync,
     loadUnifiedMessagesAsync,
+    reloadCurrentListAsync,
     refreshUnifiedAsync,
   };
 };
