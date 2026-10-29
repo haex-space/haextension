@@ -60,6 +60,24 @@ describe("buildOutgoingMessage", () => {
     });
   });
 
+  it("returns plain data for a reply without attachments (only the references are a proxy)", () => {
+    const { replyTo } = dialogState();
+    const message = buildOutgoingMessage(FROM, {
+      to: "you@example.com",
+      cc: "",
+      bcc: "",
+      subject: "Re: hi",
+      bodyText: "thanks",
+      attachments: [],
+      inReplyTo: replyTo.value.inReplyTo,
+      references: replyTo.value.references,
+    });
+
+    expect(() => structuredClone(message)).not.toThrow();
+    expect(message.references).toEqual(["<0@x>", "<1@x>"]);
+    expect(message.inReplyTo).toBe("<1@x>");
+  });
+
   it("returns plain data for forwarded attachments out of the reply prefill", () => {
     const { replyTo } = dialogState();
     const message = buildOutgoingMessage(FROM, {
