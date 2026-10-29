@@ -13,7 +13,8 @@
       "noFolderForRole": "Kein {folder}-Ordner für dieses Konto gefunden",
       "alreadyInTrash": "Diese Nachrichten sind schon im Papierkorb. Endgültiges Löschen wird nicht unterstützt.",
       "alreadyArchived": "Diese Nachrichten sind schon im Archiv.",
-      "openAttachmentFailed": "Keine App zum Öffnen des Anhangs gefunden – er lässt sich über den Download-Knopf speichern."
+      "openAttachmentFailed": "Keine App zum Öffnen des Anhangs gefunden – er lässt sich über den Download-Knopf speichern.",
+      "moveFailed": "{count} Nachricht(en) konnten nicht verschoben werden und sind wieder in der Liste: {reason}"
     },
     "quoteHeader": "Am {date} schrieb {sender}:",
     "forwardAttachmentsFailed": "{count} Anhang/Anhänge konnten nicht geladen werden und fehlen in der Weiterleitung.",
@@ -21,7 +22,11 @@
     "forwardFrom": "Von",
     "forwardDate": "Datum",
     "forwardSubject": "Betreff",
-    "forwardTo": "An"
+    "forwardTo": "An",
+    "pendingMoves": {
+      "moved": "{count} Nachricht(en) nach „{folder}“ verschoben",
+      "waiting": "{count} Nachricht(en) werden verschoben, sobald der Mailserver erreichbar ist."
+    }
   },
   "accounts": {
     "errors": {

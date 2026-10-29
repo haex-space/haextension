@@ -29,6 +29,13 @@
       "when": 1792532283840,
       "tag": "0003_keen_galactus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793199723418,
+      "tag": "0004_bumpy_vector",
+      "breakpoints": true
     }
   ]
 }
