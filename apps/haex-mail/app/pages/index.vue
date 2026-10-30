@@ -122,6 +122,17 @@ watch(showCompose, (v) => {
   if (!v) replyContext.value = null;
 });
 
+// A mail link asked for a new message (`openers.client.ts`): the dialog opens and takes its fields.
+watch(
+  () => ui.composePrefill,
+  (prefill) => {
+    if (!prefill) return;
+    replyContext.value = null;
+    showCompose.value = true;
+  },
+  { immediate: true },
+);
+
 useMailKeyboardShortcuts({ showCompose, showFullscreenMessage, onDeleteFromView });
 
 // A different folder/account means a different message set — selection

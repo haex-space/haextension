@@ -40,5 +40,8 @@
       "subject": "haex-mail connection test {token}",
       "body": "Automated connection test from haex-mail. This message can be deleted.\n\nTest ID: {token}"
     }
+  },
+  "openers": {
+    "noAccount": "Set up a mail account first, then haex-mail can open the link."
   }
 }

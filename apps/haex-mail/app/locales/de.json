@@ -40,5 +40,8 @@
       "subject": "haex-mail Verbindungstest {token}",
       "body": "Automatischer Verbindungstest von haex-mail. Diese Nachricht kann gelöscht werden.\n\nTest-ID: {token}"
     }
+  },
+  "openers": {
+    "noAccount": "Richte zuerst ein Mailkonto ein, dann kann haex-mail den Link öffnen."
   }
 }
