@@ -128,9 +128,9 @@ describe("listenForOpenRequests", () => {
 
     arrive(request({ subject: "Älter" }));
     arrive(request({ subject: "Neuer" }));
-    checks[1](true);
+    checks[1]!(true);
     await settled();
-    checks[0](true);
+    checks[0]!(true);
     await settled();
 
     expect(d.openCompose).toHaveBeenCalledOnce();
