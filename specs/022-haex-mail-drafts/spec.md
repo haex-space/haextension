@@ -174,7 +174,7 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 
 - Drafts live first in the data of haex-mail inside the vault, on this device; synchronising local drafts between devices is out of scope. The copy in the drafts folder of the server is how a draft reaches other programs on the same account.
 - "Content" means any recipient, subject, text or attachment. A signature or quote that haex-mail inserts itself, such as the quoted original of a reply, does not count as content on its own, so a reply that was opened and never touched leaves no draft.
-- Attachments stay with the draft as today: they are part of the saved draft, and the limits that apply to a draft today apply to the local draft, without a new limit.
+- Attachments stay with the draft as today, subject to the explicit 25 MiB per-draft local bound above; attachments over that bound are not saved locally. Other existing attachment limits remain unchanged.
 - A draft that another program re-saved in the server's drafts folder is not compared with the local one: haex-mail finds its own copy by an identifier it wrote, so a changed copy is left alone and listed as a draft of its own.
 - Discarding stays in the dialog as a deliberate way to throw a draft away; it asks once for a mail with content (FR-013). The closing button keeps the draft, as it does today.
 - Agent tools (`create_draft`, `send_mail` of spec 019) keep writing their drafts to the drafts folder of the server as they do today; those drafts appear in the list as server-only drafts and can be continued like any other.

@@ -10,7 +10,7 @@ For a draft that is due:
 2. Build the message exactly as the old `saveDraftAsync` did (`buildOutgoingMessage` with `subject || t("noSubject")`, `bodyContent`, `attachments`), then `buildRfc822Async`.
 3. `id = "draft-<uuid>@haex-mail.invalid"`; `bytes = withMessageId(rfc822, id)`.
 4. `appendMessageAsync(imap, draftsMailbox, bytes, ["\\Draft", "\\Seen"])`.
-5. Store `server_message_id = id`, move the earlier `server_message_id` (if any) to the front of `previous_message_ids_json` (keep at most 5), and set `upload_due_at = NULL`, `attempts = 0` **only if** the draft's `edited_at` still equals the one read in step 2; otherwise keep `upload_due_at` so the newer text follows.
+5. Store `server_message_id = id`, move the earlier `server_message_id` (if any) to the front of `previous_message_ids_json`, and set `upload_due_at = NULL`, `attempts = 0` **only if** the draft's `edited_at` still equals the one read in step 2; otherwise keep `upload_due_at` so the newer text follows. Never drop an id before its copy is confirmed deleted.
 6. For every id in `previous_message_ids_json`: find its copy (below) and `deleteMessagesAsync` its UIDs, then drop the id from the list. A failure here is not an upload failure: the draft is up to date, and the ids that are left are tried again by the next flush.
 
 ## Finding a copy
@@ -27,7 +27,7 @@ Appending before deleting means a failure between the two leaves an extra copy, 
 
 ## Guarantees
 
-- A draft has one current copy plus at most five unconfirmed earlier ones; the folder never holds more than six messages for one draft.
+- A draft has one current copy plus any unconfirmed earlier copies. Every earlier id remains tracked until deletion succeeds, so a prolonged delete outage can temporarily leave multiple copies; later flushes retry their removal without losing track of them.
 - Nothing is deleted that this feature did not append (every delete is for a UID found by one of the draft's own ids and verified against the envelope).
 - A failed or interrupted flush leaves the local draft intact.
 - The folder is not touched on every change: only on close and after 30 s without a change.

@@ -32,7 +32,7 @@ Approach, in the order the research settles it ([research.md](research.md)):
 
 **Performance Goals**: A draft exists ≤ 1 s after the last change (SC-001, FR-001): debounce 300 ms plus one row write. Typing in a long mail shows no delay (SC-003): one write of the draft row per pause, never per keystroke, never with the attachments. The draft list opens as fast as today's list: one extra query for the local drafts of the shown accounts.
 
-**Constraints**: No connection needed to save (FR-003). The server copy happens at most when the dialog closes and once per 30 s of idle, never per change (FR-007). The SDK offers no UID from `append` and no header control, which the server-copy algorithm works around (R-4). Local attachments are limited to 25 MiB per draft (R-3); every source file ≤ 500 lines (constitution), which is why the autosave logic leaves `ComposeDialog.vue`.
+**Constraints**: No connection needed to save (FR-003). The server copy happens at most when the dialog closes and once per 30 s of idle, never per change (FR-007). The SDK offers no UID from `append` and no header control, which the server-copy algorithm works around (R-4). Local attachments are limited to 25 MiB per draft (R-3); every hand-maintained source file stays under 500 lines (constitution), which is why the autosave logic leaves `ComposeDialog.vue`.
 
 **Scale/Scope**: A person has some drafts, rarely more than a dozen; the list has no limit of its own (spec). About 10 new source files plus tests, and changes in five existing files.
 
@@ -52,7 +52,7 @@ The repository's constitution is `.spaex/constitution.md` (`.specify/memory/cons
 | Follow the repository's conventions (structure, naming, runtime, module system) | **Met**: `app/lib`, `app/stores/mail`, `app/composables`, drizzle schema and migrations, `*Async` naming, imports at the top |
 | Consult the graphify graph before authoring any new named artifact; prefer extending over a parallel implementation; state the candidates | **Met for planning**, with **one borderline case for the reviewer** (below). Queries run on the primary checkout's graph (the worktree has none, which the rule allows): results in research R-12. The graph is consulted again, per artifact, during implementation. |
 | Tests in separate files from production code; one runnable check for every non-trivial logic module | **Met**: `*.test.ts` beside each `app/lib` module and the store |
-| Split files clearly over 500 lines; do not split solely to shorten | **Met**: `ComposeDialog.vue` is at 465 lines today and would pass 500 with the autosave logic; that logic is a composable (`useDraftAutosave`), not a split for its own sake |
+| Split files clearly over 500 lines; do not split solely to shorten | **Planned**: the current PR version of `ComposeDialog.vue` is 541 lines. T008 moves its attachment handling into `useComposeAttachments`; the implementation must leave the dialog and composable under 500 lines. |
 | Fewest files, deletion over addition, smallest diff that works; mark corner-cutting with `ponytail:` and its ceiling | **Met**: no dependency, no new queue framework; ceilings recorded for the 25 MiB attachment bound (R-3) and the unverified server copy (R-4) |
 | Conventional Commit messages; no attribution of the authoring tooling in any project artifact | **Met** |
 | All work lands on `main` through a pull request; no squash merge | **Met** |
