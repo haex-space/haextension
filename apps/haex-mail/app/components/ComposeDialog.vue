@@ -6,6 +6,7 @@ import { bodyNeedsHtml, bodyToHtml, bodyToText, textToBody } from "~/lib/compose
 import type { DraftFields } from "~/lib/drafts";
 import type { ComposePrefill } from "~/lib/openers";
 import { buildOutgoingMessage } from "~/lib/outgoing";
+import type { ComposeRequest } from "~/composables/useComposeLifecycle";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
 import type { ReplyContext } from "~/stores/mail/reply";
@@ -25,6 +26,7 @@ const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const ui = useUiStore();
+const draftsStore = useDraftsStore();
 
 const to = ref("");
 const cc = ref("");
@@ -74,7 +76,7 @@ const draftFailed = (err: unknown) => t("errors.draftFailed", { error: getErrorM
 const autosave = useDraftAutosave({
   snapshot,
   sources: [to, cc, bcc, subject, body, fromAccountId, () => attachments.value.length],
-  drafts: useDraftsStore(),
+  drafts: draftsStore,
   onError: (err) => {
     error.value = draftFailed(err);
   },
@@ -151,10 +153,44 @@ const startLinkAsync = (prefill: ComposePrefill) =>
     { saveNow: true },
   );
 
-const takePrefill = () => {
+/** A stored draft to continue: its fields fill the dialog, and later changes go to the same draft. */
+const applyDraftFields = (f: DraftFields) => {
+  to.value = f.to;
+  cc.value = f.cc;
+  bcc.value = f.bcc;
+  showCc.value = !!f.cc;
+  showBcc.value = !!f.bcc;
+  subject.value = f.subject;
+  body.value = f.bodyHtml;
+  attachments.value = f.attachments;
+  inReplyTo.value = f.inReplyTo;
+  references.value = f.references;
+  fromAccountId.value = f.accountId;
+};
+
+const startDraftAsync = async (id: string) => {
+  const fields = await draftsStore.loadAsync(id);
+  // A draft that is gone (deleted elsewhere) opens as a new mail.
+  if (!fields) return startPlainAsync();
+  await autosave.switchTo(
+    () => {
+      reset();
+      applyDraftFields(fields);
+    },
+    { id },
+  );
+};
+
+const startRequestAsync = (request: ComposeRequest) =>
+  request.kind === "link" ? startLinkAsync(request.prefill) : startDraftAsync(request.id);
+
+const takeRequest = (): ComposeRequest | null => {
   const prefill = ui.composePrefill;
+  const draftId = ui.openDraftId;
   ui.composePrefill = null;
-  return prefill;
+  ui.openDraftId = null;
+  if (prefill) return { kind: "link", prefill };
+  return draftId ? { kind: "draft", id: draftId } : null;
 };
 
 const closedAsync = async () => {
@@ -168,10 +204,10 @@ const closedAsync = async () => {
 useComposeLifecycle({
   open,
   replyTo: () => props.replyTo,
-  prefill: () => ui.composePrefill,
-  takePrefill,
+  request: () => ui.composePrefill ?? ui.openDraftId,
+  takeRequest,
   startPlain: startPlainAsync,
-  startLink: startLinkAsync,
+  startRequest: startRequestAsync,
   closed: closedAsync,
   onError: (err) => {
     error.value = draftFailed(err);

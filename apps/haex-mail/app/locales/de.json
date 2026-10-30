@@ -32,7 +32,8 @@
       "noDraftsFolder": "Kein Entwürfe-Ordner gefunden – der Entwurf bleibt nur auf diesem Gerät.",
       "uploadFailed": "Entwurf konnte nicht auf den Mailserver gelegt werden: {error}",
       "attachmentsTooLarge": "{count} Anhang/Anhänge über 25 MB werden im Entwurf nicht gespeichert.",
-      "waiting": "{count} Entwurf/Entwürfe werden auf den Mailserver gelegt, sobald er erreichbar ist."
+      "waiting": "{count} Entwurf/Entwürfe werden auf den Mailserver gelegt, sobald er erreichbar ist.",
+      "deleted": "{count} Entwurf/Entwürfe gelöscht"
     }
   },
   "accounts": {

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { toast } from "vue-sonner";
 import * as schema from "~/database/schemas";
+import { draftIdOfRow, isDraftRowId } from "~/lib/drafts";
 import { mailboxDisplayName } from "~/lib/mail";
 import { getErrorMessage } from "~/lib/utils";
 import type { Ref } from "vue";
@@ -17,6 +18,9 @@ interface BulkMessageState {
  * All bulk actions group the selected rows by (accountId, mailboxName),
  * so they work identically in per-account and unified view.
  *
+ * Draft rows (spec 022) are not in `messageList`, so every action skips them except "delete", which
+ * deletes the draft.
+ *
  * Moves are optimistic: the rows leave the list at once and the move itself is left to the
  * outbox, which repeats it until the server has done it (see outbox.ts).
  */
@@ -26,6 +30,7 @@ export const useBulkMessageOps = (
   changes: Pick<MessageChanges, "setFlagForUidsAsync">,
   outbox: Pick<MoveOutbox, "enqueueMovesAsync" | "flushPendingMovesAsync">,
   selectMessage: (id: string | null) => void,
+  drafts: { removeAsync: (id: string) => Promise<void> },
 ) => {
   const haexVault = useHaexVaultStore();
   const { $i18n } = useNuxtApp();
@@ -124,10 +129,20 @@ export const useBulkMessageOps = (
     return gone.size;
   };
 
+  /** Deletes the selected drafts; returns how many are gone. */
+  const deleteDraftsAsync = async (ids: string[]): Promise<number> => {
+    const results = await Promise.allSettled(ids.map((id) => drafts.removeAsync(draftIdOfRow(id))));
+    reportBulkFailures(results);
+    const gone = results.filter((r) => r.status === "fulfilled").length;
+    if (gone > 0) toast.success($i18n.t("mail.drafts.deleted", { count: gone }));
+    return gone;
+  };
+
   /**
    * Delete (role "trash") or archive (role "archive") messages. Returns how
    * many were moved: messages already in that folder stay (the SDK has no
-   * expunge, so there is no permanent delete) and the user is told so.
+   * expunge, so there is no permanent delete) and the user is told so. Selected drafts are
+   * deleted on "trash" and left alone on "archive".
    */
   const bulkMoveToRoleAsync = async (
     ids: string[],
@@ -135,6 +150,8 @@ export const useBulkMessageOps = (
   ): Promise<number> => {
     const orm = haexVault.orm;
     if (!orm) return 0;
+    const draftIds = role === "trash" ? ids.filter(isDraftRowId) : [];
+    const draftsGone = await deleteDraftsAsync(draftIds);
     const destinationOf = async (g: MessageGroup) => {
       const dest = (
         await orm
@@ -177,7 +194,7 @@ export const useBulkMessageOps = (
         $i18n.t(role === "trash" ? "mail.errors.alreadyInTrash" : "mail.errors.alreadyArchived"),
       );
     }
-    return queueMovesAsync(moves, $i18n.t(`mail.roles.${role}`));
+    return (await queueMovesAsync(moves, $i18n.t(`mail.roles.${role}`))) + draftsGone;
   };
 
   /** Move messages to a specific mailbox — caller ensures a single account. */

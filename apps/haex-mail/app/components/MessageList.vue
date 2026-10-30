@@ -3,6 +3,7 @@ import { onLongPress, useMediaQuery } from "@vueuse/core";
 import { PanelLeftClose, PanelLeftOpen, Paperclip, RefreshCw, Search } from "@lucide/vue";
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
+import { isDraftRowId } from "~/lib/drafts";
 import { isMessageUnread, mailboxDisplayName, roleLabelKey } from "~/lib/mail";
 
 const props = defineProps<{
@@ -191,7 +192,7 @@ const accountEmail = (accountId: string) =>
 
 const formatSender = (msg: SelectMessage) => {
   const first = msg.fromJson[0];
-  if (!first) return t("unknownSender");
+  if (!first) return t(isDraftRowId(msg.id) ? "draftNoRecipient" : "unknownSender");
   return first.name || first.email;
 };
 
@@ -358,19 +359,22 @@ const formatTime = (ts: number | null): string => {
               </li>
             </ShadcnContextMenuTrigger>
             <ShadcnContextMenuContent>
-              <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
-                {{ t("contextRead") }}
-              </ShadcnContextMenuItem>
-              <ShadcnContextMenuItem @select="emit('reply', msg)">
-                {{ t("contextReply") }}
-              </ShadcnContextMenuItem>
-              <ShadcnContextMenuItem @select="emit('replyAll', msg)">
-                {{ t("contextReplyAll") }}
-              </ShadcnContextMenuItem>
-              <ShadcnContextMenuItem @select="emit('forward', msg)">
-                {{ t("contextForward") }}
-              </ShadcnContextMenuItem>
-              <ShadcnContextMenuSeparator />
+              <!-- A local draft is only opened or deleted; the rest needs a message on the server. -->
+              <template v-if="!isDraftRowId(msg.id)">
+                <ShadcnContextMenuItem @select="mailStore.bulkSetFlagAsync([msg.id], '\\Seen', true)">
+                  {{ t("contextRead") }}
+                </ShadcnContextMenuItem>
+                <ShadcnContextMenuItem @select="emit('reply', msg)">
+                  {{ t("contextReply") }}
+                </ShadcnContextMenuItem>
+                <ShadcnContextMenuItem @select="emit('replyAll', msg)">
+                  {{ t("contextReplyAll") }}
+                </ShadcnContextMenuItem>
+                <ShadcnContextMenuItem @select="emit('forward', msg)">
+                  {{ t("contextForward") }}
+                </ShadcnContextMenuItem>
+                <ShadcnContextMenuSeparator />
+              </template>
               <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
                 {{ t("contextDelete") }}
               </ShadcnContextMenuItem>
@@ -406,6 +410,7 @@ de:
   noResults: Keine Ergebnisse.
   noSubject: (kein Betreff)
   unknownSender: (unbekannt)
+  draftNoRecipient: (kein Empfänger)
   hasAttachments: Hat Anhänge
   search: Suchen
   contextRead: Als gelesen markieren
@@ -422,6 +427,7 @@ en:
   noResults: No results.
   noSubject: (no subject)
   unknownSender: (unknown)
+  draftNoRecipient: (no recipient)
   hasAttachments: Has attachments
   search: Search
   contextRead: Mark as read

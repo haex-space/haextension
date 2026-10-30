@@ -213,5 +213,6 @@ export const useReplyBuilder = (
   return {
     buildReplyContextAsync,
     fetchAttachmentBase64Async,
+    getBodyContextAsync,
   };
 };

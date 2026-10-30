@@ -37,6 +37,8 @@ export interface DraftStoreDeps {
   newId: () => string;
   /** Called once per draft when attachments beyond the local bound were left out. */
   attachmentsDropped: (count: number) => void;
+  /** Called after a write, so a list showing drafts can read them again. */
+  onChange?: () => void;
 }
 
 /** Decoded size of a base64 payload. */
@@ -101,6 +103,7 @@ export const createDraftStore = (backend: DraftBackend, deps: DraftStoreDeps) =>
       await backend.deleteDraft(id);
     }
     toldAboutDropped.delete(id);
+    deps.onChange?.();
   };
 
   /**
@@ -121,6 +124,22 @@ export const createDraftStore = (backend: DraftBackend, deps: DraftStoreDeps) =>
     const rows = attachmentRows(id, withinBound(id, fields.attachments));
     const changed = !(draftId && sameAttachmentSet(await backend.getAttachmentMeta(id), rows));
     await backend.saveDraft(toDraftRow(id, fields, deps.now()), changed ? rows : null);
+    deps.onChange?.();
+    return id;
+  };
+
+  /**
+   * Makes a draft that only exists on the server a local one, so the next upload replaces the server
+   * message instead of leaving it beside a new copy. Nothing is uploaded until the person changes it.
+   */
+  const adoptAsync = async (fields: DraftFields, serverMessageId: string | null): Promise<string> => {
+    const id = deps.newId();
+    const rows = attachmentRows(id, withinBound(id, fields.attachments));
+    await backend.saveDraft(
+      { ...toDraftRow(id, fields, deps.now()), uploadDueAt: null, serverMessageId },
+      rows,
+    );
+    deps.onChange?.();
     return id;
   };
 
@@ -140,7 +159,7 @@ export const createDraftStore = (backend: DraftBackend, deps: DraftStoreDeps) =>
     return drafts.map((d) => draftListRow(d, counts.get(d.id) ?? 0, mailboxNameOf(d.accountId) ?? "Drafts"));
   };
 
-  return { saveAsync, loadAsync, listRowsAsync, removeAsync };
+  return { saveAsync, loadAsync, listRowsAsync, removeAsync, adoptAsync };
 };
 
 export type DraftStore = ReturnType<typeof createDraftStore>;

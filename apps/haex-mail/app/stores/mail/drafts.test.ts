@@ -207,3 +207,32 @@ describe("loadAsync and listRowsAsync", () => {
 });
 
 beforeEach(() => vi.restoreAllMocks());
+
+describe("adoptAsync", () => {
+  it("makes a server draft a local one that waits for a change before it is uploaded", async () => {
+    const { store, drafts, attachments } = setup();
+    const id = await store.adoptAsync(fields({ to: "a@x.org", attachments: [att("a.txt")] }), "orig@x");
+    expect(drafts.get(id)).toMatchObject({ toText: "a@x.org", serverMessageId: "orig@x", uploadDueAt: null });
+    expect(attachments.get(id)).toHaveLength(1);
+    expect(await store.saveAsync(id, fields({ to: "a@x.org", subject: "edited", attachments: [att("a.txt")] }))).toBe(id);
+    expect(drafts.get(id)).toMatchObject({ subject: "edited", serverMessageId: "orig@x", uploadDueAt: 1_030_000 });
+  });
+
+  it("accepts a draft without a Message-ID", async () => {
+    const { store, drafts } = setup();
+    const id = await store.adoptAsync(fields({ to: "a@x.org" }), null);
+    expect(drafts.get(id)!.serverMessageId).toBeNull();
+  });
+});
+
+describe("onChange", () => {
+  it("is called after a save, a removal and an adoption", async () => {
+    const mem = memoryBackend();
+    const onChange = vi.fn();
+    const store = createDraftStore(mem.backend, { now: () => 1, newId: () => "d1", attachmentsDropped: vi.fn(), onChange });
+    await store.saveAsync(null, fields({ to: "a@x.org" }));
+    await store.removeAsync("d1");
+    await store.adoptAsync(fields({ to: "b@x.org" }), null);
+    expect(onChange).toHaveBeenCalledTimes(3);
+  });
+});

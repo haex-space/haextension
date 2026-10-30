@@ -1,7 +1,7 @@
 import type { OutgoingAttachment } from "@haex-space/vault-sdk";
 import type { InsertDraft, SelectDraft, SelectDraftAttachment, SelectMessage } from "~/database/schemas";
-import { parseAddressList } from "./address";
-import { bodyToText } from "./composeBody";
+import { formatAddressList, parseAddressList } from "./address";
+import { bodyToText, textToBody } from "./composeBody";
 
 /** Pause in typing after which a draft is copied to the server (spec 022, FR-007). */
 export const UPLOAD_PAUSE_MS = 30_000;
@@ -37,6 +37,7 @@ export type DraftRowValues = Pick<
   | "uploadDueAt"
   | "attempts"
   | "nextAttemptAt"
+  | "serverMessageId"
 >;
 
 const blank = (value: string) => value.trim() === "";
@@ -107,6 +108,27 @@ export const fromDraftRow = (
     })),
 });
 
+/**
+ * The fields of a draft that only exists on the server, read from its cached envelope, its body text
+ * and its attachments. Formatting is lost: the server draft is read as plain text.
+ */
+export const adoptedDraftFields = (
+  row: SelectMessage,
+  bodyText: string | undefined,
+  attachments: OutgoingAttachment[],
+): DraftFields => ({
+  accountId: row.accountId,
+  to: formatAddressList(row.toJson),
+  cc: formatAddressList(row.ccJson),
+  // The envelope does not carry Bcc.
+  bcc: "",
+  subject: row.subject ?? "",
+  bodyHtml: bodyText ? textToBody(bodyText) : "",
+  inReplyTo: row.inReplyTo ?? undefined,
+  references: row.references,
+  attachments,
+});
+
 export const isDraftRowId = (id: string): boolean => id.startsWith(LIST_ID_PREFIX);
 
 export const draftIdOfRow = (rowId: string): string => rowId.slice(LIST_ID_PREFIX.length);
@@ -126,7 +148,8 @@ export const draftListRow = (
   // The list holds seconds, a draft's time is in milliseconds.
   internalDate: Math.floor(row.editedAt / 1000),
   subject: row.subject,
-  fromJson: [],
+  // The list shows who the mail goes to; the sender is the person themself.
+  fromJson: parseAddressList(row.toText).addresses,
   toJson: parseAddressList(row.toText).addresses,
   ccJson: parseAddressList(row.ccText).addresses,
   messageId: row.serverMessageId,

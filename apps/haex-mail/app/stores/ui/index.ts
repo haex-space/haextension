@@ -26,9 +26,13 @@ export const useUiStore = defineStore("ui", () => {
   /** The fields a mail link filled in (`openers.client.ts`); the compose dialog takes them once. */
   const composePrefill = ref<ComposePrefill | null>(null);
 
+  /** A local draft the compose dialog is to open and continue (picked in the list of drafts). */
+  const openDraftId = ref<string | null>(null);
+
   return {
     accountPrefill,
     composePrefill,
+    openDraftId,
     accountSetupRequested,
     context,
     currentThemeName,

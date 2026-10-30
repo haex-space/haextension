@@ -122,6 +122,17 @@ watch(showCompose, (v) => {
   if (!v) replyContext.value = null;
 });
 
+// A draft was picked in the list: the dialog opens and continues it.
+watch(
+  () => ui.openDraftId,
+  (id) => {
+    if (!id) return;
+    replyContext.value = null;
+    showCompose.value = true;
+  },
+  { immediate: true },
+);
+
 // A mail link asked for a new message (`openers.client.ts`): the dialog opens and takes its fields.
 watch(
   () => ui.composePrefill,

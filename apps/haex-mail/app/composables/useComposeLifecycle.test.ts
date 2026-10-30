@@ -1,26 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import type { ComposePrefill } from "../lib/openers";
-import { useComposeLifecycle } from "./useComposeLifecycle";
+import { useComposeLifecycle, type ComposeRequest } from "./useComposeLifecycle";
 
-const link = (to: string): ComposePrefill => ({ to, cc: "", bcc: "", subject: "", body: "" });
+const prefillOf = (to: string): ComposePrefill => ({ to, cc: "", bcc: "", subject: "", body: "" });
+const link = (to: string): ComposeRequest => ({ kind: "link", prefill: prefillOf(to) });
+const draft = (id: string): ComposeRequest => ({ kind: "draft", id });
+const describe_ = (r: ComposeRequest) => (r.kind === "link" ? `link:${r.prefill.to}` : `draft:${r.id}`);
 
 const setup = () => {
   const open = ref(false);
-  const prefill = ref<ComposePrefill | null>(null);
+  const prefill = ref<ComposeRequest | null>(null);
   const replyTo = ref<object | null>(null);
   const log: string[] = [];
   const onError = vi.fn();
   const handlers = {
     startPlain: vi.fn(async () => void log.push("plain")),
-    startLink: vi.fn(async (p: ComposePrefill) => void log.push(`link:${p.to}`)),
+    startRequest: vi.fn(async (r: ComposeRequest) => void log.push(describe_(r))),
     closed: vi.fn(async () => void log.push("closed")),
   };
   useComposeLifecycle({
     open,
     replyTo: () => replyTo.value,
-    prefill: () => prefill.value,
-    takePrefill: () => {
+    request: () => prefill.value,
+    takeRequest: () => {
       const taken = prefill.value;
       prefill.value = null;
       return taken;
@@ -72,6 +75,19 @@ describe("useComposeLifecycle", () => {
     await t.settle();
     expect(t.log).toEqual(["link:ben@x.org"]);
     expect(t.prefill.value).toBeNull();
+  });
+
+  it("opens a draft the same way, at opening and while open", async () => {
+    const t = setup();
+    await t.settle();
+    t.log.length = 0;
+    t.prefill.value = draft("d1");
+    t.open.value = true;
+    await t.settle();
+    expect(t.log).toEqual(["draft:d1"]);
+    t.prefill.value = draft("d2");
+    await t.settle();
+    expect(t.log).toEqual(["draft:d1", "draft:d2"]);
   });
 
   it("starts each of two links in a row", async () => {

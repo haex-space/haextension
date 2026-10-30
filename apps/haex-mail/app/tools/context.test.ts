@@ -23,8 +23,8 @@ describe("message ids", () => {
     });
   });
 
-  it("refuse text that is no id", () => {
-    for (const bad of ["", "INBOX", "a::INBOX", "a::INBOX::x", "a::INBOX::0", "a::::5", "a::INBOX::1.5"]) {
+  it("refuse text that is no id, a row of a local draft included", () => {
+    for (const bad of ["", "INBOX", "a::INBOX", "a::INBOX::x", "a::INBOX::0", "a::::5", "a::INBOX::1.5", "draft::0b1c2d3e"]) {
       expect(parseMessageId(bad), bad).toBeNull();
     }
   });

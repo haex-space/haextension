@@ -19,9 +19,17 @@ export const useDraftsStore = defineStore("drafts", () => {
     haexVault.client.database.transaction(statements),
   );
 
-  return createDraftStore(backend, {
+  /** Counts every write, so a list that shows drafts knows when to read them again. */
+  const revision = ref(0);
+
+  const store = createDraftStore(backend, {
     now: Date.now,
     newId: () => crypto.randomUUID(),
     attachmentsDropped: (count) => toast.warning($i18n.t("mail.drafts.attachmentsTooLarge", { count })),
+    onChange: () => {
+      revision.value++;
+    },
   });
+
+  return { ...store, revision };
 });

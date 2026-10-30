@@ -10,6 +10,7 @@ import {
   isDraftRowId,
   mergeDraftRows,
   toDraftRow,
+  adoptedDraftFields,
   type DraftFields,
 } from "./drafts";
 
@@ -133,6 +134,7 @@ describe("list rows", () => {
       messageId: "m1@x",
       hasAttachments: true,
       internalDate: 1_700_000_000,
+      fromJson: [{ name: "Ben", email: "ben@x.org" }],
       toJson: [{ name: "Ben", email: "ben@x.org" }],
       ccJson: [{ email: "c@x.org" }],
     });
@@ -166,5 +168,40 @@ describe("mergeDraftRows", () => {
   it("orders newest first", () => {
     const merged = mergeDraftRows([server("a", "a@x", 10)], [local("draft::b", null, 20), local("draft::c", null, 5)]);
     expect(merged.map((m) => m.id)).toEqual(["draft::b", "a", "draft::c"]);
+  });
+});
+
+describe("adoptedDraftFields", () => {
+  const serverRow = (over: Partial<SelectMessage> = {}) =>
+    ({
+      accountId: "acc",
+      toJson: [{ name: "Ben", email: "ben@x.org" }],
+      ccJson: [{ email: "c@x.org" }],
+      subject: "Rechnung",
+      inReplyTo: "o@x",
+      references: ["o@x"],
+      ...over,
+    }) as SelectMessage;
+
+  it("reads a server draft into the fields of the dialog", () => {
+    const fieldsOf = adoptedDraftFields(serverRow(), "Zeile 1\nZeile 2", [
+      { filename: "a.txt", contentType: "text/plain", data: "YWJj" },
+    ]);
+    expect(fieldsOf).toEqual({
+      accountId: "acc",
+      to: "Ben <ben@x.org>",
+      cc: "c@x.org",
+      bcc: "",
+      subject: "Rechnung",
+      bodyHtml: "<p>Zeile 1</p><p>Zeile 2</p>",
+      inReplyTo: "o@x",
+      references: ["o@x"],
+      attachments: [{ filename: "a.txt", contentType: "text/plain", data: "YWJj" }],
+    });
+  });
+
+  it("copes with a draft without subject, body or threading", () => {
+    const fieldsOf = adoptedDraftFields(serverRow({ subject: null, inReplyTo: null, references: [] }), undefined, []);
+    expect(fieldsOf).toMatchObject({ subject: "", bodyHtml: "", inReplyTo: undefined, references: [] });
   });
 });

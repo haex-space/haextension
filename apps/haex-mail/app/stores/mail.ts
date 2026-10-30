@@ -1,4 +1,6 @@
+import { toast } from "vue-sonner";
 import type * as schema from "~/database/schemas";
+import { adoptedDraftFields, draftIdOfRow, isDraftRowId, mergeDraftRows } from "~/lib/drafts";
 import {
   ALL_ACCOUNTS_ID,
   isMessageFlagged,
@@ -6,6 +8,7 @@ import {
   senderText,
   type MessageSortField,
 } from "~/lib/mail";
+import { getErrorMessage } from "~/lib/utils";
 import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
 import { useMessageChanges } from "./mail/changes";
@@ -22,6 +25,9 @@ import { useNewMailWatch } from "./mail/watch";
  */
 export const useMailStore = defineStore("mail", () => {
   const accountsStore = useAccountsStore();
+  const draftsStore = useDraftsStore();
+  const ui = useUiStore();
+  const { $i18n } = useNuxtApp();
 
   const selectedAccountId = ref<string | null>(null);
   const selectedMailboxName = ref<string | null>(null);
@@ -58,8 +64,43 @@ export const useMailStore = defineStore("mail", () => {
     }
   };
 
+  // --- Local drafts (spec 022): shown in the drafts view next to the server's drafts ---
+
+  const isDraftsView = computed(() =>
+    isUnifiedView.value
+      ? selectedRole.value === "drafts"
+      : mailboxes.value.find(
+          (m) => m.accountId === selectedAccountId.value && m.name === selectedMailboxName.value,
+        )?.role === "drafts",
+  );
+  const localDraftRows = ref<schema.SelectMessage[]>([]);
+
+  const loadLocalDraftsAsync = async () => {
+    if (!isDraftsView.value) {
+      localDraftRows.value = [];
+      return;
+    }
+    const accountIds = isUnifiedView.value
+      ? accountsStore.accounts.map((a) => a.id)
+      : selectedAccountId.value
+        ? [selectedAccountId.value]
+        : [];
+    localDraftRows.value = await draftsStore.listRowsAsync(
+      accountIds,
+      (accountId) => mailboxes.value.find((m) => m.accountId === accountId && m.role === "drafts")?.name,
+    );
+  };
+
+  watch(
+    [isDraftsView, selectedAccountId, mailboxes, () => draftsStore.revision],
+    () => void loadLocalDraftsAsync().catch((err) => console.warn("[haex-mail] local drafts not listed", err)),
+    { immediate: true },
+  );
+
   const filteredMessageList = computed(() => {
-    let list = messageList.value;
+    let list = isDraftsView.value
+      ? mergeDraftRows(messageList.value, localDraftRows.value)
+      : messageList.value;
 
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase();
@@ -143,7 +184,7 @@ export const useMailStore = defineStore("mail", () => {
 
   useNewMailWatch(state, sync, applyRulesToNewInboxAsync);
 
-  const { buildReplyContextAsync, fetchAttachmentBase64Async } =
+  const { buildReplyContextAsync, fetchAttachmentBase64Async, getBodyContextAsync } =
     useReplyBuilder(persistMessageBodyAsync);
 
   const selectMailbox = (mailboxName: string | null) => {
@@ -165,7 +206,45 @@ export const useMailStore = defineStore("mail", () => {
     searchQuery.value = "";
   };
 
+  /** Continue a draft that only exists on the server: it becomes a local draft the dialog opens. */
+  const openServerDraftAsync = async (row: schema.SelectMessage) => {
+    try {
+      const { bodyText, attachments } = await getBodyContextAsync(row);
+      const loaded = await Promise.allSettled(
+        attachments.map(async (a) => ({
+          filename: a.filename ?? `attachment-${a.partIndex}`,
+          contentType: a.contentType,
+          data: await fetchAttachmentBase64Async(row, a.partIndex),
+          ...(a.contentId ? { contentId: a.contentId } : {}),
+        })),
+      );
+      const failed = loaded.filter((r) => r.status === "rejected").length;
+      if (failed > 0) toast.warning($i18n.t("mail.forwardAttachmentsFailed", { count: failed }));
+      const fields = adoptedDraftFields(
+        row,
+        bodyText,
+        loaded.flatMap((r) => (r.status === "fulfilled" ? [r.value] : [])),
+      );
+      ui.openDraftId = await draftsStore.adoptAsync(fields, row.messageId);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  /**
+   * Opening a message. A draft opens in the compose dialog instead of the reading pane: a local
+   * one at once, one that only exists on the server after it was made a local one.
+   */
   const selectMessage = (id: string | null) => {
+    if (id && isDraftRowId(id)) {
+      ui.openDraftId = draftIdOfRow(id);
+      return;
+    }
+    const serverDraft = id && isDraftsView.value ? messageList.value.find((m) => m.id === id) : undefined;
+    if (serverDraft) {
+      void openServerDraftAsync(serverDraft);
+      return;
+    }
     selectedMessageId.value = id;
     if (!id) messageBody.value = null;
   };
@@ -189,6 +268,7 @@ export const useMailStore = defineStore("mail", () => {
       { setFlagForUidsAsync },
       { enqueueMovesAsync, flushPendingMovesAsync },
       selectMessage,
+      draftsStore,
     );
 
   // Default to the unified view when no account is selected yet.

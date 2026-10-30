@@ -1,25 +1,28 @@
 import { watch, type Ref } from "vue";
 import type { ComposePrefill } from "../lib/openers";
 
+/** What asks the dialog to start a mail: the fields of a mail link, or a draft to continue. */
+export type ComposeRequest = { kind: "link"; prefill: ComposePrefill } | { kind: "draft"; id: string };
+
 export interface ComposeLifecycleOptions {
   open: Ref<boolean>;
   /** Changes when a reply is asked for; the value itself is not read here. */
   replyTo: () => unknown;
-  /** The fields of a mail link that wait, or `null`. */
-  prefill: () => ComposePrefill | null;
-  /** Takes the waiting link: returns it and clears it, so it starts one draft only. */
-  takePrefill: () => ComposePrefill | null;
+  /** Changes when a request waits; the value itself is not read here. */
+  request: () => unknown;
+  /** Takes the waiting request: returns it and clears it, so it starts one mail only. */
+  takeRequest: () => ComposeRequest | null;
   startPlain: () => Promise<void>;
-  startLink: (prefill: ComposePrefill) => Promise<void>;
+  startRequest: (request: ComposeRequest) => Promise<void>;
   closed: () => Promise<void>;
   onError: (error: unknown) => void;
 }
 
 /**
- * When the compose dialog starts a mail: on opening (a plain mail, a reply, or the fields of a
- * waiting link), on a link that arrives while it is open, and on a reply asked for while it is open.
- * The starts run one after the other, and an opening that a link already started is not started
- * again, which would reset the fresh draft of the link.
+ * When the compose dialog starts a mail: on opening (a plain mail, a reply, or a waiting request),
+ * on a request that arrives while it is open, and on a reply asked for while it is open. The starts
+ * run one after the other, and an opening that a request already started is not started again,
+ * which would reset the fresh draft of the request.
  */
 export const useComposeLifecycle = (options: ComposeLifecycleOptions) => {
   let queue: Promise<void> = Promise.resolve();
@@ -33,8 +36,8 @@ export const useComposeLifecycle = (options: ComposeLifecycleOptions) => {
   const opened = async () => {
     if (started) return;
     started = true;
-    const prefill = options.takePrefill();
-    await (prefill ? options.startLink(prefill) : options.startPlain());
+    const request = options.takeRequest();
+    await (request ? options.startRequest(request) : options.startPlain());
   };
 
   const closed = async () => {
@@ -45,12 +48,12 @@ export const useComposeLifecycle = (options: ComposeLifecycleOptions) => {
   // Also runs when the dialog is created already open, which a plain change watcher does not see.
   watch(options.open, (isOpen) => enqueue(isOpen ? opened : closed), { immediate: true });
 
-  watch(options.prefill, () => {
+  watch(options.request, () => {
     if (!options.open.value) return;
-    const prefill = options.takePrefill();
-    if (!prefill) return;
+    const request = options.takeRequest();
+    if (!request) return;
     started = true;
-    enqueue(() => options.startLink(prefill));
+    enqueue(() => options.startRequest(request));
   });
 
   watch(options.replyTo, (replyTo) => {
