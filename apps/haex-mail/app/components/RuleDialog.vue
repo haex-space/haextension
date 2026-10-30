@@ -12,6 +12,7 @@ import {
   type RuleAction,
   type RuleCondition,
   type RuleDef,
+  type RuleInput,
 } from "~/lib/rules";
 import { getErrorMessage } from "~/lib/utils";
 
@@ -19,9 +20,12 @@ import { getErrorMessage } from "~/lib/utils";
  * Create or edit a mail rule: name, account, conditions (all must hold), actions, and whether to run
  * the rule once on the existing INBOX messages. A rule that fails the checks of `lib/rules.ts` is
  * shown with a message per problem. For "all accounts" a move can only name a role, because folder
- * names differ per account.
+ * names differ per account. `draft` prefills a new rule (name, account, conditions), e.g. from a mail.
  */
-const props = defineProps<{ rule?: RuleDef }>();
+const props = defineProps<{
+  rule?: RuleDef;
+  draft?: Pick<RuleInput, "name" | "accountId" | "conditions">;
+}>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { t } = useI18n();
@@ -32,12 +36,13 @@ const mailStore = useMailStore();
 const ALL = "__all__";
 const NO_MOVE = "__none__";
 
-const name = ref(props.rule?.name ?? "");
-const accountId = ref(props.rule?.accountId ?? ALL);
+const seed = props.rule ?? props.draft;
+const name = ref(seed?.name ?? "");
+const accountId = ref(seed?.accountId ?? ALL);
 
 type Row = { field: "from" | "to" | "subject" | "attachment"; contains: string };
 const rows = ref<Row[]>(
-  props.rule?.conditions.map((c) => ({
+  seed?.conditions.map((c) => ({
     field: c.field,
     contains: "contains" in c ? c.contains : "",
   })) ?? [{ field: "from", contains: "" }],
