@@ -4,6 +4,7 @@ import { PanelLeftClose, PanelLeftOpen, Paperclip, RefreshCw, Search } from "@lu
 import type { SelectMessage } from "~/database/schemas";
 import { getAvatarColor, getAvatarInitials } from "~/lib/avatar";
 import { isMessageUnread, mailboxDisplayName, roleLabelKey } from "~/lib/mail";
+import { ruleDraftFromMessage } from "~/lib/rules";
 
 const props = defineProps<{
   sidebarCollapsed?: boolean;
@@ -124,6 +125,14 @@ const onContextDelete = async (msg: SelectMessage) => {
   const moved = await mailStore.bulkMoveToRoleAsync([msg.id], "trash");
   // The row is gone — a stale selection id would keep selection mode on.
   if (moved > 0 && selectionStore.isSelected(msg.id)) selectionStore.toggleSelection(msg.id);
+};
+
+// A rule created from a mail: the dialog opens with the sender and account of that mail.
+const ruleDraftMessage = ref<SelectMessage | null>(null);
+const showRuleDialog = ref(false);
+const onContextCreateRule = (msg: SelectMessage) => {
+  ruleDraftMessage.value = msg;
+  showRuleDialog.value = true;
 };
 
 const rowClass = (msg: SelectMessage) => {
@@ -371,6 +380,10 @@ const formatTime = (ts: number | null): string => {
                 {{ t("contextForward") }}
               </ShadcnContextMenuItem>
               <ShadcnContextMenuSeparator />
+              <ShadcnContextMenuItem @select="onContextCreateRule(msg)">
+                {{ t("contextCreateRule") }}
+              </ShadcnContextMenuItem>
+              <ShadcnContextMenuSeparator />
               <ShadcnContextMenuItem class="text-destructive focus:text-destructive" @select="onContextDelete(msg)">
                 {{ t("contextDelete") }}
               </ShadcnContextMenuItem>
@@ -393,6 +406,19 @@ const formatTime = (ts: number | null): string => {
       :exclude-mailbox-name="moveContext.mailboxName"
       @select="bulkActions.moveToMailboxAsync"
     />
+
+    <UiDrawerModal v-model:open="showRuleDialog" :title="t('createRuleTitle')" content-class="max-w-2xl">
+      <template #content>
+        <div class="p-4">
+          <RuleDialog
+            v-if="ruleDraftMessage"
+            :key="ruleDraftMessage.id"
+            :draft="ruleDraftFromMessage(ruleDraftMessage)"
+            @saved="showRuleDialog = false"
+          />
+        </div>
+      </template>
+    </UiDrawerModal>
   </section>
 </template>
 
@@ -412,6 +438,8 @@ de:
   contextReply: Antworten
   contextReplyAll: Allen antworten
   contextForward: Weiterleiten
+  contextCreateRule: Regel erstellen…
+  createRuleTitle: Neue Regel
   contextDelete: Löschen
 en:
   closeSidebar: Close sidebar
@@ -428,5 +456,7 @@ en:
   contextReply: Reply
   contextReplyAll: Reply all
   contextForward: Forward
+  contextCreateRule: Create rule…
+  createRuleTitle: New rule
   contextDelete: Delete
 </i18n>

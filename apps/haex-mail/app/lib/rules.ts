@@ -267,3 +267,15 @@ export const describeRule = (
       : { key: "moveMailbox", target: a.mailbox };
   }),
 });
+
+/** What the "create rule" context menu entry starts the dialog with: the sender of `message`, in its account. */
+export const ruleDraftFromMessage = (
+  message: Pick<RuleMessage, "accountId" | "fromJson">,
+): Pick<RuleInput, "name" | "accountId" | "conditions"> => {
+  const sender = message.fromJson[0];
+  return {
+    name: (sender?.name || sender?.email || "").slice(0, MAX_RULE_NAME),
+    accountId: message.accountId,
+    conditions: [{ field: "from", contains: sender?.email ?? "" }],
+  };
+};

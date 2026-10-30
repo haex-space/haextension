@@ -5,6 +5,7 @@ import {
   planActions,
   planRuleRun,
   RuleValidationError,
+  ruleDraftFromMessage,
   ruleTargetMissing,
   ruleTargetMissingKnown,
   validateRule,
@@ -390,5 +391,34 @@ describe("RuleValidationError", () => {
     expect(error.issues).toEqual(issues);
     expect(error.message).toBe("name: nameRequired");
     expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe("ruleDraftFromMessage", () => {
+  it("starts from the sender, in the account of the message", () => {
+    const draft = ruleDraftFromMessage({
+      accountId: "a2",
+      fromJson: [{ name: "News Letter", email: "news@example.com" }],
+    });
+    expect(draft).toEqual({
+      name: "News Letter",
+      accountId: "a2",
+      conditions: [{ field: "from", contains: "news@example.com" }],
+    });
+  });
+
+  it("names the rule after the address when the sender has no name", () => {
+    const draft = ruleDraftFromMessage({ accountId: "a1", fromJson: [{ email: "x@example.com" }] });
+    expect(draft.name).toBe("x@example.com");
+  });
+
+  it("keeps the name within the limit and copes with a missing sender", () => {
+    const long = ruleDraftFromMessage({
+      accountId: "a1",
+      fromJson: [{ name: "n".repeat(200), email: "x@example.com" }],
+    });
+    expect(long.name).toHaveLength(80);
+    const none = ruleDraftFromMessage({ accountId: "a1", fromJson: [] });
+    expect(none.conditions).toEqual([{ field: "from", contains: "" }]);
   });
 });
