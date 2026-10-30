@@ -79,6 +79,7 @@ Run on the primary checkout's graph (an older snapshot; the worktree has no `gra
 | New artifact | Candidates evaluated | Outcome |
 |--------------|----------------------|---------|
 | `useDraftAutosave`, `createDraftSaver` | `saveDraftAsync`, `closeAsync`, `discardAsync` in `ComposeDialog.vue`; no debounce helper anywhere in the app | **Independent**: no debounce exists. The old `saveDraftAsync` is replaced, its message-building is reused (`buildOutgoingMessage`, `bodyContent`). |
+| `useComposeAttachments` (extracted because `ComposeDialog.vue` already exceeds 500 lines) | `fileToBase64`, `addFilesAsync`, `onFilesPicked`, `removeAttachment` in `ComposeDialog.vue` | **Extend by extraction**: move the existing attachment handling and form state into the composable; do not add a parallel attachment flow. |
 | draft store, upload flush | `useMoveOutbox` (`stores/mail/outbox.ts`), `lib/pendingMoves.ts` | **Borderline** (see Constitution Check): pure helpers reused, flush loop written separately. |
 | `draftHasContent`, row mapping, list merge | `parseAddressList`, `formatAddressList` (`lib/address.ts`), `ReplyContext` (`stores/mail/reply.ts`) | **Reuse** the address helpers; the content rule is new. |
 | adoption of a server draft | `getBodyContextAsync`, `fetchAttachmentBase64Async` (`useReplyBuilder`) | **Reuse** both. |

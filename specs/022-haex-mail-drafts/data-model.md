@@ -20,7 +20,7 @@ One row per unsent mail.
 | `attempts` | integer, not null, default 0 | Failed uploads since the last change. |
 | `next_attempt_at` | integer, not null, default 0 | Unix ms; not tried before. |
 | `server_message_id` | text | The Message-ID of the copy in the drafts folder, without angle brackets; `NULL` while there is none. |
-| `previous_message_ids_json` | text (JSON array of strings), not null, default `[]` | Earlier copies not yet confirmed deleted, at most 5 ([server-copy.md](contracts/server-copy.md)). |
+| `previous_message_ids_json` | text (JSON array of strings), not null, default `[]` | Earlier copies not yet confirmed deleted. Keep every id until its copy is confirmed deleted ([server-copy.md](contracts/server-copy.md)). |
 | `removed_at` | integer | Unix ms; set when the person deleted or sent a draft that has a server copy, so the copy can still be removed after a restart. A row with this set is in no list. |
 | `created_at`, `updated_at` | integer | The usual timestamps. |
 
