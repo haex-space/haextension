@@ -61,6 +61,28 @@ describe("handleOpenRequest", () => {
     expect(d.openCompose).not.toHaveBeenCalled();
     expect(d.notifyNoAccount).toHaveBeenCalledOnce();
   });
+
+  it("ignores an older request whose account check finishes after the newest request", async () => {
+    const checks: ((hasAccounts: boolean) => void)[] = [];
+    const d: OpenerDeps = {
+      hasAccounts: () => new Promise((resolve) => checks.push(resolve)),
+      openCompose: vi.fn(async () => {}),
+      notifyNoAccount: vi.fn(),
+    };
+    const { openers, arrive } = fakeOpeners(null);
+    listenForOpenRequests(openers, (r, isLatest) => handleOpenRequest(r, d, isLatest));
+
+    arrive(request({ subject: "Älter" }));
+    arrive(request({ subject: "Neuer" }));
+    checks[1](true);
+    await settled();
+    checks[0](true);
+    await settled();
+
+    expect(d.openCompose).toHaveBeenCalledOnce();
+    expect(d.openCompose).toHaveBeenCalledWith(expect.objectContaining({ subject: "Neuer" }));
+    expect(d.notifyNoAccount).not.toHaveBeenCalled();
+  });
 });
 
 describe("listenForOpenRequests", () => {
