@@ -13,6 +13,10 @@ describe("renderLatex", () => {
     expect(result.height).toBeGreaterThan(0);
   });
 
+  it("sets a root with a degree", () => {
+    expect("error" in renderLatex("\\sqrt[3]{27}")).toBe(false);
+  });
+
   it("sets a reaction equation of chemistry with mhchem", () => {
     const result = renderLatex("\\ce{H2SO3 + H2O -> H3O+ + HSO3-}");
     expect("error" in result).toBe(false);

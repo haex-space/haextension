@@ -31,6 +31,11 @@ describe("toLatex", () => {
     expect(tex("sqrt(2)")).toBe("\\sqrt{2}");
     expect(tex("wurzel(a+b)")).toBe("\\sqrt{a + b}");
     expect(tex("√2")).toBe("\\sqrt{2}");
+    expect(tex("sqrt(3; 27)")).toBe("\\sqrt[3]{27}");
+    expect(tex("wurzel(n; a + b)")).toBe("\\sqrt[n]{a + b}");
+    expect(tex("sqrt(3; sqrt(2))")).toBe("\\sqrt[3]{\\sqrt{2}}");
+    expect(tex("sqrt(3;27) + 1")).toBe("\\sqrt[3]{27} + 1");
+    expect(tex("sqrt((a;b))")).toBe("\\sqrt{(a;b)}");
   });
 
   it("sets units upright with a small gap after a number and the decimal comma without a space", () => {
@@ -98,6 +103,7 @@ describe("fromLatex", () => {
     expect(fromLatex("\\frac{3}{4}")).toBe("3/4");
     expect(fromLatex("\\frac{a+b}{2}")).toBe("(a+b)/2");
     expect(fromLatex("\\sqrt{2}")).toBe("sqrt(2)");
+    expect(fromLatex("\\sqrt[3]{27}")).toBe("sqrt(3; 27)");
     expect(fromLatex("480\\,\\mathrm{kcal} = 2011{,}2\\,\\mathrm{kJ}")).toBe("480 kcal = 2011,2 kJ");
     expect(fromLatex("A \\rightarrow B")).toBe("A -> B");
   });
@@ -113,6 +119,7 @@ describe("fromLatex", () => {
     "3/4",
     "(a + b)/2",
     "sqrt(2)",
+    "sqrt(3; 27)",
     "480 kcal",
     "A -> B",
   ])("comes back to the same text through toLatex: %s", (simple) => {
