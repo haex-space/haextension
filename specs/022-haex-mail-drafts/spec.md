@@ -14,6 +14,7 @@
 
 - Q: Does a new mail replace the draft that is open? → A: No. Every mail is a draft of its own, and several drafts exist side by side. A mail link that arrives while the dialog holds a mail starts a second draft; the first stays.
 - Q: Where does a draft live while it is written? → A: First in haex-mail itself, on this device, so that saving needs no connection and no server round trip on every change. The copy in the drafts folder of the mail server follows (see FR-007).
+- Q: When does the copy reach the drafts folder of the server? → A: When the dialog closes and after a pause of 30 seconds without a change; not on every change.
 - Q: What does sending do to the draft? → A: The draft is gone afterwards, the local one and any copy already in the drafts folder of the server.
 - Context 2026-10-30: the closing button already saves a draft to the server today, and a draft that sits in the drafts folder cannot be opened again in haex-mail; it can only be seen in the folder list. Continuing a draft is therefore part of this feature, not an extra.
 
@@ -134,7 +135,7 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 
 **Server copy**
 
-- **FR-007**: A draft MUST be copied to the drafts folder of its account on the mail server: [NEEDS CLARIFICATION: when does the copy happen: only when the dialog closes (the cheapest, the same as today), also after a pause in typing (for example 30 seconds, so a crash loses at most the pause on the server), or only when the person asks?].
+- **FR-007**: A draft MUST be copied to the drafts folder of its account on the mail server when the dialog closes and after a pause in typing (30 seconds without a change), so that other programs on the account see it soon and a crash loses at most that pause on the server; the copy MUST NOT happen on every change.
 - **FR-008**: The copy MUST be one message per draft: later saves replace it, and sending or deleting the draft removes it. Duplicates MUST NOT accumulate in the folder.
 - **FR-009**: Without a connection, or without a drafts folder, the draft MUST stay local without an error that interrupts writing; an upload that could not happen MUST be retried when the account can be reached.
 
