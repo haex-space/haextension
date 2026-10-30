@@ -87,7 +87,7 @@ describe("listenForOpenRequests", () => {
     listenForOpenRequests(openers, handle);
     await settled();
     expect(handle).toHaveBeenCalledOnce();
-    expect(handle).toHaveBeenCalledWith(request({ subject: "Beim Start" }));
+    expect(handle).toHaveBeenCalledWith(request({ subject: "Beim Start" }), expect.any(Function));
   });
 
   it("handles a request that arrives while the extension is open", async () => {
@@ -97,7 +97,7 @@ describe("listenForOpenRequests", () => {
     await settled();
     expect(handle).not.toHaveBeenCalled();
     arrive(request({ subject: "Später" }));
-    expect(handle).toHaveBeenCalledWith(request({ subject: "Später" }));
+    expect(handle).toHaveBeenCalledWith(request({ subject: "Später" }), expect.any(Function));
   });
 
   it("keeps listening when a request fails", async () => {
