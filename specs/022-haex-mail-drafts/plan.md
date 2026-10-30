@@ -38,7 +38,7 @@ Approach, in the order the research settles it ([research.md](research.md)):
 
 ## Dependencies
 
-This feature changes the part of `ComposeDialog.vue` that applies a mail link (`applyPrefill`), which is added by haex-space/haextension#165 (spec 063, T017). **Implementation starts from `main` after #165 is merged**; until then the spec and plan are reviewable but the tasks cannot be applied. #165's `ponytail:` comment ("a link replaces a mail that is being written; upgrade: confirm") is removed by this feature, because the replaced mail is a draft by then.
+This feature changes the part of `ComposeDialog.vue` that applies a mail link (`applyPrefill`) and the question that came with it, both added by haex-space/haextension#165 (spec 063, T017, merged as haex-space/haextension@d9bcbd04f5801294d4d229e308ff855383f8a988). #165 asks before a link replaces a dirty mail (`confirmReplaceOpen`, "save and open", "replace", "keep editing"; its "save and open" uses the old `saveDraftAsync` that appends to the server). This feature **removes that question**: the open mail is already a draft, so a link starts a second one and nothing needs asking. `saveDraftAsync` goes with it (US1, T009).
 
 ## Constitution Check
 

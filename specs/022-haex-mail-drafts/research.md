@@ -25,6 +25,12 @@ Facts checked on 2026-10-30 against `origin/main` of haextension (5ccabd7) with 
 - **What counts as content** (FR-002): any non-blank recipient, subject or text, or any attachment. The quoted original of a reply and the fields a mail link brought are the two exceptions, handled by one rule: a reply whose fields equal the state the reply was opened with has no content; a draft opened by a link has content from the start. The comparison is a pure function (`draftHasContent(fields, baseline)`), the baseline is the prefill the dialog applied.
 - **Alternatives considered**: *Plain text instead of HTML*: loses the formatting the editor keeps. Rejected. *Attachments inside the draft row*: every text save would rewrite megabytes. Rejected.
 
+## R-3b: Writes that must be whole
+
+- **Decision**: A save (the draft row and, when they changed, its attachment rows), a removal and an adoption each run as **one** `client.database.transaction([{ sql, params }])` of the SDK. The statements come from the Drizzle query builders' `.toSQL()`, so the schema stays the single source of the SQL. Reads use the Drizzle `orm` as everywhere else in the app.
+- **Rationale**: The spec's edge case "a save that was cut off never leaves a half-written draft" needs the draft row and its attachments to change together. The SDK's `DatabaseAPI.transaction` is the only transaction the bridge offers (the `orm` proxy has no `batch`). The vault's SQL check accepts only the extension's own tables, which these are.
+- **Alternatives considered**: *Separate writes*: a crash between the row and the attachments leaves a draft whose attachments belong to the older version. Rejected.
+
 ## R-4: Replacing and removing the copy on the server
 
 - **Findings that shape it**: `MailAPI.appendMessageAsync` returns `void`, so the UID of the appended message is not known. `OutgoingMessage` has no way to set the Message-ID or another header. `searchMessagesAsync` matches "header and body text" (up to 200 characters) and returns UIDs, newest first. `fetchEnvelopesAsync` with a `uidList` range returns envelopes with the Message-ID. `deleteMessagesAsync(imap, mailbox, uids)` deletes exactly those UIDs (UIDPLUS; it refuses before marking on a server without it).
@@ -50,11 +56,11 @@ Facts checked on 2026-10-30 against `origin/main` of haextension (5ccabd7) with 
 
 - **Decision**: Clicking a server-only row in the drafts view **adopts** it: the body and attachments are read (`useReplyBuilder` already fetches both for a forward: `getBodyContextAsync`, `fetchAttachmentBase64Async`), a local draft is created from them with `serverMessageId` set to the message's own Message-ID and the dialog opens on it. The next upload replaces the server message instead of leaving it next to a new one.
 - **Rationale**: This is the same operation as continuing a local draft; the only difference is where the fields come from. It also makes the drafts of the agent tools (`create_draft`, spec 019) continuable.
-- **Edge**: A server draft that has no Message-ID cannot be replaced by ID; it is adopted with `serverMessageId` empty and the old message is deleted by UID after the first successful upload of the new copy, which the adoption step knows because it has the UID.
+- **Edge**: A server draft that has no Message-ID cannot be recognised again by ID. It is adopted as a **new local draft** and the original stays on the server untouched; the first upload puts the draft's own copy beside it. No UID is kept, so no extra column is needed.
 
 ## R-8: Starting a new mail never touches the open one
 
-- **Decision**: `ComposeDialog.vue` owns the id of the draft it shows. A mail link (`applyPrefill`), the compose button and "new mail" call one function: flush the saver, then reset the fields and begin a new draft id (created on the first content, or at once for a link). The open draft is already in the table. The `ponytail:` comment of #165 and its replace-on-link behaviour are deleted.
+- **Decision**: `ComposeDialog.vue` owns the id of the draft it shows. A mail link (`applyPrefill`), the compose button and "new mail" call one function: flush the saver, then reset the fields and begin a new draft id (created on the first content, or at once for a link). The open draft is already in the table. The question #165 added for that case (`confirmReplaceOpen`, its alert dialog and its texts) is deleted, because the mail it protects is already a draft.
 - **Rationale**: Because the previous mail is saved before the reset, no confirmation is needed (spec 2, FR-005).
 
 ## R-9: Discard and delete

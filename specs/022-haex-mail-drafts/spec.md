@@ -110,7 +110,7 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 - **Empty mail**: A dialog in which nothing was typed leaves no draft. A draft whose every field the person emptied again is removed (FR-002).
 - **Content only in attachments**: A mail with an attachment and nothing else counts as content.
 - **Mail link with fields**: A draft opened by a link starts with the link's fields and exists from the moment it opens, even if the person types nothing, because the link already gave it content.
-- **Two windows**: Two open haex-mail windows on the same vault never write the same draft at the same moment; the later save wins and no draft is duplicated.
+- **Two windows**: haex-mail is a single-instance extension (`singleInstance` in its manifest), so two windows never write the same draft. Two vaults on one device have separate tables.
 - **Very large mail**: A draft keeps up to 25 MiB of attachments locally, which is about what a mail server accepts to send. Attachments beyond that are not saved in the draft, and the dialog says so once; the text and the other attachments are saved as usual.
 - **Draft changed on the server**: A draft that another program re-saved in the drafts folder is not recognised as the copy haex-mail uploaded. The next upload puts a fresh copy beside it, so neither side overwrites the other; what the other program saved shows as a draft of its own.
 - **Account removed**: Drafts of a removed account are removed with it.
@@ -165,7 +165,7 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 
 - **SC-001**: After an interruption without a clean close, at least 99% of mails with content are listed as drafts with all but the last second of their content when haex-mail starts again.
 - **SC-002**: A mail link that arrives while a mail is being written changes nothing in that mail: in 100% of tries the earlier mail is a draft with its full text afterwards and the new mail shows only the link's fields.
-- **SC-003**: Typing in the compose dialog shows no noticeable delay with saving on: typing a long text keeps up with a person typing quickly, and no save needs a connection.
+- **SC-003**: Typing in the compose dialog is not slowed by saving: a draft is written at most once per pause in typing (never per keystroke) and never needs a connection; typing 5,000 characters in one minute produces no more writes than pauses of 300 ms.
 - **SC-004**: A person finds and continues an earlier draft in at most two taps or clicks from the list of mail folders.
 - **SC-005**: After a mail is sent or its draft deleted, 100% of tries leave no copy in the list or in the drafts folder of the server.
 - **SC-006**: Writing without a connection shows no error to the person; the draft reaches the server folder within one minute of the account being reachable again.
