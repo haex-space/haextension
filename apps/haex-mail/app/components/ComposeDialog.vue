@@ -39,6 +39,7 @@ const isSavingDraft = ref(false);
 const error = ref<string | null>(null);
 const showCc = ref(false);
 const showBcc = ref(false);
+const confirmReplaceOpen = ref(false);
 
 const isDirty = computed(
   () =>
@@ -149,12 +150,17 @@ watch(open, (v) => {
 
 /**
  * The fields of a mail link (`openers.client.ts`). A link that arrives while the dialog holds a
- * mail replaces it. ponytail: it is not asked first; the upgrade is a confirmation when `isDirty`.
- * Also runs when the dialog is created already open, which `watch(open)` does not see.
+ * mail asks before replacing a dirty draft. Also runs when the dialog is created already open,
+ * which `watch(open)` does not see.
  */
-const applyPrefill = () => {
+const applyPrefill = (confirmed = false) => {
   const prefill = ui.composePrefill;
   if (!prefill || !open.value) return;
+  if (isDirty.value && !confirmed) {
+    confirmReplaceOpen.value = true;
+    return;
+  }
+  confirmReplaceOpen.value = false;
   ui.composePrefill = null;
   reset();
   fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
@@ -166,6 +172,15 @@ const applyPrefill = () => {
   subject.value = prefill.subject;
   if (prefill.body) body.value = textToBody(prefill.body);
 };
+
+const keepCurrentDraft = () => {
+  ui.composePrefill = null;
+  confirmReplaceOpen.value = false;
+};
+
+watch(confirmReplaceOpen, (isOpen, wasOpen) => {
+  if (wasOpen && !isOpen && ui.composePrefill) keepCurrentDraft();
+});
 
 watch([() => ui.composePrefill, open], applyPrefill, { immediate: true });
 
@@ -300,6 +315,10 @@ const closeAsync = async () => {
   open.value = false;
 };
 
+const saveDraftAndApplyPrefillAsync = async () => {
+  if (await saveDraftAsync()) applyPrefill(true);
+};
+
 /** Discard without saving a draft. */
 const discardAsync = () => {
   reset();
@@ -427,6 +446,28 @@ const discardAsync = () => {
       </form>
     </div>
   </Transition>
+
+  <ShadcnAlertDialog v-model:open="confirmReplaceOpen">
+    <ShadcnAlertDialogContent>
+      <ShadcnAlertDialogHeader>
+        <ShadcnAlertDialogTitle>{{ t("replaceConfirm.title") }}</ShadcnAlertDialogTitle>
+        <ShadcnAlertDialogDescription>
+          {{ t("replaceConfirm.description") }}
+        </ShadcnAlertDialogDescription>
+      </ShadcnAlertDialogHeader>
+      <ShadcnAlertDialogFooter>
+        <ShadcnAlertDialogCancel @click="keepCurrentDraft">
+          {{ t("replaceConfirm.keepEditing") }}
+        </ShadcnAlertDialogCancel>
+        <UiButton :loading="isSavingDraft" @click="saveDraftAndApplyPrefillAsync">
+          {{ t("replaceConfirm.saveAndOpen") }}
+        </UiButton>
+        <ShadcnAlertDialogAction @click="applyPrefill(true)">
+          {{ t("replaceConfirm.replace") }}
+        </ShadcnAlertDialogAction>
+      </ShadcnAlertDialogFooter>
+    </ShadcnAlertDialogContent>
+  </ShadcnAlertDialog>
 </template>
 
 <style scoped>
@@ -456,6 +497,12 @@ de:
   addAttachment: Anhang hinzufügen
   removeAttachment: Anhang entfernen
   draftSaved: Entwurf gespeichert
+  replaceConfirm:
+    title: Entwurf ersetzen?
+    description: Die aktuelle Nachricht enthält Änderungen. Speichere sie als Entwurf oder ersetze sie durch den Mail-Link. Wenn du weiter bearbeitest, wird der Link verworfen.
+    keepEditing: Weiter bearbeiten
+    saveAndOpen: Entwurf speichern und Link öffnen
+    replace: Ersetzen
   noSubject: (kein Betreff)
   errors:
     noFromAccount: Kein Absenderkonto gewählt.
@@ -478,6 +525,12 @@ en:
   addAttachment: Add attachment
   removeAttachment: Remove attachment
   draftSaved: Draft saved
+  replaceConfirm:
+    title: Replace this draft?
+    description: The current message has changes. Save it as a draft or replace it with the mail link. Keeping this draft will ignore the link.
+    keepEditing: Keep editing
+    saveAndOpen: Save draft and open link
+    replace: Replace
   noSubject: (no subject)
   errors:
     noFromAccount: No sender account selected.

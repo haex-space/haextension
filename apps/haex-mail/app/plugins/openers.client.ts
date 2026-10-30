@@ -34,8 +34,8 @@ export default defineNuxtPlugin((nuxtApp) => {
     // before the client exists, and Pinia keeps the half-built store.
     const client = (nuxtApp as ReturnType<typeof useNuxtApp>).$haexVault?.client;
     if (!client) return false;
-    listenForOpenRequests(client.openers, async (request) =>
-      handleOpenRequest(request, await buildDeps()),
+    listenForOpenRequests(client.openers, async (request, isLatest) =>
+      handleOpenRequest(request, await buildDeps(), isLatest),
     );
     return true;
   };
