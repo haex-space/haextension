@@ -111,8 +111,8 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 - **Content only in attachments**: A mail with an attachment and nothing else counts as content.
 - **Mail link with fields**: A draft opened by a link starts with the link's fields and exists from the moment it opens, even if the person types nothing, because the link already gave it content.
 - **Two windows**: Two open haex-mail windows on the same vault never write the same draft at the same moment; the later save wins and no draft is duplicated.
-- **Very large mail**: A draft with a body or attachments beyond the limits of today's saved draft is kept as far as today's draft would be; what cannot be kept is said once, and the dialog stays usable.
-- **Draft changed on the server**: A draft that another program changed in the drafts folder is not overwritten by an old local version without notice; the newer server version wins and the local one is kept as a second draft (see Assumptions).
+- **Very large mail**: A draft keeps up to 25 MiB of attachments locally, which is about what a mail server accepts to send. Attachments beyond that are not saved in the draft, and the dialog says so once; the text and the other attachments are saved as usual.
+- **Draft changed on the server**: A draft that another program re-saved in the drafts folder is not recognised as the copy haex-mail uploaded. The next upload puts a fresh copy beside it, so neither side overwrites the other; what the other program saved shows as a draft of its own.
 - **Account removed**: Drafts of a removed account are removed with it.
 - **Draft count**: The list has no limit of its own; the person deletes what they no longer need.
 - **Crash during a save**: A save that was cut off never leaves a half-written draft; the previous version stays.
@@ -175,7 +175,7 @@ A person sends a mail. The draft is gone, and the drafts folder of the server ho
 - Drafts live first in the data of haex-mail inside the vault, on this device; synchronising local drafts between devices is out of scope. The copy in the drafts folder of the server is how a draft reaches other programs on the same account.
 - "Content" means any recipient, subject, text or attachment. A signature or quote that haex-mail inserts itself, such as the quoted original of a reply, does not count as content on its own, so a reply that was opened and never touched leaves no draft.
 - Attachments stay with the draft as today: they are part of the saved draft, and the limits that apply to a draft today apply to the local draft, without a new limit.
-- A draft that another program changed in the server's drafts folder after haex-mail uploaded it is detected when haex-mail uploads again; the newer server version is kept and the local one is kept as a second draft, so neither side overwrites the other without notice.
+- A draft that another program re-saved in the server's drafts folder is not compared with the local one: haex-mail finds its own copy by an identifier it wrote, so a changed copy is left alone and listed as a draft of its own.
 - Discarding stays in the dialog as a deliberate way to throw a draft away; it asks once for a mail with content (FR-013). The closing button keeps the draft, as it does today.
 - Agent tools (`create_draft`, `send_mail` of spec 019) keep writing their drafts to the drafts folder of the server as they do today; those drafts appear in the list as server-only drafts and can be continued like any other.
 - The compose dialog of spec 063 (haex-space/haex-vault@77a087a7cb8da94f8dca36fc7612d378e21b61a5:specs/063-mailto-extensions/spec.md, FR-015) opens a new draft for a mail link; this feature replaces the replacing behaviour that haex-space/haextension#165 documents as a simplification.
