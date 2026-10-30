@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Paperclip, X } from "@lucide/vue";
-import { toast } from "vue-sonner";
 import type { OutgoingAttachment } from "@haex-space/vault-sdk";
 import { parseAddressList } from "~/lib/address";
 import { bodyNeedsHtml, bodyToHtml, bodyToText, textToBody } from "~/lib/composeBody";
+import type { DraftFields } from "~/lib/drafts";
+import type { ComposePrefill } from "~/lib/openers";
 import { buildOutgoingMessage } from "~/lib/outgoing";
 import { getErrorMessage } from "~/lib/utils";
 import type { AccountWithCredentials } from "~/stores/accounts";
@@ -23,7 +24,6 @@ const props = defineProps<{
 const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
-const mailStore = useMailStore();
 const ui = useUiStore();
 
 const to = ref("");
@@ -34,24 +34,17 @@ const subject = ref("");
 const body = ref("");
 const attachments = ref<OutgoingAttachment[]>([]);
 const fromAccountId = ref<string | null>(null);
+/** Threading headers of the mail being answered; a draft keeps them, so a reply stays a reply. */
+const inReplyTo = ref<string | undefined>();
+const references = ref<string[]>([]);
 const isSending = ref(false);
-const isSavingDraft = ref(false);
 const error = ref<string | null>(null);
 const showCc = ref(false);
 const showBcc = ref(false);
-const confirmReplaceOpen = ref(false);
+const confirmDiscardOpen = ref(false);
 
-const isDirty = computed(
-  () =>
-    !!(
-      to.value.trim() ||
-      cc.value.trim() ||
-      bcc.value.trim() ||
-      subject.value.trim() ||
-      bodyToText(body.value).trim() ||
-      attachments.value.length
-    ),
-);
+const { fileInput, attachmentBytes, formatSize, removeAttachment, addFilesAsync, onFilesPicked } =
+  useComposeAttachments(attachments, error);
 
 /** Plain text always; HTML only when formatting or a link needs it, so other mails stay plain text. */
 const bodyContent = (html: string) => {
@@ -62,53 +55,30 @@ const bodyContent = (html: string) => {
   };
 };
 
-/** Approximate decoded byte size of a base64 payload (for display). */
-const attachmentBytes = (data: string) => Math.floor((data.length * 3) / 4);
+/** The mail as plain data: it goes to the host, which refuses Vue proxies. */
+const snapshot = (): DraftFields => ({
+  accountId: fromAccountId.value ?? "",
+  to: to.value,
+  cc: cc.value,
+  bcc: bcc.value,
+  subject: subject.value,
+  bodyHtml: body.value,
+  inReplyTo: inReplyTo.value,
+  references: [...references.value],
+  attachments: attachments.value.map((a) => ({ ...a })),
+});
 
-const formatSize = (bytes: number) =>
-  bytes < 1024 ? `${bytes} B` : `${Math.round(bytes / 1024)} KB`;
+const draftFailed = (err: unknown) => t("errors.draftFailed", { error: getErrorMessage(err) });
 
-const removeAttachment = (index: number) => {
-  attachments.value.splice(index, 1);
-};
-
-const fileInput = ref<HTMLInputElement>();
-
-/** Reads a File as base64 (no `data:` URL prefix — SDK expects raw base64). */
-const fileToBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.slice(result.indexOf(",") + 1));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-
-/** Adds files as attachments: from the picker, or dropped / pasted into the editor. */
-const addFilesAsync = async (files: File[]) => {
-  try {
-    for (const file of files) {
-      attachments.value.push({
-        filename: file.name,
-        contentType: file.type || "application/octet-stream",
-        data: await fileToBase64(file),
-      });
-    }
-  } catch (err) {
-    error.value = getErrorMessage(err);
-  }
-};
-
-const onFilesPicked = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  try {
-    await addFilesAsync(Array.from(target.files ?? []));
-  } finally {
-    target.value = "";
-  }
-};
+// Every mail with content is a draft a moment after the last change (spec 022).
+const autosave = useDraftAutosave({
+  snapshot,
+  sources: [to, cc, bcc, subject, body, fromAccountId, () => attachments.value.length],
+  drafts: useDraftsStore(),
+  onError: (err) => {
+    error.value = draftFailed(err);
+  },
+});
 
 const reset = () => {
   to.value = "";
@@ -117,9 +87,17 @@ const reset = () => {
   subject.value = "";
   body.value = "";
   attachments.value = [];
+  inReplyTo.value = undefined;
+  references.value = [];
   showCc.value = false;
   showBcc.value = false;
   error.value = null;
+};
+
+/** The account the mail is sent from: the one shown, else the one chosen, else the first. */
+const selectAccount = () => {
+  fromAccountId.value =
+    props.account?.account.id ?? fromAccountId.value ?? accountsStore.accounts[0]?.id ?? null;
 };
 
 const applyReplyTo = () => {
@@ -133,37 +111,15 @@ const applyReplyTo = () => {
     ? [...props.replyTo.attachments]
     : [];
   subject.value = props.replyTo.subject;
+  inReplyTo.value = props.replyTo.inReplyTo;
+  references.value = props.replyTo.references ?? [];
   // Quoted original (cursor stays at the top, before the quote).
   if (props.replyTo.body) body.value = textToBody(props.replyTo.body);
   // Unified view: reply from the account the message was received on.
   if (!props.account) fromAccountId.value = props.replyTo.accountId;
 };
 
-watch(open, (v) => {
-  if (!v) {
-    reset();
-    return;
-  }
-  fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
-  applyReplyTo();
-});
-
-/**
- * The fields of a mail link (`openers.client.ts`). A link that arrives while the dialog holds a
- * mail asks before replacing a dirty draft. Also runs when the dialog is created already open,
- * which `watch(open)` does not see.
- */
-const applyPrefill = (confirmed = false) => {
-  const prefill = ui.composePrefill;
-  if (!prefill || !open.value) return;
-  if (isDirty.value && !confirmed) {
-    confirmReplaceOpen.value = true;
-    return;
-  }
-  confirmReplaceOpen.value = false;
-  ui.composePrefill = null;
-  reset();
-  fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
+const applyPrefill = (prefill: ComposePrefill) => {
   to.value = prefill.to;
   cc.value = prefill.cc;
   bcc.value = prefill.bcc;
@@ -173,24 +129,59 @@ const applyPrefill = (confirmed = false) => {
   if (prefill.body) body.value = textToBody(prefill.body);
 };
 
-const keepCurrentDraft = () => {
+// A new mail never replaces the one being written: `switchTo` writes that one as a draft first.
+const startPlainAsync = () =>
+  autosave.switchTo(
+    () => {
+      reset();
+      selectAccount();
+      applyReplyTo();
+    },
+    { baselineIsApplied: !!props.replyTo },
+  );
+
+/** The fields of a mail link (`openers.client.ts`) start a draft of their own, which exists at once. */
+const startLinkAsync = (prefill: ComposePrefill) =>
+  autosave.switchTo(
+    () => {
+      reset();
+      selectAccount();
+      applyPrefill(prefill);
+    },
+    { saveNow: true },
+  );
+
+const takePrefill = () => {
+  const prefill = ui.composePrefill;
   ui.composePrefill = null;
-  confirmReplaceOpen.value = false;
+  return prefill;
 };
 
-watch(confirmReplaceOpen, (isOpen, wasOpen) => {
-  if (wasOpen && !isOpen && ui.composePrefill) keepCurrentDraft();
+const closedAsync = async () => {
+  try {
+    await autosave.endAsync();
+  } finally {
+    reset();
+  }
+};
+
+useComposeLifecycle({
+  open,
+  replyTo: () => props.replyTo,
+  prefill: () => ui.composePrefill,
+  takePrefill,
+  startPlain: startPlainAsync,
+  startLink: startLinkAsync,
+  closed: closedAsync,
+  onError: (err) => {
+    error.value = draftFailed(err);
+  },
 });
 
-watch([() => ui.composePrefill, open], () => applyPrefill(), { immediate: true });
-
-// Reply triggered while the dialog is already open must still prefill.
-watch(
-  () => props.replyTo,
-  () => {
-    if (open.value) applyReplyTo();
-  },
-);
+onBeforeUnmount(() => {
+  autosave.dispose();
+  void autosave.flushAsync().catch((err) => console.warn("[haex-mail] draft not saved on unmount", err));
+});
 
 const resolveAccount = async (): Promise<AccountWithCredentials | null> => {
   return (
@@ -229,11 +220,13 @@ const sendAsync = async () => {
         ...bodyContent(body.value),
         attachments: attachments.value,
         // Threading headers so replies land in the original conversation.
-        inReplyTo: props.replyTo?.inReplyTo,
-        references: props.replyTo?.references,
+        inReplyTo: inReplyTo.value,
+        references: references.value,
       },
     );
     await haexVault.client.mail.sendMessageAsync(account.smtp, message);
+    // Sent: the draft has done its job. A draft that cannot be removed is not the person's problem now.
+    await autosave.discardAsync().catch((err) => console.warn("[haex-mail] sent draft not removed", err));
     open.value = false;
   } catch (err) {
     error.value = getErrorMessage(err);
@@ -242,86 +235,30 @@ const sendAsync = async () => {
   }
 };
 
-/**
- * Save the current draft to the account's Drafts folder via IMAP APPEND.
- * Snapshots field values up-front so async gaps don't race with reset().
- * Returns false, with `error` set, when the draft could not be stored.
- */
-const saveDraftAsync = async (): Promise<boolean> => {
-  if (!isDirty.value) return true;
-
-  // Snapshot before any async gap.
-  const snap = {
-    to: to.value,
-    cc: cc.value,
-    bcc: bcc.value,
-    subject: subject.value,
-    body: body.value,
-    attachments: attachments.value.slice(),
-  };
-
-  isSavingDraft.value = true;
-  try {
-    const account = await resolveAccount();
-    if (!account) {
-      error.value = t("errors.noFromAccount");
-      return false;
-    }
-
-    const draftsMailbox = mailStore.mailboxes.find(
-      (m) => m.accountId === account.account.id && m.role === "drafts",
-    );
-    if (!draftsMailbox) {
-      error.value = t("errors.noDraftsFolder");
-      return false;
-    }
-
-    // A draft keeps the recipients it can read; a send refuses invalid ones.
-    const message = buildOutgoingMessage(
-      { email: account.account.email, name: account.account.displayName },
-      {
-        to: snap.to,
-        cc: snap.cc,
-        bcc: snap.bcc,
-        subject: snap.subject || t("noSubject"),
-        ...bodyContent(snap.body),
-        attachments: snap.attachments,
-      },
-    );
-    const rfc822 = await haexVault.client.mail.buildRfc822Async(
-      account.imap.host,
-      message,
-    );
-    await haexVault.client.mail.appendMessageAsync(
-      account.imap,
-      draftsMailbox.name,
-      rfc822,
-      ["\\Draft", "\\Seen"],
-    );
-    toast.success(t("draftSaved"));
-    return true;
-  } catch (err) {
-    error.value = t("errors.draftFailed", { error: getErrorMessage(err) });
-    return false;
-  } finally {
-    isSavingDraft.value = false;
-  }
-};
-
-/** Close, saving a draft if the form has content; stays open if that fails. */
+/** Close: the mail is already a draft, so this only makes sure the last change is written. */
 const closeAsync = async () => {
-  if (!(await saveDraftAsync())) return;
-  reset();
+  try {
+    await autosave.flushAsync();
+  } catch (err) {
+    error.value = draftFailed(err);
+    return;
+  }
   open.value = false;
 };
 
-const saveDraftAndApplyPrefillAsync = async () => {
-  if (await saveDraftAsync()) applyPrefill(true);
+/** Throw the mail away: with content it asks once, because the draft goes with it. */
+const discardAsync = () => {
+  if (autosave.hasContent()) confirmDiscardOpen.value = true;
+  else open.value = false;
 };
 
-/** Discard without saving a draft. */
-const discardAsync = () => {
-  reset();
+const confirmDiscardAsync = async () => {
+  try {
+    await autosave.discardAsync();
+  } catch (err) {
+    error.value = draftFailed(err);
+    return;
+  }
   open.value = false;
 };
 </script>
@@ -340,7 +277,6 @@ const discardAsync = () => {
           size="icon-lg"
           :icon="X"
           :aria-label="t('close')"
-          :loading="isSavingDraft"
           @click="closeAsync"
         />
       </header>
@@ -447,27 +383,14 @@ const discardAsync = () => {
     </div>
   </Transition>
 
-  <ShadcnAlertDialog v-model:open="confirmReplaceOpen">
-    <ShadcnAlertDialogContent>
-      <ShadcnAlertDialogHeader>
-        <ShadcnAlertDialogTitle>{{ t("replaceConfirm.title") }}</ShadcnAlertDialogTitle>
-        <ShadcnAlertDialogDescription>
-          {{ t("replaceConfirm.description") }}
-        </ShadcnAlertDialogDescription>
-      </ShadcnAlertDialogHeader>
-      <ShadcnAlertDialogFooter>
-        <ShadcnAlertDialogCancel @click="keepCurrentDraft">
-          {{ t("replaceConfirm.keepEditing") }}
-        </ShadcnAlertDialogCancel>
-        <UiButton :loading="isSavingDraft" @click="saveDraftAndApplyPrefillAsync">
-          {{ t("replaceConfirm.saveAndOpen") }}
-        </UiButton>
-        <ShadcnAlertDialogAction @click="applyPrefill(true)">
-          {{ t("replaceConfirm.replace") }}
-        </ShadcnAlertDialogAction>
-      </ShadcnAlertDialogFooter>
-    </ShadcnAlertDialogContent>
-  </ShadcnAlertDialog>
+  <ShadcnDialogConfirm
+    v-model:open="confirmDiscardOpen"
+    :title="t('discardConfirm.title')"
+    :description="t('discardConfirm.description')"
+    :confirm-label="t('discardConfirm.confirm')"
+    :abort-label="t('discardConfirm.abort')"
+    @confirm="confirmDiscardAsync"
+  />
 </template>
 
 <style scoped>
@@ -496,19 +419,16 @@ de:
   send: Senden
   addAttachment: Anhang hinzufügen
   removeAttachment: Anhang entfernen
-  draftSaved: Entwurf gespeichert
-  replaceConfirm:
-    title: Entwurf ersetzen?
-    description: Die aktuelle Nachricht enthält Änderungen. Speichere sie als Entwurf oder ersetze sie durch den Mail-Link. Wenn du weiter bearbeitest, wird der Link verworfen.
-    keepEditing: Weiter bearbeiten
-    saveAndOpen: Entwurf speichern und Link öffnen
-    replace: Ersetzen
+  discardConfirm:
+    title: Entwurf verwerfen?
+    description: Die Nachricht und der gespeicherte Entwurf werden gelöscht.
+    confirm: Verwerfen
+    abort: Abbrechen
   noSubject: (kein Betreff)
   errors:
     noFromAccount: Kein Absenderkonto gewählt.
     noSmtp: Dieses Konto hat keine SMTP-Konfiguration.
     invalidAddress: "Keine gültige E-Mail-Adresse: {addresses}"
-    noDraftsFolder: "Kein Entwürfe-Ordner gefunden – Entwurf nicht gespeichert. Mit „Verwerfen“ schließen."
     draftFailed: "Entwurf nicht gespeichert: {error}"
 en:
   title: New message
@@ -524,18 +444,15 @@ en:
   send: Send
   addAttachment: Add attachment
   removeAttachment: Remove attachment
-  draftSaved: Draft saved
-  replaceConfirm:
-    title: Replace this draft?
-    description: The current message has changes. Save it as a draft or replace it with the mail link. Keeping this draft will ignore the link.
-    keepEditing: Keep editing
-    saveAndOpen: Save draft and open link
-    replace: Replace
+  discardConfirm:
+    title: Discard this draft?
+    description: The message and its saved draft will be deleted.
+    confirm: Discard
+    abort: Cancel
   noSubject: (no subject)
   errors:
     noFromAccount: No sender account selected.
     noSmtp: This account has no SMTP configuration.
     invalidAddress: "Not a valid email address: {addresses}"
-    noDraftsFolder: "No drafts folder found – draft not saved. Use “Discard” to close."
     draftFailed: "Draft not saved: {error}"
 </i18n>

@@ -10,6 +10,8 @@ export interface DraftSaver {
   flush(): Promise<void>;
   /** Drop what is pending, without writing it. */
   cancel(): void;
+  /** Resolves when no write is running; never rejects. */
+  idle(): Promise<void>;
 }
 
 /**
@@ -67,5 +69,6 @@ export const createDraftSaver = (
       stopTimer();
       pending = null;
     },
+    idle: () => chain,
   };
 };

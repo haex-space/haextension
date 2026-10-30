@@ -132,4 +132,19 @@ describe("createDraftSaver", () => {
     await saver.flush();
     expect(write).not.toHaveBeenCalled();
   });
+
+  it("idle waits for a running write, also after cancel", async () => {
+    const gate = deferred();
+    const saver = createDraftSaver(() => gate.promise, { delayMs: 10 });
+    saver.change(fields("a"));
+    await vi.advanceTimersByTimeAsync(10);
+    saver.cancel();
+    let idle = false;
+    const waiting = saver.idle().then(() => (idle = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(idle).toBe(false);
+    gate.resolve();
+    await waiting;
+    expect(idle).toBe(true);
+  });
 });
