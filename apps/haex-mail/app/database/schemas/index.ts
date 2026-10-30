@@ -176,6 +176,61 @@ export const rules = sqliteTable(tableName("rules"), {
 export type InsertRule = typeof rules.$inferInsert;
 export type SelectRule = typeof rules.$inferSelect;
 
+/**
+ * Mails that are being written (spec 022). One row per unsent mail, written a moment after each
+ * change so no typed text is lost. `_no_sync` keeps drafts on this device: two devices never edit
+ * one draft, and the copy in the server's drafts folder is how a draft reaches other programs.
+ */
+export const drafts = sqliteTable(tableName("drafts_no_sync"), {
+  id: text().primaryKey(),
+  accountId: text("account_id").notNull(),
+  /** The address fields as the person typed them. */
+  toText: text("to_text").notNull().default(""),
+  ccText: text("cc_text").notNull().default(""),
+  bccText: text("bcc_text").notNull().default(""),
+  subject: text().notNull().default(""),
+  /** The editor HTML of the body. */
+  bodyHtml: text("body_html").notNull().default(""),
+  /** Message-ID this mail answers; with `referencesJson` it keeps a reply a reply. */
+  inReplyTo: text("in_reply_to"),
+  referencesJson: text("references_json", { mode: "json" }).$type<string[]>().notNull().default([]),
+  /** Unix ms of the last change by the person; bookkeeping writes leave it alone. */
+  editedAt: integer("edited_at").notNull(),
+  /** Unix ms from which the draft is copied to the server; NULL when the copy is up to date. */
+  uploadDueAt: integer("upload_due_at"),
+  attempts: integer().notNull().default(0),
+  /** Unix ms; the upload is not tried before. */
+  nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+  /** Message-ID of the copy in the drafts folder, without angle brackets. */
+  serverMessageId: text("server_message_id"),
+  /** Earlier copies whose deletion is not confirmed yet; every id stays until it is. */
+  previousMessageIdsJson: text("previous_message_ids_json", { mode: "json" })
+    .$type<string[]>()
+    .notNull()
+    .default([]),
+  /** Unix ms; set on a draft with a server copy that was deleted or sent, until the copy is gone. */
+  removedAt: integer("removed_at"),
+  ...timestamps,
+});
+export type InsertDraft = typeof drafts.$inferInsert;
+export type SelectDraft = typeof drafts.$inferSelect;
+
+/** Attachments of a draft, rewritten only when the set of attachments changes. */
+export const draftAttachments = sqliteTable(tableName("draft_attachments_no_sync"), {
+  id: text().primaryKey(),
+  draftId: text("draft_id").notNull(),
+  position: integer().notNull(),
+  filename: text().notNull(),
+  contentType: text("content_type").notNull(),
+  contentId: text("content_id"),
+  /** Decoded size in bytes. */
+  size: integer().notNull(),
+  /** Base64, as `OutgoingAttachment.data`. */
+  data: text().notNull(),
+});
+export type InsertDraftAttachment = typeof draftAttachments.$inferInsert;
+export type SelectDraftAttachment = typeof draftAttachments.$inferSelect;
+
 // Type definitions
 
 /** All conditions of a rule must hold (AND); see lib/rules.ts. */

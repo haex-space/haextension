@@ -36,6 +36,13 @@
       "when": 1793199723418,
       "tag": "0004_bumpy_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793371623868,
+      "tag": "0005_faulty_mauler",
+      "breakpoints": true
     }
   ]
 }

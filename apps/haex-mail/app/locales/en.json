@@ -26,6 +26,13 @@
     "pendingMoves": {
       "moved": "{count} message(s) moved to “{folder}”",
       "waiting": "{count} message(s) will be moved as soon as the mail server is reachable."
+    },
+    "drafts": {
+      "uploaded": "Draft saved",
+      "noDraftsFolder": "No drafts folder found – the draft stays on this device only.",
+      "uploadFailed": "The draft could not be put on the mail server: {error}",
+      "attachmentsTooLarge": "{count} attachment(s) over 25 MB are not saved in the draft.",
+      "waiting": "{count} draft(s) will be put on the mail server as soon as it is reachable."
     }
   },
   "accounts": {

@@ -26,6 +26,13 @@
     "pendingMoves": {
       "moved": "{count} Nachricht(en) nach „{folder}“ verschoben",
       "waiting": "{count} Nachricht(en) werden verschoben, sobald der Mailserver erreichbar ist."
+    },
+    "drafts": {
+      "uploaded": "Entwurf gespeichert",
+      "noDraftsFolder": "Kein Entwürfe-Ordner gefunden – der Entwurf bleibt nur auf diesem Gerät.",
+      "uploadFailed": "Entwurf konnte nicht auf den Mailserver gelegt werden: {error}",
+      "attachmentsTooLarge": "{count} Anhang/Anhänge über 25 MB werden im Entwurf nicht gespeichert.",
+      "waiting": "{count} Entwurf/Entwürfe werden auf den Mailserver gelegt, sobald er erreichbar ist."
     }
   },
   "accounts": {

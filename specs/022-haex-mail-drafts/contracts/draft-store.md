@@ -29,7 +29,7 @@ mergeDraftRows(serverRows: SelectMessage[], local: SelectMessage[]): SelectMessa
 ## `lib/draftSaver.ts` (pure, timers injected)
 
 ```ts
-createDraftSaver(write: (fields: DraftFields) => Promise<void>, options?: { delayMs?: number; timers?: Timers }):
+createDraftSaver(write: (fields: DraftFields) => Promise<void>, options?: { delayMs?: number; onError?: (e: unknown) => void }):
   { change(fields: DraftFields): void; flush(): Promise<void>; cancel(): void }
 ```
 
@@ -51,10 +51,12 @@ sameMessageId(a: string | null | undefined, b: string | null | undefined): boole
 - `dueDrafts`: a row is due when it has something to do (`upload_due_at` or `removed_at` is set, or `previous_message_ids_json` is not empty), `now >= max(upload_due_at, next_attempt_at)` and `attempts < MAX_MOVE_ATTEMPTS`. `force` ignores the two times but not the attempt limit: a draft that gave up waits for its next change.
 - `withMessageId`: removes every existing `Message-ID` header including its folded continuation lines, puts `Message-ID: <id>` first, leaves the rest of the bytes untouched (headers and body), and returns valid base64. `messageIdOf(withMessageId(x, id))` is `id`.
 
-## `stores/mail/drafts.ts` (I/O)
+## `stores/mail/drafts.ts`, `draftBackend.ts`, `stores/drafts.ts` (I/O)
+
+`createDraftStore(backend, deps)` in `stores/mail/drafts.ts` holds the logic over a `DraftBackend` interface (memory in tests); `createVaultDraftBackend` in `stores/mail/draftBackend.ts` is the vault database, with every multi-row write as one `database.transaction`; `useDraftsStore` in `stores/drafts.ts` is the Pinia store that wires both to the app. `saveAsync(draftId, fields, baseline?)` takes the reply baseline as a third argument.
 
 ```ts
-useDrafts(deps: { accounts, mail, sync }) → {
+useDraftsStore() → {
   saveAsync(draftId: string | null, fields: DraftFields): Promise<string | null>   // returns the id; null when no content (row removed)
   loadAsync(id: string): Promise<DraftFields | null>
   listRowsAsync(accountIds: string[], mailboxNameOf: (accountId: string) => string | undefined): Promise<SelectMessage[]>
