@@ -182,7 +182,7 @@ watch(confirmReplaceOpen, (isOpen, wasOpen) => {
   if (wasOpen && !isOpen && ui.composePrefill) keepCurrentDraft();
 });
 
-watch([() => ui.composePrefill, open], applyPrefill, { immediate: true });
+watch([() => ui.composePrefill, open], () => applyPrefill(), { immediate: true });
 
 // Reply triggered while the dialog is already open must still prefill.
 watch(
