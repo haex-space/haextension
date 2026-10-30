@@ -211,7 +211,7 @@ de:
     latex: LaTeX-Quelle der Formel
   hint:
     chemistry: Schreib sie, wie sie dasteht. Pfeil mit -> oder dem Knopf.
-    math: Hoch mit ^, tief mit _, Bruch mit /, Wurzel mit sqrt( ).
+    math: Hoch mit ^, tief mit _, Bruch mit /, Wurzel mit sqrt( ), dritte Wurzel mit sqrt(3; 27).
     latex: Für Fortgeschrittene.
   symbol:
     sup: Hochstellen – erst markieren oder danach in die Klammer tippen
@@ -235,7 +235,7 @@ en:
     latex: LaTeX source of the formula
   hint:
     chemistry: Write it as it stands. Arrow with -> or the button.
-    math: Power with ^, index with _, fraction with /, root with sqrt( ).
+    math: Power with ^, index with _, fraction with /, root with sqrt( ), cube root with sqrt(3; 27).
     latex: For advanced users.
   symbol:
     sup: Superscript – select first or type inside the brackets afterwards

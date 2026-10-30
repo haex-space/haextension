@@ -99,8 +99,30 @@ function attachScripts(reader: Reader, atom: Atom): Atom {
   return { ...atom, tex, kind: tex === atom.tex ? atom.kind : "other" };
 }
 
+/** `sqrt(3; 27)`: die dritte Wurzel aus 27. Das `;` steht auf der obersten Ebene der Klammer, die an ihrem passenden `)` endet. */
+function nthRoot(reader: Reader): Atom | null {
+  if (reader.peek() !== "(") return null;
+  let depth = 0;
+  let semicolon = -1;
+  for (let i = reader.index; i < reader.text.length; i++) {
+    const char = reader.text[i];
+    if (char === "(") depth++;
+    else if (char === ";" && depth === 1 && semicolon < 0) semicolon = i;
+    else if (char === ")" && --depth === 0) {
+      if (semicolon < 0) return null;
+      const degree = parseSequence(new Reader(reader.text.slice(reader.index + 1, semicolon)), null);
+      const radicand = parseSequence(new Reader(reader.text.slice(semicolon + 1, i)), null);
+      reader.index = i + 1;
+      return { tex: `\\sqrt[${degree}]{${radicand}}`, kind: "other" };
+    }
+  }
+  return null;
+}
+
 function root(reader: Reader): Atom | null {
   reader.skipSpaces();
+  const nth = nthRoot(reader);
+  if (nth) return nth;
   const operand = parseAtom(reader);
   return operand ? { tex: `\\sqrt{${operand.inner ?? operand.tex}}`, kind: "other" } : null;
 }
@@ -253,6 +275,7 @@ export function fromLatex(latex: string): string | null {
     text = text
       .replace(/\\(?:mathrm|text)\{([^{}]*)\}/g, "$1")
       .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, (_, a: string, b: string) => `${operand(a)}/${operand(b)}`)
+      .replace(/\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g, "sqrt($1; $2)")
       .replace(/\\sqrt\{([^{}]*)\}/g, "sqrt($1)");
   }
   text = text
