@@ -29,6 +29,7 @@
       "description": "Mail client for IMAP and SMTP accounts"
     }
   },
+  "openers": ["mail.compose"],
   "tools": [
     {
       "name": "list_mailboxes",

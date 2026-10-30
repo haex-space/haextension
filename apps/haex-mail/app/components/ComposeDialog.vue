@@ -24,6 +24,7 @@ const { t } = useI18n();
 const haexVault = useHaexVaultStore();
 const accountsStore = useAccountsStore();
 const mailStore = useMailStore();
+const ui = useUiStore();
 
 const to = ref("");
 const cc = ref("");
@@ -145,6 +146,28 @@ watch(open, (v) => {
   fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
   applyReplyTo();
 });
+
+/**
+ * The fields of a mail link (`openers.client.ts`). A link that arrives while the dialog holds a
+ * mail replaces it. ponytail: it is not asked first; the upgrade is a confirmation when `isDirty`.
+ * Also runs when the dialog is created already open, which `watch(open)` does not see.
+ */
+const applyPrefill = () => {
+  const prefill = ui.composePrefill;
+  if (!prefill || !open.value) return;
+  ui.composePrefill = null;
+  reset();
+  fromAccountId.value ??= accountsStore.accounts[0]?.id ?? null;
+  to.value = prefill.to;
+  cc.value = prefill.cc;
+  bcc.value = prefill.bcc;
+  showCc.value = !!prefill.cc;
+  showBcc.value = !!prefill.bcc;
+  subject.value = prefill.subject;
+  if (prefill.body) body.value = textToBody(prefill.body);
+};
+
+watch([() => ui.composePrefill, open], applyPrefill, { immediate: true });
 
 // Reply triggered while the dialog is already open must still prefill.
 watch(

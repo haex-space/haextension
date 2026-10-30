@@ -1,6 +1,7 @@
 import { breakpointsTailwind, useBreakpoints, useLocalStorage, watchImmediate } from "@vueuse/core";
 import type { ApplicationContext } from "@haex-space/vault-sdk";
 import type { AccountPrefill } from "~/lib/connection";
+import type { ComposePrefill } from "~/lib/openers";
 
 export const useUiStore = defineStore("ui", () => {
   const context = ref<ApplicationContext | null>(null);
@@ -22,8 +23,12 @@ export const useUiStore = defineStore("ui", () => {
   /** Set when the account form should open (the settings page reacts and clears it). */
   const accountSetupRequested = ref(false);
 
+  /** The fields a mail link filled in (`openers.client.ts`); the compose dialog takes them once. */
+  const composePrefill = ref<ComposePrefill | null>(null);
+
   return {
     accountPrefill,
+    composePrefill,
     accountSetupRequested,
     context,
     currentThemeName,
