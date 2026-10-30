@@ -23,7 +23,7 @@
     "@codemirror/lint": "6.9.7",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.15",
-    "@haex-space/vault-sdk": "^4.7.0",
+    "@haex-space/vault-sdk": "^5.1.0",
     "@lezer/highlight": "1.2.5",
     "@lucide/vue": "^1.45.0",
     "@nuxt/eslint": "^1.12.1",
