@@ -87,6 +87,22 @@ for the checked item and clear the value yourself.
 </ShadcnRadioGroup>
 ```
 
+## Progress
+
+`UiProgress` takes the percent as `value` (0–100) or `null` while the total is unknown; the bar then
+shows a third and pulses. `variant="backdrop"` fills a list row from the left behind its content
+instead of drawing a track of its own: give the row `relative overflow-hidden` and its content
+`relative z-10`. `label` is the name screen readers read; without it they read the percent.
+
+```vue
+<UiProgress :value="percent" label="Modell wird heruntergeladen" />
+
+<li class="relative overflow-hidden">
+  <UiProgress :value="percent" variant="backdrop" />
+  <span class="relative z-10">{{ name }}</span>
+</li>
+```
+
 ## Compatibility
 
 This layer currently supports Nuxt 4.2.2 and newer (`nuxt ^4.2.2`). Nuxt 3.21
