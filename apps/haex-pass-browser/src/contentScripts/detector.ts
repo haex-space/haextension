@@ -27,6 +27,9 @@ const EMAIL_PATTERNS = [
   /email/i, /mail/i,
 ]
 
+// Site search boxes ("Search models, datasets, users...") are never login fields
+const SEARCH_PATTERNS = [/search/i, /suche/i, /query/i]
+
 let fieldCounter = 0
 
 function generateFieldId(): string {
@@ -110,6 +113,13 @@ function isVisibleInput(input: HTMLInputElement): boolean {
   return true
 }
 
+function isSearchField(input: HTMLInputElement): boolean {
+  if (input.getAttribute('role') === 'searchbox' || input.closest('search, [role="search"]'))
+    return true
+  const text = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.getAttribute('aria-label') || ''}`
+  return SEARCH_PATTERNS.some(p => p.test(text))
+}
+
 function isLoginField(input: HTMLInputElement): boolean {
   const type = input.type.toLowerCase()
 
@@ -120,6 +130,10 @@ function isLoginField(input: HTMLInputElement): boolean {
 
   // Check if it's visible
   if (!isVisibleInput(input)) {
+    return false
+  }
+
+  if (type !== 'password' && isSearchField(input)) {
     return false
   }
 
@@ -162,6 +176,9 @@ export function detectInputFields(): DetectedField[] {
   const inputs = document.querySelectorAll<HTMLInputElement>('input')
   const fields: DetectedField[] = []
 
+  // Every input is its own field, even when identifiers repeat: fields
+  // without name/id fall back to their type, so a stray "username" field
+  // must not push the real one out.
   inputs.forEach((input) => {
     if (!isLoginField(input))
       return
@@ -176,13 +193,5 @@ export function detectInputFields(): DetectedField[] {
     fields.push(field)
   })
 
-  // Filter out duplicate identifiers (keep first)
-  const seen = new Set<string>()
-  return fields.filter((field) => {
-    if (seen.has(field.identifier)) {
-      return false
-    }
-    seen.add(field.identifier)
-    return true
-  })
+  return fields
 }
