@@ -28,7 +28,7 @@ const EMAIL_PATTERNS = [
 ]
 
 // Site search boxes ("Search models, datasets, users...") are never login fields
-const SEARCH_PATTERNS = [/search/i, /suche/i, /query/i]
+const SEARCH_PATTERNS = [/\bsearch\b/i, /\bsuche\b/i, /\bquery\b/i]
 
 let fieldCounter = 0
 
