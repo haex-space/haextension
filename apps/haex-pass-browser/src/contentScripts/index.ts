@@ -109,10 +109,14 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     }
   }
 
-  async function fillEntry(entry: ItemEntry) {
-    const wantsCode = entry.hasTotp && detectedFields.some(field => isOtpField(field, entry.autofillAliases))
+  async function fillEntry(entry: ItemEntry, selectedField: DetectedField) {
+    const selectedForm = selectedField.element.form
+    const fieldsToFill = selectedForm
+      ? detectedFields.filter(field => field.element.form === selectedForm)
+      : detectedFields
+    const wantsCode = entry.hasTotp && fieldsToFill.some(field => isOtpField(field, entry.autofillAliases))
     const otpCode = wantsCode ? await fetchTotpCode(entry.id) : null
-    fillAllFields(detectedFields, entry.fields, entry.autofillAliases, otpCode)
+    fillAllFields(fieldsToFill, entry.fields, entry.autofillAliases, otpCode)
   }
 
   // Inject "Add new" button when no entries exist for this page
@@ -186,7 +190,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
       if (!shouldShowIconForField(field, matchingEntries))
         continue
       attachFieldIcon(field, {
-        onClick: icon => showEntryDropdown(field.id, icon, matchingEntries, shadowDOM, entry => void fillEntry(entry)),
+        onClick: icon => showEntryDropdown(field.id, icon, matchingEntries, shadowDOM, entry => void fillEntry(entry, field)),
       })
     }
   }
@@ -205,7 +209,8 @@ import { initWebAuthnBridge } from './webauthn-bridge'
     clearTimeout((window as unknown as { __haexScanTimeout: ReturnType<typeof setTimeout> }).__haexScanTimeout)
     ;(window as unknown as { __haexScanTimeout: ReturnType<typeof setTimeout> }).__haexScanTimeout = setTimeout(() => {
       const newFields = detectInputFields()
-      if (newFields.length !== detectedFields.length) {
+      if (newFields.length !== detectedFields.length
+        || newFields.some((field, index) => field.element !== detectedFields[index]?.element)) {
         scanAndRequest()
       }
     }, 500)
