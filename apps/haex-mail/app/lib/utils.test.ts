@@ -1,5 +1,24 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { chunk } from "./utils";
+import { chunk, getErrorMessage } from "./utils";
+
+describe("getErrorMessage", () => {
+  it("reports a failed query by its cause, not by its SQL", () => {
+    const err = new DrizzleQueryError("insert into messages values (?)", ["Subject"], {
+      message: "database is locked",
+    } as Error);
+    expect(getErrorMessage(err)).toBe("database is locked");
+  });
+
+  it("keeps the query message when there is no cause", () => {
+    const err = new DrizzleQueryError("select 1", []);
+    expect(getErrorMessage(err)).toBe(err.message);
+  });
+
+  it("reads `message` from non-Error objects", () => {
+    expect(getErrorMessage({ message: "nope" })).toBe("nope");
+  });
+});
 
 describe("chunk", () => {
   it("splits into consecutive slices of at most `size`", () => {
