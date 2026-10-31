@@ -4,7 +4,7 @@
  * the end is not known — the bar then shows a third and pulses. `bar` is a track of its own;
  * `backdrop` fills its parent from the left behind the content, e.g. a list row that downloads
  * (the parent needs `relative overflow-hidden`, its content `relative z-10`). `label` names the
- * bar for screen readers; without it they read the percent.
+ * bar for screen readers; without it they read the percent or, for an unknown total, "Fortschritt".
  */
 import type { HTMLAttributes } from "vue"
 import { computed } from "vue"
@@ -29,7 +29,7 @@ const percent = computed(() =>
 
 function valueLabel(value: number | null | undefined): string | undefined {
   if (props.label !== undefined) return props.label
-  return value === null || value === undefined ? undefined : `${Math.round(value)}%`
+  return value === null || value === undefined ? "Fortschritt" : `${Math.round(value)}%`
 }
 </script>
 
@@ -54,7 +54,7 @@ function valueLabel(value: number | null | undefined): string | undefined {
         cn(
           'h-full transition-[width] duration-150 motion-reduce:transition-none',
           variant === 'bar' ? 'bg-primary rounded-full' : 'bg-primary/10',
-          percent === null && 'animate-pulse',
+          percent === null && 'animate-pulse motion-reduce:animate-none',
         )
       "
       :style="{ width: `${percent ?? 35}%` }"
