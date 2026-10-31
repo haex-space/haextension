@@ -90,9 +90,12 @@ for the checked item and clear the value yourself.
 ## Progress
 
 `UiProgress` takes the percent as `value` (0–100) or `null` while the total is unknown; the bar then
-shows a third and pulses. `variant="backdrop"` fills a list row from the left behind its content
-instead of drawing a track of its own: give the row `relative overflow-hidden` and its content
-`relative z-10`. `label` is the name screen readers read; without it they read the percent.
+shows a third and pulses unless the user prefers reduced motion. `variant="backdrop"` fills a list
+row from the left behind its content instead of drawing a track of its own: give the row
+`relative overflow-hidden` and its content
+`relative z-10`. `label` is the name screen readers read; without it they read the percent or, for
+an unknown total, the German fallback name "Fortschritt". Pass a localized, descriptive `label`
+for unknown totals when the app uses another language or when the progress task needs context.
 
 ```vue
 <UiProgress :value="percent" label="Modell wird heruntergeladen" />
