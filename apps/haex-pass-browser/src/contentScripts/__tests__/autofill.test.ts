@@ -1,6 +1,7 @@
 import type { DetectedField } from '../detector'
+import type { ItemEntry } from '~/logic/haexPassApi'
 import { afterEach, describe, expect, it } from 'vitest'
-import { fillAllFields } from '../autofill'
+import { fillAllFields, shouldShowIconForField } from '../autofill'
 
 function input(attributes: Record<string, string>): HTMLInputElement {
   const element = document.createElement('input')
@@ -54,5 +55,50 @@ describe('fillAllFields', () => {
     fillAllFields(fields, { otp: 'TOTP' }, null, '123456')
 
     expect(code.value).toBe('123456')
+  })
+})
+
+function entry(hasTotp: boolean): ItemEntry {
+  return { id: 'e1', title: 'GitHub', url: null, fields: { username: 'anna' }, hasTotp }
+}
+
+describe('shouldShowIconForField', () => {
+  it('shows the icon on a one-time-code field of any name when an entry has a TOTP', () => {
+    const code = input({ name: 'app_otp', autocomplete: 'one-time-code' })
+    const field: DetectedField = { id: 'haex-field-1', element: code, type: 'otp', identifier: 'app_otp' }
+
+    expect(shouldShowIconForField(field, [entry(true)])).toBe(true)
+    expect(shouldShowIconForField(field, [entry(false)])).toBe(false)
+  })
+})
+
+describe('fillAllFields with a code split over boxes', () => {
+  it('puts one digit into each box, once, also when every box was detected', () => {
+    document.body.innerHTML = `
+      <form><div class="otp">
+        ${Array.from({ length: 6 }, (_, i) => `<span><input name="otp-${i}" maxlength="1" autocomplete="one-time-code"></span>`).join('')}
+      </div></form>`
+    const boxes = Array.from(document.querySelectorAll('input'))
+    const fields: DetectedField[] = boxes.map((box, i) => ({ id: `haex-field-${i}`, element: box, type: 'otp', identifier: box.name }))
+
+    fillAllFields(fields, { otp: 'TOTP' }, null, '123456')
+
+    expect(boxes.map(box => box.value)).toEqual(['1', '2', '3', '4', '5', '6'])
+  })
+
+  it('starts at the detected box when only the first one is recognised', () => {
+    document.body.innerHTML = `
+      <div><input name="email"></div>
+      <div class="otp">
+        <input autocomplete="one-time-code" maxlength="1"><input maxlength="1"><input maxlength="1">
+        <input maxlength="1"><input maxlength="1"><input maxlength="1">
+      </div>`
+    const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('.otp input'))
+    const fields: DetectedField[] = [{ id: 'haex-field-1', element: boxes[0]!, type: 'otp', identifier: 'one-time-code' }]
+
+    fillAllFields(fields, { otp: 'TOTP' }, null, '654321')
+
+    expect(boxes.map(box => box.value)).toEqual(['6', '5', '4', '3', '2', '1'])
+    expect((document.querySelector('input[name="email"]') as HTMLInputElement).value).toBe('')
   })
 })

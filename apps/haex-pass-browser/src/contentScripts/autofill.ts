@@ -11,6 +11,10 @@ export const DEFAULT_ALIASES: Record<string, string[]> = {
 
 // Check if a field should show the icon
 export function shouldShowIconForField(field: DetectedField, matchingEntries: ItemEntry[]): boolean {
+  // A one-time-code field ("app_otp", "user[otp_attempt]") only needs an entry with a TOTP
+  if (isOtpField(field, null) || matchingEntries.some(e => isOtpField(field, e.autofillAliases)))
+    return matchingEntries.some(e => e.hasTotp)
+
   const identifier = field.identifier.toLowerCase()
 
   // Always show for fields that match default alias keys or their aliases
@@ -46,6 +50,33 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+/**
+ * Types the code into the input; when the input takes fewer characters than
+ * the code (one box per digit), the rest goes into the following boxes of the
+ * same size, found in the nearest ancestor that holds enough of them.
+ */
+function fillOtpCode(input: HTMLInputElement, code: string, filled: Set<HTMLInputElement>) {
+  const size = input.maxLength
+  if (size <= 0 || size >= code.length) {
+    setInputValue(input, code)
+    filled.add(input)
+    return
+  }
+  const needed = Math.ceil(code.length / size)
+  let scope = input.parentElement
+  let boxes: HTMLInputElement[] = []
+  for (let depth = 0; scope && depth < 5; depth++, scope = scope.parentElement) {
+    const all = Array.from(scope.querySelectorAll<HTMLInputElement>('input')).filter(box => box.maxLength === size)
+    boxes = all.slice(all.indexOf(input))
+    if (boxes.length >= needed)
+      break
+  }
+  boxes.slice(0, needed).forEach((box, index) => {
+    setInputValue(box, code.slice(index * size, (index + 1) * size))
+    filled.add(box)
+  })
+}
+
 /** A field for a one-time code; it is only ever filled with a code from get-totp. */
 export function isOtpField(field: DetectedField, autofillAliases?: Record<string, string[]> | null): boolean {
   if (field.type === 'otp')
@@ -65,14 +96,16 @@ export function fillAllFields(
   // `otp` is the vault's "TOTP" marker, never a value to type.
   const fields = { ...entryFields }
   delete fields.otp
+  // Boxes of a code split over several inputs are filled together, once
+  const otpFilled = new Set<HTMLInputElement>()
 
   detectedFields.forEach((field) => {
     // First try exact match with field identifier
     let value = fields[field.identifier]
 
     if (!value && isOtpField(field, autofillAliases)) {
-      if (otpCode)
-        setInputValue(field.element, otpCode)
+      if (otpCode && !otpFilled.has(field.element))
+        fillOtpCode(field.element, otpCode, otpFilled)
       return
     }
 
