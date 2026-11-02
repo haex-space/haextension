@@ -5,7 +5,7 @@ import { createApp } from 'vue'
 import App from './views/App.vue'
 import { setupApp } from '~/logic/common-setup'
 import { parseItemEntries } from '~/logic/haexPassApi'
-import { DEFAULT_ALIASES, fillAllFields, isOtpField, shouldShowIconForField } from './autofill'
+import { fillAllFields, initAutofill, isLoginField, isOtpField, shouldShowIconForField } from './autofill'
 import { detectInputFields, type DetectedField } from './detector'
 import { showEntryDropdown } from './entryDropdown'
 import { attachFieldIcon } from './fieldIcon'
@@ -50,6 +50,8 @@ import { initWebAuthnBridge } from './webauthn-bridge'
 
   // Detect input fields and request matching entries
   async function scanAndRequest() {
+    // The autofill rule (WebAssembly); every later use waits for this scan.
+    await initAutofill()
     detectedFields = detectInputFields()
 
     console.log('[haex-pass] Scanning page:', window.location.href)
@@ -122,17 +124,7 @@ import { initWebAuthnBridge } from './webauthn-bridge'
   // Inject "Add new" button when no entries exist for this page
   function injectAddNewButton() {
     // Only inject for username/password fields (primary login fields)
-    const primaryFields = detectedFields.filter((field) => {
-      const identifier = field.identifier.toLowerCase()
-      // Check if field matches username or password aliases
-      for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
-        if (key === 'otp') continue // Skip OTP for "Add new" button
-        if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
-          return true
-        }
-      }
-      return false
-    })
+    const primaryFields = detectedFields.filter(isLoginField)
 
     if (primaryFields.length === 0) return
 

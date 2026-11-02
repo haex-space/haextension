@@ -83,10 +83,12 @@ export async function getManifest() {
         matches: ['<all_urls>'],
       },
     ],
+    // 'wasm-unsafe-eval': the autofill rule and the password generator run as WebAssembly
+    // (vault-sdk `/autofill`, `/passgen`); content scripts follow this policy too.
     content_security_policy: {
       extension_pages: isDev
-        ? `script-src 'self' http://localhost:${port}; object-src 'self'`
-        : 'script-src \'self\'; object-src \'self\'',
+        ? `script-src 'self' 'wasm-unsafe-eval' http://localhost:${port}; object-src 'self'`
+        : 'script-src \'self\' \'wasm-unsafe-eval\'; object-src \'self\'',
     },
   }
 

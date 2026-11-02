@@ -1,4 +1,7 @@
 import type { PasswordConfig as VaultPasswordConfig } from './haexPassApi'
+import { generatePassword as generate } from '@haex-space/vault-sdk/passgen'
+
+export { initPassgen } from '@haex-space/vault-sdk/passgen'
 
 export interface PasswordConfig {
   length: number
@@ -11,73 +14,15 @@ export interface PasswordConfig {
   pattern: string
 }
 
-const getRandomChar = (charset: string): string => {
-  const array = new Uint32Array(1)
-  crypto.getRandomValues(array)
-  const randomValue = array[0] ?? 0
-  const index = randomValue % charset.length
-  return charset.charAt(index)
-}
-
+/**
+ * A password for `config`, from the one implementation of the generator, the crate `haex-passgen`
+ * of the vault-sdk (its WebAssembly build; holzi uses the same crate): rejection sampling and
+ * every chosen class at least once. A configuration that allows no password gives `''`.
+ * `initPassgen()` from the SDK must have finished first (the popup awaits it before mounting).
+ */
 export function generatePassword(config: PasswordConfig): string {
-  // 1. Pattern mode
-  if (config.usePattern && config.pattern.length > 0) {
-    const patternMap: Record<string, string> = {
-      c: 'bcdfghjklmnpqrstvwxyz', // lowercase consonant
-      C: 'BCDFGHJKLMNPQRSTVWXYZ', // uppercase consonant
-      v: 'aeiou', // lowercase vowel
-      V: 'AEIOU', // uppercase vowel
-      d: '0123456789', // digit
-      a: 'abcdefghijklmnopqrstuvwxyz', // any lowercase
-      A: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', // any uppercase
-      s: '!@#$%^&*()_+-=[]{}|;:,.<>?', // symbol
-    }
-
-    return config.pattern
-      .split('')
-      .map(char => patternMap[char] ? getRandomChar(patternMap[char]) : char)
-      .join('')
-  }
-
-  // 2. Standard mode
-  const charset = {
-    uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    lowercase: 'abcdefghijklmnopqrstuvwxyz',
-    numbers: '0123456789',
-    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?',
-  }
-
-  let chars = ''
-  if (config.uppercase) {
-    chars += charset.uppercase
-  }
-  if (config.lowercase) {
-    chars += charset.lowercase
-  }
-  if (config.numbers) {
-    chars += charset.numbers
-  }
-  if (config.symbols) {
-    chars += charset.symbols
-  }
-
-  if (config.excludeChars.length > 0) {
-    const excludeSet = new Set(config.excludeChars.split(''))
-    chars = chars
-      .split('')
-      .filter(c => !excludeSet.has(c))
-      .join('')
-  }
-
-  if (!chars) {
-    return ''
-  }
-
-  const array = new Uint32Array(config.length)
-  crypto.getRandomValues(array)
-  return Array.from(array)
-    .map(x => chars[x % chars.length])
-    .join('')
+  const result = generate(config)
+  return 'value' in result ? result.value : ''
 }
 
 /** The vault's generator settings, with its empty fields as empty strings. */
