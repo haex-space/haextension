@@ -25,6 +25,9 @@ export default defineConfig({
       entry: r('src/contentScripts/index.ts'),
       name: packageJson.name,
       formats: ['iife'],
+      // Since Vite 6 the CSS of a library build is named after the package; the content script
+      // and the manifest load `dist/contentScripts/style.css`.
+      cssFileName: 'style',
     },
     rollupOptions: {
       output: {
