@@ -1,47 +1,43 @@
+import type { EntryKeys, FieldFacts } from '@haex-space/vault-sdk/autofill'
 import type { DetectedField } from './detector'
 import type { ItemEntry } from '~/logic/haexPassApi'
+import { fieldKind, mapFields, isOtpField as ruleIsOtpField, showsIcon } from '@haex-space/vault-sdk/autofill'
 
-// Default aliases for standard fields (used when no custom aliases are set)
-// Fields with default aliases always show the icon
-export const DEFAULT_ALIASES: Record<string, string[]> = {
-  username: ['email', 'login', 'user', 'e-mail', 'mail'],
-  password: ['pass', 'pwd', 'secret'],
-  otp: ['otp', 'totp', '2fa', 'code', 'token'],
+/**
+ * Autofill of haex-pass. Which page field gets which entry field decides the one implementation
+ * of the rule, the crate `haex-autofill` of the vault-sdk (its WebAssembly build, which holzi's
+ * agent browser uses natively): the entry's own aliases, the default aliases, the field kind and
+ * the card fields (`autocomplete` `cc-*`). `initAutofill()` from the SDK must have finished first.
+ */
+export { initAutofill } from '@haex-space/vault-sdk/autofill'
+
+/** What the rule knows of an input: never its value. */
+export function factsOf(element: HTMLInputElement): FieldFacts {
+  return {
+    inputType: (element.getAttribute('type') || 'text').toLowerCase(),
+    name: element.getAttribute('name') || '',
+    id: element.id || '',
+    autocomplete: element.getAttribute('autocomplete') || '',
+    placeholder: element.getAttribute('placeholder') || '',
+  }
 }
 
-// Check if a field should show the icon
+/** The keys of an entry's fields that hold a value, its own aliases and its TOTP. */
+function keysOf(fields: Record<string, string>, aliases: Record<string, string[]> | null | undefined, hasTotp: boolean): EntryKeys {
+  return { keys: Object.keys(fields).filter(key => fields[key]), aliases: aliases ?? null, hasTotp }
+}
+
+/** Whether the field gets the icon for one of the entries that match the page. */
 export function shouldShowIconForField(field: DetectedField, matchingEntries: ItemEntry[]): boolean {
-  // A one-time-code field ("app_otp", "user[otp_attempt]") only needs an entry with a TOTP
-  if (isOtpField(field, null) || matchingEntries.some(e => isOtpField(field, e.autofillAliases)))
-    return matchingEntries.some(e => e.hasTotp)
+  return showsIcon(
+    factsOf(field.element),
+    matchingEntries.map(entry => keysOf(entry.fields, entry.autofillAliases, entry.hasTotp)),
+  )
+}
 
-  const identifier = field.identifier.toLowerCase()
-
-  // Always show for fields that match default alias keys or their aliases
-  for (const [key, aliases] of Object.entries(DEFAULT_ALIASES)) {
-    if (key === identifier || aliases.some(alias => alias.toLowerCase() === identifier)) {
-      return true
-    }
-  }
-
-  // For other fields, check if any entry has a matching value
-  for (const e of matchingEntries) {
-    // Check exact match
-    if (e.fields[field.identifier]) {
-      return true
-    }
-
-    // Check custom aliases from entry
-    for (const [fieldKey, fieldValue] of Object.entries(e.fields)) {
-      if (!fieldValue) continue
-      const aliases = e.autofillAliases?.[fieldKey] ?? []
-      if (aliases.some(alias => alias.toLowerCase() === identifier)) {
-        return true
-      }
-    }
-  }
-
-  return false
+/** A username, email or password field: where "Add new" offers to save a login. */
+export function isLoginField(field: DetectedField): boolean {
+  return ['username', 'email', 'password'].includes(fieldKind(factsOf(field.element)))
 }
 
 function setInputValue(input: HTMLInputElement, value: string) {
@@ -79,60 +75,34 @@ function fillOtpCode(input: HTMLInputElement, code: string, filled: Set<HTMLInpu
 
 /** A field for a one-time code; it is only ever filled with a code from get-totp. */
 export function isOtpField(field: DetectedField, autofillAliases?: Record<string, string[]> | null): boolean {
-  if (field.type === 'otp')
-    return true
-  const identifier = field.identifier.toLowerCase()
-  const aliases = autofillAliases?.otp ?? DEFAULT_ALIASES.otp
-  return identifier === 'otp' || aliases.some(alias => alias.toLowerCase() === identifier)
+  return ruleIsOtpField(factsOf(field.element), autofillAliases)
 }
 
-// Fill all fields with entry data, using aliases for matching
+/** Fills the detected fields with the entry's values as the rule maps them. */
 export function fillAllFields(
   detectedFields: DetectedField[],
   entryFields: Record<string, string>,
   autofillAliases?: Record<string, string[]> | null,
   otpCode?: string | null,
 ) {
-  // `otp` is the vault's "TOTP" marker, never a value to type.
-  const fields = { ...entryFields }
-  delete fields.otp
+  const hasTotp = Boolean(otpCode) || Boolean(entryFields.otp)
+  const targets = mapFields(
+    detectedFields.map(field => factsOf(field.element)),
+    keysOf(entryFields, autofillAliases, hasTotp),
+  )
   // Boxes of a code split over several inputs are filled together, once
   const otpFilled = new Set<HTMLInputElement>()
-
-  detectedFields.forEach((field) => {
-    // First try exact match with field identifier
-    let value = fields[field.identifier]
-
-    if (!value && isOtpField(field, autofillAliases)) {
+  targets.forEach((target, index) => {
+    const field = detectedFields[index]
+    if (!target || !field)
+      return
+    if (target.kind === 'otp') {
       if (otpCode && !otpFilled.has(field.element))
         fillOtpCode(field.element, otpCode, otpFilled)
       return
     }
-
-    // If no exact match, try reverse alias lookup
-    // For each field in the entry, check if the form field identifier matches one of its aliases
-    if (!value) {
-      for (const [fieldKey, fieldValue] of Object.entries(fields)) {
-        // Get aliases for this field (custom > default)
-        const aliases = autofillAliases?.[fieldKey] ?? DEFAULT_ALIASES[fieldKey] ?? []
-        const identifier = field.identifier.toLowerCase()
-
-        // Check if the form field identifier matches any alias
-        if (aliases.some(alias => alias.toLowerCase() === identifier)) {
-          value = fieldValue
-          break
-        }
-      }
-    }
-
-    // Also try matching by field type (e.g., email field could use username value)
-    if (!value && (field.type === 'email' || field.type === 'username')) {
-      value = fields.username || fields.email || fields.login || fields.user
-    }
-    if (!value && field.type === 'password') {
-      value = fields.password || fields.pass || fields.pwd
-    }
-
+    // `otp` is the vault's "TOTP" marker, never a value to type.
+    const value = target.key === 'otp' ? undefined : entryFields[target.key]
     // The detected element itself: the data-haex-field-id marker exists only
     // on inputs that got an icon, and every rescan hands out new field ids.
     if (value)

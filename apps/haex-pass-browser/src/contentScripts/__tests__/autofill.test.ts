@@ -1,7 +1,7 @@
 import type { DetectedField } from '../detector'
 import type { ItemEntry } from '~/logic/haexPassApi'
-import { afterEach, describe, expect, it } from 'vitest'
-import { fillAllFields, shouldShowIconForField } from '../autofill'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { fillAllFields, initAutofill, shouldShowIconForField } from '../autofill'
 
 function input(attributes: Record<string, string>): HTMLInputElement {
   const element = document.createElement('input')
@@ -10,6 +10,10 @@ function input(attributes: Record<string, string>): HTMLInputElement {
   document.body.appendChild(element)
   return element
 }
+
+beforeAll(async () => {
+  await initAutofill()
+})
 
 afterEach(() => {
   document.body.innerHTML = ''
