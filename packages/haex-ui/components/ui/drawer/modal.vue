@@ -1,11 +1,17 @@
 <template>
   <!-- Small Screen: Drawer -->
-  <ShadcnDrawer v-if="isSmallScreen" v-model:open="open">
+  <ShadcnDrawer v-if="isSmallScreen" v-model:open="open" :dismissible="dismissible">
     <!-- Trigger Button -->
     <slot name="trigger" />
 
     <!-- Drawer Content -->
-    <ShadcnDrawerContent class="flex flex-col max-h-[85vh]">
+    <ShadcnDrawerContent
+      class="flex flex-col max-h-[85vh]"
+      @escape-key-down="keepOpen"
+      @pointer-down-outside="keepOpen"
+      @focus-outside="keepOpen"
+      @interact-outside="keepOpen"
+    >
       <ShadcnDrawerHeader v-if="title || description || $slots.header" class="shrink-0">
         <slot name="header">
           <ShadcnDrawerTitle v-if="title">{{ title }}</ShadcnDrawerTitle>
@@ -39,7 +45,14 @@
     <slot name="trigger" />
 
     <!-- Dialog Content -->
-    <ShadcnDialogContent :class="['flex flex-col max-h-[85vh]', contentClass]">
+    <ShadcnDialogContent
+      :class="['flex flex-col max-h-[85vh]', contentClass]"
+      :hide-close="!dismissible"
+      @escape-key-down="keepOpen"
+      @pointer-down-outside="keepOpen"
+      @focus-outside="keepOpen"
+      @interact-outside="keepOpen"
+    >
       <ShadcnDialogHeader v-if="title || description || $slots.header" class="shrink-0">
         <slot name="header">
           <ShadcnDialogTitle v-if="title">{{ title }}</ShadcnDialogTitle>
@@ -73,11 +86,25 @@
 import type { HTMLAttributes } from "vue"
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core"
 
-defineProps<{
-  title?: string
-  description?: string
-  contentClass?: HTMLAttributes["class"]
-}>()
+const props = withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    contentClass?: HTMLAttributes["class"]
+    /**
+     * With `false` only the content's own buttons close it: a click outside, Escape, losing and
+     * regaining focus, dragging the drawer down and the close button do nothing. For a question
+     * that must be answered, e.g. an agent asking for permission.
+     */
+    dismissible?: boolean
+  }>(),
+  { dismissible: true },
+)
+
+/** Keeps a non-dismissible modal open against everything that would close it from outside. */
+function keepOpen(event: Event) {
+  if (!props.dismissible) event.preventDefault()
+}
 
 const open = defineModel<boolean>("open", { default: false })
 
