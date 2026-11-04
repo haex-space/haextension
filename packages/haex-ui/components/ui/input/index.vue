@@ -2,7 +2,7 @@
   <div :class="['relative w-full', props.class]">
     <ShadcnInputGroup
       :class="[
-        'group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px]',
+        'group transition-[color,box-shadow] focus-within:border-primary focus-within:ring-primary/80 focus-within:ring-[3px]',
         props.label ? 'overflow-visible' : '',
       ]"
       :style="labelStyle"
