@@ -47,7 +47,11 @@ export const useMailboxManagement = (
   /** The folder on screen is gone or renamed: follow it, or fall back to the inbox. */
   const reselect = (accountId: string, next: string | null) => {
     if (state.selectedAccountId.value !== accountId) return;
-    selectMailbox(next ?? state.mailboxes.value.find((m) => m.role === "inbox")?.name ?? null);
+    selectMailbox(
+      next ??
+        state.mailboxes.value.find((m) => m.accountId === accountId && m.role === "inbox")?.name ??
+        null,
+    );
   };
 
   /** Creates a folder named as the user knows it; `false` when the server already had it. */
