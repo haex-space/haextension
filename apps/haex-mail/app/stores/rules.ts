@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import * as schema from "~/database/schemas";
+import { renamedMailboxName } from "~/lib/mailboxName";
 import {
   RuleValidationError,
   validateRule,
@@ -100,6 +101,39 @@ export const useRulesStore = defineStore("rules", () => {
     await loadRulesAsync();
   };
 
+  /**
+   * A folder of an account was renamed (IMAP names): the rules of that account that file into it,
+   * or into a folder below it, name the new one. Rules for all accounts only name roles.
+   */
+  const renameMailboxInRulesAsync = async (
+    accountId: string,
+    from: string,
+    to: string,
+    delimiter: string | null,
+  ) => {
+    if (!haexVault.orm) return;
+    const rows = await haexVault.orm
+      .select()
+      .from(schema.rules)
+      .where(eq(schema.rules.accountId, accountId));
+    for (const row of rows) {
+      let changed = false;
+      const actions = row.actionsJson.map((a) => {
+        const renamed = "mailbox" in a ? renamedMailboxName(a.mailbox, from, to, delimiter) : null;
+        if (renamed === null) return a;
+        changed = true;
+        return { ...a, mailbox: renamed };
+      });
+      if (changed) {
+        await haexVault.orm
+          .update(schema.rules)
+          .set({ actionsJson: actions })
+          .where(eq(schema.rules.id, row.id));
+      }
+    }
+    await loadRulesAsync();
+  };
+
   /** The rules of an account that is being removed go with it. */
   const deleteRulesOfAccountAsync = async (accountId: string) => {
     if (!haexVault.orm) return;
@@ -113,6 +147,7 @@ export const useRulesStore = defineStore("rules", () => {
     loadRuleAccountsAsync,
     saveRuleAsync,
     setEnabledAsync,
+    renameMailboxInRulesAsync,
     deleteRuleAsync,
     deleteRulesOfAccountAsync,
   };

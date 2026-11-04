@@ -10,6 +10,7 @@ import type { MailMessage } from "@haex-space/vault-sdk";
 import { useBulkMessageOps } from "./mail/bulk";
 import { useMessageChanges } from "./mail/changes";
 import { useMoveOutbox } from "./mail/outbox";
+import { useMailboxManagement } from "./mail/mailboxes";
 import { useMailRules, type AfterEnvelopesPersisted } from "./mail/rules";
 import { useMessageBody } from "./mail/message";
 import { useReplyBuilder } from "./mail/reply";
@@ -182,6 +183,12 @@ export const useMailStore = defineStore("mail", () => {
     searchQuery.value = "";
   };
 
+  const { createMailboxAsync, renameMailboxAsync, deleteMailboxAsync } = useMailboxManagement(
+    state,
+    sync,
+    selectMailbox,
+  );
+
   const { bulkSetFlagAsync, bulkMoveToRoleAsync, bulkMoveToMailboxAsync } =
     useBulkMessageOps(
       state,
@@ -221,6 +228,9 @@ export const useMailStore = defineStore("mail", () => {
     isLoadingMessages,
     isLoadingMessage,
     refreshMailboxesAsync,
+    createMailboxAsync,
+    renameMailboxAsync,
+    deleteMailboxAsync,
     loadMailboxesAsync,
     refreshMessagesAsync,
     loadMessagesAsync,
