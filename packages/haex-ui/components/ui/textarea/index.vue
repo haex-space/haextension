@@ -1,7 +1,7 @@
 <template>
   <div :class="['relative w-full', props.class]">
     <div
-      class="group relative transition-[color,box-shadow] rounded-md border border-input focus-within:border-primary focus-within:ring-primary/50 focus-within:ring-[3px] has-[[aria-invalid=true]]:border-destructive"
+      class="group relative transition-[color,box-shadow] rounded-md border border-input focus-within:border-primary focus-within:ring-primary/80 focus-within:ring-[3px] has-[[aria-invalid=true]]:border-destructive"
       :style="labelStyle"
     >
       <ShadcnTextarea

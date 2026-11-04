@@ -10,7 +10,7 @@
         <ShadcnSelectTrigger
           :id="fieldId"
           :class="[
-            'transition-[color,box-shadow] focus:border-primary focus:ring-primary/50 focus:ring-[3px] data-[state=open]:border-primary',
+            'transition-[color,box-shadow] focus:border-primary focus:ring-primary/80 focus:ring-[3px] data-[state=open]:border-primary',
             error ? 'border-destructive' : '',
           ]"
           :aria-invalid="error ? 'true' : undefined"
