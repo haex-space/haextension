@@ -67,6 +67,12 @@ describe("error text", () => {
     expect(errorText(new Error("y".repeat(500)))).toHaveLength(300);
     expect(errorText("plain")).toBe("plain");
   });
+
+  it("reads the message of the plain objects the host rejects with", () => {
+    const rejected = { code: 7001, message: "could not connect to the server: imap.example.org:993: timed out" };
+    expect(errorText(rejected)).toBe(rejected.message);
+    expect(errorText({ code: 1 })).toBe('{"code":1}');
+  });
 });
 
 describe("optionalString", () => {

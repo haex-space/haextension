@@ -22,9 +22,23 @@ const MAX_ERROR_TEXT = 300;
 /** An error the agent sees: short, and made of what the caller wrote, never of credentials. */
 export const toolError = (message: string): Error => new Error(message.slice(0, MAX_ERROR_TEXT));
 
-/** The text of any thrown value, cut to the length the agent gets. */
-export const errorText = (err: unknown): string =>
-  (err instanceof Error ? err.message : String(err)).slice(0, MAX_ERROR_TEXT);
+/** The text of any thrown value, cut to the length the agent gets. The host rejects with plain
+ * `{ code, message }` objects, so their `message` counts like an `Error`'s; another object is
+ * shown as JSON rather than as "[object Object]". */
+export const errorText = (err: unknown): string => {
+  const text = err instanceof Error ? err.message : objectText(err);
+  return text.slice(0, MAX_ERROR_TEXT);
+};
+
+const objectText = (err: unknown): string => {
+  if (typeof err !== "object" || err === null) return String(err);
+  if ("message" in err && typeof err.message === "string") return err.message;
+  try {
+    return JSON.stringify(err) ?? String(err);
+  } catch {
+    return String(err);
+  }
+};
 
 /** The cache id of a message, which is also what the tools call it (see `persistEnvelopesAsync`). */
 export const formatMessageId = (accountId: string, mailboxName: string, uid: number): string =>
