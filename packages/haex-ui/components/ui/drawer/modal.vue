@@ -62,8 +62,8 @@
         </slot>
       </ShadcnDialogHeader>
 
-      <!-- Scrollable Dialog Body (`-mt-2 pt-2`: room for a floated field label, see above) -->
-      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 -mt-2 pt-2">
+      <!-- Scrollable Dialog Body (`-mt-2 pt-2`: room for a floated field label, see above; `-mx-1 px-1`: room for the focus ring at the sides) -->
+      <div class="flex-1 overflow-y-auto overscroll-contain min-h-0 -mt-2 pt-2 -mx-1 px-1">
         <slot name="content" />
       </div>
 
