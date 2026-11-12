@@ -71,7 +71,7 @@ buildEmailChange(contact: ContactDetail, change: EmailChange):
 classifySaveError(error: unknown, ctx: { op: "create" | "update"; contactReadable?: boolean }): SaveOutcome
 ```
 
-Tests: `buildCreate` drops empty head fields and rows, refuses a draft with no identity, keeps no groups or targets; `buildEmailChange` for add (new address, `home`), for add of an address the contact holds in another case (`already`), for replace (the old value's id and kind, its label kept, nothing else in the request), for replace of an id the contact no longer has (`gone`); `classifySaveError` for each outcome of data-model.md, with 1002 on create (switched-off), on update with and without a readable contact, the prompt error, `value_not_found`, 8000, another `Validation`, an unknown error.
+Tests: `buildCreate` drops empty head fields and rows, refuses a draft with no identity, keeps no groups or targets; `buildEmailChange` for add (new address, `home`), for add of an address the contact holds in another case (`already`), for replace (the old value's id and kind, no label so the host keeps the current one, nothing else in the request), for replace of an id the contact no longer has (`gone`); `classifySaveError` for each outcome of data-model.md, with 1002 on create (switched-off), on update with and without a readable contact, the prompt error, `value_not_found`, 8000, another `Validation`, an unknown error.
 
 ## `stores/contacts.ts`
 
@@ -79,8 +79,8 @@ Tests: `buildCreate` drops empty head fields and rows, refuses a draft with no i
 useContactsStore(): {
   readState: Ref<"unknown" | "on" | "off">
   resetReadState(): void                                   // called when the compose dialog opens
-  suggestAsync(token: string): Promise<Suggestion[]>       // searchAsync(token, 20) + suggestionsFrom; [] when off
-  holdersAsync(email: string): Promise<ContactSummary[]>   // searchAsync(email, 50) + contactsHolding, cached
+  suggestAsync(token: string): Promise<Suggestion[]>       // searchAsync(token, 200) + suggestionsFrom; [] when off
+  holdersAsync(email: string): Promise<ContactSummary[]>   // searchAsync(email, 200) + contactsHolding, cached
   searchAsync(query: string): Promise<ContactSummary[]>    // for "add to existing", limit 20
   readAsync(id: string): Promise<ContactDetail>
   createAsync(draft: ContactDraft): Promise<SaveOutcome>
