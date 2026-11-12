@@ -39,7 +39,8 @@ export interface ContactCreateInput {
 
 /** A change to the values of a contact; what is not named stays as it is. */
 export interface ContactValuesChange {
-  upsert?: Array<ContactValueInput & { id?: string; position?: number }>;
+  /** `label` may be left out when `id` names an existing value: its current label is kept. */
+  upsert?: Array<Omit<ContactValueInput, "label"> & { label?: string; id?: string; position?: number }>;
   remove?: string[];
 }
 ```

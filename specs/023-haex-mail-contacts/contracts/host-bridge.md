@@ -64,6 +64,7 @@ Params:
 ```
 
 - `values` may omit `upsert` or `remove`; an `upsert` with an `id` changes that value (its `kind` must match), one without adds a value at the end of its kind; `position` is accepted as in the service.
+- `label` is optional in an `upsert` **with an `id`**: when it is omitted the value's label **as it is when the call arrives** is kept, so a replace that names only the new address cannot write back a label the person changed in the meantime. An `upsert` without an `id` needs a `label`.
 - Nothing is changed that is not named. The change is applied to the contact as it is when the call arrives; no version of an earlier read is checked.
 - A value `id` the contact does not hold: `Validation` with `details.reason = "value_not_found"`; nothing is written (the whole call is one transaction, as in the service). Reaching this answer means the contact itself was in scope, so it reveals nothing hidden.
 - A value of a kind the host does not know is never changed or removed (`ContactsUnknownKindReadOnly`, as in the service); adding next to it is fine.

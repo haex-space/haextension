@@ -75,7 +75,7 @@ description: "Task list for haex-mail — contacts from the address book"
 
 - [ ] T022 [P] [US1] Add the cases of `recipientAt`, `insertRecipient`, `formatRecipient` and `isBareAddress` to `apps/haex-mail/app/lib/address.test.ts`: caret at start, middle, end and between entries; separators inside quotes and angle brackets do not split; `"Doe, John" <j@x.de>` round-trips through `insertRecipient` and `parseAddressList`; a name holding `"` or `\` is escaped; a name without special characters is not quoted; an empty field; `, ` is written after the inserted recipient
 - [ ] T023 [P] [US1] Create `apps/haex-mail/app/lib/contactSuggest.test.ts`: case and accents; one row per (contact, address) so a contact with two addresses gives two rows; a contact without an address gives none; rank 0 (name or address starts with the token) before 1 (a word of the name starts with it) before 2 (contains), then by name, then by address; at most ten rows by default; the same address from two contacts is kept twice; a stored value that is not a bare address and a hit that matched only by phone number give no row; an organization-only match is rank 2
-- [ ] T024 [P] [US1] Create `apps/haex-mail/app/stores/contacts.test.ts` over a typed fake of the SDK's contacts slice: `suggestAsync` calls `searchAsync(token, 20)` and returns ranked rows; a 1002 sets `readState` to `"off"` and returns `[]`; while `"off"` the host is not called again; `resetReadState()` makes the next call ask again; a failed call other than 1002 returns `[]` and does not set `"off"`; while the first search is pending a second call does not reach the host and is searched (newest token only) after the first answer, so the person is asked once (FR-022)
+- [ ] T024 [P] [US1] Create `apps/haex-mail/app/stores/contacts.test.ts` over a typed fake of the SDK's contacts slice: `suggestAsync` calls `searchAsync(token, 200)` and returns ranked rows; a 1002 sets `readState` to `"off"` and returns `[]`; while `"off"` the host is not called again; `resetReadState()` makes the next call ask again; a failed call other than 1002 returns `[]` and does not set `"off"`; while the first search is pending a second call does not reach the host and is searched (newest token only) after the first answer, so the person is asked once (FR-022)
 
 ### Implementation for User Story 1
 
@@ -103,7 +103,7 @@ description: "Task list for haex-mail — contacts from the address book"
 - [ ] T033 [P] [US2] Create `apps/haex-mail/app/lib/contactKinds.test.ts`: a text row gives `{kind, label, value}`; an address row keeps only the filled parts (`street`, `pobox`, `neighborhood`, `city`, `region`, `postcode`, `country`) and is a JSON object as text; a messenger needs `service` and `handle` or is reported incomplete; a date row is `YYYY-MM-DD` or `--MM-DD` without a year; an empty row gives `null`; a label typed by the person becomes `custom:<text>`; a `custom` row without a name is reported incomplete; the first label of a kind is its default (`home` for e-mail, `mobile` for phone)
 - [ ] T034 [P] [US2] Create `apps/haex-mail/app/lib/contactLookup.test.ts`: only an exact match of the address counts, not a longer address that contains it; case is ignored; blanks around the stored value are ignored
 - [ ] T035 [P] [US2] Create `apps/haex-mail/app/lib/contactSave.test.ts` for `buildCreate` and `classifySaveError` on `create`: empty head fields and empty rows are dropped; a draft with no name part, `displayName`, organization, phone row or e-mail row is refused as `missing: "identity"`; the request holds no `groups`, `targets` or photo; 1002 on create is `switched-off`; the prompt error is `not-answered`; 8000 is `host-too-old`; `Validation` is `invalid` with the host's reason; anything else is `failed` with the plain message
-- [ ] T036 [US2] Extend `apps/haex-mail/app/stores/contacts.test.ts`: `holdersAsync` calls `searchAsync(email, 50)`, keeps the exact holders and caches the answer; `createAsync` returns `saved` with the contact and empties the cache, and returns the classified outcome on an error
+- [ ] T036 [US2] Extend `apps/haex-mail/app/stores/contacts.test.ts`: `holdersAsync` calls `searchAsync(email, 200)`, keeps the exact holders and caches the answer; `createAsync` returns `saved` with the contact and empties the cache, and returns the classified outcome on an error
 
 ### Implementation for User Story 2
 
@@ -131,7 +131,7 @@ description: "Task list for haex-mail — contacts from the address book"
 
 ### Tests for User Story 3 ⚠️ write first, they fail
 
-- [ ] T048 [P] [US3] Extend `apps/haex-mail/app/lib/contactSave.test.ts` for `buildEmailChange`: add of a new address gives one `upsert` without `id`, kind `email`, label `home`; add of an address the contact holds in another case gives `already`; replace gives one `upsert` with the old value's `id` and `kind` and its label kept, and nothing else in the request; replace of an id the contact no longer has gives `gone`; and for `classifySaveError` on `update`: 1002 with `contactReadable: true` is `switched-off`, 1002 with `contactReadable: false` is `contact-gone`, `Validation` with `reason: "value_not_found"` is `value-gone`
+- [ ] T048 [P] [US3] Extend `apps/haex-mail/app/lib/contactSave.test.ts` for `buildEmailChange`: add of a new address gives one `upsert` without `id`, kind `email`, label `home`; add of an address the contact holds in another case gives `already`; replace gives one `upsert` with the old value's `id` and `kind`, the new address and no `label` (the host keeps the current one), and nothing else in the request; replace of an id the contact no longer has gives `gone`; and for `classifySaveError` on `update`: 1002 with `contactReadable: true` is `switched-off`, 1002 with `contactReadable: false` is `contact-gone`, `Validation` with `reason: "value_not_found"` is `value-gone`
 - [ ] T049 [P] [US3] Extend `apps/haex-mail/app/stores/contacts.test.ts`: `changeEmailAsync` reads the contact first and builds the change from that copy (an address added in holzi after the person chose the contact is found as `already`), sends only the named value; after a 1002 it reads the contact with `readAsync(id)` and passes the result as `contactReadable` to the classification; `searchAsync(query)` asks with limit 20; a `saved` result empties the holders cache
 
 ### Implementation for User Story 3
@@ -186,7 +186,7 @@ description: "Task list for haex-mail — contacts from the address book"
 - **US1 (Phase 3)**: needs T003 only. It does not wait for Phase 2.
 - **US2 (Phase 4)**: needs T021 and US1's store file (T027), which it extends.
 - **US3 (Phase 5)**: needs US2 (the dialog, the save module, the store).
-- **US4 (Phase 6)**: needs US2 (the dialog) and T016/T021 (the settings call); it can run parallel to US3 except for edits to the same dialog file.
+- **US4 (Phase 6)**: needs US2 (the dialog) and T016/T021 (the settings call). Its notes (T054 to T056) are built with US2 and released with it; the rest can run parallel to US3 except for edits to the same dialog file.
 - **Polish (Phase 7)**: after the stories wanted.
 
 ### Within each story
@@ -226,8 +226,8 @@ Task: "Create apps/haex-mail/app/lib/contactSuggest.ts"
 ### Incremental delivery
 
 1. US1 ships (suggestions).
-2. Phase 2 lands (host, SDK 5.6.0), then US2 ships (new contact from a mail).
-3. US3 ships (add or replace), then US4 (the permission experience and the way to the settings).
+2. Phase 2 lands (host, SDK 5.6.0), then US2 ships (new contact from a mail) **together with the permission notes of US4 (T054 to T056)**: FR-018 to FR-020 define how the first save behaves, and a person who denied writing must find the way to the settings from the first release. The by-hand checks of US4 (T057 to T059) may follow.
+3. US3 ships (add or replace); its dialog pane shows the same notes.
 4. Each story adds value without breaking the earlier ones; US1 keeps working on a holzi without the new calls.
 
 ## Notes

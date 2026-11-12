@@ -74,9 +74,9 @@ Validation of the contents of a value (a date's month, an address with no part, 
 | `contactId` | string | The chosen contact. |
 | `mode` | `"add"` \| `"replace"` | |
 | `replaceValueId` | string \| undefined | The `id` of the e-mail value to replace; set exactly when `mode` is `"replace"`. |
-| `email` | string | The address to write; label for an added value is `home`, a replaced value keeps its label. |
+| `email` | string | The address to write; label for an added value is `home`; a replaced value keeps its label because the request leaves `label` out and the host keeps the one the value has when the call arrives. |
 
-Rules: `add` is refused locally when the contact already holds the address (ignoring case), checked against the contact read at the moment of confirming, not against the copy shown when the person chose it (a narrower race, not a closed one: `ponytail:` the host cannot refuse a duplicate; ceiling accepted, an address twice on one contact is harmless and the person can remove it in holzi); `replace` sends an `upsert` with the old value's `id` and `kind`, so only that row changes. Nothing else of the contact is in the request.
+Rules: `add` is refused locally when the contact already holds the address (ignoring case), checked against the contact read at the moment of confirming, not against the copy shown when the person chose it (a narrower race, not a closed one: `ponytail:` the host cannot refuse a duplicate; ceiling accepted, an address twice on one contact is harmless and the person can remove it in holzi); `replace` sends an `upsert` with the old value's `id`, `kind` and the new address and no `label`, so only that row's value changes. Nothing else of the contact is in the request.
 
 ### SaveOutcome
 
