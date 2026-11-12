@@ -30,11 +30,11 @@ One row of the list.
 | `email` | string | One address of the contact. |
 | `rank` | 0 \| 1 \| 2 | 0: the name or address starts with the token; 1: a word of the name starts with it; 2: it only contains it. Orders the list, then `name`, then `email`. |
 
-Rules: one row per (contact, address); a contact without an address yields none; at most ten rows are shown; two rows with the same address (ignoring case) from different contacts are both kept, since the person may mean either.
+Rules: one row per (contact, address); a contact without an address yields none; a value that fails `isBareAddress` yields none; a hit that matches the token in none of name, organization or address (the host also searches phone numbers) yields none, and a hit that matches only by organization has rank 2; names and addresses are compared with the folding the host uses (case and accents ignored); at most ten rows are shown; two rows with the same address (ignoring case) from different contacts are both kept, since the person may mean either.
 
 ### ReadState (of one compose dialog)
 
-`"unknown" | "on" | "off"`. `off` is set by a 1002 from a search and blocks further searches until the dialog is opened again (FR-021, FR-022). It is not persisted.
+`"unknown" | "on" | "off"`. `off` is set by a 1002 from a search and blocks further searches until the dialog is opened again (FR-021, FR-022). While the first search of a dialog is still pending (the host's question is open), no further search is sent: the newest token waits and is searched once the first answer is in. It is not persisted.
 
 ### SaveTarget
 
@@ -76,7 +76,7 @@ Validation of the contents of a value (a date's month, an address with no part, 
 | `replaceValueId` | string \| undefined | The `id` of the e-mail value to replace; set exactly when `mode` is `"replace"`. |
 | `email` | string | The address to write; label for an added value is `home`, a replaced value keeps its label. |
 
-Rules: `add` is refused locally when the contact already holds the address (ignoring case); `replace` sends an `upsert` with the old value's `id` and `kind`, so only that row changes. Nothing else of the contact is in the request.
+Rules: `add` is refused locally when the contact already holds the address (ignoring case), checked against the contact read at the moment of confirming, not against the copy shown when the person chose it (a narrower race, not a closed one: `ponytail:` the host cannot refuse a duplicate; ceiling accepted, an address twice on one contact is harmless and the person can remove it in holzi); `replace` sends an `upsert` with the old value's `id` and `kind`, so only that row changes. Nothing else of the contact is in the request.
 
 ### SaveOutcome
 

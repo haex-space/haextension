@@ -28,11 +28,12 @@ Tests: caret at start, middle, end and between entries; separators inside quotes
 ```ts
 interface Suggestion { contactId: string; name: string; email: string; rank: 0 | 1 | 2 }
 
-/** One row per (contact, address); ranked as in data-model.md; at most `limit` (default 10). */
+/** One row per (contact, address); ranked as in data-model.md; at most `limit` (default 10).
+ *  Drops values that are not bare addresses and hits that match in none of name, organization, address. */
 suggestionsFrom(hits: ContactSummary[], token: string, limit?: number): Suggestion[]
 ```
 
-Tests: accents and case; a contact with two addresses gives two rows; none for a contact without an address; prefix before word-prefix before contains; stable order by name then address; the limit; the same address from two contacts is kept twice.
+Tests: accents and case; a contact with two addresses gives two rows; none for a contact without an address; none for a stored value that is not a bare address (for example `a@x.de, b@y.de`); none for a hit that matched only by phone number; an organization-only match is rank 2; prefix before word-prefix before contains; stable order by name then address; the limit; the same address from two contacts is kept twice.
 
 ## `lib/contactLookup.ts`
 
@@ -83,12 +84,12 @@ useContactsStore(): {
   searchAsync(query: string): Promise<ContactSummary[]>    // for "add to existing", limit 20
   readAsync(id: string): Promise<ContactDetail>
   createAsync(draft: ContactDraft): Promise<SaveOutcome>
-  changeEmailAsync(change: EmailChange): Promise<SaveOutcome>
+  changeEmailAsync(change: EmailChange): Promise<SaveOutcome>  // reads the contact first, then buildEmailChange on that copy
   openPermissionSettingsAsync(): Promise<"opened" | "host-too-old">
 }
 ```
 
-The store takes the SDK's contacts and permissions API through a typed slice (`ContactsSource`, as `haex-doom` does), so the store test runs on a fake. Tests: `suggestAsync` sets `off` on 1002 and returns `[]` without calling the host again until reset; a stale answer is not returned when a newer call exists (the component's token is compared by the caller; the store returns the answer for its own token); `holdersAsync` caches and `createAsync`/`changeEmailAsync` empty the cache on `saved`; `changeEmailAsync` probes with `readAsync` after a 1002 and passes the result to `classifySaveError`; `openPermissionSettingsAsync` maps 8000 to `host-too-old`.
+The store takes the SDK's contacts and permissions API through a typed slice (`ContactsSource`, as `haex-doom` does), so the store test runs on a fake. Tests: `suggestAsync` sets `off` on 1002 and returns `[]` without calling the host again until reset; while the first search is pending a second `suggestAsync` does not reach the host (one question to the person, FR-022) and is searched, newest token only, after the first answer; a stale answer is not returned when a newer call exists (the component's token is compared by the caller; the store returns the answer for its own token); `holdersAsync` caches and `createAsync`/`changeEmailAsync` empty the cache on `saved`; `changeEmailAsync` probes with `readAsync` after a 1002 and passes the result to `classifySaveError`; `openPermissionSettingsAsync` maps 8000 to `host-too-old`.
 
 ## Components (checked by hand, see quickstart.md)
 
