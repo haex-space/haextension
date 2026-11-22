@@ -230,8 +230,8 @@ de:
   cancel: Abbrechen
   add: Hinzufügen
   save: Speichern
-  hostHint: holzi fragt dich in einem eigenen Fenster, ob du den Speicher anlegen willst, und dort auch nach den Zugangsdaten. Diese Erweiterung bekommt sie nie zu sehen.
-  hostHintEdit: holzi fragt dich in einem eigenen Fenster, ob du die Änderung bestätigst. Neue Zugangsdaten gibst du dort ein.
+  hostHint: HaexVault fragt dich in einem eigenen Fenster, ob du den Speicher anlegen willst, und dort auch nach den Zugangsdaten. Diese Erweiterung bekommt sie nie zu sehen.
+  hostHintEdit: HaexVault fragt dich in einem eigenen Fenster, ob du die Änderung bestätigst. Neue Zugangsdaten gibst du dort ein.
   s3:
     endpoint: Endpunkt (optional)
     endpointPlaceholder: https://s3.example.com
@@ -241,7 +241,7 @@ de:
     region: Region
     regionPlaceholder: z.B. us-east-1
   errors:
-    cancelled: In holzi abgebrochen oder nicht erlaubt.
+    cancelled: In HaexVault abgebrochen oder nicht erlaubt.
     accessDenied: Zugang verweigert.
     network: Der Anbieter ist nicht erreichbar.
     bucketMissing: Den Bucket gibt es beim Anbieter nicht.
@@ -258,8 +258,8 @@ en:
   cancel: Cancel
   add: Add
   save: Save
-  hostHint: holzi asks in its own window whether to add the storage, and asks for the credentials there too. This extension never sees them.
-  hostHintEdit: holzi asks in its own window to confirm the change. New credentials are entered there.
+  hostHint: HaexVault asks in its own window whether to add the storage, and asks for the credentials there too. This extension never sees them.
+  hostHintEdit: HaexVault asks in its own window to confirm the change. New credentials are entered there.
   s3:
     endpoint: Endpoint (optional)
     endpointPlaceholder: https://s3.example.com
@@ -269,7 +269,7 @@ en:
     region: Region
     regionPlaceholder: e.g. us-east-1
   errors:
-    cancelled: Cancelled in holzi or not allowed.
+    cancelled: Cancelled in HaexVault or not allowed.
     accessDenied: Access denied.
     network: The provider is not reachable.
     bucketMissing: The bucket does not exist at the provider.

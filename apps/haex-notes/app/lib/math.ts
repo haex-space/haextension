@@ -1,5 +1,5 @@
 /**
- * Gesetzte Formeln (holzi Spec 046, FR-029 bis FR-033): LaTeX wird mit MathJax zu einem SVG gesetzt, mit der
+ * Gesetzte Formeln (haex-vault Spec 046, FR-029 bis FR-033): LaTeX wird mit MathJax zu einem SVG gesetzt, mit der
  * Chemie-Erweiterung `\ce{…}` für Reaktionsgleichungen. MathJax ist groß und wird erst geladen, wenn eine Seite
  * eine Formel braucht; danach setzt `renderLatex` ohne Wartezeit.
  *

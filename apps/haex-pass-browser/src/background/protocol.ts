@@ -3,7 +3,7 @@ import type { EncryptedMessage } from './crypto'
 // Protocol v2: the vault requires clients to declare their requested
 // permissions in the handshake (`ClientInfo.permissions`); v1 handshakes are
 // rejected with PERMISSIONS_DECLARATION_REQUIRED.
-// Protocol v3 (holzi, spec 049 FR-048): after the handshake the vault sends a
+// Protocol v3 (haex-vault, spec 049 FR-048): after the handshake the vault sends a
 // challenge sealed to this client's key, and the client proves it holds that
 // key by sending it back sealed to the vault's key. A vault that sends no
 // challenge answers the handshake directly, as with v2.

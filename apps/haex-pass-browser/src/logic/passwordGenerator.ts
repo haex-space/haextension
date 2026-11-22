@@ -16,7 +16,7 @@ export interface PasswordConfig {
 
 /**
  * A password for `config`, from the one implementation of the generator, the crate `haex-passgen`
- * of the vault-sdk (its WebAssembly build; holzi uses the same crate): rejection sampling and
+ * of the vault-sdk (its WebAssembly build; haex-vault uses the same crate): rejection sampling and
  * every chosen class at least once. A configuration that allows no password gives `''`.
  * `initPassgen()` from the SDK must have finished first (the popup awaits it before mounting).
  */

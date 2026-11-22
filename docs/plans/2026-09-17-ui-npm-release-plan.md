@@ -754,6 +754,6 @@ PR
 ---
 
 ### Out of scope (do not do in this plan)
-- Migrating `holzi` or the monorepo apps to the npm package.
+- Migrating `haex-vault` or the monorepo apps to the npm package.
 - Automating the version bump in `scripts/release.js`.
 - Any change under `apps/**` except the one-line rename in `haex-pass-browser/package.json`.

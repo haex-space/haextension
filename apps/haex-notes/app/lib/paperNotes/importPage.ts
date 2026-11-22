@@ -9,7 +9,7 @@ import { toBase64 } from "./workingCopy";
 
 /**
  * Eine Seite aus einem Foto (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md): Original und Arbeitskopie werden Assets, die
- * Arbeitskopie wird über holzi gelesen, und aus dem Ergebnis entstehen die Ebenen der Seite. Das Original
+ * Arbeitskopie wird über haex-vault gelesen, und aus dem Ergebnis entstehen die Ebenen der Seite. Das Original
  * hängt als Anhang an der Seite (FR-022). Jeder Fehler und ein Abbruch ergeben eine Seite, auf der das
  * Foto sichtbar steht (FR-025), damit man von Hand weiterarbeiten kann.
  */

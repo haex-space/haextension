@@ -1,6 +1,6 @@
 # Research: haex-doom
 
-Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen, and what else was considered. Repository references to the vault host use the host repository `haex-space/haex-vault` (its source still carries the working name "holzi"; spec 054 there renames it); the commit those references were read at is noted under R-0.
+Phase 0 of [plan.md](plan.md). Each entry gives the decision, why it was chosen, and what else was considered. Repository references to the vault host use the host repository `haex-space/haex-vault`; the commit those references were read at is noted under R-0.
 
 ## R-0 Which repository is the vault host
 

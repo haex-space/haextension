@@ -172,7 +172,7 @@ export interface PageBackground {
   overlay?: ImageOverlay | PdfOverlay;
 }
 
-/** Wo ein Modell gelesen hat, aus Sicht des Geräts (holzi Spec 055). */
+/** Wo ein Modell gelesen hat, aus Sicht des Geräts (haex-vault Spec 055). */
 export type RecognitionPlace = "this_device" | "network" | "cloud";
 
 /** Warum eine Erkennung nichts geliefert hat. */
@@ -184,7 +184,7 @@ export type RecognitionError =
   | "unavailable"
   | "processing_failed";
 
-/** Stand und Herkunft der Erkennung eines importierten Fotos. Adresse und Schlüssel des Modells kennt nur holzi. */
+/** Stand und Herkunft der Erkennung eines importierten Fotos. Adresse und Schlüssel des Modells kennt nur haex-vault. */
 export interface PaperNoteProcessing {
   state: "manual" | "processing" | "ready" | "failed";
   /** Name des Modells, das die Seite gelesen hat. */
@@ -220,7 +220,7 @@ export interface PaperNoteCloseUp {
 }
 
 /**
- * Eine Datei, die an einer Seite hängt (holzi Spec 046, FR-022). Das Original eines importierten
+ * Eine Datei, die an einer Seite hängt (haex-vault Spec 046, FR-022). Das Original eines importierten
  * Fotos ist der Anhang der Art `original`: unverändert, ungedreht und gegen Entfernen geschützt.
  * Anhänge liegen nicht auf der Seite und sind keine Ebene.
  */
@@ -235,7 +235,7 @@ export interface PageAttachment {
   addedAt: string;
 }
 
-/** Herkunft einer Seite, die aus einem Foto entstand (holzi Spec 046). */
+/** Herkunft einer Seite, die aus einem Foto entstand (haex-vault Spec 046). */
 export interface PaperNoteImport {
   version: number;
   originalAssetId: string;

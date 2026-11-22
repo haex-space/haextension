@@ -1,4 +1,4 @@
-// Wire contract of the vault's password methods, as served by holzi's
+// Wire contract of the vault's password methods, as served by haex-vault's
 // external bridge (spec 049). Carried over from the archived haex-pass app's
 // `app/api/external.ts`, which defined it first.
 

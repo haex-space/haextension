@@ -30,7 +30,7 @@ const sourcesOf = (elements: PageElement[]): RenderSource[] =>
 /**
  * Exportiert die geöffnete Seite als PDF (US4 in haex-space/haex-vault@d91e91721e4aca4e926fb6c32152c79f317b2d52:specs/046-paper-notes-canvas/spec.md):
  * erst alle Bilder und Handschriften laden, dann die Seite so rastern, wie der Canvas sie zeigt,
- * und die PDF über den Speichern-Dialog von holzi ablegen.
+ * und die PDF über den Speichern-Dialog von haex-vault ablegen.
  */
 export function usePdfExport() {
   const assetStore = useAssetStore();

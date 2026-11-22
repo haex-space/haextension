@@ -1,5 +1,5 @@
 /**
- * Zoom und Verschieben eines Bildes im Betrachter für Anhänge (holzi Spec 046, FR-023). Ein `View` ist
+ * Zoom und Verschieben eines Bildes im Betrachter für Anhänge (haex-vault Spec 046, FR-023). Ein `View` ist
  * die Abbildung vom Bild auf den Betrachter: Punkt im Betrachter = Bildpunkt * scale + (x, y).
  */
 

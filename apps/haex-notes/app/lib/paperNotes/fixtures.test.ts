@@ -7,7 +7,7 @@ import manifest from "./fixtures/manifest.json";
 
 const page = { width: 794, height: 1123 };
 
-/** What holzi would answer for a recorded run. */
+/** What haex-vault would answer for a recorded run. */
 const completionOf = (read: unknown, fix: unknown): ModelJobCompletion => ({
   jobId: "fixture",
   status: "completed",

@@ -1,7 +1,7 @@
 // Loaded into the mail body iframe (which runs with `allow-scripts` but stays
 // an opaque origin). It is a file rather than an inline script because the
 // iframe inherits the host's Content-Security-Policy, which only allows
-// scripts from the extension's own URL (holzi rejects unknown inline scripts).
+// scripts from the extension's own URL (haex-vault rejects unknown inline scripts).
 //
 // Forwards link clicks to the host app so it can open them in the system
 // browser — the extension is itself nested in a sandbox without

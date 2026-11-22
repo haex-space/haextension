@@ -7,9 +7,9 @@ import { outcomeOf, type PageJobOutcome, type Rotation } from "~/lib/paperNotes/
 import { cropAsync, makeWorkingCopyAsync } from "~/lib/paperNotes/workingCopy";
 
 /**
- * Liest ein Foto über holzis Modelle (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und baut daraus eine Seite,
+ * Liest ein Foto über die Modelle von haex-vault (US1 in haex-space/haex-vault@74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/spec.md) und baut daraus eine Seite,
  * oder ein Nahfoto, das eine Stelle einer Seite ersetzt (FR-021 in haex-space/haex-vault@e4b28be9d22e8c0839f8652908b35b78e04c9c6e:specs/046-paper-notes-canvas/spec.md).
- * Der Schüler kann jederzeit abbrechen; holzi beendet den Auftrag dann als abgebrochen.
+ * Der Schüler kann jederzeit abbrechen; haex-vault beendet den Auftrag dann als abgebrochen.
  */
 export function usePaperNoteRecognition() {
   const haexVault = useHaexVaultStore();

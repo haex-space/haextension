@@ -1,6 +1,6 @@
-# Contract: host bridge (holzi) — what haex-mail needs
+# Contract: host bridge (haex-vault) — what haex-mail needs
 
-This is the contract the host (`haex-space/haex-vault`) must meet for FR-023 to FR-029 and that haex-mail and the SDK build on. It is checked against the host's current code at cc609e82dac86a7bc119db445197214052115ca4. The host writes its own spec and ADR from it; where the host's process finds a better shape, this file is changed first.
+This is the contract the host (`haex-space/haex-vault`) must meet for FR-023 to FR-029 and that haex-mail and the SDK build on. It is checked against the host's code at 76b6da6aff6d8cd81909bcd0c77ad9267c0227f8, which defines the reserved `haex_*` contact kinds. The host writes its own spec and ADR from it; where the host's process finds a better shape, this file is changed first.
 
 The existing methods `extension_contacts_list`, `_read`, `_search` and `_photo` do not change (FR-028).
 
@@ -40,7 +40,7 @@ Params:
 ```
 
 - Every `head` field and `head` itself may be absent. Unknown fields at any level are rejected (`Validation`), notably `groups`, `targets` and anything about a photo.
-- `kind` is one of `phone`, `email`, `address`, `website`, `im`, `sip`, `event`, `relation`, `custom`. The kinds `holzi_vault`, `holzi_nostr_relay`, `holzi_iroh` and any unknown kind are rejected.
+- `kind` is one of `phone`, `email`, `address`, `website`, `im`, `sip`, `event`, `relation`, `custom`. The kinds `haex_vault`, `haex_nostr_relay`, `haex_iroh` and any unknown kind are rejected.
 - `label` and `value` follow the host's own rules per kind (`kinds::validate`): labels from the host's set or `custom:<text>`; values of `address`, `im` and `event` are JSON objects as text.
 - The contact needs a name part, an organization, a phone or an e-mail value, else `Validation`.
 - Groups: if the grant's scope is `Groups(g…)`, the contact is created in those groups; for `All` and `AllExcept` it is created in none. A grant that cannot cover the new contact answers 1002.
@@ -83,7 +83,7 @@ Result: `{}`. Works for any calling extension and any permission.
 
 - Contacts permission: `readWrite` parses; `write` still does not; a manifest with both rows yields two rows; the test that said "a write never becomes a permission" is changed to say what is true now.
 - Create/update: no grant → 1004 naming `readWrite`; `denied` → 1002 without a question; `read` only → refused as for no write grant; `readWrite` → works.
-- Create/update: unknown fields, `holzi_*` kinds and unknown kinds refused; `targets` and `groups` unreachable for an extension.
+- Create/update: unknown fields, `haex_*` kinds and unknown kinds refused; `targets` and `groups` unreachable for an extension.
 - Group scope: create lands in the scope's groups; update of a contact outside the scope answers like a missing one; the read grant and the write grant can have different scopes.
 - Update: replace of an existing value changes only that row; a vanished value id answers `value_not_found` and writes nothing; removing the last identity is refused.
 - The 1004 for a write call is answered with the key `contacts:readWrite:<target>` so that the SDK's waiter, which keys on that triple, repeats the right call.

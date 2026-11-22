@@ -129,7 +129,7 @@ const parseSrcset = (
 // public/mail-bridge.js) is loaded from there instead of being inlined.
 // `crossorigin` is required: WebKitGTK refuses a no-cors load of the
 // extension's custom scheme from the iframe's opaque origin ("Unsafe attempt
-// to load URL … from origin null"); in CORS mode holzi's
+// to load URL … from origin null"); in CORS mode haex-vault's
 // `Access-Control-Allow-Origin: *` lets it through, as for the app's own
 // module scripts.
 const appendLinkBridge = (doc: Document) => {

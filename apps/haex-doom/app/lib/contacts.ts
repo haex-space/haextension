@@ -1,7 +1,7 @@
 /** What haex-doom uses of `client.contacts` (the SDK's `ContactsAPI` fits it). */
 export interface ContactsSource {
   listAsync(options?: { offset?: number; limit?: number }): Promise<{ contacts: { id: string; displayName: string }[]; total: number }>;
-  readAsync(id: string): Promise<{ holziAddresses?: { devices: unknown[] } }>;
+  readAsync(id: string): Promise<object>;
 }
 
 export interface InvitableContact {
@@ -30,7 +30,11 @@ export async function listInvitableContacts(source: ContactsSource): Promise<Inv
     const batch = all.slice(start, start + READ_BATCH);
     const details = await Promise.all(batch.map((contact) => source.readAsync(contact.id).catch(() => null)));
     batch.forEach((contact, index) => {
-      const devices = details[index]?.holziAddresses?.devices;
+      const detail = details[index];
+      const addresses = detail && "haexAddresses" in detail ? detail.haexAddresses : undefined;
+      const devices = addresses && typeof addresses === "object" && "devices" in addresses
+        ? addresses.devices
+        : undefined;
       if (Array.isArray(devices) && devices.length > 0) {
         invitable.push({ id: contact.id, displayName: contact.displayName });
       }

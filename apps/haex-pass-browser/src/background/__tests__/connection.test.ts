@@ -127,7 +127,7 @@ async function handshaken(): Promise<{ socket: FakeWebSocket, handshake: { versi
   return { socket, handshake: JSON.parse(socket.sent[0]) }
 }
 
-/** A challenge as holzi seals it: to `recipient`, the client's public key from the handshake. */
+/** A challenge as haex-vault seals it: to `recipient`, the client's public key from the handshake. */
 async function challengeFor(recipient: string, server: CryptoKeyPair, challenge: string) {
   const sealed = await createEncryptedMessage('challenge', { challenge }, '', await importPublicKey(recipient))
   return {
@@ -139,7 +139,7 @@ async function challengeFor(recipient: string, server: CryptoKeyPair, challenge:
   }
 }
 
-describe('protocol 3 (holzi 049 FR-048)', () => {
+describe('protocol 3 (haex-vault 049 FR-048)', () => {
   it('sends a handshake for protocol 3', async () => {
     const { handshake } = await handshaken()
 
