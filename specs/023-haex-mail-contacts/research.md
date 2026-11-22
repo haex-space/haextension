@@ -1,9 +1,9 @@
 # Research: haex-mail — contacts from the address book
 
-Facts checked on 2026-11-12 against these revisions:
+Facts for haextension and vault-sdk checked on 2026-11-12; host facts checked on 2026-11-22 against these revisions:
 
 - haextension `main` at d07e181 (apps/haex-mail as it is).
-- `haex-space/haex-vault` at cc609e82dac86a7bc119db445197214052115ca4 — the host. Paths below are relative to that repository.
+- `haex-space/haex-vault` at 76b6da6aff6d8cd81909bcd0c77ad9267c0227f8 — the host, including the `haex_*` contact kinds. Paths below are relative to that repository.
 - `haex-space/vault-sdk` at 1af55e9d95858db14603b984394e1235c145de93, released as 5.5.0. Paths below are relative to that repository.
 
 ## R-1: Three parts, three repositories

@@ -1,6 +1,6 @@
 # Contract: host bridge (haex-vault) — what haex-mail needs
 
-This is the contract the host (`haex-space/haex-vault`) must meet for FR-023 to FR-029 and that haex-mail and the SDK build on. It is checked against the host's current code at cc609e82dac86a7bc119db445197214052115ca4. The host writes its own spec and ADR from it; where the host's process finds a better shape, this file is changed first.
+This is the contract the host (`haex-space/haex-vault`) must meet for FR-023 to FR-029 and that haex-mail and the SDK build on. It is checked against the host's code at 76b6da6aff6d8cd81909bcd0c77ad9267c0227f8, which defines the reserved `haex_*` contact kinds. The host writes its own spec and ADR from it; where the host's process finds a better shape, this file is changed first.
 
 The existing methods `extension_contacts_list`, `_read`, `_search` and `_photo` do not change (FR-028).
 
