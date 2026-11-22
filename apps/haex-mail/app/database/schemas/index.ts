@@ -157,7 +157,7 @@ export type SelectPendingMove = typeof pendingMoves.$inferSelect;
 
 /**
  * Mail rules (spec 019): when a new INBOX message meets all conditions, the actions run. Rules
- * belong to the vault, not to a device (ADR-0001 of holzi): they sync like accounts.
+ * belong to the vault, not to a device (ADR-0001 of haex-vault): they sync like accounts.
  */
 export const rules = sqliteTable(tableName("rules"), {
   id: text().primaryKey(),

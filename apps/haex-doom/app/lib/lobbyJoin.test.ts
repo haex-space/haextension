@@ -225,7 +225,7 @@ describe("contacts", () => {
       displayName: () => "host",
       contacts: {
         listAsync: async () => ({ contacts: [withDevice, without], total: 2 }),
-        readAsync: async (id) => ({ holziAddresses: id === "1" ? { devices: [{}] } : { devices: [] } }),
+        readAsync: async (id) => ({ haexAddresses: id === "1" ? { devices: [{}] } : { devices: [] } }),
       },
     });
     await lobby.loadContacts();
@@ -259,8 +259,8 @@ describe("contacts", () => {
       contacts: {
         listAsync: async () => ({ contacts: [valid, malformed], total: 2 }),
         readAsync: async (id) => id === valid.id
-          ? { holziAddresses: { devices: [{}] } }
-          : { holziAddresses: { devices: null as unknown as unknown[] } },
+          ? { haexAddresses: { devices: [{}] } }
+          : { haexAddresses: { devices: null as unknown as unknown[] } },
       },
     });
 

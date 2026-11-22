@@ -1,7 +1,7 @@
 import { clampFraction, SPLIT } from "~/lib/splitPane";
 
 /**
- * Welcher Anhang der geöffneten Seite gerade zu sehen ist und wie (holzi Spec 046, FR-023): neben der
+ * Welcher Anhang der geöffneten Seite gerade zu sehen ist und wie (haex-vault Spec 046, FR-023): neben der
  * Seite oder im Vollbild, in dem nur der Anhang zu sehen ist.
  */
 export type ViewerMode = "side" | "full";

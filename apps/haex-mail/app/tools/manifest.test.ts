@@ -42,7 +42,7 @@ const handlers = createTools(async () => {
   throw new Error("no stores in this test");
 });
 
-/** The subset of JSON Schema holzi offers a model (`schema_in_subset`): nothing else is allowed. */
+/** The subset of JSON Schema haex-vault offers a model (`schema_in_subset`): nothing else is allowed. */
 const KEYWORDS = new Set(["type", "description", "properties", "required", "items", "enum"]);
 const inSubset = (schema: Schema): boolean =>
   Object.keys(schema).every((k) => KEYWORDS.has(k)) &&

@@ -133,7 +133,7 @@ async function onFileAsync(event: Event) {
   }
 }
 
-/** Modelle und Aufwand wählt der Nutzer in holzi; dieser Weg führt auf die Seite dieser Erweiterung. */
+/** Modelle und Aufwand wählt der Nutzer in haex-vault; dieser Weg führt auf die Seite dieser Erweiterung. */
 async function openModelSettingsAsync() {
   try {
     await haexVault.client.models.openSettingsAsync();
@@ -214,8 +214,8 @@ async function readAsync() {
 <i18n lang="yaml">
 de:
   title: Foto importieren
-  models: Modelle in holzi festlegen
-  description: Fotografiere eine Mitschrift, ein Tafelbild oder ein Arbeitsblatt. holzi liest es mit dem Modell, das du dort freigegeben hast.
+  models: Modelle in HaexVault festlegen
+  description: Fotografiere eine Mitschrift, ein Tafelbild oder ein Arbeitsblatt. HaexVault liest es mit dem Modell, das du dort freigegeben hast.
   takePhoto: Foto aufnehmen
   chooseFile: Datei wählen
   preview: Vorschau des Fotos
@@ -238,7 +238,7 @@ de:
     blurry: Das Foto wirkt unscharf.
     retake: Ein neues Foto wird besser gelesen.
   error:
-    no_capable_model: Die Seite enthält nur das Foto, weil holzi kein Modell kennt, das Bilder annimmt. Richte in holzi unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
+    no_capable_model: Die Seite enthält nur das Foto, weil HaexVault kein Modell kennt, das Bilder annimmt. Richte in HaexVault unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
     consent_denied: Die Seite enthält nur das Foto, weil die Übertragung abgelehnt wurde.
     unusable: Auf dem Foto wurde nichts Brauchbares erkannt. Die Seite enthält nur das Foto; ein neues Foto hilft oft.
     timeout: Das Lesen hat zu lange gedauert. Die Seite enthält nur das Foto.
@@ -248,9 +248,9 @@ de:
     title: Stelle neu fotografieren
     reading: Die Stelle wird gelesen …
     pageChanged: Inzwischen ist eine andere Seite offen. Die Stelle bleibt, wie sie war; öffne die Seite und lies sie erneut.
-    description: Fotografiere nur die Stelle aus der Nähe. Was holzi darauf liest, ersetzt den Entwurf im Rechteck; Rückgängig holt ihn zurück.
+    description: Fotografiere nur die Stelle aus der Nähe. Was HaexVault darauf liest, ersetzt den Entwurf im Rechteck; Rückgängig holt ihn zurück.
     error:
-      no_capable_model: Die Stelle bleibt, wie sie war, weil holzi kein Modell kennt, das Bilder annimmt. Richte in holzi unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
+      no_capable_model: Die Stelle bleibt, wie sie war, weil HaexVault kein Modell kennt, das Bilder annimmt. Richte in HaexVault unter Einstellungen → KI eines ein; bei einem Modell-Server wählst du beim Modell „Nimmt Bilder an“.
       consent_denied: Die Stelle bleibt, wie sie war, weil die Übertragung abgelehnt wurde.
       unusable: Auf dem Nahfoto wurde nichts Brauchbares erkannt. Die Stelle bleibt, wie sie war.
       timeout: Das Lesen hat zu lange gedauert. Die Stelle bleibt, wie sie war.
@@ -258,8 +258,8 @@ de:
       processing_failed: Die Verarbeitung ist fehlgeschlagen. Die Stelle bleibt, wie sie war.
 en:
   title: Import a photo
-  models: Choose models in holzi
-  description: Take a photo of notes, a blackboard or a worksheet. holzi reads it with the model you allowed there.
+  models: Choose models in HaexVault
+  description: Take a photo of notes, a blackboard or a worksheet. HaexVault reads it with the model you allowed there.
   takePhoto: Take a photo
   chooseFile: Choose a file
   preview: Preview of the photo
@@ -282,7 +282,7 @@ en:
     blurry: The photo looks blurred.
     retake: A new photo is read better.
   error:
-    no_capable_model: The page holds only the photo because holzi knows no model that takes images. Set one up in holzi under Settings → AI; on a model server, choose “Takes images” for the model.
+    no_capable_model: The page holds only the photo because HaexVault knows no model that takes images. Set one up in HaexVault under Settings → AI; on a model server, choose “Takes images” for the model.
     consent_denied: The page holds only the photo because sending it was refused.
     unusable: Nothing usable was found on the photo. The page holds only the photo; a new photo often helps.
     timeout: Reading took too long. The page holds only the photo.
@@ -292,9 +292,9 @@ en:
     title: Photograph this area again
     reading: Reading the area …
     pageChanged: Another page is open now. The area stays as it was; open the page and read it again.
-    description: Take a close photo of just this area. What holzi reads replaces the draft inside the rectangle; Undo brings it back.
+    description: Take a close photo of just this area. What HaexVault reads replaces the draft inside the rectangle; Undo brings it back.
     error:
-      no_capable_model: The area stays as it was because holzi knows no model that takes images. Set one up in holzi under Settings → AI; on a model server, choose “Takes images” for the model.
+      no_capable_model: The area stays as it was because HaexVault knows no model that takes images. Set one up in HaexVault under Settings → AI; on a model server, choose “Takes images” for the model.
       consent_denied: The area stays as it was because sending was refused.
       unusable: Nothing usable was found on the close-up. The area stays as it was.
       timeout: Reading took too long. The area stays as it was.

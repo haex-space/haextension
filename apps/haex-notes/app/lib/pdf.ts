@@ -1,5 +1,5 @@
 /**
- * PDF-Anhänge im Betrachter (holzi Spec 046, FR-023): pdf.js liest die Datei, und jede Seite wird zu einem Bild,
+ * PDF-Anhänge im Betrachter (haex-vault Spec 046, FR-023): pdf.js liest die Datei, und jede Seite wird zu einem Bild,
  * das der Betrachter wie ein Foto zoomt und verschiebt. pdf.js ist groß und wird erst geladen, wenn ein PDF
  * geöffnet wird.
  */

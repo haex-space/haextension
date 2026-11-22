@@ -10,7 +10,7 @@ haex-mail offers the contacts of the host's address book in two places: as **sug
 
 The work lies in three repositories, delivered in this order ([research.md](research.md) R-1):
 
-1. **Host (`haex-space/haex-vault`, the app called holzi)**: `readWrite` becomes a valid action of the `contacts` permission (reversing a recorded decision, with an ADR), two bridge methods to create and change a contact with a deliberately smaller input than the service takes, a distinct answer for a value that is gone, and one generic call that opens an extension's own permission settings ([contracts/host-bridge.md](contracts/host-bridge.md)). The service already checks `ReadWrite` for every caller; only the way in is new.
+1. **Host (`haex-space/haex-vault`)**: `readWrite` becomes a valid action of the `contacts` permission (reversing a recorded decision, with an ADR), two bridge methods to create and change a contact with a deliberately smaller input than the service takes, a distinct answer for a value that is gone, and one generic call that opens an extension's own permission settings ([contracts/host-bridge.md](contracts/host-bridge.md)). The service already checks `ReadWrite` for every caller; only the way in is new.
 2. **SDK (`haex-space/vault-sdk`)**: `ContactsAPI.createAsync` and `updateAsync`, `PermissionsAPI.openSettingsAsync`, types, tests, README, released as 5.6.0 ([contracts/sdk-api.md](contracts/sdk-api.md)).
 3. **haex-mail (this repository, `apps/haex-mail`)**: the logic in pure modules with tests, one store, five components, the manifest ([contracts/mail-modules.md](contracts/mail-modules.md)).
 

@@ -182,7 +182,7 @@ const getTestResultClass = (backendId: string): string => {
   return "";
 };
 
-/** Why the last test of `backendId` failed; nothing when it passed or was cancelled in holzi. */
+/** Why the last test of `backendId` failed; nothing when it passed or was cancelled in haex-vault. */
 const testFailure = (backendId: string): string | null => {
   const result = testResult.value;
   if (!result || result.backendId !== backendId || result.success) return null;
@@ -192,7 +192,7 @@ const testFailure = (backendId: string): string | null => {
     : result.error ?? null;
 };
 
-/** holzi asks the user to confirm the removal and names other extensions that lose the storage. */
+/** haex-vault asks the user to confirm the removal and names other extensions that lose the storage. */
 const removeBackendAsync = async (backend: StorageBackendInfo) => {
   failure.value = null;
   try {
@@ -209,7 +209,7 @@ de:
   title: Einstellungen
   backends:
     title: Speicher
-    description: Speicher, die holzi dieser Erweiterung freigegeben hat. Zugangsdaten verwaltet holzi.
+    description: Speicher, die HaexVault dieser Erweiterung freigegeben hat. Zugangsdaten verwaltet HaexVault.
     add: Speicher hinzufügen
     edit: Bearbeiten
     test: Verbindung testen
@@ -224,7 +224,7 @@ en:
   title: Settings
   backends:
     title: Storages
-    description: Storages holzi shares with this extension. holzi keeps the credentials.
+    description: Storages HaexVault shares with this extension. HaexVault keeps the credentials.
     add: Add storage
     edit: Edit
     test: Test connection

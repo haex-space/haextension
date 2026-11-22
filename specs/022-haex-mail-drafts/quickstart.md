@@ -2,7 +2,7 @@
 
 The pure modules and the store are covered by tests; these scenarios check what a test over an in-memory backend cannot: the dialog, the real IMAP server and the host. Each names the success criterion and requirement it covers. Use a test account on a server with UIDPLUS, and a second mail program (or webmail) on the same account.
 
-Prerequisite: haex-space/haextension#165 is merged and haex-mail is installed in a holzi build with the opener (spec 063).
+Prerequisite: haex-space/haextension#165 is merged and haex-mail is installed in a haex-vault build with the opener (spec 063).
 
 1. **Nothing typed is lost (US1, SC-001, FR-001)**: open the compose dialog, type a recipient, a subject and three paragraphs, wait two seconds, then kill the haex-mail frame (close the tab from the task list without the dialog's close button, or end the app). Open haex-mail again: the drafts view lists the mail with its subject and the time of the last change; opening it shows all text.
 2. **No draft without content (FR-002)**: open the dialog and close it without typing: the drafts view has no new entry. Type a word, delete it, close: still none.

@@ -3,7 +3,7 @@
 Facts checked on 2026-11-12 against these revisions:
 
 - haextension `main` at d07e181 (apps/haex-mail as it is).
-- `haex-space/haex-vault` at cc609e82dac86a7bc119db445197214052115ca4 — the host (holzi). Paths below are relative to that repository.
+- `haex-space/haex-vault` at cc609e82dac86a7bc119db445197214052115ca4 — the host. Paths below are relative to that repository.
 - `haex-space/vault-sdk` at 1af55e9d95858db14603b984394e1235c145de93, released as 5.5.0. Paths below are relative to that repository.
 
 ## R-1: Three parts, three repositories
@@ -48,7 +48,7 @@ Facts checked on 2026-11-12 against these revisions:
 - **Decision**: The bridge parses its own, smaller types and rejects unknown fields:
   - `extension_contacts_create` takes `head` (the ten head fields) and `values` (`kind`, `label`, `value`). No `groups`, no `targets`, no photo.
   - `extension_contacts_update` takes `id` and `values {upsert, remove}`. No head fields, no groups.
-  - Kinds the host keeps for itself are refused for an extension: the three `holzi_*` kinds (they come from a Visitenkarte). The nine others may be written.
+  - Kinds the host keeps for itself are refused for an extension: the three `haex_*` kinds (they come from a Visitenkarte). The nine others may be written.
   - **Group scope**: when the grant covers groups (`Scope::Groups`), the new contact is put into those groups by the host, because `authorize_create` refuses a contact that is not covered. For `All` and `AllExcept` the contact gets no group.
 - **Rationale**: FR-015, FR-025 and the spec's out-of-scope list say it; accepting only what is allowed is simpler to test than accepting everything and refusing parts. Head-field changes of an existing contact are not needed (the spec limits that form to e-mail addresses), so they are not built.
 - **ponytail**: Values-only `update` is the smallest thing that serves "add" and "replace". The ceiling is a later feature that edits more of an existing contact; the upgrade is to accept the head fields the service already takes.
@@ -66,12 +66,12 @@ Facts checked on 2026-11-12 against these revisions:
 - **Decision**: One `searchAsync(token, 200)` per pause in typing (150 ms; 200 is the host's maximum, so that filtering and ranking here, which drop phone-only hits, cannot starve the list of the contacts that do match by name or address, which a limit of 20 could), the newest query wins and an older answer is dropped. The answer is turned into suggestions here: one per (contact, address), contacts without an address dropped, names or addresses that **start with** the token before those that contain it, then by name, at most ten shown. `ponytail:` more than 200 hits for one token are not seen; the ceiling is accepted because the person keeps typing and the token narrows, and the upgrade is the `listAsync` sweep below. Nothing is cached between keystrokes and no list of all contacts is held, so a contact saved a moment ago is found at once (FR-006) and nothing outlives the dialog.
 - **Rationale**: The host already does the folding and the scope; a cache would need its own invalidation. `list` would move the whole address book into the frame for a feature that needs a handful of rows.
 - **Not verified** `[Guessing]`: that the host's search answers within 0.3 s with 5,000 contacts (SC-001). The quickstart measures it on a seeded address book. If it does not hold, the fallback is one `listAsync` sweep per compose dialog into memory (about 50 pages of 100) with the ranking done here; the pure ranking module is the same either way.
-- **Permission state**: a 1002 on the first search means read is off. The compose dialog keeps `readState = "off"` until it is opened again, so a refusal is not asked again per key (FR-022) but a change made in holzi is noticed with the next dialog (FR-021). The "ask" case is the SDK's wait (R-3): the first search stays pending while the host's dialog is open, typing goes on, and the answer for the newest token is applied if it is still current when it arrives. **One question only** (FR-022): while that first search is pending the store sends no further search (every later pause would otherwise be another request into the same open question); the newest token is searched once the first answer is in. `[Guessing]` whether the host or the SDK already folds concurrent requests into one dialog; the store does not rely on it.
+- **Permission state**: a 1002 on the first search means read is off. The compose dialog keeps `readState = "off"` until it is opened again, so a refusal is not asked again per key (FR-022) but a change made in haex-vault is noticed with the next dialog (FR-021). The "ask" case is the SDK's wait (R-3): the first search stays pending while the host's dialog is open, typing goes on, and the answer for the newest token is applied if it is still current when it arrives. **One question only** (FR-022): while that first search is pending the store sends no further search (every later pause would otherwise be another request into the same open question); the newest token is searched once the first answer is in. `[Guessing]` whether the host or the SDK already folds concurrent requests into one dialog; the store does not rely on it.
 
 ## R-9: Finding the contact of an address, and "already saved"
 
 - **Decision**: `searchAsync(address, 200)` (the host's maximum), then keep the hits whose `emails` hold the address **exactly, ignoring case**. The result per address is kept for the open message and dropped after any save, so the menu is not delayed on every open (FR-009, FR-013). The same comparison decides "already on this contact" when adding.
-- **Rationale**: The host searches by "contains", so a short address returns neighbours; the exact test belongs here. The limit applies to all hits, not only the exact ones, so it is the host's maximum: for a full address to be crowded out, 200 other contacts would have to hold addresses containing it. `ponytail:` if the answer is full (200 hits) and holds no exact match, the address is treated as not found; the lookup is a courtesy of FR-009 and a duplicate contact is harmless and removable in holzi.
+- **Rationale**: The host searches by "contains", so a short address returns neighbours; the exact test belongs here. The limit applies to all hits, not only the exact ones, so it is the host's maximum: for a full address to be crowded out, 200 other contacts would have to hold addresses containing it. `ponytail:` if the answer is full (200 hits) and holds no exact match, the address is treated as not found; the lookup is a courtesy of FR-009 and a duplicate contact is harmless and removable in haex-vault.
 
 ## R-10: The suggestion list is a popover over the existing input
 
@@ -129,4 +129,4 @@ No candidate was borderline in the sense of the rule: none was close enough to e
 
 - FR-008a: labels are the host's set or an own name (R-12). Assumption on the default label: `home`.
 - FR-014 / Story 3 scenarios 6 and 7: the two failures are told apart as R-4 and R-5 describe; the spec's wording stands, the plan says how.
-- Assumptions: "the host (holzi) part is specified in its own numbering" gets the ADR named.
+- Assumptions: "the host (haex-vault) part is specified in its own numbering" gets the ADR named.

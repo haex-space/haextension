@@ -1,5 +1,5 @@
 // stores/backends.ts
-// Storages belong to the host (holzi): it keeps the connections and their credentials, asks the
+// Storages belong to the host (haex-vault): it keeps the connections and their credentials, asks the
 // user to confirm every change in its own dialog and asks for credentials in its own window. This
 // extension only proposes storages and sees them by name, provider and bucket.
 
@@ -37,7 +37,7 @@ function providerFailureKind(error: unknown): string | undefined {
 }
 
 /**
- * Why a storage call failed: `cancelled` when the user cancelled or refused it in holzi (1002),
+ * Why a storage call failed: `cancelled` when the user cancelled or refused it in haex-vault (1002),
  * the provider's kind (2002, e.g. `accessDenied`, `network`, `bucketMissing`), else `other`.
  */
 export function storageFailure(error: unknown): { kind: string; message: string } {
@@ -83,7 +83,7 @@ export const useBackendsStore = defineStore("backends", () => {
   };
 
   /**
-   * Proposes a storage on a new connection. holzi confirms it with the user and asks for the
+   * Proposes a storage on a new connection. haex-vault confirms it with the user and asks for the
    * credentials in its own window; 1002 when the user cancels.
    */
   const addBackendAsync = async (
@@ -104,7 +104,7 @@ export const useBackendsStore = defineStore("backends", () => {
 
   /**
    * Proposes another bucket at the provider of `sameAs` (a storage this extension may read): no
-   * new credentials, holzi only asks to confirm.
+   * new credentials, haex-vault only asks to confirm.
    */
   const addOnSameProviderAsync = async (
     name: string,
@@ -125,7 +125,7 @@ export const useBackendsStore = defineStore("backends", () => {
   };
 
   /**
-   * Proposes a new name or bucket; holzi confirms it with the user and offers new credentials in
+   * Proposes a new name or bucket; haex-vault confirms it with the user and offers new credentials in
    * its own window.
    */
   const updateBackendAsync = async (

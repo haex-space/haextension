@@ -1,5 +1,5 @@
 /**
- * Die Teilung zwischen der Seite und dem Anhang daneben (holzi Spec 046, FR-023): Der Schüler zieht die Trennlinie.
+ * Die Teilung zwischen der Seite und dem Anhang daneben (haex-vault Spec 046, FR-023): Der Schüler zieht die Trennlinie.
  * Der Anteil ist der Teil der Breite, den der Anhang bekommt; er bleibt in Grenzen, damit weder die Seite noch
  * der Anhang verschwindet.
  */

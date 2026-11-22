@@ -25,7 +25,7 @@ import { createHandshakeRequest, createProofMessage, createRequestEnvelope } fro
 // and below most stateful firewalls' connection-track timeouts.
 const PING_INTERVAL_MS = 25000
 
-// Requests the vault may hold open while it asks the user: holzi shows a
+// Requests the vault may hold open while it asks the user: haex-vault shows a
 // presence confirmation for every passkey (it expires after 120 s, 049 FR-030)
 // and may ask for a wider grant before saving an entry (049 FR-015). The extra
 // seconds let a last-moment answer still arrive.
@@ -321,7 +321,7 @@ class VaultConnectionManager {
 
   /**
    * Protocol v3: proves that this client holds the private key of its id
-   * (holzi 049 FR-048). The challenge only opens with that key; the proof goes
+   * (haex-vault 049 FR-048). The challenge only opens with that key; the proof goes
    * back sealed to the vault's key. Without an answer the vault closes.
    */
   private async handleChallenge(challenge: ChallengeMessage): Promise<void> {

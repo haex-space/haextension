@@ -5,7 +5,7 @@ import { fieldKind, mapFields, isOtpField as ruleIsOtpField, showsIcon } from '@
 
 /**
  * Autofill of haex-pass. Which page field gets which entry field decides the one implementation
- * of the rule, the crate `haex-autofill` of the vault-sdk (its WebAssembly build, which holzi's
+ * of the rule, the crate `haex-autofill` of the vault-sdk (its WebAssembly build, which haex-vault's
  * agent browser uses natively): the entry's own aliases, the default aliases, the field kind and
  * the card fields (`autocomplete` `cc-*`). `initAutofill()` from the SDK must have finished first.
  */

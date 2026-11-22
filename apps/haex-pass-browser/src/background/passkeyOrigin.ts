@@ -26,7 +26,7 @@ function isSecureOrigin(url: URL): boolean {
  * host or a parent domain of it, and only in a secure context.
  *
  * ponytail: no public-suffix check, so an rpId like "co.uk" passes for a page
- * on example.co.uk. Browsers reject that themselves; the vault (holzi checks
+ * on example.co.uk. Browsers reject that themselves; the vault (haex-vault checks
  * the origin, 049 FR-032) is the layer that must not sign for it. Upgrade path:
  * bundle a public-suffix list if the extension ever signs on its own.
  */

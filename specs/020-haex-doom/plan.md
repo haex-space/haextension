@@ -145,7 +145,7 @@ Slices 2 and 9 are the largest; tasks will split them further into reviewable co
 | Risk | Mitigation |
 |---|---|
 | Audio stays muted on iOS WKWebView | Resume the AudioContext inside the start tap (R-14); verified first on iOS in slice 2. |
-| `crypto.subtle` unavailable on the `holzi-ext://` scheme | Checked in slice 5; fallback hash from an existing dependency (R-9). |
+| `crypto.subtle` unavailable on the `haex-ext://` scheme | Checked in slice 5; fallback hash from an existing dependency (R-9). |
 | Bridge latency/overhead per datagram too high | Measure in slice 11 against SC-010; batching upgrade path (R-13). |
 | Hole punching fails between two mobile networks | Relay fallback is automatic; SC-010 allows 150 ms round trip. |
 | A contact's card lists an outdated relay or endpoint (the host resolves addresses only from cards, `MemoryLookup`) | Invitation reports `unreachable` with a hint to exchange cards again; slice 9 tests dialing with the card's `iroh_relay`. |

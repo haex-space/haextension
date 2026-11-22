@@ -15,7 +15,7 @@ import { boxToRect, fontSizeFor, LINE_HEIGHT, tidy, type Fit, type Rect } from "
 /**
  * Vom Ende eines Auftrags „Seitenerkennung“ zu Elementen der Seite (haex-space/haex-vault@
  * 74263d8c6e8e23831e4a5016797c3db4987d8697:specs/046-paper-notes-canvas/contracts/page-job.md
- * §Abbildung und §Fehler). holzi hat das Format schon geprüft; hier wird
+ * §Abbildung und §Fehler). haex-vault hat das Format schon geprüft; hier wird
  * trotzdem defensiv gelesen, weil ein Format nicht alles festhält (etwa gleich lange Zeilen).
  */
 

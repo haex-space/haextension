@@ -9,7 +9,7 @@ describe("buildPageJob", () => {
       ["read", ["text", "image"]],
       ["fix", ["text"]],
     ]);
-    // Den Aufwand wählt der Nutzer je Modell in holzi; die Erweiterung nennt keinen (FR-006).
+    // Den Aufwand wählt der Nutzer je Modell in haex-vault; die Erweiterung nennt keinen (FR-006).
     expect(job.steps.every((step) => !("effort" in step))).toBe(true);
     expect(job.steps[0]!.input).toEqual({ images: [{ mimeType: "image/jpeg", data: "QUJD" }] });
     expect(job.steps[0]!.maxOutputTokens).toBe(8192);

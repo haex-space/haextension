@@ -10,12 +10,12 @@ changed by this plan; the first external consumer is `ifa-board`.
 `packages/haex-ui` is a Nuxt layer that is only reachable by path
 (`extends: ["../../packages/haex-ui"]`) or by giget
 (`extends: ["github:haex-space/haextension/packages/haex-ui#<sha>"]`, as
-`holzi` does). The giget route has two costs, both caused by the layer
+`haex-vault` does). The giget route has two costs, both caused by the layer
 landing in an unpredictable `node_modules/.c12/<hash>/` directory:
 
 - Tailwind v4 cannot `@import` the layer's `assets/css/theme.css`, so
   consumers copy the whole `@theme inline` + `:root` + `.dark` block
-  (~100 lines in `holzi/src/assets/css/tailwind.css`) and drift silently.
+  (~100 lines in `haex-vault/src/assets/css/tailwind.css`) and drift silently.
 - `@source` has to glob the entire `.c12` cache
   (`@source "../../../node_modules/.c12/**/*.vue"`), scanning every other
   git layer as well.
@@ -126,7 +126,7 @@ class) the light tokens apply.
 
 ## Migration of existing consumers
 
-- `holzi`: can switch from `github:…#sha` to `@haex-space/ui@<version>`,
+- `haex-vault`: can switch from `github:…#sha` to `@haex-space/ui@<version>`,
   delete the copied theme block and the `.c12` globs, and keep its own
   `--primary` override. Not part of this plan; recorded so the benefit is
   visible.

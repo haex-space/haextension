@@ -1,9 +1,9 @@
 import type { ModelJob, ModelJobFormat, ModelJobImage } from "@haex-space/vault-sdk";
 
 /**
- * Der Auftrag „Seitenerkennung“ an holzis Modelle (haex-space/haex-vault@
+ * Der Auftrag „Seitenerkennung“ an die Modelle von haex-vault (haex-space/haex-vault@
  * 345dc4156fe04a1a22a81134aa37f926a58bd7d2:specs/046-paper-notes-canvas/contracts/page-job.md):
- * erst die Seite in Regionen lesen, dann die gelesenen Texte korrigieren. holzi wählt das
+ * erst die Seite in Regionen lesen, dann die gelesenen Texte korrigieren. haex-vault wählt das
  * freigegebene Modell, fragt vor dem Versand außerhalb des Geräts und verwirft Ausgabe, die nicht
  * zum Format passt.
  */
@@ -110,7 +110,7 @@ export const TEXT_FIX_FORMAT: ModelJobFormat = {
   },
 };
 
-/** Der Auftrag für eine Arbeitskopie (JPEG, Base64). Den Aufwand wählt der Nutzer je Modell in holzi, nicht diese Erweiterung. */
+/** Der Auftrag für eine Arbeitskopie (JPEG, Base64). Den Aufwand wählt der Nutzer je Modell in haex-vault, nicht diese Erweiterung. */
 export function buildPageJob(workingCopyBase64: string): ModelJob {
   const image: ModelJobImage = { mimeType: "image/jpeg", data: workingCopyBase64 };
   return {

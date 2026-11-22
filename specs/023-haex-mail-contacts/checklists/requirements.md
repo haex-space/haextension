@@ -31,6 +31,6 @@
 
 ## Notes
 
-- The host (holzi) and SDK (vault-sdk) requirements (FR-023 to FR-029) are stated as behaviour the extension depends on, as the request asked; they name the host and SDK as parties but no commands, types or code.
+- The host (haex-vault) and SDK (vault-sdk) requirements (FR-023 to FR-029) are stated as behaviour the extension depends on, as the request asked; they name the host and SDK as parties but no commands, types or code.
 - The one open question (what a click does after an explicit denial) was settled in the clarification session: no new question, a note with a way to the permission settings (FR-020, FR-029).
-- The host part will need its own spec and plan in holzi's numbering; this spec is the contract it is tested against.
+- The host part will need its own spec and plan in haex-vault's numbering; this spec is the contract it is tested against.
