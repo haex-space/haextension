@@ -21,11 +21,14 @@ import type { UiIconButtonProps } from "../../../lib/iconButton";
  * crossed eye while it shows. `label` names the action while hidden ("Show password"),
  * `revealedLabel` while shown ("Hide"); without it `label` stays.
  */
-const props = defineProps<
-  UiIconButtonProps & {
-    /** Whether the value shows right now. */
-    revealed?: boolean;
-    revealedLabel?: string;
-  }
->();
+withDefaults(
+  defineProps<
+    UiIconButtonProps & {
+      /** Whether the value shows right now. */
+      revealed?: boolean;
+      revealedLabel?: string;
+    }
+  >(),
+  { revealed: false },
+);
 </script>
