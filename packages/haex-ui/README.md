@@ -83,6 +83,20 @@ no toast is needed), and the bin turns red on hover and keyboard focus.
 invisible and out of reach, so rows with and without a delete button line up. The texts are passed in
 by the app; the defaults are German.
 
+### Named icon buttons
+
+The recurring icon-only actions have a component each, so they look the same everywhere:
+`UiButtonClose`, `UiButtonBack`, `UiButtonEdit`, `UiButtonAdd`, `UiButtonOpenExternal`,
+`UiButtonMenu` (the trigger of a menu), `UiButtonInfo`, `UiButtonRefresh` and `UiButtonDownload`.
+All take a required `label` (screen readers and tooltip), `size` (`icon`, `icon-sm`, `icon-lg`),
+`variant` (default `ghost`), `loading`, `disabled` and `icon-class`; `class`, `data-testid` and
+`@click` pass through. An action without a component of its own uses `UiButtonIcon` with an `icon`.
+
+```vue
+<UiButtonBack label="Zurück" @click="router.back()" />
+<UiButtonClose label="Schließen" size="icon-sm" @click="emit('close')" />
+```
+
 ## Radio groups
 
 `ShadcnRadioGroup` holds the choices; arrow keys move between them. `ShadcnRadioGroupItem` is the
