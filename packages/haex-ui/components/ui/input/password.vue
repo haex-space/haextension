@@ -6,11 +6,10 @@
     v-bind="$attrs"
   >
     <template #append>
-      <UiButton
-        type="button"
-        :icon="showPassword ? EyeOff : Eye"
-        :tooltip="showPassword ? labels.hide : labels.show"
-        variant="ghost"
+      <UiButtonReveal
+        :revealed="showPassword"
+        :label="labels.show"
+        :revealed-label="labels.hide"
         class="shadow-none"
         @click.prevent="showPassword = !showPassword"
       />
@@ -21,8 +20,6 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from "@lucide/vue";
-
 // Attributes go to UiInput explicitly (v-bind="$attrs"); inheriting them as well would bind them twice
 defineOptions({ inheritAttrs: false });
 
