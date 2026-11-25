@@ -87,7 +87,8 @@ by the app; the defaults are German.
 
 The recurring icon-only actions have a component each, so they look the same everywhere:
 `UiButtonClose`, `UiButtonBack`, `UiButtonEdit`, `UiButtonAdd`, `UiButtonOpenExternal`,
-`UiButtonMenu` (the trigger of a menu), `UiButtonInfo`, `UiButtonRefresh` and `UiButtonDownload`.
+`UiButtonMenu` (the trigger of a menu), `UiButtonInfo`, `UiButtonRefresh`, `UiButtonDownload`, `UiButtonReveal` (the eye of a masked value), `UiButtonMoveUp`,
+`UiButtonMoveDown`, `UiButtonSave` and `UiButtonLink`.
 All take a required `label` (screen readers and tooltip), `size` (`icon`, `icon-sm`, `icon-lg`),
 `variant` (default `ghost`), `loading`, `disabled` and `icon-class`; `class`, `data-testid` and
 `@click` pass through. They take the primary colour on hover and keyboard focus; `hover` sets another

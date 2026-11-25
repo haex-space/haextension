@@ -46,12 +46,9 @@
         </ShadcnInputGroupAddon>
       </slot>
 
-      <UiButton
+      <UiButtonClose
         v-if="clearable && hasValue && !isLocked"
-        type="button"
-        :icon="X"
-        :tooltip="labels.clear"
-        variant="ghost"
+        :label="labels.clear"
         class="shadow-none"
         @click.prevent="clear"
       />
@@ -66,7 +63,6 @@
 
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { X } from "@lucide/vue";
 import {
   floatingLabelBase,
   floatingLabelColor,

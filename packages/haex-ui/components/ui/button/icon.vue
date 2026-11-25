@@ -10,7 +10,9 @@
     :tooltip="label"
     :loading="loading"
     :disabled="disabled"
-  />
+  >
+    <slot />
+  </UiButton>
 </template>
 
 <script setup lang="ts">
@@ -23,9 +25,10 @@ import type { UiIconButtonProps } from "../../../lib/iconButton";
  * takes the primary colour on hover and keyboard focus unless `hover` says another (the delete
  * button turns red).
  * The named ones (`UiButtonClose`, `UiButtonBack`, ...) are this with their icon; use this directly
- * only for an action that has no component of its own.
+ * only for an action that has no component of its own. The icon is a component (`icon`) or, for an
+ * Iconify icon or one that changes, the default slot.
  */
-withDefaults(defineProps<UiIconButtonProps & { icon: Component }>(), {
+withDefaults(defineProps<UiIconButtonProps & { icon?: Component }>(), {
   size: "icon",
   variant: "ghost",
   hover: "primary",
