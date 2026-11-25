@@ -3,8 +3,8 @@
     type="button"
     variant="ghost"
     size="icon"
-    class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive"
-    :class="{ invisible: placeholder }"
+    class="size-8 text-muted-foreground"
+    :class="[{ invisible: placeholder }, iconButtonHoverClass(hover)]"
     :icon="Trash2"
     :aria-label="placeholder ? undefined : label"
     :aria-hidden="placeholder ? 'true' : undefined"
@@ -18,6 +18,8 @@
 
 <script setup lang="ts">
 import { Trash2 } from "@lucide/vue";
+import { iconButtonHoverClass } from "../../../lib/iconButton";
+import type { UiIconButtonHover } from "../../../lib/iconButton";
 
 /**
  * The one way haex shows "delete this" next to an entry: a quiet bin icon that turns red on hover
@@ -26,11 +28,16 @@ import { Trash2 } from "@lucide/vue";
  * delete button line up; it is not disabled then, since a row that holds a disabled control looks
  * greyed out.
  */
-defineProps<{
-  label: string;
-  loading?: boolean;
-  disabled?: boolean;
-  placeholder?: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    label: string;
+    loading?: boolean;
+    disabled?: boolean;
+    placeholder?: boolean;
+    /** The hover colour; red unless the app says another. */
+    hover?: UiIconButtonHover;
+  }>(),
+  { hover: "destructive" },
+);
 const emit = defineEmits<{ click: [event: MouseEvent] }>();
 </script>

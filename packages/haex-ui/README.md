@@ -90,7 +90,9 @@ The recurring icon-only actions have a component each, so they look the same eve
 `UiButtonMenu` (the trigger of a menu), `UiButtonInfo`, `UiButtonRefresh` and `UiButtonDownload`.
 All take a required `label` (screen readers and tooltip), `size` (`icon`, `icon-sm`, `icon-lg`),
 `variant` (default `ghost`), `loading`, `disabled` and `icon-class`; `class`, `data-testid` and
-`@click` pass through. An action without a component of its own uses `UiButtonIcon` with an `icon`.
+`@click` pass through. They take the primary colour on hover and keyboard focus; `hover` sets another
+(`primary`, `destructive`, `success`, `warning` or `none` for the plain ghost hover). `UiButtonDelete`
+is `destructive` by default, `UiButtonCopy` and `UiButtonDownload` take `hover` too. An action without a component of its own uses `UiButtonIcon` with an `icon`.
 
 ```vue
 <UiButtonBack label="Zurück" @click="router.back()" />

@@ -7,7 +7,11 @@
     variant="ghost"
     :size="size"
     :disabled="disabled"
-    :class="copied ? 'text-success hover:text-success' : 'text-muted-foreground'"
+    :class="
+      copied
+        ? 'text-success hover:text-success'
+        : ['text-muted-foreground', iconButtonHoverClass(hover)]
+    "
     @click.prevent="handleCopy"
   />
 </template>
@@ -16,6 +20,8 @@
 import { onBeforeUnmount, ref, computed } from "vue";
 import { useClipboard } from "@vueuse/core";
 import { Check, Copy } from "@lucide/vue";
+import { iconButtonHoverClass } from "../../../lib/iconButton";
+import type { UiIconButtonHover } from "../../../lib/iconButton";
 
 export type UiButtonCopyLabels = {
   copy: string;
@@ -38,11 +44,14 @@ const props = withDefaults(
     external?: boolean;
     size?: "icon" | "icon-sm";
     disabled?: boolean;
+    /** The hover colour before the copy happened. */
+    hover?: UiIconButtonHover;
   }>(),
   {
     value: undefined,
     labels: () => ({ copy: "Kopieren", copied: "Kopiert!" }),
     size: "icon",
+    hover: "primary",
   },
 );
 
