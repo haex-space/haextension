@@ -4,7 +4,7 @@
     variant="ghost"
     size="icon"
     :icon="Download"
-    class="size-8 text-muted-foreground"
+    class="size-8"
     :class="iconButtonHoverClass(hover)"
     :aria-label="label"
     :tooltip="label"
@@ -19,7 +19,7 @@ import { iconButtonHoverClass } from "../../../lib/iconButton";
 import type { UiIconButtonHover } from "../../../lib/iconButton";
 
 /**
- * "Download this" next to an entry that is not on this device yet: a quiet download icon that takes
+ * "Download this" next to an entry that is not on this device yet: a download icon, plain like the other icon buttons, that takes
  * the primary colour on hover and keyboard focus, the counterpart of `UiButtonDelete` once the
  * entry is here. `label` names what is downloaded, for screen readers and the tooltip.
  */

@@ -3,7 +3,7 @@
     type="button"
     variant="ghost"
     size="icon"
-    class="size-8 text-muted-foreground"
+    class="size-8"
     :class="[{ invisible: placeholder }, iconButtonHoverClass(hover)]"
     :icon="Trash2"
     :aria-label="placeholder ? undefined : label"
@@ -22,7 +22,7 @@ import { iconButtonHoverClass } from "../../../lib/iconButton";
 import type { UiIconButtonHover } from "../../../lib/iconButton";
 
 /**
- * The one way haex shows "delete this" next to an entry: a quiet bin icon that turns red on hover
+ * The one way haex shows "delete this" next to an entry: a bin icon, plain like the other icon buttons, that turns red on hover
  * and keyboard focus. `label` names what goes, for screen readers and the tooltip. With
  * `placeholder` it keeps its place but stays invisible and out of reach, so rows with and without a
  * delete button line up; it is not disabled then, since a row that holds a disabled control looks

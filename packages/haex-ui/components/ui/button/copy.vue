@@ -10,7 +10,7 @@
     :class="
       copied
         ? 'text-success hover:text-success'
-        : ['text-muted-foreground', iconButtonHoverClass(hover)]
+        : iconButtonHoverClass(hover)
     "
     @click.prevent="handleCopy"
   />

@@ -69,7 +69,7 @@ passed in by the app; the defaults are German.
 ## Copy and delete buttons
 
 `UiButtonCopy` and `UiButtonDelete` are the one look of "copy this" and "delete this" as icon buttons.
-Both are quiet at rest; the copy icon turns into a green check for a moment once the copy happened (so
+Both have the plain colour of the other icon buttons; the copy icon turns into a green check for a moment once the copy happened (so
 no toast is needed), and the bin turns red on hover and keyboard focus.
 
 ```vue
